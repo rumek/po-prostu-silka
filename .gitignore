@@ -489,3 +489,6 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# fetched publish profile — credential material, never commit
+publish-profile.xml

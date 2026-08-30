@@ -1,7 +1,7 @@
 ---
 project: po-prostu-silka
 platform: Azure App Service (Linux, B1)
-status: blocked
+status: deploying
 last_updated: 2026-08-30
 ---
 
@@ -13,9 +13,11 @@ The audit trail for the first deployment of po-prostu-silka, executed from the a
 
 Deploy the ASP.NET Core API and the Angular SPA (as a static bundle served from the API's `wwwroot`) to a single Azure App Service (Linux, B1). Azure SQL Database is deliberately **not** provisioned in this deployment — there is no EF Core/connection string in the app yet, so a database would sit unused. It's planned for the deploy that introduces Identity/EF Core.
 
-## Status: blocked on Azure subscription permissions
+## Status: Azure resources live, first deploy in progress
 
-Steps A and B below are done and pushed. Step C (Azure resource creation) is blocked — see "Current blocker".
+Steps A–D are done. Step E (live verification) is running via this commit's push-triggered workflow.
+
+**Note on the blocker below**: it did get resolved, but not the way either listed option assumed. The `kr@anbast.com` / BizSpark login was abandoned; the user instead logged into a different personal account (`rumianowski@hotmail.com`) via `az login`, which initially showed zero subscriptions (`az account list --all`) until `az account list --refresh` surfaced one ("Subskrypcja platformy Azure 1", `1b1298d8-ca6a-4a57-a189-192ff31fbd3a`) that the CLI's cache hadn't picked up yet. Worth remembering: a subscription that exists but doesn't show up in `az account list` may just need `--refresh`, not necessarily a portal-side fix.
 
 ### A. App made deployable — DONE
 
@@ -32,36 +34,32 @@ Steps A and B below are done and pushed. Step C (Azure resource creation) is blo
 - Local branch renamed `master` → `main` to match the deploy workflow's trigger branch and `infrastructure.md`'s "merges to main deploy" operational story.
 - Remote `origin` added, initial commit made (includes the fixes above plus this session's skill/context files), pushed to `origin/main`.
 
-### C. Azure resources — BLOCKED
+### C. Azure resources — DONE
 
-Planned commands (not yet run for `create`/`config` — `list-runtimes` succeeded):
+Subscription: **"Subskrypcja platformy Azure 1"** (`1b1298d8-ca6a-4a57-a189-192ff31fbd3a`), account `rumianowski@hotmail.com` — not the BizSpark subscription originally checked (see the note above).
 
 ```
-az webapp list-runtimes --os-type linux   # ✅ ran — confirmed "DOTNETCORE:10.0" is available
-az group create -n pps-rg -l polandcentral                        # ❌ blocked, see below
-az appservice plan create -n pps-plan -g pps-rg --sku B1 --is-linux
-az webapp create -n po-prostu-silka -g pps-rg -p pps-plan --runtime "DOTNETCORE:10.0"
-az webapp config set -n po-prostu-silka -g pps-rg --always-on true
-az webapp update -n po-prostu-silka -g pps-rg --https-only true
+az webapp list-runtimes --os-type linux              # confirmed "DOTNETCORE:10.0" is available
+az group create -n pps-rg -l polandcentral            # ✅ created
+az appservice plan create -n pps-plan -g pps-rg --sku B1 --is-linux   # ✅ created
+az webapp create -n po-prostu-silka -g pps-rg -p pps-plan --runtime "DOTNETCORE:10.0"   # ✅ created, po-prostu-silka.azurewebsites.net
+az webapp config set -n po-prostu-silka -g pps-rg --always-on true    # ✅ confirmed AlwaysOn=True
+az webapp update -n po-prostu-silka -g pps-rg --https-only true       # ✅ confirmed HttpsOnly=True
 ```
 
-**Current blocker**: the Azure CLI session is logged in as `kr@anbast.com` against the **BizSpark** subscription (`d11bb64e-e45c-4c99-afd5-9629cb3ce6b8`, tenant `8e016995-c626-446c-9c57-c8369deb82d2`) — the only subscription visible to this account (`az account list` shows just the one). `az group create` fails with `AuthorizationFailed`: this identity has no `Microsoft.Resources/subscriptions/resourcegroups/write` permission on it.
+Note: `az appservice plan create` reported a `FreeOfferExpirationTime` of **2026-09-29** — the B1 plan appears to be running under a trial credit for its first ~30 days. Worth checking the Azure portal billing view before that date to understand what happens after (likely reverts to normal B1 billing, ~$13/mo, but verify rather than assume).
 
-**To unblock, one of**:
-1. Get the `kr@anbast.com` identity granted a role with resource-group write access (e.g. Contributor) on the BizSpark subscription, scoped to a new resource group if the subscription owner prefers to limit blast radius, or
-2. `az login` with a different account/subscription that does have write access (a personal Azure subscription, a free-tier subscription, etc.) and re-run from step C.
+### D. CI/CD — DONE
 
-Nothing else in this plan can proceed until one of these happens — steps D (CI/CD secret + workflow trigger), E (live verification), and the rest of C all depend on the web app existing.
-
-### D. CI/CD — partially done
-
-- `.github/workflows/deploy.yml` is written and pushed — triggers on push to `main`, builds Angular static, stages it into `wwwroot`, runs `dotnet publish`, deploys via `azure/webapps-deploy@v3` using an `AZURE_WEBAPP_PUBLISH_PROFILE` secret.
-- **Not yet done**: the secret itself. This needs the web app to exist first (`az webapp deployment list-publishing-profiles --xml`), then the user pastes it into the repo's `Settings → Secrets and variables → Actions`. Blocked by C.
+- `.github/workflows/deploy.yml` — triggers on push to `main` (and manually via `workflow_dispatch`), builds Angular static, stages it into `wwwroot`, runs `dotnet publish`, deploys via `azure/webapps-deploy@v3` using the `AZURE_WEBAPP_PUBLISH_PROFILE` secret.
+- Publish profile fetched via `az webapp deployment list-publishing-profiles --xml` to a local-only, gitignored file; user copied it into the repo's `Settings → Secrets and variables → Actions` as `AZURE_WEBAPP_PUBLISH_PROFILE`; local file deleted immediately after.
 - Auth approach is publish-profile, not OIDC: the local Azure CLI (`2.35.0`) predates federated-credential support, and GitHub CLI isn't installed to script around it. `infrastructure.md`'s risk register explicitly accepts this as an MVP fallback — revisit once the CLI is upgraded.
 
-### E. Verification — not started (depends on C, D)
+### E. Verification — running
 
-### F. This file — written now, mid-flight, specifically so the blocker and partial progress aren't lost between sessions. Update it once C unblocks and the remaining steps complete.
+Triggered by this commit's push to `main`. Check the Actions tab at `https://github.com/rumek/po-prostu-silka/actions` for the run, and see this session's chat for the live `curl`/log-tail results once the run completes.
+
+### F. This file — kept as the running audit trail across the whole deploy, not just the blocked period.
 
 ## Known follow-ups (not blocking, but don't lose track)
 
