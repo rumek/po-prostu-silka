@@ -1,8 +1,8 @@
 ---
 project: po-prostu-silka
 platform: Azure App Service (Linux, B1)
-status: deploying
-last_updated: 2026-08-30
+status: live
+last_updated: 2026-08-31
 ---
 
 ## What this is
@@ -13,9 +13,9 @@ The audit trail for the first deployment of po-prostu-silka, executed from the a
 
 Deploy the ASP.NET Core API and the Angular SPA (as a static bundle served from the API's `wwwroot`) to a single Azure App Service (Linux, B1). Azure SQL Database is deliberately **not** provisioned in this deployment — there is no EF Core/connection string in the app yet, so a database would sit unused. It's planned for the deploy that introduces Identity/EF Core.
 
-## Status: Azure resources live, first deploy in progress
+## Status: live — first deployment verified end-to-end
 
-Steps A–D are done. Step E (live verification) is running via this commit's push-triggered workflow.
+Steps A–F are complete. Live URL: **https://po-prostu-silka.azurewebsites.net**
 
 **Note on the blocker below**: it did get resolved, but not the way either listed option assumed. The `kr@anbast.com` / BizSpark login was abandoned; the user instead logged into a different personal account (`rumianowski@hotmail.com`) via `az login`, which initially showed zero subscriptions (`az account list --all`) until `az account list --refresh` surfaced one ("Subskrypcja platformy Azure 1", `1b1298d8-ca6a-4a57-a189-192ff31fbd3a`) that the CLI's cache hadn't picked up yet. Worth remembering: a subscription that exists but doesn't show up in `az account list` may just need `--refresh`, not necessarily a portal-side fix.
 
@@ -55,11 +55,14 @@ Note: `az appservice plan create` reported a `FreeOfferExpirationTime` of **2026
 - Publish profile fetched via `az webapp deployment list-publishing-profiles --xml` to a local-only, gitignored file; user copied it into the repo's `Settings → Secrets and variables → Actions` as `AZURE_WEBAPP_PUBLISH_PROFILE`; local file deleted immediately after.
 - Auth approach is publish-profile, not OIDC: the local Azure CLI (`2.35.0`) predates federated-credential support, and GitHub CLI isn't installed to script around it. `infrastructure.md`'s risk register explicitly accepts this as an MVP fallback — revisit once the CLI is upgraded.
 
-### E. Verification — running
+### E. Verification — DONE
 
-Triggered by this commit's push to `main`. Check the Actions tab at `https://github.com/rumek/po-prostu-silka/actions` for the run, and see this session's chat for the live `curl`/log-tail results once the run completes.
+- GitHub Actions run [#2](https://github.com/rumek/po-prostu-silka/actions) completed `success`.
+- Kudu deployment API confirmed the OneDeploy on the Azure side completed with no errors.
+- **First curl pass after the deploy showed Azure's default `hostingstart.html` placeholder** (root 200 but wrong content; `/weatherforecast` and SPA-fallback both 404) even though the deploy itself reported success and the correct files were confirmed present in `/home/site/wwwroot` via the Kudu VFS API. An explicit `az webapp restart -n po-prostu-silka -g pps-rg` resolved it — **note this for the next deploy**: the very first zip/OneDeploy onto a freshly-created App Service may need an explicit restart before the new app process actually takes over from the platform's placeholder; don't assume a "success" deploy status means the site is actually serving the new app without checking.
+- Post-restart, all three checks passed: `/` → 200 with `<title>App</title>` (the Angular shell, not the placeholder), `/weatherforecast` → 200, an arbitrary unmapped route → 200 (confirms `MapFallbackToFile` SPA routing works in production).
 
-### F. This file — kept as the running audit trail across the whole deploy, not just the blocked period.
+### F. This file — kept as the running audit trail across the whole deploy, from the Azure-account blocker through to the verified live result.
 
 ## Known follow-ups (not blocking, but don't lose track)
 
