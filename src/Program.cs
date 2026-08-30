@@ -10,9 +10,14 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+    app.UseHttpsRedirection();
 }
+// In production, Azure App Service terminates TLS at the edge and forwards plain HTTP
+// internally — HTTPS is enforced there via the "HTTPS Only" site setting instead, so a
+// redirect here would fight the reverse proxy.
 
-app.UseHttpsRedirection();
+app.UseDefaultFiles();
+app.UseStaticFiles();
 
 var summaries = new[]
 {
@@ -32,6 +37,8 @@ app.MapGet("/weatherforecast", () =>
     return forecast;
 })
 .WithName("GetWeatherForecast");
+
+app.MapFallbackToFile("index.html");
 
 app.Run();
 
