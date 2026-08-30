@@ -1,0 +1,48 @@
+name: Deploy to Azure App Service
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+env:
+  AZURE_WEBAPP_NAME: po-prostu-silka
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: src/app/package-lock.json
+
+      - name: Build Angular (static)
+        working-directory: src/app
+        run: |
+          npm ci
+          npm run build
+
+      - name: Stage Angular output into wwwroot
+        run: |
+          mkdir -p src/wwwroot
+          cp -r src/app/dist/app/browser/. src/wwwroot/
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Publish API (includes wwwroot)
+        run: dotnet publish src/po-prostu-silka.csproj -c Release -o ./publish
+
+      - name: Deploy to Azure App Service
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: ./publish
