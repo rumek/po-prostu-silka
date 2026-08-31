@@ -115,12 +115,22 @@ builder.Services.AddAuthorizationBuilder().AddApplicationPolicies();
 var app = builder.Build();
 
 // Idempotent by construction - runs on every cold start, and App Service recycles without warning.
+var seedLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("AdminSeeder");
 using (var scope = app.Services.CreateScope())
 {
-    await AdminSeeder.SeedAsync(
-        scope.ServiceProvider,
-        app.Configuration,
-        app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("AdminSeeder"));
+    try
+    {
+        await AdminSeeder.SeedAsync(scope.ServiceProvider, app.Configuration, seedLogger);
+    }
+    catch (Exception ex)
+    {
+        // Never take the site down over seeding. EnableRetryOnFailure covers transient SQL faults,
+        // but not an unmigrated schema ("invalid object name" is not transient, so it is never
+        // retried) nor a retry-exhausted outage - and an exception escaping here kills the process
+        // before /health is even mapped, so App Service sees a crash-loop instead of a running app
+        // that reports itself unhealthy. Log loudly and carry on.
+        seedLogger.LogError(ex, "Admin seeding failed; continuing startup so /health can report.");
+    }
 }
 
 // Configure the HTTP request pipeline.
