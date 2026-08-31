@@ -765,33 +765,33 @@ automated test — a deliberate triage decision recorded in "Open Risks" below.
 
 #### Automated
 
-- [x] 3.1 Solution builds in Release
-- [x] 3.2 Test suite passes locally
-- [x] 3.3 Run logs show an mssql container starting and stopping
-- [x] 3.4 Suite fails when it should (deliberate break, then revert)
+- [x] 3.1 Solution builds in Release — d55ec31
+- [x] 3.2 Test suite passes locally — d55ec31
+- [x] 3.3 Run logs show an mssql container starting and stopping — d55ec31
+- [x] 3.4 Suite fails when it should (deliberate break, then revert) — d55ec31
 - [ ] 3.5 CI runs the tests before Publish API
 - [ ] 3.6 A failing test aborts before migrations are applied
 - [ ] 3.7 Deployed /health returns 200 Healthy
 
 #### Manual
 
-- [x] 3.8 Test project package versions pinned per repo convention
-- [x] 3.9 Test run duration acceptable for auto-deploy-on-merge, and recorded
-- [x] 3.10 Tests do not write to the developer's docker-compose database
+- [x] 3.8 Test project package versions pinned per repo convention — d55ec31
+- [x] 3.9 Test run duration acceptable for auto-deploy-on-merge, and recorded — d55ec31
+- [x] 3.10 Tests do not write to the developer's docker-compose database — d55ec31
 
 ### Phase 4: Angular Auth Plumbing
 
 #### Automated
 
-- [ ] 4.1 npm run quality:check passes
-- [ ] 4.2 Angular builds
-- [ ] 4.3 Vitest suite passes
-- [ ] 4.4 Stock scaffold spec still passes
-- [ ] 4.5 Authenticated browser fetch to /api/auth/me returns the seeded admin
+- [x] 4.1 npm run quality:check passes
+- [x] 4.2 Angular builds
+- [x] 4.3 Vitest suite passes
+- [x] 4.4 Stock scaffold spec still passes
+- [x] 4.5 Authenticated browser fetch to /api/auth/me returns the seeded admin
 - [ ] 4.6 Deployed /health returns 200 Healthy and / returns the Angular shell
 
 #### Manual
 
-- [ ] 4.7 Page reload with a valid cookie keeps the session
-- [ ] 4.8 Expired cookie triggers exactly one redirect, no loop
-- [ ] 4.9 core/auth/ structure is a sensible base for S-01
+- [x] 4.7 Page reload with a valid cookie keeps the session
+- [x] 4.8 Expired cookie triggers exactly one redirect, no loop
+- [x] 4.9 core/auth/ structure is a sensible base for S-01
