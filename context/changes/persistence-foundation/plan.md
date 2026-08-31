@@ -599,26 +599,26 @@ establishes is the *policy* every later migration follows:
 
 #### Automated
 
-- [x] 2.1 Restore resolves only from nuget.org
-- [x] 2.2 Build passes in Release
-- [x] 2.3 No vulnerable packages
-- [x] 2.4 Local SQL Server container starts
-- [x] 2.5 Migration applies cleanly locally
-- [x] 2.6 Migration is reversible
-- [x] 2.7 Design-time factory works without runtime config
-- [x] 2.8 App starts and local /health returns 200 Healthy
-- [x] 2.9 /weatherforecast no longer returns JSON (SPA shell instead)
-- [x] 2.10 SPA fallback still works locally
-- [ ] 2.11 Migration applies to Azure SQL
-- [ ] 2.12 Deployed app /health returns 200 Healthy
+- [x] 2.1 Restore resolves only from nuget.org — 254fc92
+- [x] 2.2 Build passes in Release — 254fc92
+- [x] 2.3 No vulnerable packages — 254fc92
+- [x] 2.4 Local SQL Server container starts — 254fc92
+- [x] 2.5 Migration applies cleanly locally — 254fc92
+- [x] 2.6 Migration is reversible — 254fc92
+- [x] 2.7 Design-time factory works without runtime config — 254fc92
+- [x] 2.8 App starts and local /health returns 200 Healthy — 254fc92
+- [x] 2.9 /weatherforecast no longer returns JSON (SPA shell instead) — 254fc92
+- [x] 2.10 SPA fallback still works locally — 254fc92
+- [x] 2.11 Migration applies to Azure SQL — 254fc92
+- [x] 2.12 Deployed app /health returns 200 Healthy — 254fc92
 
 #### Manual
 
-- [x] 2.13 SchemaMarker table visible in local database
-- [x] 2.14 SchemaMarker table visible in Azure SQL
-- [x] 2.15 Layering rule recorded in AGENTS.md and CLAUDE.md
-- [x] 2.16 No secret committed
-- [ ] 2.17 Restart gotcha honoured if live /health failed
+- [x] 2.13 SchemaMarker table visible in local database — 254fc92
+- [x] 2.14 SchemaMarker table visible in Azure SQL — 254fc92
+- [x] 2.15 Layering rule recorded in AGENTS.md and CLAUDE.md — 254fc92
+- [x] 2.16 No secret committed — 254fc92
+- [x] 2.17 Restart gotcha honoured if live /health failed — 254fc92
 
 ### Phase 3: Migration-on-Deploy Pipeline
 

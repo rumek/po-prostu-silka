@@ -13,6 +13,8 @@ The audit trail for the first deployment of po-prostu-silka, executed from the a
 
 Deploy the ASP.NET Core API and the Angular SPA (as a static bundle served from the API's `wwwroot`) to a single Azure App Service (Linux, B1). Azure SQL Database is deliberately **not** provisioned in this deployment — there is no EF Core/connection string in the app yet, so a database would sit unused. It's planned for the deploy that introduces Identity/EF Core.
 
+> **Superseded 2026-08-31 by change `persistence-foundation` (roadmap F-01).** Azure SQL is now provisioned and the app connects to it; migrations run in CI before each deploy. See "## Persistence foundation (F-01)" at the end of this file. The paragraph above is kept as the original record of what the first deployment intended.
+
 ## Status: live — first deployment verified end-to-end
 
 Steps A–F are complete. Live URL: **https://po-prostu-silka.azurewebsites.net**
@@ -68,5 +70,82 @@ Note: `az appservice plan create` reported a `FreeOfferExpirationTime` of **2026
 
 - Azure CLI locally is `2.35.0` (~2022) — very old. No OIDC support, missing newer command surface. Worth upgrading before the next infra-touching session.
 - GitHub CLI (`gh`) is not installed — all GitHub-side operations (secrets, PR checks) went through the web UI / plain git. Installing it would remove a recurring manual step.
-- `dotnet restore` on this project pulls from private organizational NuGet feeds (`anbast.pkgs.visualstudio.com`) configured in a machine-level NuGet.Config, in addition to nuget.org. Harmless now (zero private-feed packages in use), but if EF Core or other packages ever accidentally resolve from a private feed, GitHub Actions runners won't have access to it and CI will fail mysteriously — worth an explicit public-only `nuget.config` in the repo before that happens.
-- Azure SQL Database is intentionally deferred to the deploy that introduces EF Core/Identity — don't forget to also enable Always On and HTTPS Only at that point if this deployment's step C.9/C.10 didn't already happen.
+- ~~`dotnet restore` on this project pulls from private organizational NuGet feeds configured in a machine-level NuGet.Config, in addition to nuget.org... worth an explicit public-only `nuget.config` in the repo before that happens.~~ **RESOLVED 2026-08-31 by `persistence-foundation`.** A repo-root `nuget.config` with `<clear />` now pins nuget.org only. The prediction was accurate: at the time EF Core was added, `dotnet package search` reported two extra active sources on the dev machine (a local artifacts folder and the Visual Studio offline packages). Keep the `<clear />` — without it those sources are merged in rather than replaced.
+- ~~Azure SQL Database is intentionally deferred to the deploy that introduces EF Core/Identity — don't forget to also enable Always On and HTTPS Only at that point.~~ **RESOLVED 2026-08-31 by `persistence-foundation`** — see the F-01 section at the end of this file. Always On and HTTPS Only were re-verified and were already `true`; no change was needed.
+- **Still open — Managed Identity for Azure SQL.** The app authenticates with SQL auth and a password stored in App Service settings. Managed Identity would remove the credential entirely; deferred as post-MVP because the local Azure CLI (`2.35.0`) predates the tooling and the Entra plumbing risked burning the session. Revisit alongside the CLI upgrade above.
+
+---
+
+## Persistence foundation (F-01) — 2026-08-31
+
+Change: `context/changes/persistence-foundation/`. Adds Azure SQL, EF Core, and migration-on-deploy.
+This section supersedes the "Azure SQL deliberately deferred" note in "Scope of this deployment" above.
+
+### Azure resources added
+
+| Resource | Value |
+| --- | --- |
+| SQL server | `pps-sql.database.windows.net` (`pps-rg`, polandcentral) |
+| Admin login | `ppsadmin` (SQL auth; password in the owner's password manager, nowhere in this repo) |
+| Database | `pps-db` — **Basic DTU**, 5 DTU, 2 GB cap |
+| Firewall | `AllowAzureServices` (0.0.0.0 sentinel — covers App Service outbound) and `DevWorkstation` |
+| App Service setting | Connection string named `Default`, type **`SQLAzure`** |
+
+**The name and type of the connection string are both load-bearing.** App Service exposes it as
+`SQLAZURECONNSTR_Default`, which ASP.NET Core's default config provider maps back onto
+`ConnectionStrings:Default`. A plain app setting (`az webapp config appsettings set`) does NOT produce
+that mapping and `GetConnectionString("Default")` would return null.
+
+Basic DTU is deliberate, not a default: `infrastructure.md` rejects the free serverless tier for this
+workload (a background poller wakes it, exhausts the 100k vCore-second quota, and the database pauses
+until the next month).
+
+### CI identity added
+
+- Service principal **`pps-ci`**, role `contributor`, **scoped to the `pps-rg` resource group only** —
+  never the subscription. Created because the pre-existing publish-profile credential authenticates to
+  App Service and nothing else; it cannot reach Azure SQL or manage firewall rules.
+- New GitHub Actions secrets (names only — values live in GitHub):
+  - `AZURE_CREDENTIALS` — the `--sdk-auth` JSON for `pps-ci`, consumed by `azure/login@v2`
+  - `AZURE_SQL_CONNECTION_STRING` — used by `dotnet ef database update`
+- The existing `AZURE_WEBAPP_PUBLISH_PROFILE` is unchanged and still does the deploy.
+
+### Migration pipeline (`.github/workflows/deploy.yml`)
+
+Steps run **before** `azure/webapps-deploy`, so a failed migration aborts the run with the previous
+code still serving: install `dotnet-ef` → generate an idempotent script → upload it as a run artifact →
+`azure/login` → open a JIT firewall rule for the runner IP → `dotnet ef database update` → delete the
+rule (`if: always()`) → deploy.
+
+Two decisions worth not re-litigating:
+
+- **GitHub-hosted runners are not "Azure services."** The `0.0.0.0` firewall sentinel covers the App
+  Service outbound path but not CI, which is why each run opens and closes its own rule, named by run id
+  so concurrent runs cannot collide. The `if: always()` guard on the cleanup is load-bearing — without
+  it, a failed migration leaves the runner's IP permanently allowed on a database holding personal data.
+- **Migrations are applied with `dotnet ef`, not `azure/sql-action`.** The runner is `ubuntu-latest`;
+  sql-action's `.sql` support on Linux is not established and current ubuntu images no longer ship
+  `mssql-tools`. The EF tool is installed in the same job anyway. Tradeoff accepted: the uploaded
+  `migrations.sql` artifact is evidence of intent rather than the literal executed bytes — both derive
+  from the same migration set in the same commit, so they cannot diverge in content.
+
+### Gotchas confirmed or discovered this change
+
+- **Git Bash mangles `/subscriptions/...` arguments** into `C:/Program Files/Git/subscriptions/...`.
+  This silently half-created the `pps-ci` service principal (identity made, role assignment failed).
+  Prefix such commands with `MSYS_NO_PATHCONV=1`. Same fix applies to `docker exec /opt/...` paths.
+- **`dotnet-ef` was installed at 7.0.9** on the dev machine and had to be updated to 10.0.11; an EF 7
+  tool fails against this .NET 10 project.
+- **`dotnet restore` now pins nuget.org only** via a repo-root `nuget.config` with `<clear />`. This
+  machine had two private feeds active (an artifacts folder and VS offline packages) that CI cannot
+  reach — the failure predicted in "Known follow-ups" below, closed before it could bite.
+- **A deleted endpoint cannot return 404** while `MapFallbackToFile` is registered — it serves the SPA
+  shell with 200 for every unmatched route. Check the response body, not the status code. This also
+  means `/health` returning 200 is not proof the new build is live; only the body `Healthy` is.
+- The **restart-after-deploy gotcha** recorded above did **not** recur this time; the deploy served the
+  new build on its own after ~6-7 minutes.
+
+### Rollback note
+
+EF migrations do **not** roll back with an artifact redeploy (no slots on B1). Migrations must ship a
+working `Down`, and destructive changes lag one release behind the code that stops needing them.

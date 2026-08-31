@@ -7,6 +7,8 @@ on:
 
 env:
   AZURE_WEBAPP_NAME: po-prostu-silka
+  AZURE_RESOURCE_GROUP: pps-rg
+  AZURE_SQL_SERVER: pps-sql
 
 jobs:
   build-and-deploy:
@@ -39,6 +41,70 @@ jobs:
 
       - name: Publish API (includes wwwroot)
         run: dotnet publish src/po-prostu-silka.csproj -c Release -o ./publish
+
+      # ----------------------------------------------------------------------
+      # Migrations run BEFORE the deploy, so a failed migration aborts the run
+      # with the previous code still serving. This ordering is what makes the
+      # "no destructive migration coupled to the code that stops needing it"
+      # policy enforceable: schema is always >= code, never behind it.
+      # ----------------------------------------------------------------------
+
+      - name: Install EF Core CLI
+        run: dotnet tool install --global dotnet-ef --version 10.0.11
+
+      - name: Generate idempotent migration script (review artifact)
+        run: |
+          dotnet ef migrations script --idempotent \
+            --project src/po-prostu-silka.csproj \
+            --output migrations.sql
+          echo "--- migration script ($(wc -l < migrations.sql) lines) ---"
+
+      - name: Upload migration script
+        uses: actions/upload-artifact@v4
+        with:
+          name: migrations-sql-${{ github.run_id }}
+          path: migrations.sql
+          retention-days: 30
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      # GitHub-hosted runners are NOT "Azure services", so the 0.0.0.0 firewall
+      # sentinel on the SQL server does not cover them. Open a rule for this
+      # runner's IP only, named by run id so concurrent runs cannot collide.
+      - name: Open SQL firewall for this runner
+        id: fw
+        run: |
+          RUNNER_IP=$(curl -s https://api.ipify.org)
+          echo "rule_name=ghrunner-${{ github.run_id }}" >> "$GITHUB_OUTPUT"
+          az sql server firewall-rule create \
+            -g "$AZURE_RESOURCE_GROUP" -s "$AZURE_SQL_SERVER" \
+            -n "ghrunner-${{ github.run_id }}" \
+            --start-ip-address "$RUNNER_IP" --end-ip-address "$RUNNER_IP" \
+            --output none
+          echo "Opened firewall for runner IP."
+
+      # Applied with dotnet ef rather than azure/sql-action: the runner is
+      # ubuntu-latest, sql-action's .sql support on Linux is not established,
+      # and current ubuntu images no longer ship mssql-tools. The EF tool is
+      # already installed above, so this keeps the job to one tool.
+      - name: Apply migrations to Azure SQL
+        run: |
+          dotnet ef database update \
+            --project src/po-prostu-silka.csproj \
+            --connection "${{ secrets.AZURE_SQL_CONNECTION_STRING }}"
+
+      # if: always() is load-bearing - without it a failed migration leaves the
+      # runner's IP permanently allowed on a database holding personal data.
+      - name: Close SQL firewall for this runner
+        if: always()
+        run: |
+          az sql server firewall-rule delete \
+            -g "$AZURE_RESOURCE_GROUP" -s "$AZURE_SQL_SERVER" \
+            -n "${{ steps.fw.outputs.rule_name }}" \
+            --output none || echo "Rule already absent; nothing to clean up."
 
       - name: Deploy to Azure App Service
         uses: azure/webapps-deploy@v3
