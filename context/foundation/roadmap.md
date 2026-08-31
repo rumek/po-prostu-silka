@@ -41,7 +41,7 @@ A single gym runs class sign-ups, schedule changes, and individual training plan
 
 | ID   | Change ID                       | Outcome (user can …)                                                    | Prerequisites          | PRD refs                              | Status   |
 | ---- | ------------------------------- | ----------------------------------------------------------------------- | ---------------------- | ------------------------------------- | -------- |
-| F-01 | persistence-foundation          | (foundation) EF Core + Azure SQL wired; migrations run on deploy        | —                      | NFR privacy, Business Logic           | in-progress |
+| F-01 | persistence-foundation          | (foundation) EF Core + Azure SQL wired; migrations run on deploy        | —                      | NFR privacy, Business Logic           | done     |
 | F-02 | auth-identity-foundation        | (foundation) Identity auth, User/Admin roles, admin seeded              | F-01                   | FR-001, FR-002, Access Control        | proposed |
 | F-03 | notification-delivery-foundation | (foundation) email + push transport with outbox/retry landed            | F-01                   | FR-021, NFR promptness                | proposed |
 | S-01 | registration-and-approval       | register, wait at approval screen; admin approves                       | F-01, F-02             | FR-001, FR-002, FR-003                | proposed |
@@ -92,7 +92,7 @@ Foundations below assume these are present and do NOT re-scaffold them.
 - **Blockers:** —
 - **Unknowns:** —
 - **Risk:** first infra-touching change since go-live. Must be the Basic DTU tier, not the free serverless offer (auto-pause quota trap per infrastructure.md); each later slice brings its own entities and migration — this foundation deliberately ships plumbing plus one proving migration, not the whole schema.
-- **Status:** in-progress
+- **Status:** done
 
 ### F-02: Auth & identity foundation
 
@@ -282,3 +282,5 @@ Foundations below assume these are present and do NOT re-scaffold them.
 ## Done
 
 (Empty on first generation. `/10x-archive` appends an entry here — and flips that item's `Status` to `done` — when a change whose `Change ID` matches the item is archived. Do NOT pre-populate.)
+
+- **F-01: (foundation) Azure SQL Database (Basic DTU tier) provisioned and connected; EF Core installed with a bootstrapped DbContext; schema migrations run automatically on deploy; connection string lives in App Service settings; Always On re-verified.** — Archived 2026-08-31 → `context/archive/2026-08-31-persistence-foundation/`. Lesson: —.
