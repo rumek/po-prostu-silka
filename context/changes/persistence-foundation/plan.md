@@ -624,18 +624,18 @@ establishes is the *policy* every later migration follows:
 
 #### Automated
 
-- [ ] 3.1 Workflow runs and reaches the migration step
-- [ ] 3.2 Migration step runs before the deploy step
-- [ ] 3.3 Idempotent script uploaded as a run artifact
-- [ ] 3.4 Firewall rule created and deleted, none left over
-- [ ] 3.5 Second push with no new migrations is a schema no-op
-- [ ] 3.6 Live /health returns 200 Healthy after deploy
-- [ ] 3.7 Live SPA still serves
+- [x] 3.1 Workflow runs and reaches the migration step — a9d35da
+- [x] 3.2 Migration step runs before the deploy step — a9d35da
+- [x] 3.3 Idempotent script uploaded as a run artifact — a9d35da
+- [x] 3.4 Firewall rule created and deleted, none left over — a9d35da
+- [x] 3.5 Second push with no new migrations is a schema no-op — a9d35da
+- [x] 3.6 Live /health returns 200 Healthy after deploy — a9d35da
+- [x] 3.7 Live SPA still serves — a9d35da
 
 #### Manual
 
-- [ ] 3.8 Broken migration fails the pipeline before webapps-deploy
-- [ ] 3.9 Cleanup step confirmed to fire on a failed run
-- [ ] 3.10 Service principal scoped to pps-rg, not the subscription
-- [ ] 3.11 No secret value appears in any run log
-- [ ] 3.12 Local service principal JSON deleted
+- [x] 3.8 Broken migration fails the pipeline before webapps-deploy — a9d35da
+- [x] 3.9 Cleanup step confirmed to fire on a failed run — a9d35da
+- [x] 3.10 Service principal scoped to pps-rg, not the subscription — a9d35da
+- [x] 3.11 No secret value appears in any run log — a9d35da
+- [x] 3.12 Local service principal JSON deleted — a9d35da
