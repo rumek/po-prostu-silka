@@ -474,11 +474,18 @@ same reasoning `AGENTS.md` records, and what S-04's concurrency tests will need.
 `public partial class Program { }` declaration at its end so `WebApplicationFactory<Program>` can
 reference the implicit entry-point class (added in Phase 2).
 
-**Policy-protected probe endpoints are test-only.** Phase 2 ships no endpoint annotated with the
-`ActiveMember` or `Admin` policy — `/me` uses bare `RequireAuthorization()` on purpose, so a `Pending`
-member can still read their own status for S-01's awaiting-approval screen. The policies are
-therefore unexercised in production code until S-01 onward. The fixture must register two throwaway
-probe endpoints (one per policy) on the test host rather than shipping fake surface in `Program.cs`.
+**Policy-protected probe endpoints.** Phase 2 ships no endpoint annotated with the `ActiveMember` or
+`Admin` policy — `/me` uses bare `RequireAuthorization()` on purpose, so a `Pending` member can still
+read their own status for S-01's awaiting-approval screen. The policies are therefore unexercised in
+production code until S-01 onward.
+
+**Adapted during implementation.** The plan called for registering the probes on the test host.
+`WebApplicationFactory` has no supported hook for adding *endpoints* to a minimal-API
+`WebApplication`: an `IStartupFilter` calling `UseEndpoints` matches before
+`UseAuthentication`/`UseAuthorization` run, so the policy under test would be bypassed and the
+assertion would pass while proving nothing. The probes therefore live in `Program.cs` inside an
+`if (app.Environment.IsEnvironment("Testing"))` guard — in the real pipeline, correctly ordered, and
+impossible to reach in Development or Production.
 
 #### 3. Auth behaviour tests
 
@@ -508,8 +515,8 @@ container startup) in the step name so it is not mistaken for a hang.
 
 #### Automated Verification:
 
-- Solution builds: `dotnet build po-prostu-silka.sln -c Release`
-- Test suite passes locally: `dotnet test po-prostu-silka.sln`
+- Solution builds: `dotnet build po-prostu-silka.slnx -c Release`. **Adapted:** SDK 10.0.400's `dotnet new sln` emits the newer XML `.slnx` format, not `.sln`.
+- Test suite passes locally: `dotnet test po-prostu-silka.slnx`
 - Tests genuinely exercise a container: the run logs show an `mssql` container starting and stopping
 - The suite fails when it should: temporarily flipping the seeded test user to `Blocked` makes the active-login test fail (revert after confirming)
 - CI runs the tests: the Actions run log shows the test step passing before `Publish API`
@@ -735,14 +742,14 @@ automated test — a deliberate triage decision recorded in "Open Risks" below.
 
 #### Automated
 
-- [x] 2.1 Build passes in Release with no new warnings
-- [x] 2.2 App starts locally and /health returns 200 Healthy
-- [x] 2.3 Seeded admin can log in and receives a cookie
-- [x] 2.4 GET /api/auth/me round-trips the session
-- [x] 2.5 Anonymous /me returns JSON 401, not an HTML redirect
-- [x] 2.6 Logout returns 204 and invalidates the cookie
-- [x] 2.7 Bad credentials return 401
-- [x] 2.8 SPA fallback still works
+- [x] 2.1 Build passes in Release with no new warnings — 06f0816
+- [x] 2.2 App starts locally and /health returns 200 Healthy — 06f0816
+- [x] 2.3 Seeded admin can log in and receives a cookie — 06f0816
+- [x] 2.4 GET /api/auth/me round-trips the session — 06f0816
+- [x] 2.5 Anonymous /me returns JSON 401, not an HTML redirect — 06f0816
+- [x] 2.6 Logout returns 204 and invalidates the cookie — 06f0816
+- [x] 2.7 Bad credentials return 401 — 06f0816
+- [x] 2.8 SPA fallback still works — 06f0816
 - [ ] 2.9 Deployed /health returns 200 Healthy
 - [ ] 2.10 Deployed login works against Azure SQL
 
@@ -758,19 +765,19 @@ automated test — a deliberate triage decision recorded in "Open Risks" below.
 
 #### Automated
 
-- [ ] 3.1 Solution builds in Release
-- [ ] 3.2 Test suite passes locally
-- [ ] 3.3 Run logs show an mssql container starting and stopping
-- [ ] 3.4 Suite fails when it should (deliberate break, then revert)
+- [x] 3.1 Solution builds in Release
+- [x] 3.2 Test suite passes locally
+- [x] 3.3 Run logs show an mssql container starting and stopping
+- [x] 3.4 Suite fails when it should (deliberate break, then revert)
 - [ ] 3.5 CI runs the tests before Publish API
 - [ ] 3.6 A failing test aborts before migrations are applied
 - [ ] 3.7 Deployed /health returns 200 Healthy
 
 #### Manual
 
-- [ ] 3.8 Test project package versions pinned per repo convention
-- [ ] 3.9 Test run duration acceptable for auto-deploy-on-merge, and recorded
-- [ ] 3.10 Tests do not write to the developer's docker-compose database
+- [x] 3.8 Test project package versions pinned per repo convention
+- [x] 3.9 Test run duration acceptable for auto-deploy-on-merge, and recorded
+- [x] 3.10 Tests do not write to the developer's docker-compose database
 
 ### Phase 4: Angular Auth Plumbing
 

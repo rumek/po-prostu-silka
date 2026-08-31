@@ -39,6 +39,13 @@ jobs:
         with:
           global-json-file: global.json
 
+      # Runs BEFORE Publish API and before any migration step, so a failing test aborts the run
+      # while the previous code is still serving and the production database is untouched.
+      # Testcontainers starts a real SQL Server; ubuntu-latest already runs a Docker daemon, so no
+      # extra setup is needed. Expect ~30-60s for the container to become ready - not a hang.
+      - name: Run tests (starts a SQL Server container, ~30-60s)
+        run: dotnet test po-prostu-silka.slnx -c Release
+
       - name: Publish API (includes wwwroot)
         run: dotnet publish src/po-prostu-silka.csproj -c Release -o ./publish
 

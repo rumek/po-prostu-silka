@@ -147,6 +147,26 @@ app.MapHealthChecks("/health");
 
 app.MapAuthEndpoints();
 
+// Probe endpoints for the ActiveMember and Admin policies, in the "Testing" environment only.
+//
+// No production endpoint uses those policies yet: /me is deliberately bare RequireAuthorization()
+// so a Pending member can read their own status for S-01's awaiting-approval screen. Without these
+// the policies would ship entirely unexercised.
+//
+// They live here rather than in the test fixture because WebApplicationFactory has no supported
+// hook for adding endpoints to a minimal-API app - anything bolted on via a startup filter matches
+// BEFORE UseAuthentication/UseAuthorization, so the policy under test would be bypassed and the
+// assertion would pass while proving nothing. Guarded by environment, they cannot exist in
+// Development or Production.
+if (app.Environment.IsEnvironment("Testing"))
+{
+    app.MapGet("/test/active-member", () => Results.Ok("active-member"))
+        .RequireAuthorization(AuthorizationPolicies.ActiveMember);
+
+    app.MapGet("/test/admin-only", () => Results.Ok("admin-only"))
+        .RequireAuthorization(AuthorizationPolicies.Admin);
+}
+
 // Must stay last: the SPA fallback claims every route no earlier endpoint matched.
 app.MapFallbackToFile("index.html");
 
