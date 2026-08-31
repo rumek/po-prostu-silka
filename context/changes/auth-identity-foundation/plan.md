@@ -472,7 +472,13 @@ migrations to it, and exposes a `WebApplicationFactory<Program>` overriding the 
 string to point at the container. Real SQL Server rather than SQLite or the in-memory provider — the
 same reasoning `AGENTS.md` records, and what S-04's concurrency tests will need. `Program.cs` needs a
 `public partial class Program { }` declaration at its end so `WebApplicationFactory<Program>` can
-reference the implicit entry-point class.
+reference the implicit entry-point class (added in Phase 2).
+
+**Policy-protected probe endpoints are test-only.** Phase 2 ships no endpoint annotated with the
+`ActiveMember` or `Admin` policy — `/me` uses bare `RequireAuthorization()` on purpose, so a `Pending`
+member can still read their own status for S-01's awaiting-approval screen. The policies are
+therefore unexercised in production code until S-01 onward. The fixture must register two throwaway
+probe endpoints (one per policy) on the test host rather than shipping fake surface in `Program.cs`.
 
 #### 3. Auth behaviour tests
 
@@ -708,35 +714,35 @@ automated test — a deliberate triage decision recorded in "Open Risks" below.
 
 #### Automated
 
-- [x] 1.1 Build passes in Release with no new warnings
-- [x] 1.2 No vulnerable packages
-- [x] 1.3 Restore resolves only from nuget.org
-- [x] 1.4 Migration applies to a clean local container
-- [x] 1.5 Migration is reversible
-- [x] 1.6 Design-time factory works without runtime config
-- [x] 1.7 Migration does not drop SchemaMarkers
-- [x] 1.8 App starts and local /health returns 200 Healthy
+- [x] 1.1 Build passes in Release with no new warnings — 2d4a929
+- [x] 1.2 No vulnerable packages — 2d4a929
+- [x] 1.3 Restore resolves only from nuget.org — 2d4a929
+- [x] 1.4 Migration applies to a clean local container — 2d4a929
+- [x] 1.5 Migration is reversible — 2d4a929
+- [x] 1.6 Design-time factory works without runtime config — 2d4a929
+- [x] 1.7 Migration does not drop SchemaMarkers — 2d4a929
+- [x] 1.8 App starts and local /health returns 200 Healthy — 2d4a929
 - [ ] 1.9 Deployed /health returns 200 Healthy
 
 #### Manual
 
-- [x] 1.10 Identity tables and custom columns visible in local database
+- [x] 1.10 Identity tables and custom columns visible in local database — 2d4a929
 - [ ] 1.11 Identity tables visible in Azure SQL after deploy
-- [x] 1.12 Generated migration read end to end; Down reverses Up
+- [x] 1.12 Generated migration read end to end; Down reverses Up — 2d4a929
 - [ ] 1.13 SchemaMarkers table still present in both databases
 
 ### Phase 2: Authentication, Policies & Admin Seed
 
 #### Automated
 
-- [ ] 2.1 Build passes in Release with no new warnings
-- [ ] 2.2 App starts locally and /health returns 200 Healthy
-- [ ] 2.3 Seeded admin can log in and receives a cookie
-- [ ] 2.4 GET /api/auth/me round-trips the session
-- [ ] 2.5 Anonymous /me returns JSON 401, not an HTML redirect
-- [ ] 2.6 Logout returns 204 and invalidates the cookie
-- [ ] 2.7 Bad credentials return 401
-- [ ] 2.8 SPA fallback still works
+- [x] 2.1 Build passes in Release with no new warnings
+- [x] 2.2 App starts locally and /health returns 200 Healthy
+- [x] 2.3 Seeded admin can log in and receives a cookie
+- [x] 2.4 GET /api/auth/me round-trips the session
+- [x] 2.5 Anonymous /me returns JSON 401, not an HTML redirect
+- [x] 2.6 Logout returns 204 and invalidates the cookie
+- [x] 2.7 Bad credentials return 401
+- [x] 2.8 SPA fallback still works
 - [ ] 2.9 Deployed /health returns 200 Healthy
 - [ ] 2.10 Deployed login works against Azure SQL
 

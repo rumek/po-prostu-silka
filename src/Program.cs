@@ -1,4 +1,10 @@
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using po_prostu_silka.Application.Auth;
+using po_prostu_silka.Domain;
+using po_prostu_silka.Infrastructure.Authorization;
+using po_prostu_silka.Infrastructure.Identity;
 using po_prostu_silka.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -31,7 +37,91 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddHealthChecks()
     .AddDbContextCheck<AppDbContext>();
 
+// ---------------------------------------------------------------------------
+// Authentication: Identity cookies.
+//
+// The Angular SPA is served from this app's own wwwroot (angular.json sets outputMode "static"),
+// so it is same-origin with the API. That is what makes cookies the cheap choice here: no CORS, no
+// cross-site cookie flags, and no token sitting in JS-reachable storage where XSS could read it.
+//
+// AddIdentityCookies() registers the cookie handlers; AddIdentityCore() does NOT do this on its
+// own. If login appears to succeed but no cookie is ever set, this pairing is the first thing to
+// check.
+// ---------------------------------------------------------------------------
+builder.Services
+    .AddAuthentication(IdentityConstants.ApplicationScheme)
+    .AddIdentityCookies();
+
+builder.Services
+    .AddIdentityCore<ApplicationUser>(options =>
+    {
+        // Length over composition: members type these on phones, and character-class rules push
+        // people towards "Password1!" and towards abandoning registration altogether.
+        options.Password.RequiredLength = 8;
+        options.Password.RequireDigit = false;
+        options.Password.RequireLowercase = false;
+        options.Password.RequireUppercase = false;
+        options.Password.RequireNonAlphanumeric = false;
+        options.Password.RequiredUniqueChars = 1;
+
+        // No confirmation flow in this milestone - the admin-approval gate is the vetting
+        // mechanism, so requiring a confirmed email would lock out every pending member.
+        options.SignIn.RequireConfirmedAccount = false;
+        options.User.RequireUniqueEmail = true;
+    })
+    .AddRoles<IdentityRole>()
+    .AddEntityFrameworkStores<AppDbContext>()
+    .AddSignInManager()
+    .AddClaimsPrincipalFactory<AppUserClaimsPrincipalFactory>()
+    .AddDefaultTokenProviders();
+
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    options.ExpireTimeSpan = TimeSpan.FromDays(30);
+    options.SlidingExpiration = true;
+
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+
+    // Lax, not Strict. Strict looks safer, but F-03/S-05 send class-cancellation emails whose links
+    // navigate back into the app - under Strict the cookie is withheld on that cross-site
+    // navigation and the member lands logged out on the exact link the product exists to deliver.
+    // Lax still withholds the cookie on cross-site POST, which is the CSRF vector that matters.
+    options.Cookie.SameSite = SameSiteMode.Lax;
+
+    // This app answers with status codes, not redirects. Identity's default is a 302 to
+    // /Account/Login; here that redirect would be followed to MapFallbackToFile and the caller
+    // would receive 200 text/html where it expected 401 - a failure that looks like success.
+    options.Events.OnRedirectToLogin = context =>
+    {
+        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+        return Task.CompletedTask;
+    };
+    options.Events.OnRedirectToAccessDenied = context =>
+    {
+        context.Response.StatusCode = StatusCodes.Status403Forbidden;
+        return Task.CompletedTask;
+    };
+});
+
+// How long a status change takes to bite. Without this the default is 30 minutes anyway, but it is
+// stated explicitly because it is the bound on how long a just-blocked member keeps access - the
+// number matters to S-02, not just to Identity.
+builder.Services.Configure<SecurityStampValidatorOptions>(options =>
+    options.ValidationInterval = TimeSpan.FromMinutes(30));
+
+builder.Services.AddAuthorizationBuilder().AddApplicationPolicies();
+
 var app = builder.Build();
+
+// Idempotent by construction - runs on every cold start, and App Service recycles without warning.
+using (var scope = app.Services.CreateScope())
+{
+    await AdminSeeder.SeedAsync(
+        scope.ServiceProvider,
+        app.Configuration,
+        app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("AdminSeeder"));
+}
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -46,9 +136,23 @@ if (app.Environment.IsDevelopment())
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
+// Order is load-bearing: authentication must run before authorization, and both must run before
+// the endpoints below - MapFallbackToFile in particular, which would otherwise claim /api routes
+// before the auth middleware ever sees them.
+app.UseAuthentication();
+app.UseAuthorization();
+
+// Anonymous by design: a health probe that needs credentials cannot answer "is the app reachable".
 app.MapHealthChecks("/health");
+
+app.MapAuthEndpoints();
 
 // Must stay last: the SPA fallback claims every route no earlier endpoint matched.
 app.MapFallbackToFile("index.html");
 
 app.Run();
+
+// Exposed so WebApplicationFactory<Program> can boot this app in the Phase 3 integration tests.
+// Top-level statements compile to an internal Program class; this makes it public without
+// changing any behaviour.
+public partial class Program;
