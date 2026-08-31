@@ -11,8 +11,20 @@ builder.Services.AddOpenApi();
 // "Default" of type SQLAzure, which the platform exposes as SQLAZURECONNSTR_Default and the
 // default configuration provider maps back onto ConnectionStrings:Default. Locally it comes
 // from appsettings.Development.json, pointing at the docker-compose SQL Server.
+//
+// EnableRetryOnFailure: F-01 deliberately deferred connection resiliency until "the first real
+// query surface lands in F-02" — login is that surface, and Azure SQL Basic (5 DTU) throttles
+// under load, so a transient failure would otherwise surface as a failed login rather than a
+// retried one.
+//
+// Consequence for later slices: the resulting execution strategy does not allow a user-initiated
+// transaction to span retries. S-04's booking transaction (the no-overbooking guarantee) must wrap
+// its work in db.Database.CreateExecutionStrategy().Execute(...) rather than calling
+// BeginTransaction directly, or it throws at runtime.
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("Default")));
+    options.UseSqlServer(
+        builder.Configuration.GetConnectionString("Default"),
+        sqlOptions => sqlOptions.EnableRetryOnFailure()));
 
 // Opens a real connection to the database, so /health answers "can the running app reach
 // its data?" rather than merely "did the DI container resolve?".

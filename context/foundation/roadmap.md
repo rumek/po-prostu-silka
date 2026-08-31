@@ -42,7 +42,7 @@ A single gym runs class sign-ups, schedule changes, and individual training plan
 | ID   | Change ID                       | Outcome (user can …)                                                    | Prerequisites          | PRD refs                              | Status   |
 | ---- | ------------------------------- | ----------------------------------------------------------------------- | ---------------------- | ------------------------------------- | -------- |
 | F-01 | persistence-foundation          | (foundation) EF Core + Azure SQL wired; migrations run on deploy        | —                      | NFR privacy, Business Logic           | done     |
-| F-02 | auth-identity-foundation        | (foundation) Identity auth, User/Admin roles, admin seeded              | F-01                   | FR-001, FR-002, Access Control        | proposed |
+| F-02 | auth-identity-foundation        | (foundation) Identity auth, User/Admin roles, admin seeded              | F-01                   | FR-001, FR-002, Access Control        | in-progress |
 | F-03 | notification-delivery-foundation | (foundation) email + push transport with outbox/retry landed            | F-01                   | FR-021, NFR promptness                | proposed |
 | S-01 | registration-and-approval       | register, wait at approval screen; admin approves                       | F-01, F-02             | FR-001, FR-002, FR-003                | proposed |
 | S-02 | member-management               | admin searches/filters members, blocks and unblocks                     | S-01                   | FR-004, FR-005                        | blocked  |
@@ -106,7 +106,7 @@ Foundations below assume these are present and do NOT re-scaffold them.
 - **Unknowns:**
   - Target session lifetime on mobile (30 / 60 / 90 days)? — Owner: user. Block: no.
 - **Risk:** Identity brings a broad surface; scoped to email+password, roles, and the admin seed — no reset/confirmation flows beyond what registration needs. Password change is its own slice (S-09), keeping this foundation minimal.
-- **Status:** proposed
+- **Status:** in-progress
 
 ### F-03: Notification delivery foundation
 

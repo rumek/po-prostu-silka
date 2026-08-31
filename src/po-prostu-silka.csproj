@@ -20,6 +20,13 @@
     <!-- Design-time only: generates migrations, must not flow to the published output. -->
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.11" PrivateAssets="all" />
     <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="10.0.11" />
+    <!--
+      EF Core-backed Identity store. The core Identity services and the cookie handler ship in the
+      ASP.NET Core shared framework, so this is the only package needed.
+      Microsoft.AspNetCore.Identity.UI is deliberately absent: it scaffolds Razor Pages for a
+      server-rendered login, and this app authenticates an Angular SPA through its own endpoints.
+    -->
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.11" />
   </ItemGroup>
 
 </Project>
