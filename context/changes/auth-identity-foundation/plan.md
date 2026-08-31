@@ -702,6 +702,20 @@ automated test — a deliberate triage decision recorded in "Open Risks" below.
   cookie handler by itself.
 - **The `Pending`/`Blocked` login response shape is a contract S-01 depends on.** It is defined here and
   consumed there; changing it later means changing both.
+- **Criterion 3.6 is closing unverified — the CI abort path was never exercised.** "A failing test
+  aborts before migrations are applied" needs a deliberately failing test on a throwaway commit, the
+  way F-01 proved its equivalent (`11318ba`, reverted by `c586717`). No test failed during F-02's
+  deploy, so this is verified only *statically*: the workflow runs `Run tests` (deploy.yml:46) before
+  `Publish API` (:49) and `Apply migrations to Azure SQL` (:100), and the deploy succeeded. The
+  ordering is certain; what is untested is that a red test actually halts the job rather than being
+  reported and stepped over. **Whoever next touches `deploy.yml` should close this** — cheap to prove
+  once, expensive to discover broken during a real failure.
+- **Findings skipped at review are recorded in `reviews/impl-review.md`, not fixed.** F2 (role-seed
+  `IdentityResult` discarded, so a failed role creation logs success), F3 (login timing oracle allows
+  email enumeration despite identical response bodies), F5 (plan text at :362 still says
+  `PasswordSignInAsync`), F6 (guard fires duplicate `/me` on concurrent navigations). F2 is the second
+  occurrence of "discard a result, report success" in consecutive changes — a third makes it a
+  `/10x-lesson` rule.
 
 ## References
 
@@ -729,14 +743,14 @@ automated test — a deliberate triage decision recorded in "Open Risks" below.
 - [x] 1.6 Design-time factory works without runtime config — 2d4a929
 - [x] 1.7 Migration does not drop SchemaMarkers — 2d4a929
 - [x] 1.8 App starts and local /health returns 200 Healthy — 2d4a929
-- [ ] 1.9 Deployed /health returns 200 Healthy
+- [x] 1.9 Deployed /health returns 200 Healthy — f58cabf
 
 #### Manual
 
 - [x] 1.10 Identity tables and custom columns visible in local database — 2d4a929
-- [ ] 1.11 Identity tables visible in Azure SQL after deploy
+- [x] 1.11 Identity tables visible in Azure SQL after deploy — f58cabf
 - [x] 1.12 Generated migration read end to end; Down reverses Up — 2d4a929
-- [ ] 1.13 SchemaMarkers table still present in both databases
+- [x] 1.13 SchemaMarkers table still present in both databases — f58cabf
 
 ### Phase 2: Authentication, Policies & Admin Seed
 
@@ -750,14 +764,14 @@ automated test — a deliberate triage decision recorded in "Open Risks" below.
 - [x] 2.6 Logout returns 204 and invalidates the cookie — 06f0816
 - [x] 2.7 Bad credentials return 401 — 06f0816
 - [x] 2.8 SPA fallback still works — 06f0816
-- [ ] 2.9 Deployed /health returns 200 Healthy
-- [ ] 2.10 Deployed login works against Azure SQL
+- [x] 2.9 Deployed /health returns 200 Healthy — f58cabf
+- [x] 2.10 Deployed login works against Azure SQL — f58cabf
 
 #### Manual
 
 - [x] 2.11 Cookie shows HttpOnly, Secure, SameSite=Lax, ~30-day expiry — 06f0816
 - [x] 2.12 Two restarts do not create a second admin row — 06f0816
-- [ ] 2.13 AdminSeed__Password set in App Service, stored durably, absent from repo
+- [x] 2.13 AdminSeed__Password set in App Service, stored durably, absent from repo — f58cabf
 - [x] 2.14 No password value in application or deploy logs — 06f0816
 - [x] 2.15 Pending and Blocked users refused at login with the distinguishing response — 06f0816
 
@@ -769,9 +783,9 @@ automated test — a deliberate triage decision recorded in "Open Risks" below.
 - [x] 3.2 Test suite passes locally — d55ec31
 - [x] 3.3 Run logs show an mssql container starting and stopping — d55ec31
 - [x] 3.4 Suite fails when it should (deliberate break, then revert) — d55ec31
-- [ ] 3.5 CI runs the tests before Publish API
+- [x] 3.5 CI runs the tests before Publish API — f58cabf
 - [ ] 3.6 A failing test aborts before migrations are applied
-- [ ] 3.7 Deployed /health returns 200 Healthy
+- [x] 3.7 Deployed /health returns 200 Healthy — f58cabf
 
 #### Manual
 
@@ -788,7 +802,7 @@ automated test — a deliberate triage decision recorded in "Open Risks" below.
 - [x] 4.3 Vitest suite passes — 61adfee
 - [x] 4.4 Stock scaffold spec still passes — 61adfee
 - [x] 4.5 Authenticated browser fetch to /api/auth/me returns the seeded admin — 61adfee
-- [ ] 4.6 Deployed /health returns 200 Healthy and / returns the Angular shell
+- [x] 4.6 Deployed /health returns 200 Healthy and / returns the Angular shell — f58cabf
 
 #### Manual
 
