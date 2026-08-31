@@ -1,0 +1,36 @@
+# Local development database.
+#
+# A real SQL Server engine rather than SQLite or the in-memory provider, so collation,
+# transaction, and row-locking behaviour match Azure SQL. That matters for S-04, whose
+# no-overbooking guarantee depends on locking semantics the fakes do not reproduce.
+#
+# The SA password here is development-only and deliberately committed - it never leaves
+# this machine and guards nothing. Production credentials live in App Service settings.
+
+services:
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: pps-sql-local
+    environment:
+      ACCEPT_EULA: "Y"
+      # Must satisfy SQL Server complexity rules (8+ chars, 3 of: upper/lower/digit/symbol)
+      # or the container exits silently on startup with no obvious error.
+      MSSQL_SA_PASSWORD: "LocalDev_Pass123"
+      MSSQL_PID: "Developer"
+    ports:
+      - "1433:1433"
+    volumes:
+      - pps-sql-data:/var/opt/mssql
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -Q 'SELECT 1' || exit 1",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+volumes:
+  pps-sql-data:

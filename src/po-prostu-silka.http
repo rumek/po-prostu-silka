@@ -1,6 +1,6 @@
 @po_prostu_silka_HostAddress = http://localhost:5264
 
-GET {{po_prostu_silka_HostAddress}}/weatherforecast/
-Accept: application/json
+GET {{po_prostu_silka_HostAddress}}/health
+Accept: text/plain
 
 ###

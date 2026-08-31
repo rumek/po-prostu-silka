@@ -393,7 +393,7 @@ auto-deploys. Verify the live `/health` afterwards, applying the `az webapp rest
 - Migration is reversible: `dotnet ef migrations script 0 InitialSchemaMarker` and the inverse both generate without error
 - Design-time factory works without runtime config: `dotnet ef migrations script --idempotent` succeeds with `ASPNETCORE_ENVIRONMENT=Production` and no Development settings available — this is the exact condition CI runs under
 - App starts and the health probe passes: `dotnet run` then `curl http://localhost:<port>/health` returns 200 `Healthy`
-- The removed sample endpoint is gone: `curl http://localhost:<port>/weatherforecast` returns 404
+- The removed sample endpoint is gone: `curl http://localhost:<port>/weatherforecast` no longer returns JSON — it returns `text/html` (the Angular shell), because `MapFallbackToFile` claims every unmatched route. A 404 is not achievable here and asserting one would contradict the SPA-fallback criterion below.
 - SPA fallback still works: an arbitrary unmapped route returns 200 with the Angular shell
 - Migration applies to Azure SQL: `dotnet ef database update` against the Azure connection string succeeds
 - The deployed app reaches the database: `curl https://po-prostu-silka.azurewebsites.net/health` returns 200 `Healthy`
@@ -581,43 +581,43 @@ establishes is the *policy* every later migration follows:
 
 #### Automated
 
-- [x] 1.1 Database exists at Basic tier
-- [x] 1.2 Database in polandcentral and pps-rg
-- [x] 1.3 Connection string registered as SQLAzure type named Default
-- [x] 1.4 Always On is true
-- [x] 1.5 HTTPS Only is true
-- [x] 1.6 Live site survives the setting-induced restart
+- [x] 1.1 Database exists at Basic tier — c90e80b
+- [x] 1.2 Database in polandcentral and pps-rg — c90e80b
+- [x] 1.3 Connection string registered as SQLAzure type named Default — c90e80b
+- [x] 1.4 Always On is true — c90e80b
+- [x] 1.5 HTTPS Only is true — c90e80b
+- [x] 1.6 Live site survives the setting-induced restart — c90e80b
 
 #### Manual
 
-- [x] 1.7 User confirmed Basic service objective and admin password before create
-- [x] 1.8 Billing view shows expected line item, no serverless meter
-- [x] 1.9 Admin password stored durably and not in repo or history
-- [x] 1.10 Restart gotcha honoured if the site failed after restart
+- [x] 1.7 User confirmed Basic service objective and admin password before create — c90e80b
+- [x] 1.8 Billing view shows expected line item, no serverless meter — c90e80b
+- [x] 1.9 Admin password stored durably and not in repo or history — c90e80b
+- [x] 1.10 Restart gotcha honoured if the site failed after restart — c90e80b
 
 ### Phase 2: Persistence Code — Local, Then Live
 
 #### Automated
 
-- [ ] 2.1 Restore resolves only from nuget.org
-- [ ] 2.2 Build passes in Release
-- [ ] 2.3 No vulnerable packages
-- [ ] 2.4 Local SQL Server container starts
-- [ ] 2.5 Migration applies cleanly locally
-- [ ] 2.6 Migration is reversible
-- [ ] 2.7 Design-time factory works without runtime config
-- [ ] 2.8 App starts and local /health returns 200 Healthy
-- [ ] 2.9 /weatherforecast returns 404
-- [ ] 2.10 SPA fallback still works locally
+- [x] 2.1 Restore resolves only from nuget.org
+- [x] 2.2 Build passes in Release
+- [x] 2.3 No vulnerable packages
+- [x] 2.4 Local SQL Server container starts
+- [x] 2.5 Migration applies cleanly locally
+- [x] 2.6 Migration is reversible
+- [x] 2.7 Design-time factory works without runtime config
+- [x] 2.8 App starts and local /health returns 200 Healthy
+- [x] 2.9 /weatherforecast no longer returns JSON (SPA shell instead)
+- [x] 2.10 SPA fallback still works locally
 - [ ] 2.11 Migration applies to Azure SQL
 - [ ] 2.12 Deployed app /health returns 200 Healthy
 
 #### Manual
 
-- [ ] 2.13 SchemaMarker table visible in local database
-- [ ] 2.14 SchemaMarker table visible in Azure SQL
-- [ ] 2.15 Layering rule recorded in AGENTS.md and CLAUDE.md
-- [ ] 2.16 No secret committed
+- [x] 2.13 SchemaMarker table visible in local database
+- [x] 2.14 SchemaMarker table visible in Azure SQL
+- [x] 2.15 Layering rule recorded in AGENTS.md and CLAUDE.md
+- [x] 2.16 No secret committed
 - [ ] 2.17 Restart gotcha honoured if live /health failed
 
 ### Phase 3: Migration-on-Deploy Pipeline

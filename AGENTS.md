@@ -11,9 +11,31 @@
 
 ## Project structure
 
-- `src/` — .NET Web API (`po-prostu-silka.csproj`, `Program.cs`). Currently the unmodified `dotnet new webapi` stub; the real API is yet to be built.
+- `src/` — .NET Web API (`po-prostu-silka.csproj`, `Program.cs`), organised in DDD layers (see below).
 - `src/app/` — the full Angular workspace (its own `package.json`, `angular.json`); Angular source is at `src/app/src/app/`. Don't confuse the two `src` levels.
 - `context/` — foundation docs and change logs (see @context/foundation/README.md).
+
+### Layering (convention — not compiler-enforced)
+
+One project, three layers as folders. Bounded contexts (membership, scheduling, training, notifications) become subfolders within them as their slices land.
+
+| Layer | May reference |
+| --- | --- |
+| `src/Domain/` | nothing |
+| `src/Application/` | `Domain` |
+| `src/Infrastructure/` | `Domain`, `Application` — and it is the **only** layer that may reference EF Core |
+
+- EF Core artifacts (`AppDbContext`, entity configurations, migrations) live under `src/Infrastructure/Persistence/`. Never put a `using Microsoft.EntityFrameworkCore` in `Domain` or `Application`.
+- Entity configuration goes in `IEntityTypeConfiguration<T>` classes under `Infrastructure/Persistence/Configurations/` — they are auto-discovered by `ApplyConfigurationsFromAssembly`, so don't accumulate fluent config in `OnModelCreating`.
+- Because nothing enforces this, it rots silently. If it does, the escalation is splitting into separate `.csproj` projects so the compiler enforces it.
+
+### Database
+
+- Local dev runs SQL Server in Docker: `docker compose up -d` (root `docker-compose.yml`), connection string in `src/appsettings.Development.json`. A real engine, not SQLite — locking semantics must match Azure SQL for the no-overbooking guarantee.
+- Production is Azure SQL (Basic DTU). The connection string comes from the App Service connection string named `Default`, type `SQLAzure` — both exact values matter, since the platform maps `SQLAZURECONNSTR_Default` back onto `ConnectionStrings:Default`.
+- `GET /health` opens a real DB connection; use it to check connectivity rather than inferring it.
+- Migrations must be reversible (working `Down`). Rollback redeploys the previous artifact but does **not** roll back schema, so destructive changes lag one release behind the code that stops needing them.
+- `nuget.config` pins nuget.org only. Keep the `<clear />` — this machine has private feeds that CI cannot reach.
 
 ## Build, test, and dev commands
 

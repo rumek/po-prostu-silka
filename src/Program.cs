@@ -1,8 +1,23 @@
+using Microsoft.EntityFrameworkCore;
+using po_prostu_silka.Infrastructure.Persistence;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
+
+// In production the connection string comes from the App Service connection string named
+// "Default" of type SQLAzure, which the platform exposes as SQLAZURECONNSTR_Default and the
+// default configuration provider maps back onto ConnectionStrings:Default. Locally it comes
+// from appsettings.Development.json, pointing at the docker-compose SQL Server.
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("Default")));
+
+// Opens a real connection to the database, so /health answers "can the running app reach
+// its data?" rather than merely "did the DI container resolve?".
+builder.Services.AddHealthChecks()
+    .AddDbContextCheck<AppDbContext>();
 
 var app = builder.Build();
 
@@ -19,30 +34,9 @@ if (app.Environment.IsDevelopment())
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
-var summaries = new[]
-{
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
+app.MapHealthChecks("/health");
 
-app.MapGet("/weatherforecast", () =>
-{
-    var forecast =  Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
-})
-.WithName("GetWeatherForecast");
-
+// Must stay last: the SPA fallback claims every route no earlier endpoint matched.
 app.MapFallbackToFile("index.html");
 
 app.Run();
-
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}
