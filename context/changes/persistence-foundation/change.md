@@ -1,7 +1,7 @@
 ---
 change_id: persistence-foundation
 title: Provision Azure SQL and wire EF Core persistence
-status: implemented
+status: impl_reviewed
 created: 2026-08-31
 updated: 2026-08-31
 archived_at: null
