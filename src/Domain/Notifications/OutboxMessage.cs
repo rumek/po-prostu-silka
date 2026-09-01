@@ -41,6 +41,16 @@ public class OutboxMessage
     /// </summary>
     public DateTimeOffset? ClaimedAt { get; set; }
 
+    /// <summary>
+    /// Which worker pass claimed this row. A fresh GUID per pass.
+    ///
+    /// This exists so the read-back after claiming can identify rows THIS pass actually claimed.
+    /// Correlating on <see cref="ClaimedAt"/> instead would be unsound: two instances polling on the
+    /// same schedule can produce the identical timestamp, and the one whose UPDATE matched nothing
+    /// would still select — and then deliver — the other's rows. A GUID cannot collide.
+    /// </summary>
+    public Guid? ClaimToken { get; set; }
+
     public DateTimeOffset? SentAt { get; set; }
 
     /// <summary>Last provider error, for diagnosing Failed rows. Never contains a secret.</summary>

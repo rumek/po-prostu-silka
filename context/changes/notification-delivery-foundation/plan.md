@@ -582,6 +582,13 @@ need to receive.
 to `app.config.ts`. `ngsw-config.json` declares an **empty** `assetGroups`/`dataGroups` — the PRD locks
 "no offline-first guarantee", and caching a live schedule would seed stale-data bugs into S-03/S-04.
 
+**Adapted during implementation.** `"serviceWorker": true` plus `"ngswConfigPath"` is the *older*
+browser-builder syntax. Angular 22's `@angular/build:application` has no `ngswConfigPath` property at
+all and takes the config **path** directly: `"serviceWorker": "ngsw-config.json"`. The planned form
+does not merely get ignored — it fails schema validation outright with
+`Data path "" must NOT have additional properties(ngswConfigPath)`, which breaks `ng test` and
+`ng build` before either runs.
+
 #### 3. Web app manifest
 
 **Files**: `src/app/public/manifest.webmanifest` (new), `src/app/public/icons/*` (new),

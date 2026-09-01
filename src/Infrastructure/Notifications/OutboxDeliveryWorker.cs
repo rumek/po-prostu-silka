@@ -75,16 +75,32 @@ public class OutboxDeliveryWorker(
         var claimed = await ClaimBatchAsync(db, now, cancellationToken);
         foreach (var message in claimed)
         {
-            await DeliverAsync(db, message, emailSender, pushSender, cancellationToken);
+            try
+            {
+                await DeliverAsync(db, message, emailSender, pushSender, cancellationToken);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                // Isolate the batch. Without this, a throw on one message (a transient SQL throttle
+                // during SaveChangesAsync is the likely candidate on a 5-DTU tier) aborts the whole
+                // pass, and every message after it stays Claimed and undelivered until the lease
+                // expires minutes later - rather than being retried on the next pass seconds later.
+                logger.LogError(ex, "Outbox {Id} threw during delivery; continuing the batch.", message.Id);
+            }
         }
 
-        if (now - _lastPrune >= _options.PruneInterval)
+        // Prune and the full status aggregate share a cadence deliberately. Counting every pass
+        // would scan the whole table every 15 seconds forever, and the cost grows fastest exactly
+        // when delivery is failing - Failed rows are never pruned - which is when you least want
+        // the diagnostic query itself to be expensive.
+        var withCounts = now - _lastPrune >= _options.PruneInterval;
+        if (withCounts)
         {
             await PruneAsync(db, now, cancellationToken);
             _lastPrune = now;
         }
 
-        await HeartbeatAsync(db, claimed.Count, cancellationToken);
+        await HeartbeatAsync(db, claimed.Count, withCounts, cancellationToken);
     }
 
     /// <summary>
@@ -100,7 +116,8 @@ public class OutboxDeliveryWorker(
             .Where(m => m.Status == OutboxStatus.Claimed && m.ClaimedAt != null && m.ClaimedAt < cutoff)
             .ExecuteUpdateAsync(
                 s => s.SetProperty(m => m.Status, OutboxStatus.Pending)
-                      .SetProperty(m => m.ClaimedAt, (DateTimeOffset?)null),
+                      .SetProperty(m => m.ClaimedAt, (DateTimeOffset?)null)
+                      .SetProperty(m => m.ClaimToken, (Guid?)null),
                 cancellationToken);
 
         if (reclaimed > 0)
@@ -111,14 +128,21 @@ public class OutboxDeliveryWorker(
     }
 
     /// <summary>
-    /// Claims a batch in ONE atomic statement. Two app instances coexist briefly during every
-    /// deploy, and a SELECT followed by an UPDATE lets both claim the same row; ExecuteUpdate over a
-    /// bounded, ordered subquery makes the claim and the read the same operation.
+    /// Claims a bounded batch for this pass.
+    ///
+    /// Two app instances coexist briefly during every deploy, so two things must hold: no row may be
+    /// claimed twice, and this pass must be able to tell which rows IT claimed. The atomic
+    /// ExecuteUpdate gives the first - a losing instance matches zero Pending rows. The per-pass
+    /// ClaimToken gives the second. Correlating the read-back on a timestamp instead would be
+    /// unsound: two instances can produce the same one, and the loser would then deliver the
+    /// winner's batch.
     /// </summary>
     private async Task<List<OutboxMessage>> ClaimBatchAsync(
         AppDbContext db, DateTimeOffset now, CancellationToken cancellationToken)
     {
-        var claimToken = now;
+        // A GUID, not the timestamp: two instances polling on the same schedule can produce
+        // identical timestamps, and the loser's read-back would then adopt the winner's rows.
+        var claimToken = Guid.NewGuid();
 
         var eligibleIds = await db.OutboxMessages
             .Where(m => m.Status == OutboxStatus.Pending && m.NextAttemptAt <= now)
@@ -132,19 +156,21 @@ public class OutboxDeliveryWorker(
             return [];
         }
 
-        // The Status == Pending predicate is re-checked inside the UPDATE, so a row another instance
-        // claimed between the SELECT and here is simply not claimed by us.
+        // Two guards, and both are needed. The Status == Pending predicate re-checked inside the
+        // UPDATE stops a losing instance from overwriting a row someone else claimed; the ClaimToken
+        // written here is what lets the read-back below select only the rows THIS update touched.
         await db.OutboxMessages
             .Where(m => eligibleIds.Contains(m.Id) && m.Status == OutboxStatus.Pending)
             .ExecuteUpdateAsync(
                 s => s.SetProperty(m => m.Status, OutboxStatus.Claimed)
-                      .SetProperty(m => m.ClaimedAt, claimToken),
+                      .SetProperty(m => m.ClaimedAt, now)
+                      .SetProperty(m => m.ClaimToken, claimToken),
                 cancellationToken);
 
         return await db.OutboxMessages
             .Where(m => eligibleIds.Contains(m.Id)
                         && m.Status == OutboxStatus.Claimed
-                        && m.ClaimedAt == claimToken)
+                        && m.ClaimToken == claimToken)
             .ToListAsync(cancellationToken);
     }
 
@@ -164,8 +190,14 @@ public class OutboxDeliveryWorker(
         }
         else
         {
-            var subscription = await db.PushSubscriptions
-                .FirstOrDefaultAsync(s => s.Id.ToString() == message.Recipient, cancellationToken);
+            // Parse first, then compare Guid to Guid. Comparing s.Id.ToString() would push a CONVERT
+            // onto every row and lose the primary-key seek - on a hot path, against the tightest
+            // resource in the stack. A Recipient that does not parse is a malformed row, treated the
+            // same as a subscription that no longer exists.
+            var subscription = Guid.TryParse(message.Recipient, out var subscriptionId)
+                ? await db.PushSubscriptions
+                    .FirstOrDefaultAsync(s => s.Id == subscriptionId, cancellationToken)
+                : null;
 
             result = subscription is null
                 // The subscription was deleted between enqueue and send. Nothing to retry against.
@@ -190,12 +222,14 @@ public class OutboxDeliveryWorker(
                 message.Status = OutboxStatus.Sent;
                 message.SentAt = now;
                 message.ClaimedAt = null;
+                message.ClaimToken = null;
                 message.LastError = result.Error;
                 break;
 
             case DeliveryOutcome.Permanent:
                 message.Status = OutboxStatus.Failed;
                 message.ClaimedAt = null;
+                message.ClaimToken = null;
                 message.AttemptCount++;
                 message.LastError = result.Error;
                 logger.LogWarning(
@@ -205,6 +239,7 @@ public class OutboxDeliveryWorker(
             case DeliveryOutcome.Transient:
                 message.AttemptCount++;
                 message.ClaimedAt = null;
+                message.ClaimToken = null;
                 message.LastError = result.Error;
 
                 if (message.AttemptCount >= _options.MaxAttempts)
@@ -261,8 +296,16 @@ public class OutboxDeliveryWorker(
     /// One line per pass. This is the "heartbeat log line and outbox-failure count" the roadmap asks
     /// for - it answers both "is the worker alive?" and "is delivery quietly broken?".
     /// </summary>
-    private async Task HeartbeatAsync(AppDbContext db, int processed, CancellationToken cancellationToken)
+    private async Task HeartbeatAsync(
+        AppDbContext db, int processed, bool withCounts, CancellationToken cancellationToken)
     {
+        if (!withCounts)
+        {
+            // The cheap line: proves the worker is alive without touching the table.
+            logger.LogInformation("Outbox heartbeat: processed {Processed}.", processed);
+            return;
+        }
+
         var counts = await db.OutboxMessages
             .GroupBy(m => m.Status)
             .Select(g => new { Status = g.Key, Count = g.Count() })
