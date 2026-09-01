@@ -863,13 +863,13 @@ provider behaviours we can reason about but not exercise cheaply.
 
 #### Automated
 
-- [x] 4.1 npm run quality:check passes
-- [x] 4.2 Angular builds and emits ngsw-worker.js
-- [x] 4.3 Manifest present in the build output
-- [x] 4.4 Vitest suite passes
-- [x] 4.5 .NET suite passes including push endpoint tests
-- [x] 4.6 Anonymous subscribe returns 401
-- [x] 4.7 Composition test proves the email + per-subscription push fan-out
+- [x] 4.1 npm run quality:check passes — d3ef1b2
+- [x] 4.2 Angular builds and emits ngsw-worker.js — d3ef1b2
+- [x] 4.3 Manifest present in the build output — d3ef1b2
+- [x] 4.4 Vitest suite passes — d3ef1b2
+- [x] 4.5 .NET suite passes including push endpoint tests — d3ef1b2
+- [x] 4.6 Anonymous subscribe returns 401 — d3ef1b2
+- [x] 4.7 Composition test proves the email + per-subscription push fan-out — d3ef1b2
 - [ ] 4.8 Deployed /health returns 200 Healthy and SPA serves
 - [ ] 4.9 /health reports the outbox check with zero failures after the end-to-end run
 
@@ -878,10 +878,10 @@ provider behaviours we can reason about but not exercise cheaply.
 - [ ] 4.10 Chrome desktop subscribes and a row appears in PushSubscriptions
 - [ ] 4.11 iPhone installs to home screen and subscribes
 - [ ] 4.12 Denying permission leaves the app usable with no error surfaced
-- [x] 4.13 Re-subscribing does not create a duplicate row
+- [x] 4.13 Re-subscribing does not create a duplicate row — d3ef1b2
 - [ ] 4.14 Approving a member delivers a real email to a real inbox
 - [ ] 4.15 The same approval delivers a real push notification to desktop and installed iPhone
 - [ ] 4.16 Outbox row observed transitioning Pending → Claimed → Sent
 - [ ] 4.17 Heartbeat counts move as the message is delivered
 - [ ] 4.18 SchemaMarkers confirmed absent from Azure SQL
-- [x] 4.19 No secret value appears in any application or deploy log
+- [x] 4.19 No secret value appears in any application or deploy log — d3ef1b2
