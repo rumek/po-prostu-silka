@@ -94,6 +94,7 @@ public static class ClassEndpoints
             .RequireAuthorization(AuthorizationPolicyNames.Admin);
 
         admin.MapGet("/", GetAdminClassesAsync);
+        admin.MapGet("/{id:guid}", GetByIdAsync);
         admin.MapPost("/", CreateAsync);
         admin.MapPut("/{id:guid}", UpdateAsync);
         admin.MapDelete("/{id:guid}", DeleteAsync);
@@ -131,6 +132,23 @@ public static class ClassEndpoints
         CancellationToken cancellationToken) =>
         Results.Ok(await query.GetUpcomingForAdminAsync(
             timeProvider.GetUtcNow(), cancellationToken));
+
+    /// <summary>
+    /// One class, for the edit form.
+    ///
+    /// Exists so opening /admin/classes/:id directly - a bookmark, a refresh, a shared link - costs
+    /// one row instead of the whole admin list. That list is deliberately unbounded, so filtering it
+    /// client-side to find a single class would grow with every class the club ever schedules.
+    /// </summary>
+    private static async Task<IResult> GetByIdAsync(
+        Guid id,
+        IClassStore store,
+        CancellationToken cancellationToken)
+    {
+        var found = await store.FindAsync(id, cancellationToken);
+
+        return found is null ? Results.NotFound() : Results.Ok(ToDto(found));
+    }
 
     private static async Task<IResult> CreateAsync(
         ClassRequest request,
@@ -216,6 +234,12 @@ public static class ClassEndpoints
         existing.Instructor = request.Instructor.Trim();
         existing.Capacity = request.Capacity;
 
+        // SaveChangesAsync, not TrySaveChangesAsync, and Class carries no concurrency token - a
+        // deliberate departure from the MemberAdminEndpoints pattern above, on the same grounds
+        // ClassStore.HasRoomConflictAsync records: exactly one admin account is ever seeded
+        // (AdminSeeder), so there is no second writer to lose a race against. Two admins would make
+        // this last-write-wins, which is why ClassStore names a second admin as the trigger to
+        // revisit - at which point Class needs a ConcurrencyStamp and both handlers need the 409.
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Results.Ok(ToDto(existing));
@@ -241,6 +265,11 @@ public static class ClassEndpoints
         }
 
         store.Remove(existing);
+
+        // No concurrency token here either - same single-admin reasoning as UpdateAsync. The race
+        // this leaves open is delete-while-editing, which would surface as an unhandled
+        // DbUpdateConcurrencyException rather than a clean 409; acceptable only while one admin
+        // exists.
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Results.NoContent();

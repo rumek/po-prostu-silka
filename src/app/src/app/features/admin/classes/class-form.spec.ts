@@ -41,7 +41,8 @@ describe('ClassForm', () => {
     fixture.detectChanges();
 
     if (id) {
-      (await vi.waitFor(() => controller.expectOne('/api/admin/classes'))).flush([EXISTING]);
+      // A dedicated single-item GET, not a filtered list fetch — see class.service.getById.
+      (await vi.waitFor(() => controller.expectOne(`/api/admin/classes/${id}`))).flush(EXISTING);
     }
 
     await settle();
@@ -49,10 +50,7 @@ describe('ClassForm', () => {
 
   afterEach(() => controller.verify());
 
-  /**
-   * Drained twice: loading an existing class goes through getById -> getAdminClasses -> find, so
-   * the promise chain needs more than one turn before the form is populated and rendered.
-   */
+  /** Drained twice so the load promise settles and the populated form renders before assertions. */
   async function settle() {
     await fixture.whenStable();
     fixture.detectChanges();

@@ -223,6 +223,19 @@ for the member window, and `IClassAdminQuery.GetUpcomingAsync(...)` for the admi
 until S-04. Project it as an explicit `Capacity - 0` expression with a comment naming S-04 as the
 real source, so that slice changes one expression and no DTO, template or spec.
 
+**Adapted during implementation.** Two departures from this contract.
+
+`IClassAdminQuery` was never created. Both reads live on `IClassScheduleQuery` as
+`GetScheduleAsync` (the member window) and `GetUpcomingForAdminAsync` (the admin list), served by one
+`ClassScheduleQuery`. Two interfaces over a single implementing class bought nothing but a second
+file and a second DI registration; the DI section below consequently registers **two** seams
+(`IClassScheduleQuery`, `IClassStore`), not three.
+
+`FreeSpots` is projected as plain `Capacity`, not the literal `Capacity - 0` — subtracting a
+constant zero is dead arithmetic, and the comment naming S-04 as the real source (present at both
+call sites, `ClassScheduleQuery.cs` and `ClassEndpoints.ToDto`) carries the intent on its own. The
+two paths were checked to agree, so a create/update response can never disagree with the list.
+
 #### 2. Read implementations
 
 **File**: `src/Infrastructure/Scheduling/ClassScheduleQuery.cs` (new)
@@ -248,6 +261,19 @@ CancellationToken)`. The conflict check must run in SQL: two classes conflict wh
 both are `Scheduled`, and their `[StartsAt, StartsAt + DurationMinutes)` intervals intersect. EF Core
 translates `DateTimeOffset.AddMinutes(int)` to `DATEADD`, so this needs no client-side evaluation.
 `excludingId` exists so editing a class does not conflict with itself.
+
+**Adapted during implementation.** Two departures.
+
+The add method is **`Add(Class)`, synchronous**, not `AddAsync`. `DbSet.Add` does not hit the
+database — it only marks the entity Added on the change tracker — so an async signature would have
+promised IO that never happens. `FindAsync` stays async because it genuinely queries.
+
+`HasRoomConflictAsync` **also checks the change tracker**, not just the database. An EF query reads
+the database and cannot see rows that are Added-but-unsaved, so without the extra
+`db.Classes.Local` pass a duplicate batch's own queued copies would be invisible to one another. The
+one batch that exists today spaces its copies seven days apart and so cannot self-collide — but a
+conflict checker that silently ignores pending writes is a trap for the next caller, and S-04 will be
+that caller.
 
 #### 4. Member schedule endpoint
 
@@ -283,6 +309,27 @@ is nothing for a caller to get wrong.
 Failure reasons: `invalid_capacity`, `invalid_duration`, `starts_in_past`, `room_conflict` — all 400
 except `room_conflict`, which is 409. Unknown id is 404.
 
+**Adapted during implementation.** Three departures from this list.
+
+A fifth failure reason, **`missing_field`** (400), covers the blank-name / blank-room /
+blank-instructor case. The plan already required "required fields non-blank" as a rule but named no
+token for it; the frontend maps it to a form-level "fill in every field" message rather than to a
+single control, because it cannot know which field was blank.
+
+**`GET /{id:guid}`** was added — one class, for the edit form. It is not in the list above because it
+was added during implementation review, not planning: `class.service.getById` originally fetched the
+entire admin list and filtered client-side, which is fine when the admin clicks Edit from the list
+and wasteful on a bookmark, refresh or shared link, where nothing is loaded to filter and the
+unbounded admin query is fetched cold to render one row. Returns 404 for an unknown id, under the
+same `Admin` policy as the rest of the group.
+
+**Neither `PUT` nor `DELETE` uses a concurrency token.** Both call `SaveChangesAsync`, not
+`TrySaveChangesAsync`, and `Class` has no `ConcurrencyStamp` to rotate — a deliberate departure from
+the `MemberAdminEndpoints` pattern, on the single-admin grounds `ClassStore` already records. The
+gaps this leaves are last-write-wins on a concurrent edit and an unhandled 500 on
+delete-while-editing; both handlers now carry a comment saying so, and name a second admin account as
+the trigger to close them.
+
 #### 6. Duplicate endpoint
 
 **File**: `src/Application/Scheduling/ClassEndpoints.cs`
@@ -309,7 +356,19 @@ Resolved by narrowing the no-timezone rule to the **read** path, which is where 
 earning its keep. `src/Domain/Scheduling/ClubTime.cs` names `Europe/Warsaw` once and is used **only**
 by the duplicate arithmetic: convert to club-local, add days there, convert back to UTC. It also
 handles the two DST edge cases `TimeZoneInfo` otherwise mishandles — an invalid local time in the
-spring-forward gap (throws) and an ambiguous one in the autumn repeat (silently picks). The schedule
+spring-forward gap (throws) and an ambiguous one in the autumn repeat (silently picks).
+
+**Corrected in implementation review.** The first version of that ambiguous-hour handling was itself
+wrong: it took `GetAmbiguousTimeOffsets(...)[0]`, commented as "the FIRST occurrence (still on the
+pre-transition offset)". That API leaves its array order undefined, and on this runtime index 0 is
+the *standard* offset — probing `Europe/Warsaw` at `2026-10-25 02:30` returns `[+01:00 CET,
++02:00 CEST]`. The shipped code therefore resolved that hour to `01:30 UTC` instead of `00:30 UTC`,
+putting a class duplicated into it one hour late, silently. Now resolved by comparing against
+`TimeZoneInfo.BaseUtcOffset` to select the daylight offset by meaning rather than by array position —
+which also stays correct for zones whose daylight offset is negative, where picking the larger value
+would not.
+
+The schedule
 endpoint still returns UTC instants and the SPA still groups by the browser's local date, so a member
 abroad still sees their own clock.
 
@@ -422,6 +481,13 @@ inside the existing `.field` wrapper so they inherit the 16px minimum that stops
 on focus (`styles.scss:228-229`). `datetime-local` has no timezone: read the local value and convert
 to UTC on submit, and convert back to local when loading an existing class for edit. Get this
 backwards and every edited class silently shifts by the UTC offset.
+
+**Adapted during implementation.** That conversion does not live in the component. It was extracted
+to `src/app/src/app/core/scheduling/local-datetime.ts` (`toLocalInputValue` / `fromLocalInputValue`)
+with its own spec, precisely because of the sentence above: it is the one place in this slice where a
+mistake is silent — nothing throws, no request fails, the class simply moves. Isolating it made the
+inverse pair directly testable, and `local-datetime.spec.ts` asserts the round trip across a winter
+date, a summer date and the far side of the DST change.
 
 Server failures map onto controls via the `applyFailure`/`reject` pattern
 (`register.ts:63-101`): `room_conflict` sets a custom error on the room control with a message

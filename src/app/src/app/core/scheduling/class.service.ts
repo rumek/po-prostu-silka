@@ -27,16 +27,17 @@ export class ClassService {
     return firstValueFrom(this.http.get<ScheduledClass[]>('/api/admin/classes'));
   }
 
+  /**
+   * One class, for the edit form.
+   *
+   * A dedicated endpoint rather than filtering the admin list client-side: opening
+   * /admin/classes/:id directly — a bookmark, a refresh, a shared link — has no list loaded to
+   * filter, and that list is unbounded, so it would grow with every class the club ever schedules.
+   */
   getById(id: string): Promise<ScheduledClass> {
-    // No single-class GET on the API — the admin list is small and already loaded on the way here,
-    // so the form finds its class in that list rather than adding an endpoint for one row.
-    return this.getAdminClasses().then((classes) => {
-      const found = classes.find((c) => c.id === id);
-      if (!found) {
-        throw new Error(`Class ${id} not found`);
-      }
-      return found;
-    });
+    return firstValueFrom(
+      this.http.get<ScheduledClass>(`/api/admin/classes/${encodeURIComponent(id)}`),
+    );
   }
 
   create(request: ClassRequest): Promise<ScheduledClass> {

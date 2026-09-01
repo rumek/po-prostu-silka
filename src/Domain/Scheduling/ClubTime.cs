@@ -62,11 +62,44 @@ public static class ClubTime
         }
 
         var offset = zone.IsAmbiguousTime(shifted)
-            // Repeated hour: take the FIRST occurrence (still on the pre-transition offset), which is
-            // the one a member reading a timetable would arrive for.
-            ? zone.GetAmbiguousTimeOffsets(shifted)[0]
+            ? DaylightOffsetFor(zone, shifted)
             : zone.GetUtcOffset(shifted);
 
         return new DateTimeOffset(shifted, offset).ToUniversalTime();
+    }
+
+    /// <summary>
+    /// Of the two offsets a repeated wall-clock hour can carry, the DAYLIGHT one - the earlier
+    /// instant, and so the first of the two occurrences. That is the one a member reading a
+    /// timetable turns up for: the class stays put relative to every other week in the series.
+    ///
+    /// <para>
+    /// Selected by comparing against <see cref="TimeZoneInfo.BaseUtcOffset"/> - the zone's standard
+    /// offset - rather than by array position. <c>GetAmbiguousTimeOffsets</c> explicitly does NOT
+    /// define its ordering, and on this runtime index 0 is in fact the STANDARD offset: for
+    /// Europe/Warsaw at 2026-10-25 02:30 it returns [+01:00 (CET), +02:00 (CEST)]. Indexing it would
+    /// silently pick the post-transition occurrence and move the class an hour later.
+    /// </para>
+    ///
+    /// <para>
+    /// Comparing to the base offset states the intent semantically instead of numerically, so it
+    /// stays correct for zones whose daylight offset is negative - unlike picking the larger value.
+    /// </para>
+    /// </summary>
+    private static TimeSpan DaylightOffsetFor(TimeZoneInfo zone, DateTime ambiguousLocal)
+    {
+        var offsets = zone.GetAmbiguousTimeOffsets(ambiguousLocal);
+
+        foreach (var offset in offsets)
+        {
+            if (offset != zone.BaseUtcOffset)
+            {
+                return offset;
+            }
+        }
+
+        // Every candidate equals the standard offset: not a daylight transition at all. Nothing is
+        // ambiguous to resolve, so the standard offset is the only answer.
+        return zone.BaseUtcOffset;
     }
 }
