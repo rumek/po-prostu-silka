@@ -11,14 +11,37 @@ namespace po_prostu_silka.Application.Members;
 /// </summary>
 public record PendingMember(string Id, string Email, string DisplayName, DateTimeOffset CreatedAt);
 
+/// <summary>
+/// A member as the admin's full list sees them (FR-005). Wider than <see cref="PendingMember"/>,
+/// which stays as it is — the approvals queue does not need a status it already knows.
+///
+/// This is a CONTRACT the SPA's member-admin service mirrors — renaming a field breaks the members
+/// screen silently.
+///
+/// <para>
+/// Status crosses the wire as the enum NAME ("Pending" / "Active" / "Blocked"), not its int. The
+/// numeric values exist for persistence stability (see <see cref="AccountStatus"/>) and are nobody
+/// else's business; a badge keyed on 2 would break the day someone renumbers, which is exactly the
+/// scenario that enum's comment warns about.
+/// </para>
+/// </summary>
+public record MemberSummary(
+    string Id,
+    string Email,
+    string DisplayName,
+    string Status,
+    DateTimeOffset CreatedAt);
+
 public record ApproveFailure(string Reason);
 
 /// <summary>
-/// The admin's approval surface: see who is waiting, let one of them in.
+/// The admin's member surface: the approval queue (S-01), and the full member list S-02 adds on top
+/// of it.
 ///
-/// Deliberately only those two operations (S-01 decision D5). There is no reject — FR-003 dropped it
-/// from the MVP — and no block/unblock or full member list, which S-02 owns and which is blocked on
-/// the PRD's open question about a blocked member's existing bookings.
+/// There is still no reject — FR-003 dropped it from the MVP. The PRD's open question about a
+/// blocked member's existing bookings, which S-01 recorded here as blocking S-02, was reassigned to
+/// S-04 and S-07 during S-02's framing: it asks about aggregates that do not exist yet, and nothing
+/// on this surface touches them. See context/changes/member-management/frame.md.
 ///
 /// These are the FIRST production consumers of the Admin policy; before this it existed only for the
 /// environment-guarded probes in Program.cs.
@@ -39,6 +62,7 @@ public static class MemberAdminEndpoints
             .RequireAuthorization(AuthorizationPolicyNames.Admin);
 
         group.MapGet("/pending", GetPendingAsync);
+        group.MapGet("/", GetMembersAsync);
         group.MapPost("/{id}/approve", ApproveAsync);
 
         return app;
@@ -55,6 +79,24 @@ public static class MemberAdminEndpoints
         IPendingMemberQuery query,
         CancellationToken cancellationToken) =>
         Results.Ok(await query.GetPendingAsync(cancellationToken));
+
+    /// <summary>
+    /// Every member, or one status of them (FR-005). Admins are not members and never appear here —
+    /// the exclusion is in the query, and the block endpoint refuses them again on its own side.
+    ///
+    /// <paramref name="status"/> binds as a nullable enum, so an unparseable value is a 400 from the
+    /// framework's binding rather than a silent fall-through to "no filter". That distinction
+    /// matters: a typo in the SPA must surface as a broken request, not as the admin quietly being
+    /// shown everyone when they asked for the blocked.
+    ///
+    /// No pagination, for the reason GetPendingAsync gives: a single gym's list is small. Search is
+    /// the SPA's job — it filters the loaded rows, which is instant and costs no round-trip.
+    /// </summary>
+    private static async Task<IResult> GetMembersAsync(
+        AccountStatus? status,
+        IMemberQuery query,
+        CancellationToken cancellationToken) =>
+        Results.Ok(await query.GetMembersAsync(status, cancellationToken));
 
     private static async Task<IResult> ApproveAsync(
         string id,
@@ -130,4 +172,19 @@ public static class MemberAdminEndpoints
 public interface IPendingMemberQuery
 {
     Task<IReadOnlyList<PendingMember>> GetPendingAsync(CancellationToken cancellationToken);
+}
+
+/// <summary>
+/// The same seam for the full member list (FR-005). Separate from
+/// <see cref="IPendingMemberQuery"/> rather than replacing it: the approvals queue orders oldest
+/// first and needs no status, this one browses alphabetically and needs nothing else.
+/// </summary>
+public interface IMemberQuery
+{
+    /// <param name="status">
+    /// Narrow to one status, or null for every member. Applied in SQL against the Status index.
+    /// </param>
+    Task<IReadOnlyList<MemberSummary>> GetMembersAsync(
+        AccountStatus? status,
+        CancellationToken cancellationToken);
 }

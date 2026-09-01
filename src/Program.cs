@@ -160,6 +160,9 @@ builder.Services.AddScoped<IAccountApprovedNotification, AccountApprovedNotifica
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IPendingMemberQuery, PendingMemberQuery>();
 
+// S-02's member list (FR-005). Scoped like the query above - it depends on the same DbContext.
+builder.Services.AddScoped<IMemberQuery, MemberQuery>();
+
 builder.Services.AddHostedService<OutboxDeliveryWorker>();
 
 var app = builder.Build();
