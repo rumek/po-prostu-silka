@@ -45,7 +45,7 @@ A single gym runs class sign-ups, schedule changes, and individual training plan
 | F-02 | auth-identity-foundation        | (foundation) Identity auth, User/Admin roles, admin seeded              | F-01                   | FR-001, FR-002, Access Control        | done     |
 | F-03 | notification-delivery-foundation | (foundation) email + push transport with outbox/retry landed            | F-01                   | FR-021, NFR promptness                | done     |
 | S-01 | registration-and-approval       | register, wait at approval screen; admin approves                       | F-01, F-02             | FR-001, FR-002, FR-003                | done        |
-| S-02 | member-management               | admin searches/filters members, blocks and unblocks                     | S-01                   | FR-004, FR-005                        | in-progress |
+| S-02 | member-management               | admin searches/filters members, blocks and unblocks                     | S-01                   | FR-004, FR-005                        | done     |
 | S-03 | class-schedule-and-admin        | browse day-by-day schedule; admin creates/edits/duplicates classes      | S-01                   | FR-007, FR-011, FR-012                | proposed |
 | S-04 | class-booking-and-cancel        | book a spot, cancel it, see upcoming classes; admin sees bookings       | S-03                   | US-01, FR-008, FR-009, FR-010, FR-014 | proposed |
 | S-05 | class-change-notifications      | booked member gets email + push on class cancel/change                  | F-03, S-04             | US-02, FR-013, FR-021, FR-011         | proposed |
@@ -147,7 +147,7 @@ Foundations below assume these are present and do NOT re-scaffold them.
 - **Unknowns:**
   - None blocking. Two decisions surfaced by `context/changes/member-management/frame.md` that the plan must settle rather than inherit: (a) block must rotate the Identity security stamp, or a blocked member's live cookie keeps passing the `ActiveMember` policy for up to 30 minutes (`src/Program.cs:118-122`); (b) the seeded admin is an ordinary `ApplicationUser` in the same table (`AdminSeeder.cs:57-65`) and must be excluded from the blockable member list, or a solo-admin club can lock itself out.
 - **Risk:** low. Mostly a generalisation of S-01's shipped approvals surface — the endpoint group, admin policy, `Application`→`Infrastructure` query seam, and the status index (`ApplicationUserConfiguration.cs:29-30`, added for this slice) all already exist. The real care goes into session revocation and admin self-block, not into new construction.
-- **Status:** in-progress
+- **Status:** done
 
 ### S-03: Member browses the schedule; admin runs it
 
@@ -289,3 +289,4 @@ Foundations below assume these are present and do NOT re-scaffold them.
 - **F-02: (foundation) ASP.NET Core Identity wired for email + password; sessions long-lived and mobile-friendly (FR-002 design note); flat User/Admin role model; an admin account seeded at setup (never self-registered); route-level authorization available; unauthenticated access limited to login and registration.** — Archived 2026-08-31 → `context/archive/2026-08-31-auth-identity-foundation/`. Lesson: —.
 - **F-03: (foundation) a transactional email path (Azure Communication Services, or the documented SMTP fallback) with a verified sender domain; Web Push with a subscription endpoint and stored browser subscriptions; an outbox table plus an idempotent retry worker (hosted service) that survives App Service recycles; a heartbeat log line and outbox-failure count for visibility; one test message delivered end-to-end to a real inbox and device.** — Archived 2026-09-01 → `context/archive/2026-08-31-notification-delivery-foundation/`. Lesson: Record necessary adaptations in the plan, not only in the deploy log (`context/foundation/lessons.md`).
 - **S-01: user can register with email + password, log in while `pending` and see only the awaiting-approval screen (no schedule, no booking); the admin sees pending registrations and approves one; the approved member logs in and reaches the app proper.** — Archived 2026-09-01 → `context/archive/2026-09-01-registration-and-approval/`. Lesson: —.
+- **S-02: user (admin) can browse all members in one searchable list with status badges and a pending / active / blocked filter, block a member (who then loses access to app content), and unblock them.** — Archived 2026-09-01 → `context/archive/2026-09-01-member-management/`. Lesson: —.
