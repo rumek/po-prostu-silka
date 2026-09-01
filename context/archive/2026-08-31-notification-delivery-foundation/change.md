@@ -1,10 +1,10 @@
 ---
 change_id: notification-delivery-foundation
 title: Notification delivery foundation
-status: impl_reviewed
+status: archived
 created: 2026-08-31
-updated: 2026-08-31
-archived_at: null
+updated: 2026-09-01
+archived_at: 2026-09-01T14:05:19Z
 ---
 
 ## Notes

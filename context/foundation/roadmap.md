@@ -3,7 +3,7 @@ project: "Po Prostu Siłka"
 version: 1
 status: draft
 created: 2026-08-31
-updated: 2026-08-31
+updated: 2026-09-01
 prd_version: 1
 main_goal: speed
 top_blocker: external
@@ -43,7 +43,7 @@ A single gym runs class sign-ups, schedule changes, and individual training plan
 | ---- | ------------------------------- | ----------------------------------------------------------------------- | ---------------------- | ------------------------------------- | -------- |
 | F-01 | persistence-foundation          | (foundation) EF Core + Azure SQL wired; migrations run on deploy        | —                      | NFR privacy, Business Logic           | done     |
 | F-02 | auth-identity-foundation        | (foundation) Identity auth, User/Admin roles, admin seeded              | F-01                   | FR-001, FR-002, Access Control        | done     |
-| F-03 | notification-delivery-foundation | (foundation) email + push transport with outbox/retry landed            | F-01                   | FR-021, NFR promptness                | in-progress |
+| F-03 | notification-delivery-foundation | (foundation) email + push transport with outbox/retry landed            | F-01                   | FR-021, NFR promptness                | done     |
 | S-01 | registration-and-approval       | register, wait at approval screen; admin approves                       | F-01, F-02             | FR-001, FR-002, FR-003                | proposed |
 | S-02 | member-management               | admin searches/filters members, blocks and unblocks                     | S-01                   | FR-004, FR-005                        | blocked  |
 | S-03 | class-schedule-and-admin        | browse day-by-day schedule; admin creates/edits/duplicates classes      | S-01                   | FR-007, FR-011, FR-012                | proposed |
@@ -120,7 +120,7 @@ Foundations below assume these are present and do NOT re-scaffold them.
 - **Unknowns:**
   - Push on iOS requires iOS 16.4+ and a home-screen install — acceptable for the member base, with email as the guaranteed channel and push best-effort? — Owner: user. Block: no.
 - **Risk:** the #1-blocker foundation, pulled early because domain verification is multi-day elapsed time infrastructure.md says "belongs in week 1, not week 3". App Service recycles drop in-flight sends unless delivery goes through the outbox + retry — fire-and-forget is explicitly ruled out.
-- **Status:** in-progress
+- **Status:** done
 
 ## Slices
 
@@ -285,3 +285,4 @@ Foundations below assume these are present and do NOT re-scaffold them.
 
 - **F-01: (foundation) Azure SQL Database (Basic DTU tier) provisioned and connected; EF Core installed with a bootstrapped DbContext; schema migrations run automatically on deploy; connection string lives in App Service settings; Always On re-verified.** — Archived 2026-08-31 → `context/archive/2026-08-31-persistence-foundation/`. Lesson: —.
 - **F-02: (foundation) ASP.NET Core Identity wired for email + password; sessions long-lived and mobile-friendly (FR-002 design note); flat User/Admin role model; an admin account seeded at setup (never self-registered); route-level authorization available; unauthenticated access limited to login and registration.** — Archived 2026-08-31 → `context/archive/2026-08-31-auth-identity-foundation/`. Lesson: —.
+- **F-03: (foundation) a transactional email path (Azure Communication Services, or the documented SMTP fallback) with a verified sender domain; Web Push with a subscription endpoint and stored browser subscriptions; an outbox table plus an idempotent retry worker (hosted service) that survives App Service recycles; a heartbeat log line and outbox-failure count for visibility; one test message delivered end-to-end to a real inbox and device.** — Archived 2026-09-01 → `context/archive/2026-08-31-notification-delivery-foundation/`. Lesson: Record necessary adaptations in the plan, not only in the deploy log (`context/foundation/lessons.md`).
