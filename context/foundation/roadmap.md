@@ -46,7 +46,7 @@ A single gym runs class sign-ups, schedule changes, and individual training plan
 | F-03 | notification-delivery-foundation | (foundation) email + push transport with outbox/retry landed            | F-01                   | FR-021, NFR promptness                | done     |
 | S-01 | registration-and-approval       | register, wait at approval screen; admin approves                       | F-01, F-02             | FR-001, FR-002, FR-003                | done        |
 | S-02 | member-management               | admin searches/filters members, blocks and unblocks                     | S-01                   | FR-004, FR-005                        | done     |
-| S-03 | class-schedule-and-admin        | browse day-by-day schedule; admin creates/edits/duplicates classes      | S-01                   | FR-007, FR-011, FR-012                | proposed |
+| S-03 | class-schedule-and-admin        | browse day-by-day schedule; admin creates/edits/duplicates classes      | S-01                   | FR-007, FR-011, FR-012                | in-progress |
 | S-04 | class-booking-and-cancel        | book a spot, cancel it, see upcoming classes; admin sees bookings       | S-03                   | US-01, FR-008, FR-009, FR-010, FR-014 | proposed |
 | S-05 | class-change-notifications      | booked member gets email + push on class cancel/change                  | F-03, S-04             | US-02, FR-013, FR-021, FR-011         | proposed |
 | S-06 | exercise-library                | admin manages exercises with instructions and YouTube videos            | S-01                   | FR-018, FR-019                        | proposed |
@@ -159,7 +159,7 @@ Foundations below assume these are present and do NOT re-scaffold them.
 - **Blockers:** —
 - **Unknowns:** —
 - **Risk:** the read surface the booking slice builds on; "day-by-day list, not a calendar grid" (PRD design note) bounds mobile scope. Editing a class that already has bookings triggers a notification — that corner of FR-011 belongs to S-05, not here.
-- **Status:** proposed
+- **Status:** in-progress
 
 ### S-04: Member books and cancels a class spot
 

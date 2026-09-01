@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using po_prostu_silka.Domain;
 using po_prostu_silka.Domain.Notifications;
+using po_prostu_silka.Domain.Scheduling;
 
 namespace po_prostu_silka.Infrastructure.Persistence;
 
@@ -20,6 +21,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
     public DbSet<PushSubscription> PushSubscriptions => Set<PushSubscription>();
+
+    public DbSet<Class> Classes => Set<Class>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
