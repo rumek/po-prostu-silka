@@ -35,6 +35,19 @@ public record MemberSummary(
 public record ApproveFailure(string Reason);
 
 /// <summary>
+/// Why a block was refused. <c>is_admin</c> — the target holds the Admin role and is not a member;
+/// <c>conflict</c> — someone changed the row between our read and our write, so the caller's view is
+/// stale and should be refetched.
+/// </summary>
+public record BlockFailure(string Reason);
+
+/// <summary>
+/// Why an unblock was refused. <c>not_blocked</c> — the target is Pending, so the action wanted is
+/// approve, not unblock; <c>conflict</c> — as above.
+/// </summary>
+public record UnblockFailure(string Reason);
+
+/// <summary>
 /// The admin's member surface: the approval queue (S-01), and the full member list S-02 adds on top
 /// of it.
 ///
@@ -64,6 +77,8 @@ public static class MemberAdminEndpoints
         group.MapGet("/pending", GetPendingAsync);
         group.MapGet("/", GetMembersAsync);
         group.MapPost("/{id}/approve", ApproveAsync);
+        group.MapPost("/{id}/block", BlockAsync);
+        group.MapPost("/{id}/unblock", UnblockAsync);
 
         return app;
     }
@@ -119,8 +134,9 @@ public static class MemberAdminEndpoints
             return Results.Ok();
         }
 
-        // Approving a blocked member is S-02's unblock, not this endpoint — it would have to answer
-        // what happens to their old bookings, which is still an open PRD question.
+        // With Active handled above, the only status left to refuse is Blocked. Letting a blocked
+        // member in through the approvals queue would be a second, quieter way to unblock — one that
+        // skips the members screen entirely. POST /{id}/unblock is the action for that.
         if (user.Status != AccountStatus.Pending)
         {
             return Results.Json(new ApproveFailure("not_pending"), statusCode: 409);
@@ -159,8 +175,118 @@ public static class MemberAdminEndpoints
         }
 
         // The member's cookie still carries account_status=Pending until they call
-        // POST /api/auth/refresh or the 30-minute security-stamp validation fires. That is why that
+        // POST /api/auth/refresh or the security-stamp validation interval fires. That is why that
         // endpoint exists; see AuthEndpoints.RefreshAsync.
+        return Results.Ok();
+    }
+
+    /// <summary>
+    /// Block a member (FR-004): refuse them at login, and cut the session they may already hold.
+    ///
+    /// Follows ApproveAsync's transition shape — idempotency check, manual concurrency-stamp
+    /// rotation, one save — for the same reasons documented there. Two differences:
+    ///
+    /// 1. It rotates the SECURITY stamp as well, which is what actually ends a live session. F-02
+    ///    deferred this obligation here by name (auth-identity-foundation plan, D-notes): without
+    ///    it, a blocked member keeps a valid cookie carrying account_status=Active and sails past
+    ///    the ActiveMember policy until it happens to be re-minted. Note this is assigned directly
+    ///    rather than via UserManager.UpdateSecurityStampAsync, which would issue its OWN save and
+    ///    split the block into two writes - the exact thing ApproveAsync bypasses UpdateAsync to
+    ///    avoid.
+    /// 2. No notification. The PRD asks for no block email, and telling someone they have been
+    ///    blocked is a product decision nobody has made.
+    /// </summary>
+    private static async Task<IResult> BlockAsync(
+        string id,
+        UserManager<ApplicationUser> userManager,
+        IUnitOfWork unitOfWork,
+        CancellationToken cancellationToken)
+    {
+        var user = await userManager.FindByIdAsync(id);
+        if (user is null)
+        {
+            return Results.NotFound();
+        }
+
+        // The API half of the admin guard. MemberQuery already excludes admins from the list, so the
+        // button never renders - but the list is not a security boundary, and a hand-made request
+        // must not be able to block the only account that can administer the club. Checked by ROLE,
+        // so it still holds if a second admin is ever seeded.
+        if (await userManager.IsInRoleAsync(user, ApplicationRoles.Admin))
+        {
+            return Results.Json(new BlockFailure("is_admin"), statusCode: 409);
+        }
+
+        // Idempotent, like approve: a double-click must not be an error.
+        if (user.Status == AccountStatus.Blocked)
+        {
+            return Results.Ok();
+        }
+
+        // Blockable from Active AND Pending: a junk registration should be stoppable without first
+        // approving it, which would be an absurd thing to make the admin do.
+        user.Status = AccountStatus.Blocked;
+        user.ConcurrencyStamp = Guid.NewGuid().ToString();
+        user.SecurityStamp = Guid.NewGuid().ToString();
+
+        if (!await unitOfWork.TrySaveChangesAsync(cancellationToken))
+        {
+            // Unlike approve, a lost race here is NOT safe to report as success. The winner may have
+            // approved this member rather than blocked them, which would leave us telling the admin
+            // "blocked" about an account that is now Active. Say the view is stale and let the
+            // screen refetch.
+            return Results.Json(new BlockFailure("conflict"), statusCode: 409);
+        }
+
+        return Results.Ok();
+    }
+
+    /// <summary>
+    /// Unblock a member (FR-004) — return them to Active.
+    ///
+    /// Deliberately does NOT rotate the security stamp. Rotation exists to destroy a session
+    /// carrying a stale PERMISSIVE claim; a blocked member has no such session, because block
+    /// already rotated their stamp and their claim is refused either way. There is nothing to
+    /// revoke, so revoking would only sign out a member we just let back in.
+    ///
+    /// No approval email either: IAccountApprovedNotification fires on approve, and an account being
+    /// unblocked was approved once already - a second welcome would be a lie about what happened.
+    /// </summary>
+    private static async Task<IResult> UnblockAsync(
+        string id,
+        UserManager<ApplicationUser> userManager,
+        IUnitOfWork unitOfWork,
+        CancellationToken cancellationToken)
+    {
+        var user = await userManager.FindByIdAsync(id);
+        if (user is null)
+        {
+            return Results.NotFound();
+        }
+
+        if (user.Status == AccountStatus.Active)
+        {
+            return Results.Ok();
+        }
+
+        // Pending is not unblockable - it was never blocked. Approve is the action, and routing it
+        // here would let unblock silently double as approval for an account nobody has vetted.
+        if (user.Status != AccountStatus.Blocked)
+        {
+            return Results.Json(new UnblockFailure("not_blocked"), statusCode: 409);
+        }
+
+        // Always to Active, never back to Pending. A member blocked while still Pending is approved
+        // by this action - accepted deliberately (S-02 planning) so that no prior-status column has
+        // to exist. The members screen says so on the button.
+        user.Status = AccountStatus.Active;
+        user.ConcurrencyStamp = Guid.NewGuid().ToString();
+
+        if (!await unitOfWork.TrySaveChangesAsync(cancellationToken))
+        {
+            return Results.Json(new UnblockFailure("conflict"), statusCode: 409);
+        }
+
         return Results.Ok();
     }
 }

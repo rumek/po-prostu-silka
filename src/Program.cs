@@ -115,11 +115,19 @@ builder.Services.ConfigureApplicationCookie(options =>
     };
 });
 
-// How long a status change takes to bite. Without this the default is 30 minutes anyway, but it is
-// stated explicitly because it is the bound on how long a just-blocked member keeps access - the
-// number matters to S-02, not just to Identity.
+// How long a status change takes to bite: the bound on how long a just-blocked member keeps access.
+//
+// S-02 lowered this from Identity's 30-minute default to 2. Block rotates the security stamp, but
+// rotation only ends a session when the stamp is next VALIDATED - so at the default, "blocked" meant
+// "blocked within half an hour", which is not what the word promises for the one scenario the
+// feature exists to handle.
+//
+// The cost is one cached lookup per signed-in user per interval. For a single gym on Basic DTU that
+// is negligible; it is, however, the only load here that scales with concurrent USERS rather than
+// with member count, so it is the number to revisit if the club ever grows an order of magnitude.
+// It also shortens approval propagation, which previously relied on POST /api/auth/refresh.
 builder.Services.Configure<SecurityStampValidatorOptions>(options =>
-    options.ValidationInterval = TimeSpan.FromMinutes(30));
+    options.ValidationInterval = TimeSpan.FromMinutes(2));
 
 builder.Services.AddAuthorizationBuilder().AddApplicationPolicies();
 

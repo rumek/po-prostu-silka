@@ -210,6 +210,15 @@ actually take effect on a live session.
 transition pattern exactly — the idempotency check, the manual concurrency-stamp rotation, the single
 save, and the lost-race fallback all carry over for the same reasons.
 
+**Adapted during implementation.** The lost-race fallback did *not* carry over. `ApproveAsync`
+returns `Ok()` when `TrySaveChangesAsync` reports a lost race, and its comment justifies that by the
+winner having done the same work — they approved the member and enqueued the email, so reporting
+success stays accurate. That reasoning does not transfer to block: the winner may have *approved*
+this member instead, in which case returning `Ok()` tells the admin "blocked" about an account that
+is now `Active`, and nothing else in the product would ever correct that belief. Both mutations
+therefore return `409 BlockFailure("conflict")` / `UnblockFailure("conflict")` on a lost race, which
+lands on the refetch path Phase 3's component contract already specifies for 409.
+
 **Contract**: `POST /api/admin/members/{id}/block`. Returns 404 for an unknown id; 200 and no-op if
 already `Blocked` (idempotent, matching approve); 409 `BlockFailure("is_admin")` if the target holds
 the `Admin` role — the API-side half of the defence the query already provides. Blockable from both
@@ -226,7 +235,8 @@ PRD requires no block email.
 doubles as approval — a deliberate simplification that avoids a prior-status column.
 
 **Contract**: `POST /api/admin/members/{id}/unblock`. 404 unknown; 200 no-op if already `Active`;
-409 `UnblockFailure("not_blocked")` if the target is `Pending` (use `/approve` instead). Same
+409 `UnblockFailure("not_blocked")` if the target is `Pending` (use `/approve` instead); 409
+`UnblockFailure("conflict")` on a lost race, per the adaptation noted under the block endpoint. Same
 concurrency-stamp rotation and single-save shape. Does **not** rotate `SecurityStamp` — there is no
 stale permissive claim to invalidate, since the blocked member's cookie already fails the policy.
 No approval email: `IAccountApprovedNotification` fires on approve, and re-notifying an unblocked
@@ -443,37 +453,37 @@ redeploying the previous artifact — unlike a schema change, it carries no roll
 
 #### Automated
 
-- [x] 1.1 Backend builds warning-free: `dotnet build` from `src/`
-- [x] 1.2 `GET /api/admin/members` returns 200 for an admin session
-- [x] 1.3 `GET /api/admin/members` returns 401/403 for a member session
-- [x] 1.4 `GET /api/admin/members?status=Blocked` returns 200 and only blocked rows
-- [x] 1.5 `GET /api/admin/members?status=nonsense` returns 400
+- [x] 1.1 Backend builds warning-free: `dotnet build` from `src/` — 4cbb846
+- [x] 1.2 `GET /api/admin/members` returns 200 for an admin session — 4cbb846
+- [x] 1.3 `GET /api/admin/members` returns 401/403 for a member session — 4cbb846
+- [x] 1.4 `GET /api/admin/members?status=Blocked` returns 200 and only blocked rows — 4cbb846
+- [x] 1.5 `GET /api/admin/members?status=nonsense` returns 400 — 4cbb846
 
 #### Manual
 
-- [x] 1.6 The seeded admin account does not appear in the returned list
-- [x] 1.7 Members created during S-01 testing appear with correct status values
-- [x] 1.8 Response shape matches what Phase 3's models will mirror
+- [x] 1.6 The seeded admin account does not appear in the returned list — 4cbb846
+- [x] 1.7 Members created during S-01 testing appear with correct status values — 4cbb846
+- [x] 1.8 Response shape matches what Phase 3's models will mirror — 4cbb846
 
 ### Phase 2: Block, unblock, and session revocation
 
 #### Automated
 
-- [ ] 2.1 Backend builds warning-free: `dotnet build` from `src/`
-- [ ] 2.2 Block on an active member returns 200 and the row reads `Blocked`
-- [ ] 2.3 Blocking an already-blocked member returns 200 (idempotent)
-- [ ] 2.4 Blocking a pending member returns 200 and the row reads `Blocked`
-- [ ] 2.5 Blocking the admin's own id returns 409 `is_admin`
-- [ ] 2.6 Unblock on a blocked member returns 200 and the row reads `Active`
-- [ ] 2.7 Unblocking a pending member returns 409 `not_blocked`
-- [ ] 2.8 Both endpoints return 404 for an unknown id and 401/403 for a non-admin session
+- [x] 2.1 Backend builds warning-free: `dotnet build` from `src/`
+- [x] 2.2 Block on an active member returns 200 and the row reads `Blocked`
+- [x] 2.3 Blocking an already-blocked member returns 200 (idempotent)
+- [x] 2.4 Blocking a pending member returns 200 and the row reads `Blocked`
+- [x] 2.5 Blocking the admin's own id returns 409 `is_admin`
+- [x] 2.6 Unblock on a blocked member returns 200 and the row reads `Active`
+- [x] 2.7 Unblocking a pending member returns 409 `not_blocked`
+- [x] 2.8 Both endpoints return 404 for an unknown id and 401/403 for a non-admin session
 
 #### Manual
 
-- [ ] 2.9 A blocked member is refused at login with the existing `blocked` failure
-- [ ] 2.10 A member signed in in another browser loses access within ~2 minutes of being blocked
-- [ ] 2.11 Unblocking restores access after the same interval
-- [ ] 2.12 `GET /health` still succeeds and no unusual DB load appears after the interval change
+- [x] 2.9 A blocked member is refused at login with the existing `blocked` failure
+- [x] 2.10 A member signed in in another browser loses access within ~2 minutes of being blocked
+- [x] 2.11 Unblocking restores access after the same interval
+- [x] 2.12 `GET /health` still succeeds and no unusual DB load appears after the interval change
 
 ### Phase 3: Members screen
 
