@@ -1,0 +1,46 @@
+<div class="panel">
+  <h1>Zaloguj się</h1>
+  <p class="hint">Wpisz dane swojego konta, aby przejść do zajęć.</p>
+
+  <div class="card">
+    @if (error()) {
+      <p class="alert" role="alert">{{ error() }}</p>
+    }
+
+    <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+      <div class="field">
+        <label for="email">Adres e-mail</label>
+        <input
+          id="email"
+          type="email"
+          autocomplete="email"
+          formControlName="email"
+          [attr.aria-invalid]="form.controls.email.touched && form.controls.email.invalid"
+        />
+        @if (form.controls.email.touched && form.controls.email.invalid) {
+          <p class="field-error">Podaj poprawny adres e-mail.</p>
+        }
+      </div>
+
+      <div class="field">
+        <label for="password">Hasło</label>
+        <input
+          id="password"
+          type="password"
+          autocomplete="current-password"
+          formControlName="password"
+          [attr.aria-invalid]="form.controls.password.touched && form.controls.password.invalid"
+        />
+        @if (form.controls.password.touched && form.controls.password.invalid) {
+          <p class="field-error">Podaj hasło.</p>
+        }
+      </div>
+
+      <button type="submit" class="button button--block" [disabled]="submitting()">
+        {{ submitting() ? 'Logowanie…' : 'Zaloguj się' }}
+      </button>
+    </form>
+  </div>
+
+  <p class="panel-footer">Nie masz jeszcze konta? <a routerLink="/register">Zarejestruj się</a></p>
+</div>

@@ -1,0 +1,88 @@
+// Shell layout only. Colours, typography and the shared .card/.button/.field classes live in
+// src/styles.scss — do not re-declare them here.
+
+:host {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
+.skip-link {
+  position: absolute;
+  left: -9999px;
+
+  &:focus-visible {
+    left: var(--space-4);
+    top: var(--space-4);
+    z-index: 1;
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-sm);
+    background: var(--ink);
+    color: var(--ground);
+  }
+}
+
+.shell-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--line);
+  background: var(--section-warm);
+}
+
+.shell-brand {
+  font-family: var(--font-display);
+  font-size: 1.375rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+}
+
+.shell-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  font-size: 0.9375rem;
+
+  .is-active {
+    text-decoration-color: currentcolor;
+  }
+}
+
+// A button, not a link: logging out changes server state, so it must not be something a browser
+// can prefetch or a member can middle-click into a new tab.
+.shell-logout {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  text-decoration-color: var(--line-strong);
+  text-underline-offset: 0.2em;
+  cursor: pointer;
+
+  &:hover {
+    color: var(--accent);
+    text-decoration-color: currentcolor;
+  }
+}
+
+.shell-main {
+  flex: 1;
+  width: 100%;
+  max-width: 64rem;
+  // The horizontal padding stays on the phone breakpoint too — a form flush against the screen
+  // edge is the single most common mobile layout failure.
+  padding: var(--space-7) var(--space-5);
+  margin: 0 auto;
+}
+
+@media (max-width: 30rem) {
+  .shell-main {
+    padding: var(--space-6) var(--space-4);
+  }
+}

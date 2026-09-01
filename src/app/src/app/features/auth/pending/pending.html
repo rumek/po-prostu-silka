@@ -1,0 +1,30 @@
+<div class="panel">
+  <h1>Konto czeka na zatwierdzenie</h1>
+
+  <div class="card">
+    <p>
+      Dziękujemy za rejestrację. Obsługa siłowni musi jeszcze zatwierdzić Twoje konto — zanim to
+      nastąpi, nie masz dostępu do grafiku ani zapisów.
+    </p>
+    <p>
+      Gdy konto zostanie zatwierdzone, wyślemy Ci wiadomość e-mail. Możesz wtedy wrócić tutaj i
+      sprawdzić ponownie.
+    </p>
+
+    @if (outcome() === 'still-pending') {
+      <p class="notice" role="status">
+        Konto wciąż czeka na zatwierdzenie. Zajrzyj tu ponownie po otrzymaniu e-maila.
+      </p>
+    }
+
+    @if (outcome() === 'failed') {
+      <p class="alert" role="alert">
+        Nie udało się sprawdzić statusu konta. Spróbuj ponownie za chwilę.
+      </p>
+    }
+
+    <button type="button" class="button button--block" [disabled]="checking()" (click)="check()">
+      {{ checking() ? 'Sprawdzanie…' : 'Sprawdź ponownie' }}
+    </button>
+  </div>
+</div>

@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import { CurrentUser, LoginRequest } from './auth.models';
+import { CurrentUser, LoginRequest, RegisterRequest } from './auth.models';
 
 /**
  * Owns session state for the SPA, so guards and screens read one source instead of each calling
@@ -36,6 +36,38 @@ export class AuthService {
 
   async login(credentials: LoginRequest): Promise<CurrentUser> {
     const user = await firstValueFrom(this.http.post<CurrentUser>('/api/auth/login', credentials));
+
+    this.currentUser.set(user);
+    this.resolved.set(true);
+    return user;
+  }
+
+  /**
+   * Creates the account and signs in, in one call (S-01 D1) - the API returns the same CurrentUser
+   * shape /login does, so the caller has one code path for "you now have a session".
+   *
+   * Like login(), this does NOT catch: a RegisterFailure body has to reach the screen so it can put
+   * `email_taken` on the email control.
+   */
+  async register(request: RegisterRequest): Promise<CurrentUser> {
+    const user = await firstValueFrom(this.http.post<CurrentUser>('/api/auth/register', request));
+
+    this.currentUser.set(user);
+    this.resolved.set(true);
+    return user;
+  }
+
+  /**
+   * Re-mints the auth cookie's claims from the member's current row.
+   *
+   * NOT an alias over loadCurrentUser(). /me reads the database and would report Active while the
+   * cookie's account_status claim still said Pending - the claim is refreshed only every 30 minutes
+   * by the security-stamp validator. Routing on /me alone puts a just-approved member into an app
+   * where every ActiveMember endpoint answers 403 for up to half an hour. /api/auth/refresh is the
+   * endpoint that fixes the claim; the awaiting-approval screen must call this one.
+   */
+  async refresh(): Promise<CurrentUser> {
+    const user = await firstValueFrom(this.http.post<CurrentUser>('/api/auth/refresh', null));
 
     this.currentUser.set(user);
     this.resolved.set(true);

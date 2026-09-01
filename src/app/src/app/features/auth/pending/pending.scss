@@ -1,0 +1,5 @@
+// Layout only — .panel/.card/.button/.notice/.alert come from src/styles.scss.
+
+.card p:last-of-type {
+  margin-bottom: var(--space-5);
+}

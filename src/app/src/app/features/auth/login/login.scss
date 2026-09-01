@@ -1,0 +1,8 @@
+// Layout only — the .panel/.card/.field/.button classes come from src/styles.scss.
+
+.panel-footer {
+  margin-top: var(--space-5);
+  color: var(--muted);
+  font-size: 0.9375rem;
+  text-align: center;
+}

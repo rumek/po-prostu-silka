@@ -436,11 +436,19 @@ three member-facing screens on reactive forms.
 - `src/app/public/fonts/` — self-hosted `.woff2` for Cormorant Garamond (600) and Plus Jakarta Sans
   (400, 500, 600). Subset to `latin` + `latin-ext`; **`latin-ext` is not optional** — Polish copy
   needs ł, ż, ś, ę, ą, ć, ń, ó, ź.
+
+  **Adapted during implementation.** Four files, not six. Plus Jakarta Sans is a variable font: Google
+  serves byte-identical files for 400, 500 and 600, so the three weights ship as one
+  `plus-jakarta-sans-variable-<subset>.woff2` per subset declared `font-weight: 200 800`. Shipping
+  them separately would have been ~98 KB of duplicate bytes. Cormorant Garamond stays one file per
+  subset at weight 600.
 - `src/app/src/styles.scss` — `@font-face` declarations with `font-display: swap`, the D7 token
   variables, a small reset, base typography, and shared form/button/card classes. Every font stack
   carries a real fallback (`Cormorant Garamond, Georgia, serif`).
 - `src/app/src/app/app.html` — replace the 353-line scaffold with a shell: header (product name, and
-  a logout control when authenticated) plus `<router-outlet />`.
+  a logout control when authenticated) plus `<router-outlet />`. The admin link belongs to Phase 3,
+  which is also where the route it points at is added — shipping it here would be a link to a path
+  that redirects to `/`.
 - `src/app/src/app/app.scss` — shell layout only.
 - `src/app/src/app/app.spec.ts:21` — update the `"Hello, app"` assertion to the real shell heading.
 
@@ -473,6 +481,12 @@ three member-facing screens on reactive forms.
 - `register/register.ts|html|scss` — reactive form (display name, email, password with the 8-char
   minimum mirrored client-side). `409 email_taken` sets an error on the email control (D8's stated
   payoff). On success, route to `/pending`.
+
+  **Adapted during implementation.** Setting the error is not enough: the template reveals a field
+  error only once the control is `touched`, and submitting an otherwise-valid form never touches it —
+  so `setErrors` alone left the member facing a form that had refused them and said nothing. Every
+  server-mapped failure goes through a `reject(control, errors)` helper that also calls
+  `markAsTouched`. Caught by `register.spec.ts`.
 - `pending/pending.ts|html|scss` — the awaiting-approval screen. Explains the wait, states that an
   email will arrive, and offers "Sprawdź ponownie" which calls `refresh()` and navigates to `/` when
   the status has become Active (D11). If a refresh finds the member still Pending, say so — a button
@@ -501,6 +515,18 @@ schedule. Keep it in `features/home/` rather than resurrecting `route-placeholde
 `getPrerenderParams`. Both new guards must return `true` on the server platform or the build breaks —
 this is the trap `auth.guard.ts:20-24` documents.
 
+**Adapted during implementation.** Prerendering does not actually run. `angular.json`'s build target
+has `outputMode: "static"` but **no `server` entry point and no `ssr`/`prerender` options**, so
+`main.server.ts`, `server.ts` and `app.routes.server.ts` are not part of the build: `npm run build`
+emits a single `dist/app/browser/index.html` and no server bundle. The "Current state" table above
+overstates the baseline — it reads `app.routes.server.ts` as if the builder consumed it.
+
+Both guards still carry the `isPlatformServer` early return. It is correct, it matches `authGuard`,
+and it is what makes them safe the day SSR is switched on — but today it is defensive, not
+load-bearing. The Phase 2 criterion below therefore verifies only that the build succeeds. Wiring SSR
+up was rejected as scope: it changes what is deployed into App Service's `wwwroot`, which no part of
+this slice needs.
+
 **Specs** — Vitest
 
 - `login.spec.ts` — validation blocks submit; `invalid_credentials` renders the generic message;
@@ -521,7 +547,9 @@ this is the trap `auth.guard.ts:20-24` documents.
 
 - `npm run quality:check` from `src/app/` — clean
 - `npm test` from `src/app/` — all pass, including the updated `app.spec.ts`
-- `npm run build` from `src/app/` — prerendering succeeds for all four routes
+- `npm run build` from `src/app/` — clean. NOT a prerender check: prerendering is not wired in
+  `angular.json` (see the adaptation note above), so this verifies the bundle builds and the
+  font assets land in `dist/app/browser/fonts/`
 
 #### Manual Verification:
 
@@ -635,18 +663,18 @@ delivering a real email to a real inbox.
 
 #### Automated
 
-- [x] 1.1 Add `/api/auth/register` with duplicate-email, password, and display-name handling
-- [x] 1.2 Narrow login's status refusal to Blocked only; update the surrounding comments
-- [x] 1.3 Add `POST /api/auth/refresh` under bare `RequireAuthorization()` (F1)
-- [x] 1.4 Add `MemberAdminEndpoints` — pending list and idempotent approve — behind the Admin policy
-- [x] 1.5 Wire `IAccountApprovedNotification` into approve in a single unit of work
-- [x] 1.6 Adjust the approval email copy for an already-signed-in member
-- [x] 1.7 Map the group in `Program.cs`; update the Testing-probe comment
-- [x] 1.8 Rewrite `AuthEndpointTests` pending case; add the pending-session-vs-ActiveMember test
-- [x] 1.9 Add the claim-refresh regression test against `/test/active-member` (F1)
-- [x] 1.10 Complete `PushEndpointTests.Pending_member_can_also_subscribe` (F2)
-- [x] 1.11 Add `RegisterEndpointTests` and `MemberAdminEndpointTests`
-- [x] 1.12 `dotnet build` and `dotnet test` clean
+- [x] 1.1 Add `/api/auth/register` with duplicate-email, password, and display-name handling — 3e9296c
+- [x] 1.2 Narrow login's status refusal to Blocked only; update the surrounding comments — 3e9296c
+- [x] 1.3 Add `POST /api/auth/refresh` under bare `RequireAuthorization()` (F1) — 3e9296c
+- [x] 1.4 Add `MemberAdminEndpoints` — pending list and idempotent approve — behind the Admin policy — 3e9296c
+- [x] 1.5 Wire `IAccountApprovedNotification` into approve in a single unit of work — 3e9296c
+- [x] 1.6 Adjust the approval email copy for an already-signed-in member — 3e9296c
+- [x] 1.7 Map the group in `Program.cs`; update the Testing-probe comment — 3e9296c
+- [x] 1.8 Rewrite `AuthEndpointTests` pending case; add the pending-session-vs-ActiveMember test — 3e9296c
+- [x] 1.9 Add the claim-refresh regression test against `/test/active-member` (F1) — 3e9296c
+- [x] 1.10 Complete `PushEndpointTests.Pending_member_can_also_subscribe` (F2) — 3e9296c
+- [x] 1.11 Add `RegisterEndpointTests` and `MemberAdminEndpointTests` — 3e9296c
+- [x] 1.12 `dotnet build` and `dotnet test` clean — 3e9296c
 
 #### Manual
 
@@ -658,15 +686,15 @@ delivering a real email to a real inbox.
 
 #### Automated
 
-- [ ] 2.1 Self-host the two font families with `latin` + `latin-ext` subsets
-- [ ] 2.2 Write the token layer, reset, and base typography in `styles.scss`
-- [ ] 2.3 Replace the CLI scaffold shell; update `app.spec.ts`
-- [ ] 2.4 Extend `auth.models.ts` and `auth.service.ts` with register and refresh
-- [ ] 2.5 Add `activeMemberGuard` and `adminGuard`; leave `authGuard` untouched
-- [ ] 2.6 Build the login, register, and awaiting-approval screens on reactive forms
-- [ ] 2.7 Rewire `app.routes.ts`; delete `route-placeholders.ts`; add the `Home` placeholder
-- [ ] 2.8 Add Vitest specs for all three screens and both new guards
-- [ ] 2.9 `quality:check`, `npm test`, and `npm run build` clean
+- [x] 2.1 Self-host the two font families with `latin` + `latin-ext` subsets
+- [x] 2.2 Write the token layer, reset, and base typography in `styles.scss`
+- [x] 2.3 Replace the CLI scaffold shell; update `app.spec.ts`
+- [x] 2.4 Extend `auth.models.ts` and `auth.service.ts` with register and refresh
+- [x] 2.5 Add `activeMemberGuard` and `adminGuard`; leave `authGuard` untouched
+- [x] 2.6 Build the login, register, and awaiting-approval screens on reactive forms
+- [x] 2.7 Rewire `app.routes.ts`; delete `route-placeholders.ts`; add the `Home` placeholder
+- [x] 2.8 Add Vitest specs for all three screens and both new guards
+- [x] 2.9 `quality:check`, `npm test`, and `npm run build` clean
 
 #### Manual
 
