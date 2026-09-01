@@ -3,6 +3,7 @@ import { activeMemberGuard } from './core/auth/active-member.guard';
 import { adminGuard } from './core/auth/admin.guard';
 import { authGuard } from './core/auth/auth.guard';
 import { Approvals } from './features/admin/approvals/approvals';
+import { Members } from './features/admin/members/members';
 import { Login } from './features/auth/login/login';
 import { Pending } from './features/auth/pending/pending';
 import { Register } from './features/auth/register/register';
@@ -22,5 +23,6 @@ export const routes: Routes = [
   { path: 'pending', component: Pending, canActivate: [authGuard] },
   { path: '', component: Home, canActivate: [authGuard, activeMemberGuard] },
   { path: 'admin/approvals', component: Approvals, canActivate: [authGuard, adminGuard] },
+  { path: 'admin/members', component: Members, canActivate: [authGuard, adminGuard] },
   { path: '**', redirectTo: '' },
 ];

@@ -1,0 +1,141 @@
+<h1>Członkowie</h1>
+<p class="hint">
+  Wszyscy zarejestrowani członkowie. Administratorzy nie są tu wyświetlani. Odblokowanie przywraca
+  pełny dostęp — także kontu, które przed zablokowaniem czekało na zatwierdzenie.
+</p>
+
+<div class="members-controls">
+  <div class="members-filters" role="group" aria-label="Filtr statusu">
+    <button
+      type="button"
+      class="chip"
+      [class.chip-active]="filter() === null"
+      (click)="setFilter(null)"
+    >
+      Wszyscy
+    </button>
+    <button
+      type="button"
+      class="chip"
+      [class.chip-active]="filter() === 'Pending'"
+      (click)="setFilter('Pending')"
+    >
+      Oczekujący
+    </button>
+    <button
+      type="button"
+      class="chip"
+      [class.chip-active]="filter() === 'Active'"
+      (click)="setFilter('Active')"
+    >
+      Aktywni
+    </button>
+    <button
+      type="button"
+      class="chip"
+      [class.chip-active]="filter() === 'Blocked'"
+      (click)="setFilter('Blocked')"
+    >
+      Zablokowani
+    </button>
+  </div>
+
+  <label class="members-search">
+    <span class="visually-hidden">Szukaj członka</span>
+    <input
+      type="search"
+      placeholder="Szukaj po imieniu lub e-mailu"
+      [ngModel]="search()"
+      (ngModelChange)="search.set($event)"
+    />
+  </label>
+</div>
+
+@if (notice()) {
+  <p class="notice" role="status">{{ notice() }}</p>
+}
+
+@if (loading()) {
+  <p class="notice" role="status">Wczytywanie…</p>
+} @else if (loadFailed()) {
+  <p class="alert" role="alert">
+    Nie udało się wczytać listy członków.
+    <button type="button" class="link-button" (click)="load()">Spróbuj ponownie</button>
+  </p>
+} @else if (visible().length === 0) {
+  <!-- An explicit empty state, not a blank page: "nobody matches" and "it failed to load" must not
+       look the same to the admin. -->
+  <div class="card">
+    <p class="empty">
+      @if (search().trim()) {
+        Brak członków pasujących do wyszukiwania.
+      } @else {
+        Brak członków w tym widoku.
+      }
+    </p>
+  </div>
+} @else {
+  <ul class="members">
+    @for (member of visible(); track member.id) {
+      <li class="card members-row">
+        <div class="members-identity">
+          <p class="members-name">
+            {{ member.displayName }}
+            <span class="badge" [class]="'badge-' + member.status.toLowerCase()">
+              @switch (member.status) {
+                @case ('Pending') {
+                  Oczekuje
+                }
+                @case ('Active') {
+                  Aktywny
+                }
+                @case ('Blocked') {
+                  Zablokowany
+                }
+              }
+            </span>
+          </p>
+          <p class="members-email">{{ member.email }}</p>
+          <p class="members-since">Od {{ member.createdAt | date: 'd MMMM y' }}</p>
+        </div>
+
+        <div class="members-action">
+          @if (member.status === 'Pending') {
+            <button
+              type="button"
+              class="button"
+              [disabled]="isBusy(member.id)"
+              (click)="approve(member)"
+            >
+              {{ isBusy(member.id) ? 'Pracuję…' : 'Zatwierdź' }}
+            </button>
+          }
+
+          @if (member.status === 'Blocked') {
+            <button
+              type="button"
+              class="button"
+              [disabled]="isBusy(member.id)"
+              (click)="unblock(member)"
+            >
+              {{ isBusy(member.id) ? 'Pracuję…' : 'Odblokuj' }}
+            </button>
+          } @else {
+            <button
+              type="button"
+              class="button button--secondary"
+              [disabled]="isBusy(member.id)"
+              (click)="block(member)"
+            >
+              {{ isBusy(member.id) ? 'Pracuję…' : 'Zablokuj' }}
+            </button>
+          }
+
+          @if (failedId() === member.id) {
+            <p class="field-error" role="alert">Nie udało się. Spróbuj ponownie.</p>
+          }
+        </div>
+      </li>
+    }
+  </ul>
+}

@@ -2,13 +2,18 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { MemberAdminService } from './member-admin.service';
-import { PendingMember } from './member-admin.models';
+import { Member, PendingMember } from './member-admin.models';
 
 const MEMBER: PendingMember = {
   id: 'm1',
   email: 'nowy@test.local',
   displayName: 'Nowy Członek',
   createdAt: '2026-09-01T08:00:00+00:00',
+};
+
+const FULL_MEMBER: Member = {
+  ...MEMBER,
+  status: 'Active',
 };
 
 describe('MemberAdminService', () => {
@@ -57,6 +62,59 @@ describe('MemberAdminService', () => {
     request.flush(null);
 
     await approved;
+  });
+
+  it('reads the full member list from /api/admin/members', async () => {
+    const members = service.getMembers();
+
+    const request = await vi.waitFor(() => controller.expectOne('/api/admin/members'));
+    expect(request.request.method).toBe('GET');
+    request.flush([FULL_MEMBER]);
+
+    await expect(members).resolves.toEqual([FULL_MEMBER]);
+  });
+
+  it('sends the status as a query parameter when filtering', async () => {
+    const members = service.getMembers('Blocked');
+
+    const request = await vi.waitFor(() =>
+      controller.expectOne('/api/admin/members?status=Blocked'),
+    );
+    request.flush([]);
+
+    await members;
+  });
+
+  /**
+   * The endpoint binds status as a nullable enum and 400s on an unparseable value, so `?status=`
+   * would be a broken request rather than "no filter". The parameter has to be absent, not empty.
+   */
+  it('omits the status parameter entirely when unfiltered', async () => {
+    const members = service.getMembers();
+
+    const request = await vi.waitFor(() => controller.expectOne('/api/admin/members'));
+    expect(request.request.params.has('status')).toBe(false);
+    request.flush([]);
+
+    await members;
+  });
+
+  it('posts block and unblock to the member-scoped paths', async () => {
+    const blocked = service.block('m1');
+    const blockRequest = await vi.waitFor(() =>
+      controller.expectOne('/api/admin/members/m1/block'),
+    );
+    expect(blockRequest.request.method).toBe('POST');
+    blockRequest.flush(null);
+    await expect(blocked).resolves.toBeUndefined();
+
+    const unblocked = service.unblock('m1');
+    const unblockRequest = await vi.waitFor(() =>
+      controller.expectOne('/api/admin/members/m1/unblock'),
+    );
+    expect(unblockRequest.request.method).toBe('POST');
+    unblockRequest.flush(null);
+    await expect(unblocked).resolves.toBeUndefined();
   });
 
   // Nothing here catches: the screen has to know an approve failed so it can keep the row.

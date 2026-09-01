@@ -469,36 +469,36 @@ redeploying the previous artifact — unlike a schema change, it carries no roll
 
 #### Automated
 
-- [x] 2.1 Backend builds warning-free: `dotnet build` from `src/`
-- [x] 2.2 Block on an active member returns 200 and the row reads `Blocked`
-- [x] 2.3 Blocking an already-blocked member returns 200 (idempotent)
-- [x] 2.4 Blocking a pending member returns 200 and the row reads `Blocked`
-- [x] 2.5 Blocking the admin's own id returns 409 `is_admin`
-- [x] 2.6 Unblock on a blocked member returns 200 and the row reads `Active`
-- [x] 2.7 Unblocking a pending member returns 409 `not_blocked`
-- [x] 2.8 Both endpoints return 404 for an unknown id and 401/403 for a non-admin session
+- [x] 2.1 Backend builds warning-free: `dotnet build` from `src/` — 4b0c6b9
+- [x] 2.2 Block on an active member returns 200 and the row reads `Blocked` — 4b0c6b9
+- [x] 2.3 Blocking an already-blocked member returns 200 (idempotent) — 4b0c6b9
+- [x] 2.4 Blocking a pending member returns 200 and the row reads `Blocked` — 4b0c6b9
+- [x] 2.5 Blocking the admin's own id returns 409 `is_admin` — 4b0c6b9
+- [x] 2.6 Unblock on a blocked member returns 200 and the row reads `Active` — 4b0c6b9
+- [x] 2.7 Unblocking a pending member returns 409 `not_blocked` — 4b0c6b9
+- [x] 2.8 Both endpoints return 404 for an unknown id and 401/403 for a non-admin session — 4b0c6b9
 
 #### Manual
 
-- [x] 2.9 A blocked member is refused at login with the existing `blocked` failure
-- [x] 2.10 A member signed in in another browser loses access within ~2 minutes of being blocked
-- [x] 2.11 Unblocking restores access after the same interval
-- [x] 2.12 `GET /health` still succeeds and no unusual DB load appears after the interval change
+- [x] 2.9 A blocked member is refused at login with the existing `blocked` failure — 4b0c6b9
+- [x] 2.10 A member signed in in another browser loses access within ~2 minutes of being blocked — 4b0c6b9
+- [x] 2.11 Unblocking restores access after the same interval — 4b0c6b9
+- [x] 2.12 `GET /health` still succeeds and no unusual DB load appears after the interval change — 4b0c6b9
 
 ### Phase 3: Members screen
 
 #### Automated
 
-- [ ] 3.1 Unit tests pass: `npm test` from `src/app/`
-- [ ] 3.2 Lint and formatting pass: `npm run quality:check` from `src/app/`
-- [ ] 3.3 Production build succeeds: `npm run build` from `src/app/`
+- [x] 3.1 Unit tests pass: `npm test` from `src/app/`
+- [x] 3.2 Lint and formatting pass: `npm run quality:check` from `src/app/`
+- [x] 3.3 Production build succeeds: `npm run build` from `src/app/`
 
 #### Manual
 
-- [ ] 3.4 The list shows every member with a correct status badge, and never the admin
-- [ ] 3.5 Each of the three filter positions returns the right subset
-- [ ] 3.6 Search narrows instantly with no visible request per keystroke
-- [ ] 3.7 Block and unblock update the row in place; the badge changes without a full reload
-- [ ] 3.8 A blocked member cannot log in; unblocking restores them
-- [ ] 3.9 `/admin/approvals` still works exactly as before
-- [ ] 3.10 The screen is usable at mobile width (PRD mobile-first NFR)
+- [x] 3.4 The list shows every member with a correct status badge, and never the admin
+- [x] 3.5 Each of the three filter positions returns the right subset
+- [x] 3.6 Search narrows instantly with no visible request per keystroke
+- [x] 3.7 Block and unblock update the row in place; the badge changes without a full reload
+- [x] 3.8 A blocked member cannot log in; unblocking restores them
+- [x] 3.9 `/admin/approvals` still works exactly as before
+- [x] 3.10 The screen is usable at mobile width (PRD mobile-first NFR)
