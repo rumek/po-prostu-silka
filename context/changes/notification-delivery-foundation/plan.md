@@ -821,43 +821,43 @@ provider behaviours we can reason about but not exercise cheaply.
 
 #### Automated
 
-- [x] 2.1 Build passes in Release with no new warnings
-- [x] 2.2 No vulnerable packages
-- [x] 2.3 Existing tests still pass
-- [x] 2.4 Both migrations apply to a clean local container
-- [x] 2.5 Additive migration does not touch SchemaMarkers
-- [x] 2.6 Drop migration is reversible
-- [x] 2.7 Local schema correct: SchemaMarkers absent, both new tables present
-- [x] 2.8 Composite index on (Status, NextAttemptAt) exists
-- [x] 2.9 App starts and local /health returns 200 Healthy
+- [x] 2.1 Build passes in Release with no new warnings — 15bfaae
+- [x] 2.2 No vulnerable packages — 15bfaae
+- [x] 2.3 Existing tests still pass — 15bfaae
+- [x] 2.4 Both migrations apply to a clean local container — 15bfaae
+- [x] 2.5 Additive migration does not touch SchemaMarkers — 15bfaae
+- [x] 2.6 Drop migration is reversible — 15bfaae
+- [x] 2.7 Local schema correct: SchemaMarkers absent, both new tables present — 15bfaae
+- [x] 2.8 Composite index on (Status, NextAttemptAt) exists — 15bfaae
+- [x] 2.9 App starts and local /health returns 200 Healthy — 15bfaae
 - [ ] 2.10 Deployed /health returns 200 Healthy
 
 #### Manual
 
-- [x] 2.11 Both migrations read end to end; hand-written Down reproduces F-01's shape
+- [x] 2.11 Both migrations read end to end; hand-written Down reproduces F-01's shape — 15bfaae
 - [ ] 2.12 SchemaMarkers gone from Azure SQL; both new tables present
-- [x] 2.13 No unexpected data-loss warning
+- [x] 2.13 No unexpected data-loss warning — 15bfaae
 
 ### Phase 3: Channels and the Delivery Worker
 
 #### Automated
 
-- [ ] 3.1 Build passes in Release with no new warnings
-- [ ] 3.2 No vulnerable packages after adding two SDKs
-- [ ] 3.3 Full suite passes
-- [ ] 3.4 Suite fails when the backoff calculation is broken (verify, then revert)
-- [ ] 3.5 App starts with the worker registered and /health returns 200
-- [ ] 3.6 Heartbeat line appears with counts
-- [ ] 3.7 Worker survives an empty table with no exceptions
-- [ ] 3.8 /health includes the outbox check
+- [x] 3.1 Build passes in Release with no new warnings
+- [x] 3.2 No vulnerable packages after adding two SDKs
+- [x] 3.3 Full suite passes
+- [x] 3.4 Suite fails when the backoff calculation is broken (verify, then revert)
+- [x] 3.5 App starts with the worker registered and /health returns 200
+- [x] 3.6 Heartbeat line appears with counts
+- [x] 3.7 Worker survives an empty table with no exceptions
+- [x] 3.8 /health includes the outbox check
 - [ ] 3.9 Deployed /health returns 200 Healthy
 
 #### Manual
 
-- [ ] 3.10 Killing the app mid-send leaves the row reclaimable, not stranded
-- [ ] 3.11 Heartbeat cadence readable rather than noisy in log tail
-- [ ] 3.12 Bad address reaches Failed after the cap and /health reports Degraded
-- [ ] 3.13 Running locally without ACS credentials logs "not configured" rather than throwing
+- [x] 3.10 Killing the app mid-send leaves the row reclaimable, not stranded
+- [x] 3.11 Heartbeat cadence readable rather than noisy in log tail
+- [x] 3.12 Bad address reaches Failed after the cap and /health reports Degraded
+- [x] 3.13 Running locally without ACS credentials logs "not configured" rather than throwing
 
 ### Phase 4: Push Subscription, PWA, and the First Notification
 

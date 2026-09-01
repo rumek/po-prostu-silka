@@ -27,6 +27,15 @@
       server-rendered login, and this app authenticates an Angular SPA through its own endpoints.
     -->
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.11" />
+    <!-- Azure Communication Services email. Sends through the Azure Managed Domain provisioned in
+         F-03 phase 1; the sender address is configuration, not a constant. -->
+    <PackageReference Include="Azure.Communication.Email" Version="1.1.0" />
+    <!--
+      Web Push with VAPID. Chosen over the more widely-cited "WebPush" package deliberately: this one
+      is actively maintained and integrates with IHttpClientFactory, where WebPush 1.0.x is
+      effectively dormant. Do not swap it back without re-checking that.
+    -->
+    <PackageReference Include="Lib.Net.Http.WebPush" Version="3.3.1" />
   </ItemGroup>
 
 </Project>

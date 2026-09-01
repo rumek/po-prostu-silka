@@ -30,6 +30,12 @@ public class IntegrationTestFixture : IAsyncLifetime
 
     private WebApplicationFactory<Program>? _factory;
 
+    /// <summary>
+    /// The container's connection string, so tests that need their own DI graph (the outbox worker
+    /// tests build one with fake channels) can share this container instead of starting a second.
+    /// </summary>
+    public string ConnectionString => _container.GetConnectionString();
+
     public WebApplicationFactory<Program> Factory =>
         _factory ?? throw new InvalidOperationException("Fixture not initialised.");
 

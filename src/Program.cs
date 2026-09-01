@@ -1,6 +1,12 @@
+using Azure.Communication.Email;
+using Lib.Net.Http.WebPush;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
+using po_prostu_silka.Application.Notifications;
+using po_prostu_silka.Infrastructure.Notifications;
 using po_prostu_silka.Application.Auth;
 using po_prostu_silka.Domain;
 using po_prostu_silka.Infrastructure.Authorization;
@@ -35,7 +41,9 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 // Opens a real connection to the database, so /health answers "can the running app reach
 // its data?" rather than merely "did the DI container resolve?".
 builder.Services.AddHealthChecks()
-    .AddDbContextCheck<AppDbContext>();
+    .AddDbContextCheck<AppDbContext>()
+    // Degraded (not Unhealthy) when dead-lettered messages pile up - see OutboxHealthCheck.
+    .AddCheck<OutboxHealthCheck>("outbox");
 
 // ---------------------------------------------------------------------------
 // Authentication: Identity cookies.
@@ -111,6 +119,37 @@ builder.Services.Configure<SecurityStampValidatorOptions>(options =>
     options.ValidationInterval = TimeSpan.FromMinutes(30));
 
 builder.Services.AddAuthorizationBuilder().AddApplicationPolicies();
+
+// ---------------------------------------------------------------------------
+// Notification delivery (F-03).
+//
+// Everything goes through the outbox: infrastructure.md:79 records that App Service recycles
+// without warning, so a fire-and-forget send silently drops whatever was in flight - a direct hit
+// on the "no missed cancellations" guardrail. The worker below is what makes delivery survive that.
+// ---------------------------------------------------------------------------
+builder.Services.Configure<AcsOptions>(builder.Configuration.GetSection(AcsOptions.SectionName));
+builder.Services.Configure<VapidOptions>(builder.Configuration.GetSection(VapidOptions.SectionName));
+builder.Services.Configure<OutboxOptions>(builder.Configuration.GetSection(OutboxOptions.SectionName));
+
+builder.Services.TryAddSingleton(TimeProvider.System);
+
+// Null when unconfigured rather than throwing: a developer with no ACS credentials must still be
+// able to run the app, and AcsEmailSender degrades to a logged no-op.
+builder.Services.AddSingleton(sp =>
+{
+    var acs = sp.GetRequiredService<IOptions<AcsOptions>>().Value;
+    return new AcsEmailClientHolder(acs.IsConfigured ? new EmailClient(acs.ConnectionString) : null);
+});
+
+// PushServiceClient wraps an HttpClient, so it goes through IHttpClientFactory for pooling.
+builder.Services.AddHttpClient<PushServiceClient>();
+
+builder.Services.AddScoped<IEmailSender, AcsEmailSender>();
+builder.Services.AddScoped<IPushSender, WebPushSender>();
+builder.Services.AddScoped<IOutboxWriter, OutboxWriter>();
+builder.Services.AddScoped<IOutboxEnqueuer, OutboxEnqueuer>();
+
+builder.Services.AddHostedService<OutboxDeliveryWorker>();
 
 var app = builder.Build();
 
