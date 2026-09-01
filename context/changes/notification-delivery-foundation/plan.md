@@ -802,41 +802,41 @@ provider behaviours we can reason about but not exercise cheaply.
 
 #### Automated
 
-- [x] 1.1 Microsoft.Communication provider reports Registered
-- [x] 1.2 Communication Services and Email Service exist in pps-rg
-- [x] 1.3 Azure Managed Domain is linked and verified
-- [x] 1.4 All five Acs__/Vapid App Service settings present
-- [x] 1.5 Live site survives the setting-induced restart
-- [x] 1.6 Live SPA still serves
+- [x] 1.1 Microsoft.Communication provider reports Registered — 18cf007
+- [x] 1.2 Communication Services and Email Service exist in pps-rg — 18cf007
+- [x] 1.3 Azure Managed Domain is linked and verified — 18cf007
+- [x] 1.4 All five Acs__/Vapid App Service settings present — 18cf007
+- [x] 1.5 Live site survives the setting-induced restart — 18cf007
+- [x] 1.6 Live SPA still serves — 18cf007
 
 #### Manual
 
-- [x] 1.7 Portal "Try Email" arrives in a real inbox
-- [x] 1.8 Sender address matches the recorded Acs__SenderAddress
-- [x] 1.9 VAPID private key stored durably and absent from repo
-- [x] 1.10 ACS data location is an EU region
-- [x] 1.11 deploy-plan.md records names only, no secret values
+- [x] 1.7 Portal "Try Email" arrives in a real inbox — 18cf007
+- [x] 1.8 Sender address matches the recorded Acs__SenderAddress — 18cf007
+- [x] 1.9 VAPID private key stored durably and absent from repo — 18cf007
+- [x] 1.10 ACS data location is an EU region — 18cf007
+- [x] 1.11 deploy-plan.md records names only, no secret values — 18cf007
 
 ### Phase 2: Outbox Schema
 
 #### Automated
 
-- [ ] 2.1 Build passes in Release with no new warnings
-- [ ] 2.2 No vulnerable packages
-- [ ] 2.3 Existing tests still pass
-- [ ] 2.4 Both migrations apply to a clean local container
-- [ ] 2.5 Additive migration does not touch SchemaMarkers
-- [ ] 2.6 Drop migration is reversible
-- [ ] 2.7 Local schema correct: SchemaMarkers absent, both new tables present
-- [ ] 2.8 Composite index on (Status, NextAttemptAt) exists
-- [ ] 2.9 App starts and local /health returns 200 Healthy
+- [x] 2.1 Build passes in Release with no new warnings
+- [x] 2.2 No vulnerable packages
+- [x] 2.3 Existing tests still pass
+- [x] 2.4 Both migrations apply to a clean local container
+- [x] 2.5 Additive migration does not touch SchemaMarkers
+- [x] 2.6 Drop migration is reversible
+- [x] 2.7 Local schema correct: SchemaMarkers absent, both new tables present
+- [x] 2.8 Composite index on (Status, NextAttemptAt) exists
+- [x] 2.9 App starts and local /health returns 200 Healthy
 - [ ] 2.10 Deployed /health returns 200 Healthy
 
 #### Manual
 
-- [ ] 2.11 Both migrations read end to end; hand-written Down reproduces F-01's shape
+- [x] 2.11 Both migrations read end to end; hand-written Down reproduces F-01's shape
 - [ ] 2.12 SchemaMarkers gone from Azure SQL; both new tables present
-- [ ] 2.13 No unexpected data-loss warning
+- [x] 2.13 No unexpected data-loss warning
 
 ### Phase 3: Channels and the Delivery Worker
 

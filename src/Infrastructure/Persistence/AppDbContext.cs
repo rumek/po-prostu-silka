@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using po_prostu_silka.Domain;
+using po_prostu_silka.Domain.Notifications;
 
 namespace po_prostu_silka.Infrastructure.Persistence;
 
@@ -16,6 +17,10 @@ namespace po_prostu_silka.Infrastructure.Persistence;
 public class AppDbContext(DbContextOptions<AppDbContext> options)
     : IdentityDbContext<ApplicationUser>(options)
 {
+    public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
+
+    public DbSet<PushSubscription> PushSubscriptions => Set<PushSubscription>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         // Must come FIRST: this is what builds the Identity model. Inverting the order with
