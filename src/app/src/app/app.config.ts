@@ -1,4 +1,11 @@
-import { ApplicationConfig, isDevMode, provideBrowserGlobalErrorListeners } from '@angular/core';
+import {
+  ApplicationConfig,
+  LOCALE_ID,
+  isDevMode,
+  provideBrowserGlobalErrorListeners,
+} from '@angular/core';
+import { registerLocaleData } from '@angular/common';
+import localePl from '@angular/common/locales/pl';
 import { provideServiceWorker } from '@angular/service-worker';
 import { provideRouter } from '@angular/router';
 import { provideClientHydration } from '@angular/platform-browser';
@@ -6,8 +13,14 @@ import { provideHttpClient, withFetch, withInterceptors } from '@angular/common/
 import { routes } from './app.routes';
 import { authInterceptor } from './core/auth/auth.interceptor';
 
+// Locale DATA, not i18n. D9 rules out translation machinery; this is the CLDR table DatePipe needs
+// to render "1 września 2026" instead of throwing "Missing locale data for the locale pl". Without
+// it the admin's "waiting since" column is a runtime error, and only on that one screen.
+registerLocaleData(localePl);
+
 export const appConfig: ApplicationConfig = {
   providers: [
+    { provide: LOCALE_ID, useValue: 'pl' },
     provideBrowserGlobalErrorListeners(),
     provideRouter(routes),
     provideClientHydration(),

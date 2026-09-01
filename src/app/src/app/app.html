@@ -5,6 +5,13 @@
 
   @if (auth.isAuthenticated()) {
     <nav class="shell-nav">
+      <!-- Admin-only, and hidden rather than disabled: a member who never sees the link never
+           wonders why it refuses them. The API enforces it regardless — MemberAdminEndpoints
+           applies the Admin policy at the group. -->
+      @if (auth.isAdmin()) {
+        <a routerLink="/admin/approvals" routerLinkActive="is-active">Zgłoszenia</a>
+      }
+
       <button type="button" class="shell-logout" (click)="logout()">Wyloguj się</button>
     </nav>
   }

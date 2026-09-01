@@ -1,0 +1,70 @@
+// Layout only — .card/.button/.alert/.notice/.field-error come from src/styles.scss.
+
+.approvals {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.approvals-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-5);
+}
+
+.approvals-identity {
+  min-width: 0;
+}
+
+.approvals-name {
+  margin: 0;
+  font-weight: 600;
+}
+
+.approvals-email,
+.approvals-since {
+  margin: var(--space-1) 0 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+  // Long addresses must not push the Approve button off a phone screen.
+  overflow-wrap: anywhere;
+}
+
+.approvals-action {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.empty {
+  margin: 0;
+  color: var(--muted);
+}
+
+// A button that reads as a link, for the retry inside the error banner.
+.link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+@media (max-width: 30rem) {
+  .approvals-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .approvals-action .button {
+    width: 100%;
+  }
+}

@@ -72,4 +72,36 @@ describe('App', () => {
 
     expect((fixture.nativeElement as HTMLElement).querySelector('.shell-logout')).not.toBeNull();
   });
+
+  // Hidden rather than disabled: a member who never sees the link never wonders why it refuses
+  // them. The API enforces the same rule regardless.
+  it('hides the approvals link from a non-admin member', async () => {
+    configure({
+      user: () => MEMBER,
+      isAuthenticated: () => true,
+      isAdmin: () => false,
+    } as unknown as Partial<AuthService>);
+
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector('a[href="/admin/approvals"]'),
+    ).toBeNull();
+  });
+
+  it('shows the approvals link to an admin', async () => {
+    configure({
+      user: () => ADMIN,
+      isAuthenticated: () => true,
+      isAdmin: () => true,
+    } as unknown as Partial<AuthService>);
+
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector('a[href="/admin/approvals"]'),
+    ).not.toBeNull();
+  });
 });

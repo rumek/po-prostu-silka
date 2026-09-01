@@ -580,6 +580,12 @@ delivering a real email to a real inbox.
 **`src/app/src/app/features/admin/approvals/`** (new)
 
 - Lists pending members — display name, email, waiting since — with an Approve button per row.
+
+  **Adapted during implementation.** "Waiting since" is a formatted Polish date, which means
+  `DatePipe` needs CLDR data for `pl` or it throws *"Missing locale data for the locale pl"* — at
+  runtime, on this screen only. `app.config.ts` now calls `registerLocaleData(localePl)` and provides
+  `LOCALE_ID: 'pl'`. This is locale DATA, not the i18n machinery D9 rejected: no translation files, no
+  build configuration, no second locale.
 - After a successful approve, remove the row locally rather than refetching the list.
 - Empty state: an explicit "no pending registrations" message, not a blank page.
 - A failed approve leaves the row in place and shows the error. Silent failure here means the admin
@@ -678,40 +684,40 @@ delivering a real email to a real inbox.
 
 #### Manual
 
-- [ ] 1.13 Register locally over https; confirm cookie and `"status":"Pending"`
-- [ ] 1.14 Admin lists and approves; member's `/me` reports Active
-- [ ] 1.15 Exactly one outbox Email row per approval, verified in the database
+- [x] 1.13 Register locally over https; confirm cookie and `"status":"Pending"` — 3e9296c
+- [x] 1.14 Admin lists and approves; member's `/me` reports Active — 3e9296c
+- [x] 1.15 Exactly one outbox Email row per approval, verified in the database — 3e9296c
 
 ### Phase 2: Frontend foundation and the member screens
 
 #### Automated
 
-- [x] 2.1 Self-host the two font families with `latin` + `latin-ext` subsets
-- [x] 2.2 Write the token layer, reset, and base typography in `styles.scss`
-- [x] 2.3 Replace the CLI scaffold shell; update `app.spec.ts`
-- [x] 2.4 Extend `auth.models.ts` and `auth.service.ts` with register and refresh
-- [x] 2.5 Add `activeMemberGuard` and `adminGuard`; leave `authGuard` untouched
-- [x] 2.6 Build the login, register, and awaiting-approval screens on reactive forms
-- [x] 2.7 Rewire `app.routes.ts`; delete `route-placeholders.ts`; add the `Home` placeholder
-- [x] 2.8 Add Vitest specs for all three screens and both new guards
-- [x] 2.9 `quality:check`, `npm test`, and `npm run build` clean
+- [x] 2.1 Self-host the two font families with `latin` + `latin-ext` subsets — 399202b
+- [x] 2.2 Write the token layer, reset, and base typography in `styles.scss` — 399202b
+- [x] 2.3 Replace the CLI scaffold shell; update `app.spec.ts` — 399202b
+- [x] 2.4 Extend `auth.models.ts` and `auth.service.ts` with register and refresh — 399202b
+- [x] 2.5 Add `activeMemberGuard` and `adminGuard`; leave `authGuard` untouched — 399202b
+- [x] 2.6 Build the login, register, and awaiting-approval screens on reactive forms — 399202b
+- [x] 2.7 Rewire `app.routes.ts`; delete `route-placeholders.ts`; add the `Home` placeholder — 399202b
+- [x] 2.8 Add Vitest specs for all three screens and both new guards — 399202b
+- [x] 2.9 `quality:check`, `npm test`, and `npm run build` clean — 399202b
 
 #### Manual
 
-- [ ] 2.10 Register through the UI and land on the awaiting screen
-- [ ] 2.11 Polish diacritics render correctly in both font families
-- [ ] 2.12 `/` while Pending redirects to `/pending`; re-login returns there
-- [ ] 2.13 Screens usable at phone width
+- [x] 2.10 Register through the UI and land on the awaiting screen — 399202b
+- [x] 2.11 Polish diacritics render correctly in both font families — 399202b
+- [x] 2.12 `/` while Pending redirects to `/pending`; re-login returns there — 399202b
+- [x] 2.13 Screens usable at phone width — 399202b
 
 ### Phase 3: Admin approvals screen, deploy, and end-to-end verification
 
 #### Automated
 
-- [ ] 3.1 Add `member-admin.service.ts` with its contract-mirroring models
-- [ ] 3.2 Build the approvals screen with empty and error states
-- [ ] 3.3 Add the guarded route and the admin-only shell link
-- [ ] 3.4 Add specs for the screen and the service
-- [ ] 3.5 Frontend and backend suites clean
+- [x] 3.1 Add `member-admin.service.ts` with its contract-mirroring models
+- [x] 3.2 Build the approvals screen with empty and error states
+- [x] 3.3 Add the guarded route and the admin-only shell link
+- [x] 3.4 Add specs for the screen and the service
+- [x] 3.5 Frontend and backend suites clean
 
 #### Manual
 

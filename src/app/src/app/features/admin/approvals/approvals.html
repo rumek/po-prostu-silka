@@ -1,0 +1,44 @@
+<h1>Zgłoszenia do zatwierdzenia</h1>
+<p class="hint">Nowe konta czekają na zatwierdzenie. Najdłużej oczekujące są na górze.</p>
+
+@if (loading()) {
+  <p class="notice" role="status">Wczytywanie…</p>
+} @else if (loadFailed()) {
+  <p class="alert" role="alert">
+    Nie udało się wczytać listy zgłoszeń.
+    <button type="button" class="link-button" (click)="load()">Spróbuj ponownie</button>
+  </p>
+} @else if (pending().length === 0) {
+  <!-- An explicit empty state, not a blank page: "nothing to do" and "it failed to load" must not
+       look the same to the admin. -->
+  <div class="card">
+    <p class="empty">Brak zgłoszeń oczekujących na zatwierdzenie.</p>
+  </div>
+} @else {
+  <ul class="approvals">
+    @for (member of pending(); track member.id) {
+      <li class="card approvals-row">
+        <div class="approvals-identity">
+          <p class="approvals-name">{{ member.displayName }}</p>
+          <p class="approvals-email">{{ member.email }}</p>
+          <p class="approvals-since">Czeka od {{ member.createdAt | date: 'd MMMM y, HH:mm' }}</p>
+        </div>
+
+        <div class="approvals-action">
+          <button
+            type="button"
+            class="button"
+            [disabled]="isApproving(member.id)"
+            (click)="approve(member)"
+          >
+            {{ isApproving(member.id) ? 'Zatwierdzanie…' : 'Zatwierdź' }}
+          </button>
+
+          @if (failedId() === member.id) {
+            <p class="field-error" role="alert">Nie udało się zatwierdzić. Spróbuj ponownie.</p>
+          }
+        </div>
+      </li>
+    }
+  </ul>
+}
