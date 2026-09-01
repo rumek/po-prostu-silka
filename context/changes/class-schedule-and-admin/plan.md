@@ -110,7 +110,11 @@ limitation in a comment on the check rather than silently leaving it.
 
 **Timezone.** Everything is `DateTimeOffset` in UTC on the server; the SPA groups into day headings
 by the **browser's local date** and renders with `DatePipe`, matching how every existing timestamp in
-the app is handled. The server never groups and never hardcodes a timezone.
+the app is handled. The server never groups and never hardcodes a timezone **on the read path**.
+
+The one exception is weekly duplication, which must preserve wall-clock time across a DST transition
+and therefore has to know which wall clock — see the adaptation note under Phase 2's duplicate
+endpoint. `ClubTime` names `Europe/Warsaw` once, for that arithmetic only.
 
 ## Phase 1: Class aggregate and persistence
 
@@ -290,6 +294,24 @@ where the room is already taken rather than failing the whole batch.
 (`invalid_weeks`, 400). Each copy is `StartsAt.AddDays(7 * n)` — use `AddDays`, not month or week
 arithmetic, so the local clock time is preserved across a DST boundary. Every copy is conflict-checked
 independently; copies that pass are created, copies that collide are skipped.
+
+**Adapted during implementation.** `AddDays` does **not** preserve local clock time — that assertion
+was wrong. On a UTC `DateTimeOffset` it preserves the *instant*, so a 22:34 Warsaw class duplicated
+8 weeks forward landed at 21:34 Warsaw once Poland left DST on 2026-10-25 (measured: weeks 0–7 at
+22:34 CEST, week 8 at 21:34 CET). Right instant, wrong wall clock, and nothing failed.
+
+This exposed a contradiction the plan itself carried: "Critical Implementation Details" states *"The
+server never groups and never hardcodes a timezone"*, while criterion 2.14 requires duplicates to
+keep local clock time across DST. With UTC storage those cannot both hold — preserving a wall clock
+across a transition requires knowing *which* wall clock.
+
+Resolved by narrowing the no-timezone rule to the **read** path, which is where it was actually
+earning its keep. `src/Domain/Scheduling/ClubTime.cs` names `Europe/Warsaw` once and is used **only**
+by the duplicate arithmetic: convert to club-local, add days there, convert back to UTC. It also
+handles the two DST edge cases `TimeZoneInfo` otherwise mishandles — an invalid local time in the
+spring-forward gap (throws) and an ambiguous one in the autumn repeat (silently picks). The schedule
+endpoint still returns UTC instants and the SPA still groups by the browser's local date, so a member
+abroad still sees their own clock.
 
 Returns a per-week outcome so the admin sees exactly what happened:
 `DuplicateResult(int Created, IReadOnlyList<int> SkippedWeeks)`. All copies land in one
@@ -518,38 +540,38 @@ Applied by CI before deploy (`deploy.yml:59-104`), never on startup.
 
 #### Automated
 
-- [x] 1.1 Backend builds warning-free: `dotnet build` from `src/`
-- [x] 1.2 Migration applies cleanly against the local Docker SQL Server
-- [x] 1.3 `Down` is reversible: `dotnet ef migrations script <New> <Previous>` generates without error
-- [x] 1.4 `GET /health` returns 200 after the migration
+- [x] 1.1 Backend builds warning-free: `dotnet build` from `src/` — d457ebc
+- [x] 1.2 Migration applies cleanly against the local Docker SQL Server — d457ebc
+- [x] 1.3 `Down` is reversible: `dotnet ef migrations script <New> <Previous>` generates without error — d457ebc
+- [x] 1.4 `GET /health` returns 200 after the migration — d457ebc
 
 #### Manual
 
-- [x] 1.5 The generated migration creates both indexes, not just the table
-- [x] 1.6 `Status` has a default of `0` in the generated SQL
+- [x] 1.5 The generated migration creates both indexes, not just the table — d457ebc
+- [x] 1.6 `Status` has a default of `0` in the generated SQL — d457ebc
 
 ### Phase 2: Class API surface
 
 #### Automated
 
-- [ ] 2.1 Backend builds warning-free: `dotnet build` from `src/`
-- [ ] 2.2 `GET /api/classes` returns 200 active member, 403 pending, 401 anonymous
-- [ ] 2.3 `POST /api/admin/classes` creates and returns an id; 403 for a non-admin
-- [ ] 2.4 Capacity 0 returns 400 `invalid_capacity`; duration 0 returns 400 `invalid_duration`
-- [ ] 2.5 Create with a past `StartsAt` returns 400 `starts_in_past`
-- [ ] 2.6 Edit with a past `StartsAt` succeeds (the rule is create-only)
-- [ ] 2.7 Overlapping class in the same room returns 409 `room_conflict`
-- [ ] 2.8 A class edited to keep its own time does not self-conflict
-- [ ] 2.9 A class in a different room at the same time is accepted
-- [ ] 2.10 `DELETE` returns 204 and the class leaves `GET /api/classes`
-- [ ] 2.11 Duplicate across 8 weeks with one collision returns `Created: 7` and that week skipped
-- [ ] 2.12 Duplicate with `weeks: 0` or `weeks: 99` returns 400 `invalid_weeks`
+- [x] 2.1 Backend builds warning-free: `dotnet build` from `src/`
+- [x] 2.2 `GET /api/classes` returns 200 active member, 403 pending, 401 anonymous
+- [x] 2.3 `POST /api/admin/classes` creates and returns an id; 403 for a non-admin
+- [x] 2.4 Capacity 0 returns 400 `invalid_capacity`; duration 0 returns 400 `invalid_duration`
+- [x] 2.5 Create with a past `StartsAt` returns 400 `starts_in_past`
+- [x] 2.6 Edit with a past `StartsAt` succeeds (the rule is create-only)
+- [x] 2.7 Overlapping class in the same room returns 409 `room_conflict`
+- [x] 2.8 A class edited to keep its own time does not self-conflict
+- [x] 2.9 A class in a different room at the same time is accepted
+- [x] 2.10 `DELETE` returns 204 and the class leaves `GET /api/classes`
+- [x] 2.11 Duplicate across 8 weeks with one collision returns `Created: 7` and that week skipped
+- [x] 2.12 Duplicate with `weeks: 0` or `weeks: 99` returns 400 `invalid_weeks`
 
 #### Manual
 
-- [ ] 2.13 `GET /api/classes` excludes classes beyond 14 days and any in the past
-- [ ] 2.14 Duplicated classes keep the same local clock time across a DST boundary
-- [ ] 2.15 The overlap query runs in SQL (`DATEADD` visible in EF logs), not client-side
+- [x] 2.13 `GET /api/classes` excludes classes beyond 14 days and any in the past
+- [x] 2.14 Duplicated classes keep the same local clock time across a DST boundary
+- [x] 2.15 The overlap query runs in SQL (`DATEADD` visible in EF logs), not client-side
 
 ### Phase 3: Schedule and admin screens
 

@@ -9,9 +9,11 @@ using po_prostu_silka.Application.Notifications;
 using po_prostu_silka.Infrastructure.Notifications;
 using po_prostu_silka.Application.Auth;
 using po_prostu_silka.Application.Members;
+using po_prostu_silka.Application.Scheduling;
 using po_prostu_silka.Application.Persistence;
 using po_prostu_silka.Domain;
 using po_prostu_silka.Infrastructure.Members;
+using po_prostu_silka.Infrastructure.Scheduling;
 using po_prostu_silka.Infrastructure.Authorization;
 using po_prostu_silka.Infrastructure.Identity;
 using po_prostu_silka.Infrastructure.Persistence;
@@ -171,6 +173,11 @@ builder.Services.AddScoped<IPendingMemberQuery, PendingMemberQuery>();
 // S-02's member list (FR-005). Scoped like the query above - it depends on the same DbContext.
 builder.Services.AddScoped<IMemberQuery, MemberQuery>();
 
+// S-03's schedule and class management (FR-007, FR-011, FR-012). The store must share the request's
+// DbContext with IUnitOfWork, or a duplicate batch would not commit as one transaction.
+builder.Services.AddScoped<IClassScheduleQuery, ClassScheduleQuery>();
+builder.Services.AddScoped<IClassStore, ClassStore>();
+
 builder.Services.AddHostedService<OutboxDeliveryWorker>();
 
 var app = builder.Build();
@@ -219,6 +226,7 @@ app.MapHealthChecks("/health");
 app.MapAuthEndpoints();
 app.MapPushEndpoints();
 app.MapMemberAdminEndpoints();
+app.MapClassEndpoints();
 
 // Probe endpoints for the ActiveMember and Admin policies, in the "Testing" environment only.
 //
