@@ -830,12 +830,12 @@ provider behaviours we can reason about but not exercise cheaply.
 - [x] 2.7 Local schema correct: SchemaMarkers absent, both new tables present — 15bfaae
 - [x] 2.8 Composite index on (Status, NextAttemptAt) exists — 15bfaae
 - [x] 2.9 App starts and local /health returns 200 Healthy — 15bfaae
-- [ ] 2.10 Deployed /health returns 200 Healthy
+- [x] 2.10 Deployed /health returns 200 Healthy — bd98351
 
 #### Manual
 
 - [x] 2.11 Both migrations read end to end; hand-written Down reproduces F-01's shape — 15bfaae
-- [ ] 2.12 SchemaMarkers gone from Azure SQL; both new tables present
+- [x] 2.12 SchemaMarkers gone from Azure SQL; both new tables present — bd98351
 - [x] 2.13 No unexpected data-loss warning — 15bfaae
 
 ### Phase 3: Channels and the Delivery Worker
@@ -850,7 +850,7 @@ provider behaviours we can reason about but not exercise cheaply.
 - [x] 3.6 Heartbeat line appears with counts — 8b8603b
 - [x] 3.7 Worker survives an empty table with no exceptions — 8b8603b
 - [x] 3.8 /health includes the outbox check — 8b8603b
-- [ ] 3.9 Deployed /health returns 200 Healthy
+- [x] 3.9 Deployed /health returns 200 Healthy — bd98351
 
 #### Manual
 
@@ -870,18 +870,18 @@ provider behaviours we can reason about but not exercise cheaply.
 - [x] 4.5 .NET suite passes including push endpoint tests — d3ef1b2
 - [x] 4.6 Anonymous subscribe returns 401 — d3ef1b2
 - [x] 4.7 Composition test proves the email + per-subscription push fan-out — d3ef1b2
-- [ ] 4.8 Deployed /health returns 200 Healthy and SPA serves
-- [ ] 4.9 /health reports the outbox check with zero failures after the end-to-end run
+- [x] 4.8 Deployed /health returns 200 Healthy and SPA serves — bd98351
+- [x] 4.9 /health reports the outbox check with zero failures after the end-to-end run — bd98351
 
 #### Manual
 
-- [ ] 4.10 Chrome desktop subscribes and a row appears in PushSubscriptions
-- [ ] 4.11 iPhone installs to home screen and subscribes
-- [ ] 4.12 Denying permission leaves the app usable with no error surfaced
+- [x] 4.10 Chrome desktop subscribes and a row appears in PushSubscriptions — bd98351
+- [x] 4.11 iPhone installs to home screen and subscribes — bd98351
+- [x] 4.12 Denying permission leaves the app usable with no error surfaced — bd98351
 - [x] 4.13 Re-subscribing does not create a duplicate row — d3ef1b2
-- [ ] 4.14 Approving a member delivers a real email to a real inbox
-- [ ] 4.15 The same approval delivers a real push notification to desktop and installed iPhone
-- [ ] 4.16 Outbox row observed transitioning Pending → Claimed → Sent
-- [ ] 4.17 Heartbeat counts move as the message is delivered
-- [ ] 4.18 SchemaMarkers confirmed absent from Azure SQL
+- [x] 4.14 Approving a member delivers a real email to a real inbox — bd98351
+- [x] 4.15 The same approval delivers a real push notification to desktop and installed iPhone — bd98351
+- [x] 4.16 Outbox row observed transitioning Pending → Claimed → Sent — bd98351
+- [x] 4.17 Heartbeat counts move as the message is delivered — bd98351
+- [x] 4.18 SchemaMarkers confirmed absent from Azure SQL — bd98351
 - [x] 4.19 No secret value appears in any application or deploy log — d3ef1b2

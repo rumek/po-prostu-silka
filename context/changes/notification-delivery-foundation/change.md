@@ -1,7 +1,7 @@
 ---
 change_id: notification-delivery-foundation
 title: Notification delivery foundation
-status: implementing
+status: implemented
 created: 2026-08-31
 updated: 2026-08-31
 archived_at: null
