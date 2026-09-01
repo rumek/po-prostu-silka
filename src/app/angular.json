@@ -34,7 +34,8 @@
             "outputMode": "static",
             "security": {
               "allowedHosts": []
-            }
+            },
+            "serviceWorker": "ngsw-config.json"
           },
           "configurations": {
             "production": {

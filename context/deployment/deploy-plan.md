@@ -210,3 +210,45 @@ to required.** Switching later changes only `Acs__SenderAddress`, not applicatio
 - **Custom sender domain.** Deferred deliberately (see above). Requires DNS access to the chosen
   domain and multi-day provider-side verification; closing it is a change to
   `Acs__SenderAddress` only.
+
+### Transport live (F-03 phases 2-4)
+
+| Item | Value |
+| --- | --- |
+| Outbox table | `OutboxMessages` — one row per recipient per channel, holding the already-rendered message |
+| Push table | `PushSubscriptions` — unique on `Endpoint`, cascade-deleted with the member |
+| Claim index | `IX_OutboxMessages_Status_NextAttemptAt` — the worker's claim predicate, the only query running every polling interval |
+| Worker | `OutboxDeliveryWorker`, 15s poll, batch 20, 5-minute lease, 5 attempts, backoff 1m/5m/15m/1h/4h |
+| Retention | `Sent` rows pruned after 30 days; `Failed` rows kept as the diagnostic record |
+| Observability | Heartbeat log line per pass with pending/claimed/failed counts; `/health` reports `Degraded` past 10 failed rows |
+| First consumer | Account-approved notification (FR-021) — one email row plus one push row per registered device |
+
+**`SchemaMarkers` is gone.** F-01 created it to prove the pipeline; F-02 deleted the C# and left the
+table; `20260901113726_DropSchemaMarkers` drops it, with a hand-written `Down` reproducing F-01's
+original shape. Both directions were written by hand because EF generates nothing — the entity left
+the model in F-02, so EF believed the table was already absent. This closes the deferred-destructive
+handoff and is the first destructive migration this project has run.
+
+**Delivery is at-least-once, deliberately.** A crash between "the provider accepted the message" and
+"the row is marked `Sent`" resends on the next lease expiry. Duplicating a cancellation email is
+acceptable; losing one violates the milestone's guardrail.
+
+### Gotchas confirmed or discovered in phases 2-4
+
+- **`dotnet ef` with `--no-build` silently uses a stale Debug assembly.** A migration added in the
+  same session is reported as "not found" until a real build runs. Bit this change twice.
+- **Angular 22's `@angular/build:application` builder has no `ngswConfigPath` option.** The service
+  worker is enabled by setting `"serviceWorker": "ngsw-config.json"` — the config *path*, not a
+  boolean. The older browser-builder syntax fails schema validation outright.
+- **`ngsw-config.json` declares empty `assetGroups`/`dataGroups` on purpose.** The service worker
+  exists for push only; the PRD locks "no offline-first guarantee", and caching a live schedule
+  would seed stale-data bugs into S-03/S-04.
+- **PWA icons are placeholders** — flat `#1f2937` squares generated at 192px and 512px (plus a
+  maskable variant). They are a visible rough edge on an installed app and want a real design pass.
+
+### Follow-ups opened by phases 2-4
+
+- **Real PWA icons.** Placeholders ship today.
+- **Heartbeat volume.** One log line every 15s is ~5,760 lines/day. Readable in `az webapp log tail`,
+  but worth revisiting if log noise becomes a problem — either a longer interval or logging only
+  when counts are non-zero.

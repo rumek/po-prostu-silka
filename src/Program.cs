@@ -148,6 +148,9 @@ builder.Services.AddScoped<IEmailSender, AcsEmailSender>();
 builder.Services.AddScoped<IPushSender, WebPushSender>();
 builder.Services.AddScoped<IOutboxWriter, OutboxWriter>();
 builder.Services.AddScoped<IOutboxEnqueuer, OutboxEnqueuer>();
+builder.Services.AddScoped<IPushSubscriptionStore, PushSubscriptionStore>();
+builder.Services.AddScoped<IVapidPublicKey, VapidPublicKeyProvider>();
+builder.Services.AddScoped<IAccountApprovedNotification, AccountApprovedNotification>();
 
 builder.Services.AddHostedService<OutboxDeliveryWorker>();
 
@@ -195,6 +198,7 @@ app.UseAuthorization();
 app.MapHealthChecks("/health");
 
 app.MapAuthEndpoints();
+app.MapPushEndpoints();
 
 // Probe endpoints for the ActiveMember and Admin policies, in the "Testing" environment only.
 //
