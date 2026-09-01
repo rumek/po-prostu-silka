@@ -1,0 +1,105 @@
+<div class="classes-header">
+  <h1>Zajęcia</h1>
+  <a class="button" routerLink="/admin/classes/new">Dodaj zajęcia</a>
+</div>
+<p class="hint">
+  Nadchodzące zajęcia. Zajęcia przeniesione w przeszłość znikają z tej listy — sprawdź datę przed
+  zapisaniem.
+</p>
+
+@if (notice()) {
+  <p class="notice" role="status">{{ notice() }}</p>
+}
+
+@if (loading()) {
+  <p class="notice" role="status">Wczytywanie…</p>
+} @else if (loadFailed()) {
+  <p class="alert" role="alert">
+    Nie udało się wczytać listy zajęć.
+    <button type="button" class="link-button" (click)="load()">Spróbuj ponownie</button>
+  </p>
+} @else if (rows().length === 0) {
+  <div class="card">
+    <p class="empty">Brak zaplanowanych zajęć.</p>
+  </div>
+} @else {
+  <ul class="classes">
+    @for (row of rows(); track row.id) {
+      <li class="card classes-row">
+        <div class="classes-identity">
+          <p class="classes-name">{{ row.name }}</p>
+          <p class="classes-when">
+            {{ row.startsAt | date: 'EEEE, d MMMM y' }}, {{ row.startsAt | date: 'HH:mm' }}–{{
+              endsAt(row) | date: 'HH:mm'
+            }}
+          </p>
+          <p class="classes-meta">
+            {{ row.room }} · {{ row.instructor }} · {{ row.capacity }} miejsc
+          </p>
+        </div>
+
+        <div class="classes-actions">
+          <a class="button button--secondary" [routerLink]="['/admin/classes', row.id]">Edytuj</a>
+
+          <button
+            type="button"
+            class="button button--secondary"
+            [disabled]="isBusy(row.id)"
+            (click)="openDuplicate(row.id)"
+          >
+            Powiel
+          </button>
+
+          <button
+            type="button"
+            class="button button--secondary"
+            [disabled]="isBusy(row.id)"
+            (click)="confirmDelete(row.id)"
+          >
+            Usuń
+          </button>
+        </div>
+
+        @if (duplicatingId() === row.id) {
+          <div class="classes-panel">
+            <label class="classes-weeks">
+              Powiel na kolejne tygodnie:
+              <input
+                type="number"
+                min="1"
+                max="8"
+                [ngModel]="weeks()"
+                (ngModelChange)="weeks.set(+$event)"
+              />
+            </label>
+            <button
+              type="button"
+              class="button"
+              [disabled]="isBusy(row.id)"
+              (click)="duplicate(row)"
+            >
+              {{ isBusy(row.id) ? 'Powielanie…' : 'Powiel' }}
+            </button>
+            <button type="button" class="link-button" (click)="openDuplicate(row.id)">
+              Anuluj
+            </button>
+          </div>
+        }
+
+        @if (confirmingDeleteId() === row.id) {
+          <div class="classes-panel">
+            <p class="classes-confirm">Usunąć „{{ row.name }}” na dobre?</p>
+            <button type="button" class="button" [disabled]="isBusy(row.id)" (click)="remove(row)">
+              {{ isBusy(row.id) ? 'Usuwanie…' : 'Tak, usuń' }}
+            </button>
+            <button type="button" class="link-button" (click)="cancelDelete()">Anuluj</button>
+          </div>
+        }
+
+        @if (failedId() === row.id) {
+          <p class="field-error" role="alert">Nie udało się. Spróbuj ponownie.</p>
+        }
+      </li>
+    }
+  </ul>
+}

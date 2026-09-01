@@ -3,7 +3,10 @@ import { activeMemberGuard } from './core/auth/active-member.guard';
 import { adminGuard } from './core/auth/admin.guard';
 import { authGuard } from './core/auth/auth.guard';
 import { Approvals } from './features/admin/approvals/approvals';
+import { Classes } from './features/admin/classes/classes';
+import { ClassForm } from './features/admin/classes/class-form';
 import { Members } from './features/admin/members/members';
+import { Schedule } from './features/schedule/schedule';
 import { Login } from './features/auth/login/login';
 import { Pending } from './features/auth/pending/pending';
 import { Register } from './features/auth/register/register';
@@ -24,5 +27,10 @@ export const routes: Routes = [
   { path: '', component: Home, canActivate: [authGuard, activeMemberGuard] },
   { path: 'admin/approvals', component: Approvals, canActivate: [authGuard, adminGuard] },
   { path: 'admin/members', component: Members, canActivate: [authGuard, adminGuard] },
+  { path: 'schedule', component: Schedule, canActivate: [authGuard, activeMemberGuard] },
+  { path: 'admin/classes', component: Classes, canActivate: [authGuard, adminGuard] },
+  // 'new' MUST precede ':id', or the literal segment is swallowed by the parameter.
+  { path: 'admin/classes/new', component: ClassForm, canActivate: [authGuard, adminGuard] },
+  { path: 'admin/classes/:id', component: ClassForm, canActivate: [authGuard, adminGuard] },
   { path: '**', redirectTo: '' },
 ];

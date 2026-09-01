@@ -1,0 +1,25 @@
+// Layout only — .panel/.field/.field-error/.button/.alert/.notice come from src/styles.scss.
+
+.class-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4);
+  margin-top: var(--space-5);
+}
+
+.link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+@media (max-width: 30rem) {
+  .class-form-actions .button {
+    width: 100%;
+  }
+}

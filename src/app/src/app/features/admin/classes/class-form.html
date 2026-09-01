@@ -1,0 +1,113 @@
+<h1>{{ editingId() ? 'Edytuj zajęcia' : 'Nowe zajęcia' }}</h1>
+
+@if (loading()) {
+  <p class="notice" role="status">Wczytywanie…</p>
+} @else if (loadFailed()) {
+  <p class="alert" role="alert">
+    Nie udało się wczytać tych zajęć.
+    <a class="link-button" routerLink="/admin/classes">Wróć do listy</a>
+  </p>
+} @else {
+  @if (error()) {
+    <p class="alert" role="alert">{{ error() }}</p>
+  }
+
+  <form class="panel" [formGroup]="form" (ngSubmit)="submit()">
+    <div class="field">
+      <label for="name">Nazwa</label>
+      <input
+        id="name"
+        type="text"
+        formControlName="name"
+        [attr.aria-invalid]="form.controls.name.touched && form.controls.name.invalid"
+      />
+      @if (form.controls.name.touched && form.controls.name.invalid) {
+        <p class="field-error">Podaj nazwę zajęć.</p>
+      }
+    </div>
+
+    <div class="field">
+      <label for="startsAt">Początek</label>
+      <input
+        id="startsAt"
+        type="datetime-local"
+        formControlName="startsAt"
+        [attr.aria-invalid]="form.controls.startsAt.touched && form.controls.startsAt.invalid"
+      />
+      @if (form.controls.startsAt.touched && form.controls.startsAt.invalid) {
+        @if (form.controls.startsAt.hasError('startsInPast')) {
+          <p class="field-error">Nowe zajęcia nie mogą zaczynać się w przeszłości.</p>
+        } @else {
+          <p class="field-error">Podaj datę i godzinę rozpoczęcia.</p>
+        }
+      }
+    </div>
+
+    <div class="field">
+      <label for="durationMinutes">Czas trwania (minuty)</label>
+      <input
+        id="durationMinutes"
+        type="number"
+        min="1"
+        formControlName="durationMinutes"
+        [attr.aria-invalid]="
+          form.controls.durationMinutes.touched && form.controls.durationMinutes.invalid
+        "
+      />
+      @if (form.controls.durationMinutes.touched && form.controls.durationMinutes.invalid) {
+        <p class="field-error">Czas trwania musi wynosić co najmniej 1 minutę.</p>
+      }
+    </div>
+
+    <div class="field">
+      <label for="room">Sala</label>
+      <input
+        id="room"
+        type="text"
+        formControlName="room"
+        [attr.aria-invalid]="form.controls.room.touched && form.controls.room.invalid"
+      />
+      @if (form.controls.room.touched && form.controls.room.invalid) {
+        @if (form.controls.room.hasError('roomConflict')) {
+          <p class="field-error">Ta sala jest już zajęta w tym czasie. Zmień salę albo godzinę.</p>
+        } @else {
+          <p class="field-error">Podaj salę.</p>
+        }
+      }
+    </div>
+
+    <div class="field">
+      <label for="instructor">Prowadzący</label>
+      <input
+        id="instructor"
+        type="text"
+        formControlName="instructor"
+        [attr.aria-invalid]="form.controls.instructor.touched && form.controls.instructor.invalid"
+      />
+      @if (form.controls.instructor.touched && form.controls.instructor.invalid) {
+        <p class="field-error">Podaj prowadzącego.</p>
+      }
+    </div>
+
+    <div class="field">
+      <label for="capacity">Liczba miejsc</label>
+      <input
+        id="capacity"
+        type="number"
+        min="1"
+        formControlName="capacity"
+        [attr.aria-invalid]="form.controls.capacity.touched && form.controls.capacity.invalid"
+      />
+      @if (form.controls.capacity.touched && form.controls.capacity.invalid) {
+        <p class="field-error">Liczba miejsc musi wynosić co najmniej 1.</p>
+      }
+    </div>
+
+    <div class="class-form-actions">
+      <button type="submit" class="button" [disabled]="submitting()">
+        {{ submitting() ? 'Zapisywanie…' : 'Zapisz' }}
+      </button>
+      <a class="link-button" routerLink="/admin/classes">Anuluj</a>
+    </div>
+  </form>
+}

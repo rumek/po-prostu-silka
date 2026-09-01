@@ -1,0 +1,124 @@
+// Layout only — .card/.button/.button--secondary/.alert/.notice/.field-error/.hint come from
+// src/styles.scss.
+
+.classes-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.classes-header h1 {
+  margin: 0;
+}
+
+.classes {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.classes-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-5);
+}
+
+.classes-identity {
+  min-width: 0;
+}
+
+.classes-name {
+  margin: 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.classes-when {
+  margin: var(--space-1) 0 0;
+  font-size: 0.875rem;
+  text-transform: capitalize;
+}
+
+.classes-meta {
+  margin: var(--space-1) 0 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+
+.classes-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+// The duplicate and delete-confirm strips. Full width so they read as belonging to the whole row
+// rather than to one button.
+.classes-panel {
+  flex-basis: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border);
+}
+
+.classes-weeks {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 0.875rem;
+}
+
+.classes-weeks input {
+  width: 4.5rem;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-2);
+  background: none;
+  color: inherit;
+  // 16px minimum, or iOS Safari zooms the viewport on focus — same rule as .field input.
+  font: inherit;
+  font-size: 1rem;
+}
+
+.classes-confirm {
+  margin: 0;
+  flex: 1 1 12rem;
+}
+
+.empty {
+  margin: 0;
+  color: var(--muted);
+}
+
+.link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+@media (max-width: 30rem) {
+  .classes-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .classes-actions .button {
+    flex: 1 1 auto;
+    text-align: center;
+  }
+}

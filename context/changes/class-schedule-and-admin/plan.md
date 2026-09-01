@@ -554,39 +554,39 @@ Applied by CI before deploy (`deploy.yml:59-104`), never on startup.
 
 #### Automated
 
-- [x] 2.1 Backend builds warning-free: `dotnet build` from `src/`
-- [x] 2.2 `GET /api/classes` returns 200 active member, 403 pending, 401 anonymous
-- [x] 2.3 `POST /api/admin/classes` creates and returns an id; 403 for a non-admin
-- [x] 2.4 Capacity 0 returns 400 `invalid_capacity`; duration 0 returns 400 `invalid_duration`
-- [x] 2.5 Create with a past `StartsAt` returns 400 `starts_in_past`
-- [x] 2.6 Edit with a past `StartsAt` succeeds (the rule is create-only)
-- [x] 2.7 Overlapping class in the same room returns 409 `room_conflict`
-- [x] 2.8 A class edited to keep its own time does not self-conflict
-- [x] 2.9 A class in a different room at the same time is accepted
-- [x] 2.10 `DELETE` returns 204 and the class leaves `GET /api/classes`
-- [x] 2.11 Duplicate across 8 weeks with one collision returns `Created: 7` and that week skipped
-- [x] 2.12 Duplicate with `weeks: 0` or `weeks: 99` returns 400 `invalid_weeks`
+- [x] 2.1 Backend builds warning-free: `dotnet build` from `src/` — 60184a6
+- [x] 2.2 `GET /api/classes` returns 200 active member, 403 pending, 401 anonymous — 60184a6
+- [x] 2.3 `POST /api/admin/classes` creates and returns an id; 403 for a non-admin — 60184a6
+- [x] 2.4 Capacity 0 returns 400 `invalid_capacity`; duration 0 returns 400 `invalid_duration` — 60184a6
+- [x] 2.5 Create with a past `StartsAt` returns 400 `starts_in_past` — 60184a6
+- [x] 2.6 Edit with a past `StartsAt` succeeds (the rule is create-only) — 60184a6
+- [x] 2.7 Overlapping class in the same room returns 409 `room_conflict` — 60184a6
+- [x] 2.8 A class edited to keep its own time does not self-conflict — 60184a6
+- [x] 2.9 A class in a different room at the same time is accepted — 60184a6
+- [x] 2.10 `DELETE` returns 204 and the class leaves `GET /api/classes` — 60184a6
+- [x] 2.11 Duplicate across 8 weeks with one collision returns `Created: 7` and that week skipped — 60184a6
+- [x] 2.12 Duplicate with `weeks: 0` or `weeks: 99` returns 400 `invalid_weeks` — 60184a6
 
 #### Manual
 
-- [x] 2.13 `GET /api/classes` excludes classes beyond 14 days and any in the past
-- [x] 2.14 Duplicated classes keep the same local clock time across a DST boundary
-- [x] 2.15 The overlap query runs in SQL (`DATEADD` visible in EF logs), not client-side
+- [x] 2.13 `GET /api/classes` excludes classes beyond 14 days and any in the past — 60184a6
+- [x] 2.14 Duplicated classes keep the same local clock time across a DST boundary — 60184a6
+- [x] 2.15 The overlap query runs in SQL (`DATEADD` visible in EF logs), not client-side — 60184a6
 
 ### Phase 3: Schedule and admin screens
 
 #### Automated
 
-- [ ] 3.1 Unit tests pass: `npm test` from `src/app/`
-- [ ] 3.2 Lint and formatting pass: `npm run quality:check` from `src/app/`
-- [ ] 3.3 Production build succeeds: `npm run build` from `src/app/`
+- [x] 3.1 Unit tests pass: `npm test` from `src/app/`
+- [x] 3.2 Lint and formatting pass: `npm run quality:check` from `src/app/`
+- [x] 3.3 Production build succeeds: `npm run build` from `src/app/`
 
 #### Manual
 
-- [ ] 3.4 The schedule shows Polish day headings with classes grouped beneath
-- [ ] 3.5 A class starting at 23:30 local appears under that day, not the next
-- [ ] 3.6 Create, edit, duplicate and delete all work end to end
-- [ ] 3.7 A room conflict shows an error on the room field, not a generic banner
-- [ ] 3.8 Editing a class does not shift its start time by the UTC offset
-- [ ] 3.9 The schedule and both admin screens are usable at mobile width
-- [ ] 3.10 `/admin/approvals` and `/admin/members` still work unchanged
+- [x] 3.4 The schedule shows Polish day headings with classes grouped beneath
+- [x] 3.5 A class starting at 23:30 local appears under that day, not the next
+- [x] 3.6 Create, edit, duplicate and delete all work end to end
+- [x] 3.7 A room conflict shows an error on the room field, not a generic banner
+- [x] 3.8 Editing a class does not shift its start time by the UTC offset
+- [x] 3.9 The schedule and both admin screens are usable at mobile width
+- [x] 3.10 `/admin/approvals` and `/admin/members` still work unchanged
