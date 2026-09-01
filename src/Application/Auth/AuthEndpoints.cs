@@ -60,6 +60,15 @@ public static class AuthEndpoints
         SignInManager<ApplicationUser> signInManager,
         UserManager<ApplicationUser> userManager)
     {
+        // The record's strings are non-nullable, but {"email": null} deserialises to null all the
+        // same - nullable reference types are a compile-time contract, not a runtime one - and
+        // FindByEmailAsync would then throw ArgumentNullException on an anonymous endpoint. Answer
+        // the same non-disclosing 401 a wrong address gets, rather than a 500.
+        if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Password))
+        {
+            return Results.Json(new LoginFailure("invalid_credentials"), statusCode: 401);
+        }
+
         var user = await userManager.FindByEmailAsync(request.Email);
         if (user is null)
         {
@@ -124,6 +133,19 @@ public static class AuthEndpoints
             return Results.Json(new RegisterFailure("invalid_display_name"), statusCode: 400);
         }
 
+        // Same runtime-vs-compile-time gap as LoginAsync: a null in the JSON body reaches here
+        // despite the non-nullable record, and FindByEmailAsync would throw. Answer in this
+        // endpoint's own vocabulary instead of 500-ing.
+        if (string.IsNullOrWhiteSpace(request.Email))
+        {
+            return Results.Json(new RegisterFailure("invalid_email"), statusCode: 400);
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Password))
+        {
+            return Results.Json(new RegisterFailure("invalid_password"), statusCode: 400);
+        }
+
         if (await userManager.FindByEmailAsync(request.Email) is not null)
         {
             return Results.Json(new RegisterFailure("email_taken"), statusCode: 409);
@@ -144,6 +166,16 @@ public static class AuthEndpoints
             // Map Identity's error codes to our own vocabulary rather than forwarding its text: the
             // raw descriptions are English, unlocalised, and occasionally leak policy detail.
             var codes = created.Errors.Select(e => e.Code).ToArray();
+
+            // Duplicate FIRST, and as a 409 rather than a 400. The FindByEmailAsync check above
+            // catches this in the ordinary case, but two simultaneous registrations of the same
+            // address both pass it and the loser lands here. Left to the "Email" branch below it
+            // would answer 400 invalid_email - telling someone their perfectly valid address is
+            // malformed, and hiding the "Zaloguj się" link the real email_taken path offers.
+            if (codes.Any(c => c.StartsWith("Duplicate", StringComparison.Ordinal)))
+            {
+                return Results.Json(new RegisterFailure("email_taken"), statusCode: 409);
+            }
 
             var reason = codes.Any(c => c.Contains("Password", StringComparison.Ordinal))
                 ? "invalid_password"

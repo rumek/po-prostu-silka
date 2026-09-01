@@ -16,18 +16,21 @@ namespace po_prostu_silka.Infrastructure.Authorization;
 /// <see cref="Identity.AppUserClaimsPrincipalFactory"/>; staleness is bounded by the 30-minute
 /// security-stamp validation interval configured in Program.cs.
 ///
-/// THESE NAMES ARE A CONTRACT later slices depend on. Do not rename them.
+/// THE NAMES THEMSELVES LIVE IN DOMAIN (<see cref="AuthorizationPolicyNames"/>), not here: endpoint
+/// definitions in Application reference them, and Application may not reference Infrastructure. This
+/// file keeps only the builder, which genuinely is infrastructure. The aliases below exist so
+/// existing call sites keep compiling; prefer AuthorizationPolicyNames in new code.
 /// </summary>
 public static class AuthorizationPolicies
 {
-    /// <summary>Claim type carrying <see cref="AccountStatus"/> as its string name.</summary>
-    public const string StatusClaimType = "account_status";
+    /// <inheritdoc cref="AuthorizationPolicyNames.StatusClaimType"/>
+    public const string StatusClaimType = AuthorizationPolicyNames.StatusClaimType;
 
-    /// <summary>Authenticated, approved, and holding any application role. The default for member-facing endpoints.</summary>
-    public const string ActiveMember = "ActiveMember";
+    /// <inheritdoc cref="AuthorizationPolicyNames.ActiveMember"/>
+    public const string ActiveMember = AuthorizationPolicyNames.ActiveMember;
 
-    /// <summary>Everything ActiveMember requires, plus the Admin role.</summary>
-    public const string Admin = "Admin";
+    /// <inheritdoc cref="AuthorizationPolicyNames.Admin"/>
+    public const string Admin = AuthorizationPolicyNames.Admin;
 
     public static AuthorizationBuilder AddApplicationPolicies(this AuthorizationBuilder builder) =>
         builder

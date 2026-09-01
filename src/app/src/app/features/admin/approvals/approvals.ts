@@ -1,7 +1,8 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { MemberAdminService } from '../../../core/admin/member-admin.service';
-import { PendingMember } from '../../../core/admin/member-admin.models';
+import { ApproveFailure, PendingMember } from '../../../core/admin/member-admin.models';
 
 /**
  * The admin's approval queue (FR-003, FR-005) — the screen that closes S-01's loop, and the only
@@ -27,8 +28,9 @@ export class Approvals implements OnInit {
   /** Ids currently being approved, so one slow row does not disable the whole list. */
   protected readonly approving = signal<ReadonlySet<string>>(new Set());
 
-  /** Id of the row whose approve failed. Cleared when that row is retried. */
+  /** Id of the row whose approve failed, and why. Cleared when that row is retried. */
   protected readonly failedId = signal<string | null>(null);
+  protected readonly failedMessage = signal<string | null>(null);
 
   async ngOnInit(): Promise<void> {
     await this.load();
@@ -49,6 +51,7 @@ export class Approvals implements OnInit {
 
   protected async approve(member: PendingMember): Promise<void> {
     this.failedId.set(null);
+    this.failedMessage.set(null);
     this.setApproving(member.id, true);
 
     try {
@@ -57,9 +60,22 @@ export class Approvals implements OnInit {
       // Remove the row locally rather than refetching: the list is small, the answer is already
       // known, and a refetch would make an approval feel slower than it is.
       this.pending.update((rows) => rows.filter((row) => row.id !== member.id));
-    } catch {
-      // The row STAYS. Dropping it on failure would tell the admin someone was approved when they
-      // were not — and nothing else in the product would ever correct that belief.
+    } catch (failure) {
+      const reason = ((failure as HttpErrorResponse)?.error as ApproveFailure | undefined)?.reason;
+
+      if (reason === 'not_pending') {
+        // 409 means the row is stale, not that the call failed: someone approved this member in
+        // another tab, or they are Blocked. Retrying can never succeed, so drop the row and say why
+        // rather than inviting the admin to press the button forever.
+        this.pending.update((rows) => rows.filter((row) => row.id !== member.id));
+        this.failedMessage.set(
+          `${member.displayName} nie oczekuje już na zatwierdzenie — lista była nieaktualna.`,
+        );
+        return;
+      }
+
+      // The row STAYS. Dropping it on a genuine failure would tell the admin someone was approved
+      // when they were not — and nothing else in the product would ever correct that belief.
       this.failedId.set(member.id);
     } finally {
       this.setApproving(member.id, false);

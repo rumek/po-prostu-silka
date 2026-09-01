@@ -91,10 +91,11 @@ describe('Approvals', () => {
 
     approveButtonIn(rows()[0]).click();
 
-    (await vi.waitFor(() => controller.expectOne('/api/admin/members/m1/approve'))).flush(
-      { reason: 'not_pending' },
-      { status: 409, statusText: 'Conflict' },
-    );
+    // A genuine failure, not a 409 — those are handled separately, below.
+    (await vi.waitFor(() => controller.expectOne('/api/admin/members/m1/approve'))).flush(null, {
+      status: 500,
+      statusText: 'Server Error',
+    });
     await fixture.whenStable();
     fixture.detectChanges();
 
@@ -103,6 +104,27 @@ describe('Approvals', () => {
 
     // Still actionable — a failed approve must be retryable.
     expect(approveButtonIn(rows()[0]).disabled).toBe(false);
+  });
+
+  /**
+   * 409 not_pending is a stale list, not a failure: retrying can never succeed, so the row goes and
+   * the admin is told why. Distinguishing it is the whole reason ApproveFailure exists.
+   */
+  it('drops the row and explains when the member is no longer pending', async () => {
+    await createWith([ANNA, BARTEK]);
+
+    approveButtonIn(rows()[0]).click();
+
+    (await vi.waitFor(() => controller.expectOne('/api/admin/members/m1/approve'))).flush(
+      { reason: 'not_pending' },
+      { status: 409, statusText: 'Conflict' },
+    );
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(rows().length).toBe(1);
+    expect(html()).toContain('nie oczekuje już na zatwierdzenie');
+    expect(html()).not.toContain('Spróbuj ponownie');
   });
 
   it('reports a failed load and offers a retry', async () => {

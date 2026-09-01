@@ -1,6 +1,10 @@
 <h1>Zgłoszenia do zatwierdzenia</h1>
 <p class="hint">Nowe konta czekają na zatwierdzenie. Najdłużej oczekujące są na górze.</p>
 
+@if (failedMessage()) {
+  <p class="notice" role="status">{{ failedMessage() }}</p>
+}
+
 @if (loading()) {
   <p class="notice" role="status">Wczytywanie…</p>
 } @else if (loadFailed()) {

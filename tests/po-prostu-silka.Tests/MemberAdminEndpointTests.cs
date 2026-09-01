@@ -137,6 +137,35 @@ public class MemberAdminEndpointTests(IntegrationTestFixture fixture)
         Assert.Equal(1, await CountApprovalEmailsAsync(db, email));
     }
 
+    /// <summary>
+    /// The same guarantee as the test above, but with the two approvals genuinely OVERLAPPING.
+    ///
+    /// The serialised case passes on the status check alone. This one does not: both requests read
+    /// Pending before either writes, so without the concurrency-stamp rotation in ApproveAsync both
+    /// updates match and the member is emailed twice. Each request gets its own HttpClient, so they
+    /// run on separate scopes and separate DbContexts, which is what makes the race real.
+    /// </summary>
+    [Fact]
+    public async Task Concurrent_approves_still_queue_exactly_one_email()
+    {
+        var (id, email) = await CreateMemberAsync(AccountStatus.Pending);
+
+        var first = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveAdminEmail);
+        var second = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveAdminEmail);
+
+        var responses = await Task.WhenAll(
+            first.PostAsync($"/api/admin/members/{id}/approve", content: null),
+            second.PostAsync($"/api/admin/members/{id}/approve", content: null));
+
+        // Both callers are told it worked - the loser's answer is still true, because the member IS
+        // approved. What must not double is the email.
+        Assert.All(responses, r => Assert.Equal(HttpStatusCode.OK, r.StatusCode));
+
+        await using var db = NewContext();
+        Assert.Equal(AccountStatus.Active, (await db.Users.AsNoTracking().SingleAsync(u => u.Id == id)).Status);
+        Assert.Equal(1, await CountApprovalEmailsAsync(db, email));
+    }
+
     [Fact]
     public async Task Approving_a_blocked_member_is_409_and_queues_nothing()
     {

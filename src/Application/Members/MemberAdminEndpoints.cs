@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Identity;
 using po_prostu_silka.Application.Notifications;
 using po_prostu_silka.Application.Persistence;
 using po_prostu_silka.Domain;
-using po_prostu_silka.Infrastructure.Authorization;
 
 namespace po_prostu_silka.Application.Members;
 
@@ -24,13 +23,10 @@ public record ApproveFailure(string Reason);
 /// These are the FIRST production consumers of the Admin policy; before this it existed only for the
 /// environment-guarded probes in Program.cs.
 ///
-/// LAYERING NOTE: this file names AuthorizationPolicies, which lives in Infrastructure — the one
-/// upward reference in Application. The policy NAMES are an application-level contract (the file
-/// says so itself); only the builder that turns them into ASP.NET policies is infrastructure. The
-/// alternative is a bare "Admin" string literal, which is exactly the typo-that-never-matches the
-/// constants exist to prevent. If Application ever grows a second such reference, the fix is to move
-/// the name constants down into Domain and leave AddApplicationPolicies behind. AGENTS.md's hard
-/// rule — EF Core only in Infrastructure — is not affected: the two seams below keep it.
+/// The policy name comes from Domain (AuthorizationPolicyNames), not from Infrastructure's
+/// AuthorizationPolicies, so this file holds no upward reference: Application -> Domain only. The
+/// builder that turns the name into an ASP.NET policy stays in Infrastructure, which is the half
+/// that genuinely is infrastructure.
 /// </summary>
 public static class MemberAdminEndpoints
 {
@@ -40,7 +36,7 @@ public static class MemberAdminEndpoints
         // accidentally ship unauthenticated. Admin implies Active, so a pending admin is refused too.
         var group = app.MapGroup("/api/admin/members")
             .WithTags("Members")
-            .RequireAuthorization(AuthorizationPolicies.Admin);
+            .RequireAuthorization(AuthorizationPolicyNames.Admin);
 
         group.MapGet("/pending", GetPendingAsync);
         group.MapPost("/{id}/approve", ApproveAsync);
@@ -74,7 +70,8 @@ public static class MemberAdminEndpoints
         }
 
         // Idempotent: two admins clicking Approve on the same row must not send two emails. The
-        // second call reports success and enqueues nothing.
+        // second call reports success and enqueues nothing. This check alone is NOT enough when the
+        // two calls overlap - see the concurrency-stamp rotation below, which closes that window.
         if (user.Status == AccountStatus.Active)
         {
             return Results.Ok();
@@ -89,17 +86,35 @@ public static class MemberAdminEndpoints
 
         user.Status = AccountStatus.Active;
 
+        // Rotate the concurrency stamp, so the status check above is atomic rather than merely
+        // logical.
+        //
+        // ConcurrencyStamp is a concurrency token, so EF's UPDATE carries
+        // WHERE ConcurrencyStamp = <the value we read>. Nothing rotates it here on its own: this
+        // handler deliberately bypasses UserManager.UpdateAsync (which normally does) to keep the
+        // flip and the outbox rows inside ONE SaveChangesAsync. Without this line two admins
+        // approving the same row at the same moment both read Pending, both pass the check above,
+        // and both UPDATEs match - so the member is emailed twice, which is exactly what the
+        // idempotency rule exists to prevent.
+        user.ConcurrencyStamp = Guid.NewGuid().ToString();
+
         // Enqueue does NOT save (IOutboxEnqueuer), and the user entity above is tracked by the same
-        // scoped DbContext that Identity uses — so the single SaveChangesAsync below writes the
-        // status flip and the outbox rows in one transaction. Either the member is approved and the
-        // email is queued, or neither happened.
+        // scoped DbContext that Identity uses — so the single save below writes the status flip and
+        // the outbox rows in one transaction. Either the member is approved and the email is queued,
+        // or neither happened.
         await notification.NotifyAsync(user, cancellationToken);
 
         // NO explicit transaction here, deliberately. A single SaveChangesAsync is already atomic,
         // and EnableRetryOnFailure (Program.cs) means an explicit transaction must go through
         // Database.CreateExecutionStrategy().ExecuteAsync(...) or it throws at RUNTIME. If a later
         // edit genuinely needs multiple saves in one transaction, that is the rule to follow.
-        await unitOfWork.SaveChangesAsync(cancellationToken);
+        if (!await unitOfWork.TrySaveChangesAsync(cancellationToken))
+        {
+            // We lost the race: someone approved this member between our read and our write. They
+            // enqueued the email; nothing of ours was committed, so reporting success is accurate
+            // and still sends exactly one email in total.
+            return Results.Ok();
+        }
 
         // The member's cookie still carries account_status=Pending until they call
         // POST /api/auth/refresh or the 30-minute security-stamp validation fires. That is why that

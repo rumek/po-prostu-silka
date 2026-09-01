@@ -34,6 +34,7 @@ describe('App', () => {
       user: () => null,
       isAuthenticated: () => false,
       isAdmin: () => false,
+      isActive: () => false,
     } as unknown as Partial<AuthService>;
   }
 
@@ -65,6 +66,7 @@ describe('App', () => {
       user: () => MEMBER,
       isAuthenticated: () => true,
       isAdmin: () => false,
+      isActive: () => true,
     } as unknown as Partial<AuthService>);
 
     const fixture = TestBed.createComponent(App);
@@ -80,6 +82,25 @@ describe('App', () => {
       user: () => MEMBER,
       isAuthenticated: () => true,
       isAdmin: () => false,
+      isActive: () => true,
+    } as unknown as Partial<AuthService>);
+
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector('a[href="/admin/approvals"]'),
+    ).toBeNull();
+  });
+
+  // The header's condition must match adminGuard and the backend Admin policy: an admin whose own
+  // account is not approved is not an admin anywhere else either.
+  it('hides the approvals link from an admin whose account is not active', async () => {
+    configure({
+      user: () => ADMIN,
+      isAuthenticated: () => true,
+      isAdmin: () => true,
+      isActive: () => false,
     } as unknown as Partial<AuthService>);
 
     const fixture = TestBed.createComponent(App);
@@ -95,6 +116,7 @@ describe('App', () => {
       user: () => ADMIN,
       isAuthenticated: () => true,
       isAdmin: () => true,
+      isActive: () => true,
     } as unknown as Partial<AuthService>);
 
     const fixture = TestBed.createComponent(App);

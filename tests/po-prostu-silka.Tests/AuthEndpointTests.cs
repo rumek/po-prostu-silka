@@ -107,6 +107,22 @@ public class AuthEndpointTests(IntegrationTestFixture fixture)
             (await unknownEmail.Content.ReadFromJsonAsync<LoginFailureBody>())!.Reason);
     }
 
+    [Fact]
+    public async Task Null_credentials_are_refused_without_a_500()
+    {
+        var client = fixture.CreateClient();
+
+        var response = await client.PostAsJsonAsync(
+            "/api/auth/login", new { email = (string?)null, password = (string?)null });
+
+        // The same non-disclosing answer a wrong address gets - a null body must not be
+        // distinguishable from a bad guess, and must not be a 500.
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.Equal(
+            "invalid_credentials",
+            (await response.Content.ReadFromJsonAsync<LoginFailureBody>())!.Reason);
+    }
+
     // --- /me ------------------------------------------------------------------
 
     [Fact]

@@ -72,6 +72,28 @@ public class RegisterEndpointTests(IntegrationTestFixture fixture)
         Assert.Equal("email_taken", body!.Reason);
     }
 
+    /// <summary>
+    /// The record's strings are non-nullable, but that is a compile-time contract - a JSON null
+    /// still arrives. Without a guard, FindByEmailAsync throws and an anonymous caller gets a 500.
+    /// </summary>
+    [Theory]
+    [InlineData(null, TestUsers.Password, "invalid_email")]
+    [InlineData("", TestUsers.Password, "invalid_email")]
+    [InlineData("someone@test.local", null, "invalid_password")]
+    public async Task Null_or_blank_credentials_are_rejected_without_a_500(
+        string? email, string? password, string expectedReason)
+    {
+        var client = fixture.CreateClient();
+
+        var response = await client.PostAsJsonAsync(
+            "/api/auth/register", new { email, password, displayName = "Ktoś" });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(
+            expectedReason,
+            (await response.Content.ReadFromJsonAsync<RegisterFailureBody>())!.Reason);
+    }
+
     [Fact]
     public async Task Short_password_is_rejected()
     {

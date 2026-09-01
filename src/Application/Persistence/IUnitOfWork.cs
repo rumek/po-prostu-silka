@@ -16,4 +16,16 @@ namespace po_prostu_silka.Application.Persistence;
 public interface IUnitOfWork
 {
     Task SaveChangesAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Commits, but reports a lost optimistic-concurrency race as <c>false</c> instead of throwing.
+    ///
+    /// Exists so a handler can make a read-check-write sequence atomic without referencing EF Core:
+    /// the caller rotates a concurrency token, and a <c>false</c> here means another request got
+    /// there first and nothing was committed. S-01's approve uses it so two admins clicking the same
+    /// row cannot both enqueue the approval email.
+    ///
+    /// Only concurrency conflicts are absorbed. Every other failure still throws.
+    /// </summary>
+    Task<bool> TrySaveChangesAsync(CancellationToken cancellationToken);
 }

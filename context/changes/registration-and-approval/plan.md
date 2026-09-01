@@ -639,6 +639,17 @@ delivering a real email to a real inbox.
   insert into `AspNetUserRoles`. F-02's review skipped a related role-seeding finding, so this is the
   second accepted risk on the same mechanism; a third should prompt a real fix rather than another
   acceptance.
+- **Simultaneous registration of the same email returns 500** — *accepted at implementation review
+  (F9).* Two concurrent `POST /api/auth/register` calls for one address pass both the
+  `FindByEmailAsync` pre-check and Identity's `UserValidator`, and the INSERT then violates
+  `UserNameIndex`: `Cannot insert duplicate key row in object 'dbo.AspNetUsers'`. It surfaces as an
+  unhandled `DbUpdateException` on an anonymous endpoint. Proven with a throwaway concurrent test.
+  Not fixed: catching it needs EF Core types in Application (AGENTS.md's hard rule), and
+  `UserManager.CreateAsync` owns its own save, so the `IUnitOfWork` seam cannot intercept it — a new
+  `IUserRegistrar` seam is a lot of abstraction for one race. The window is a few milliseconds, and a
+  member who retries lands on the clean `409 email_taken` path. The mapper does now answer
+  `409 email_taken` for Identity's `Duplicate*` codes, which covers the wider validator-caught case.
+
 - **Junk registrations accumulate unbounded** (D4). Nothing prunes Pending rows and no rate limit
   exists. S-02's member list will surface them. If the gym is targeted, the mitigation is manual.
 - **Registration is an email-enumeration oracle** (D3), deliberately, and asymmetric with login's

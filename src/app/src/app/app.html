@@ -7,8 +7,13 @@
     <nav class="shell-nav">
       <!-- Admin-only, and hidden rather than disabled: a member who never sees the link never
            wonders why it refuses them. The API enforces it regardless — MemberAdminEndpoints
-           applies the Admin policy at the group. -->
-      @if (auth.isAdmin()) {
+           applies the Admin policy at the group.
+
+           The condition MUST match adminGuard's (isAdmin && isActive) and the backend Admin policy
+           (Active + Admin role). On isAdmin() alone, an unapproved admin would see the link and get
+           bounced /admin/approvals -> / -> /pending, which is the exact confusion this comment
+           claims to prevent. -->
+      @if (auth.isAdmin() && auth.isActive()) {
         <a routerLink="/admin/approvals" routerLinkActive="is-active">Zgłoszenia</a>
       }
 
