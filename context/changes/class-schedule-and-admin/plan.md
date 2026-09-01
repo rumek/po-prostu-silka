@@ -577,16 +577,16 @@ Applied by CI before deploy (`deploy.yml:59-104`), never on startup.
 
 #### Automated
 
-- [x] 3.1 Unit tests pass: `npm test` from `src/app/`
-- [x] 3.2 Lint and formatting pass: `npm run quality:check` from `src/app/`
-- [x] 3.3 Production build succeeds: `npm run build` from `src/app/`
+- [x] 3.1 Unit tests pass: `npm test` from `src/app/` — 110ddc8
+- [x] 3.2 Lint and formatting pass: `npm run quality:check` from `src/app/` — 110ddc8
+- [x] 3.3 Production build succeeds: `npm run build` from `src/app/` — 110ddc8
 
 #### Manual
 
-- [x] 3.4 The schedule shows Polish day headings with classes grouped beneath
-- [x] 3.5 A class starting at 23:30 local appears under that day, not the next
-- [x] 3.6 Create, edit, duplicate and delete all work end to end
-- [x] 3.7 A room conflict shows an error on the room field, not a generic banner
-- [x] 3.8 Editing a class does not shift its start time by the UTC offset
-- [x] 3.9 The schedule and both admin screens are usable at mobile width
-- [x] 3.10 `/admin/approvals` and `/admin/members` still work unchanged
+- [x] 3.4 The schedule shows Polish day headings with classes grouped beneath — 110ddc8
+- [x] 3.5 A class starting at 23:30 local appears under that day, not the next — 110ddc8
+- [x] 3.6 Create, edit, duplicate and delete all work end to end — 110ddc8
+- [x] 3.7 A room conflict shows an error on the room field, not a generic banner — 110ddc8
+- [x] 3.8 Editing a class does not shift its start time by the UTC offset — 110ddc8
+- [x] 3.9 The schedule and both admin screens are usable at mobile width — 110ddc8
+- [x] 3.10 `/admin/approvals` and `/admin/members` still work unchanged — 110ddc8
