@@ -489,16 +489,16 @@ redeploying the previous artifact — unlike a schema change, it carries no roll
 
 #### Automated
 
-- [x] 3.1 Unit tests pass: `npm test` from `src/app/`
-- [x] 3.2 Lint and formatting pass: `npm run quality:check` from `src/app/`
-- [x] 3.3 Production build succeeds: `npm run build` from `src/app/`
+- [x] 3.1 Unit tests pass: `npm test` from `src/app/` — 0f4f9ce
+- [x] 3.2 Lint and formatting pass: `npm run quality:check` from `src/app/` — 0f4f9ce
+- [x] 3.3 Production build succeeds: `npm run build` from `src/app/` — 0f4f9ce
 
 #### Manual
 
-- [x] 3.4 The list shows every member with a correct status badge, and never the admin
-- [x] 3.5 Each of the three filter positions returns the right subset
-- [x] 3.6 Search narrows instantly with no visible request per keystroke
-- [x] 3.7 Block and unblock update the row in place; the badge changes without a full reload
-- [x] 3.8 A blocked member cannot log in; unblocking restores them
-- [x] 3.9 `/admin/approvals` still works exactly as before
-- [x] 3.10 The screen is usable at mobile width (PRD mobile-first NFR)
+- [x] 3.4 The list shows every member with a correct status badge, and never the admin — 0f4f9ce
+- [x] 3.5 Each of the three filter positions returns the right subset — 0f4f9ce
+- [x] 3.6 Search narrows instantly with no visible request per keystroke — 0f4f9ce
+- [x] 3.7 Block and unblock update the row in place; the badge changes without a full reload — 0f4f9ce
+- [x] 3.8 A blocked member cannot log in; unblocking restores them — 0f4f9ce
+- [x] 3.9 `/admin/approvals` still works exactly as before — 0f4f9ce
+- [x] 3.10 The screen is usable at mobile width (PRD mobile-first NFR) — 0f4f9ce
