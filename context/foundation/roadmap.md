@@ -45,7 +45,7 @@ A single gym runs class sign-ups, schedule changes, and individual training plan
 | F-02 | auth-identity-foundation        | (foundation) Identity auth, User/Admin roles, admin seeded              | F-01                   | FR-001, FR-002, Access Control        | done     |
 | F-03 | notification-delivery-foundation | (foundation) email + push transport with outbox/retry landed            | F-01                   | FR-021, NFR promptness                | done     |
 | S-01 | registration-and-approval       | register, wait at approval screen; admin approves                       | F-01, F-02             | FR-001, FR-002, FR-003                | done        |
-| S-02 | member-management               | admin searches/filters members, blocks and unblocks                     | S-01                   | FR-004, FR-005                        | blocked  |
+| S-02 | member-management               | admin searches/filters members, blocks and unblocks                     | S-01                   | FR-004, FR-005                        | in-progress |
 | S-03 | class-schedule-and-admin        | browse day-by-day schedule; admin creates/edits/duplicates classes      | S-01                   | FR-007, FR-011, FR-012                | proposed |
 | S-04 | class-booking-and-cancel        | book a spot, cancel it, see upcoming classes; admin sees bookings       | S-03                   | US-01, FR-008, FR-009, FR-010, FR-014 | proposed |
 | S-05 | class-change-notifications      | booked member gets email + push on class cancel/change                  | F-03, S-04             | US-02, FR-013, FR-021, FR-011         | proposed |
@@ -145,9 +145,9 @@ Foundations below assume these are present and do NOT re-scaffold them.
 - **Parallel with:** S-03, S-06
 - **Blockers:** —
 - **Unknowns:**
-  - What happens to a blocked member's existing bookings and assigned plan? — Owner: user. Block: yes. (PRD Open Question 1 — planning this slice before it resolves would guess at domain rules.)
-- **Risk:** blocked-user semantics ripple into bookings and plans; sequenced right after S-01 so the answer can land before the booking chain hardens around a guess.
-- **Status:** blocked
+  - None blocking. Two decisions surfaced by `context/changes/member-management/frame.md` that the plan must settle rather than inherit: (a) block must rotate the Identity security stamp, or a blocked member's live cookie keeps passing the `ActiveMember` policy for up to 30 minutes (`src/Program.cs:118-122`); (b) the seeded admin is an ordinary `ApplicationUser` in the same table (`AdminSeeder.cs:57-65`) and must be excluded from the blockable member list, or a solo-admin club can lock itself out.
+- **Risk:** low. Mostly a generalisation of S-01's shipped approvals surface — the endpoint group, admin policy, `Application`→`Infrastructure` query seam, and the status index (`ApplicationUserConfiguration.cs:29-30`, added for this slice) all already exist. The real care goes into session revocation and admin self-block, not into new construction.
+- **Status:** in-progress
 
 ### S-03: Member browses the schedule; admin runs it
 
@@ -169,7 +169,8 @@ Foundations below assume these are present and do NOT re-scaffold them.
 - **Prerequisites:** S-03
 - **Parallel with:** S-06, S-07
 - **Blockers:** —
-- **Unknowns:** —
+- **Unknowns:**
+  - What happens to a blocked member's *existing bookings* — cascade-cancel on block, or leave them standing while access is refused? — Owner: user. Block: yes. (PRD Open Question 1, booking half; reassigned here from S-02 because the `Booking` aggregate is defined in this slice.)
 - **Risk:** the no-overbooking guardrail must hold under concurrent booking — the load-bearing correctness work of the milestone (deep-investment area). Sequenced immediately before S-05, which needs real bookings to notify against.
 - **Status:** proposed
 
@@ -206,7 +207,8 @@ Foundations below assume these are present and do NOT re-scaffold them.
 - **Prerequisites:** S-01, S-06
 - **Parallel with:** S-03, S-04, S-05
 - **Blockers:** —
-- **Unknowns:** —
+- **Unknowns:**
+  - What happens to a blocked member's *assigned plan* — does blocking void, archive, or simply hide it? — Owner: user. Block: yes. (PRD Open Question 1, plan half; reassigned here from S-02 because the `TrainingPlan` aggregate is defined in this slice.)
 - **Risk:** the one-active-plan replace/archive rule is the domain invariant to get right; exercise details are reached only from the plan (standalone browsing is a Non-Goal), which bounds the UI.
 - **Status:** proposed
 
@@ -242,7 +244,7 @@ Foundations below assume these are present and do NOT re-scaffold them.
 | F-02       | auth-identity-foundation         | Add ASP.NET Core Identity, roles, and admin seed             | no                    | Needs F-01                                 |
 | F-03       | notification-delivery-foundation | Build email + push delivery with outbox/retry                | no                    | Needs F-01; start ACS domain verification now |
 | S-01       | registration-and-approval        | Member registration with admin approval gate                 | no                    | Needs F-01, F-02                           |
-| S-02       | member-management                | Member list, filter, block/unblock                           | no                    | Blocked on Open Roadmap Question 1         |
+| S-02       | member-management                | Member list, filter, block/unblock                           | yes                   | Framed 2026-09-01; run `/10x-plan member-management`  |
 | S-03       | class-schedule-and-admin         | Class schedule browsing and admin class management           | no                    | Needs S-01                                 |
 | S-04       | class-booking-and-cancel         | Class booking and cancellation with no-overbooking guarantee | no                    | Needs S-03                                 |
 | S-05       | class-change-notifications       | Email + push notifications on class cancel/change            | no                    | North star; needs F-03, S-04               |
@@ -253,7 +255,7 @@ Foundations below assume these are present and do NOT re-scaffold them.
 
 ## Open Roadmap Questions
 
-1. **What happens to a blocked member's existing bookings and assigned plan?** — Owner: user. Block: S-02. (PRD Open Question 1; the answer also shapes booking-history semantics in S-04's planning.)
+1. **What happens to a blocked member's existing bookings and assigned plan?** — Owner: user. Block: S-04, S-07. (PRD Open Question 1. Reassigned from S-02 on 2026-09-01 by `context/changes/member-management/frame.md`: the question asks about consequences on `Booking` and `TrainingPlan`, neither of which exists yet, and S-02 ships nothing that touches them — it is decidable, and binding, only once those aggregates land.)
 2. **Who enters the initial exercise library content, and when?** — Owner: user. Block: none directly, but S-07 delivers no real value until dozens of exercises exist. (PRD Open Question 2 — schedule the content entry alongside S-06.)
 3. **Which sender domain will notification email use, and is DNS access available to add ACS verification records?** — Owner: user. Block: F-03 (and transitively S-05). Multi-day provider-side lead time — the single highest-leverage thing to start today.
 4. **Is best-effort push acceptable on iOS (16.4+, home-screen install required), with email as the guaranteed channel?** — Owner: user. Block: none — F-03 proceeds either way; the answer sets S-05's acceptance bar.
