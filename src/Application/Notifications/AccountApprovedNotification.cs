@@ -10,10 +10,11 @@ namespace po_prostu_silka.Application.Notifications;
 /// Rendering happens HERE, not in the worker. The worker delivers already-rendered bytes, so a
 /// retry hours later says exactly what the first attempt said.
 ///
-/// INTEGRATION POINT FOR S-01: S-01 owns the admin's approve action and does not exist yet. When it
-/// lands, it calls NotifyAsync after flipping the member to Active, in the same unit of work — and
-/// if it wraps that in an explicit transaction it must go through
-/// Database.CreateExecutionStrategy().ExecuteAsync(...), because EnableRetryOnFailure is on.
+/// The caller is MemberAdminEndpoints.ApproveAsync (S-01): it flips the member to Active, calls
+/// NotifyAsync, then commits both with a single IUnitOfWork.SaveChangesAsync, so the approval and
+/// the queued email land together or not at all. It deliberately opens no explicit transaction - one
+/// would have to go through Database.CreateExecutionStrategy().ExecuteAsync(...), because
+/// EnableRetryOnFailure is on.
 /// </summary>
 public interface IAccountApprovedNotification
 {
@@ -32,9 +33,12 @@ public class AccountApprovedNotification(
 
         // Plain text, no template engine. One message does not justify one, and S-05 can introduce
         // templating when it has several to render.
+        // "Możesz się teraz zalogować" would be stale: since S-01 a pending member is already
+        // signed in while they wait, so this arrives in a session they still have. Send them back
+        // to the app instead of telling them to do something they have already done.
         var body =
             $"{name}, Twoje konto w Po Prostu Siłka zostało zatwierdzone.\n\n" +
-            "Możesz się teraz zalogować i zapisać na zajęcia.";
+            "Wróć do aplikacji, aby zapisać się na zajęcia.";
 
         if (!string.IsNullOrWhiteSpace(member.Email))
         {

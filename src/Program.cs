@@ -8,7 +8,10 @@ using Microsoft.Extensions.Options;
 using po_prostu_silka.Application.Notifications;
 using po_prostu_silka.Infrastructure.Notifications;
 using po_prostu_silka.Application.Auth;
+using po_prostu_silka.Application.Members;
+using po_prostu_silka.Application.Persistence;
 using po_prostu_silka.Domain;
+using po_prostu_silka.Infrastructure.Members;
 using po_prostu_silka.Infrastructure.Authorization;
 using po_prostu_silka.Infrastructure.Identity;
 using po_prostu_silka.Infrastructure.Persistence;
@@ -152,6 +155,11 @@ builder.Services.AddScoped<IPushSubscriptionStore, PushSubscriptionStore>();
 builder.Services.AddScoped<IVapidPublicKey, VapidPublicKeyProvider>();
 builder.Services.AddScoped<IAccountApprovedNotification, AccountApprovedNotification>();
 
+// S-01's approve action needs to commit a status flip and the outbox rows it triggers together, and
+// to read the pending queue - both without Application referencing EF Core (AGENTS.md layering).
+builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+builder.Services.AddScoped<IPendingMemberQuery, PendingMemberQuery>();
+
 builder.Services.AddHostedService<OutboxDeliveryWorker>();
 
 var app = builder.Build();
@@ -199,12 +207,15 @@ app.MapHealthChecks("/health");
 
 app.MapAuthEndpoints();
 app.MapPushEndpoints();
+app.MapMemberAdminEndpoints();
 
 // Probe endpoints for the ActiveMember and Admin policies, in the "Testing" environment only.
 //
-// No production endpoint uses those policies yet: /me is deliberately bare RequireAuthorization()
-// so a Pending member can read their own status for S-01's awaiting-approval screen. Without these
-// the policies would ship entirely unexercised.
+// S-01 gave the Admin policy its first production consumer (/api/admin/members), but ActiveMember
+// still has none: /me and /api/push are deliberately bare RequireAuthorization() so a Pending member
+// can read their own status and register a device, and Home is a placeholder until S-03. These
+// probes are therefore the ONLY surface where the ActiveMember policy - and the claim staleness that
+// POST /api/auth/refresh exists to fix - can be observed. Keep them until S-03 ships a real one.
 //
 // They live here rather than in the test fixture because WebApplicationFactory has no supported
 // hook for adding endpoints to a minimal-API app - anything bolted on via a startup filter matches

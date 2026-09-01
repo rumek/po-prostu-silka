@@ -7,20 +7,31 @@ namespace po_prostu_silka.Application.Auth;
 
 public record LoginRequest(string Email, string Password);
 
+public record RegisterRequest(string Email, string Password, string DisplayName);
+
 /// <summary>
-/// Why the login failure is named: S-01 renders the awaiting-approval screen off
-/// <c>pending_approval</c>, and S-02's blocked members need a different message. Callers must not
-/// treat <c>invalid_credentials</c> as "no such account" - it also covers a wrong password.
+/// Why the login failure is named: S-02's blocked members need a different message from a wrong
+/// password. Callers must not treat <c>invalid_credentials</c> as "no such account" - it also covers
+/// a wrong password.
+///
+/// <c>pending_approval</c> is no longer reachable from /login: S-01 inverted that rule and a pending
+/// member now receives a session (see LoginAsync). The literal is kept because the SPA's
+/// LoginFailureReason union still carries it and removing it is churn for no gain.
 /// </summary>
 public record LoginFailure(string Reason);
+
+/// <summary>Why registration failed. Never echoes Identity's raw error text to the client.</summary>
+public record RegisterFailure(string Reason);
 
 public record CurrentUser(string Id, string Email, string DisplayName, string Status, string[] Roles);
 
 /// <summary>
-/// The authentication surface: establish a session, inspect it, end it.
+/// The authentication surface: create an account, establish a session, inspect it, refresh it,
+/// end it.
 ///
-/// Registration is deliberately absent - S-01 (registration-and-approval) owns it, because it also
-/// owns the approval semantics that decide what a newly created account is allowed to do.
+/// Registration lands here with S-01 (registration-and-approval), which also owns the approval
+/// semantics that decide what a newly created account is allowed to do: nothing, until an admin
+/// approves it.
 /// </summary>
 public static class AuthEndpoints
 {
@@ -29,7 +40,12 @@ public static class AuthEndpoints
         var group = app.MapGroup("/api/auth").WithTags("Auth");
 
         group.MapPost("/login", LoginAsync).AllowAnonymous();
+        group.MapPost("/register", RegisterAsync).AllowAnonymous();
         group.MapPost("/logout", LogoutAsync).RequireAuthorization();
+
+        // Bare RequireAuthorization(), NEVER the ActiveMember policy - a pending member has to be
+        // able to call the one endpoint that stops them being pending.
+        group.MapPost("/refresh", RefreshAsync).RequireAuthorization();
 
         // RequireAuthorization() and NOT the ActiveMember policy: a Pending member must be able to
         // read their own status, or S-01 cannot tell the awaiting-approval screen from a logged-out
@@ -53,6 +69,10 @@ public static class AuthEndpoints
         // Password is checked BEFORE status, deliberately. Reporting "pending" or "blocked" to
         // someone who has not proved they own the account would leak both that the address is
         // registered and what state it is in.
+        //
+        // ASYMMETRY, ON PURPOSE: /register DOES disclose that an address is taken (409 email_taken).
+        // Do not "fix" one endpoint to match the other - see RegisterAsync for why registration
+        // chooses disclosure and login chooses silence.
         var passwordResult = await signInManager.CheckPasswordSignInAsync(
             user, request.Password, lockoutOnFailure: true);
 
@@ -61,16 +81,132 @@ public static class AuthEndpoints
             return Results.Json(new LoginFailure("invalid_credentials"), statusCode: 401);
         }
 
-        if (user.Status != AccountStatus.Active)
+        // Pending is deliberately NOT refused: the PRD's Access Control section and roadmap S-01 both
+        // specify that a pending member signs in and sees an awaiting-approval screen. Content is
+        // gated by the ActiveMember policy, not by refusing the session. Blocked stays refused -
+        // handing a 30-day cookie to someone whose access was revoked inverts what Blocked is for.
+        if (user.Status == AccountStatus.Blocked)
         {
-            var reason = user.Status == AccountStatus.Pending ? "pending_approval" : "blocked";
-            return Results.Json(new LoginFailure(reason), statusCode: 401);
+            return Results.Json(new LoginFailure("blocked"), statusCode: 401);
         }
 
         // isPersistent: true is what makes the 30-day window survive closing the browser - without
         // it the cookie is a session cookie and mobile members re-login constantly (PRD FR-002).
         await signInManager.SignInAsync(user, isPersistent: true);
 
+        return Results.Ok(await BuildCurrentUserAsync(user, userManager));
+    }
+
+    /// <summary>
+    /// Creates a Pending account and signs it in immediately (D1).
+    ///
+    /// ASYMMETRY, ON PURPOSE: this endpoint discloses that an email is already registered, while
+    /// /login deliberately refuses to distinguish a wrong password from an unknown address. The
+    /// trade is not an oversight. With no email-confirmation flow in scope, silence would strand a
+    /// real member who forgot they had signed up: they retry, see success, and wait forever for the
+    /// approval of an account that was never created - and nothing else would ever tell them. For a
+    /// single gym, "this address belongs to a member here" is close to worthless to an attacker.
+    /// Do not align the two endpoints without re-deciding that.
+    ///
+    /// There is no rate limiting and no CAPTCHA either: FR-001 names the approval gate itself as the
+    /// mitigation. The accepted cost is that junk registrations accumulate as Pending rows.
+    /// </summary>
+    private static async Task<IResult> RegisterAsync(
+        [FromBody] RegisterRequest request,
+        SignInManager<ApplicationUser> signInManager,
+        UserManager<ApplicationUser> userManager,
+        TimeProvider timeProvider,
+        ILoggerFactory loggerFactory)
+    {
+        var displayName = request.DisplayName?.Trim() ?? string.Empty;
+        if (displayName.Length == 0)
+        {
+            return Results.Json(new RegisterFailure("invalid_display_name"), statusCode: 400);
+        }
+
+        if (await userManager.FindByEmailAsync(request.Email) is not null)
+        {
+            return Results.Json(new RegisterFailure("email_taken"), statusCode: 409);
+        }
+
+        var user = new ApplicationUser
+        {
+            UserName = request.Email,
+            Email = request.Email,
+            DisplayName = displayName,
+            Status = AccountStatus.Pending,
+            CreatedAt = timeProvider.GetUtcNow(),
+        };
+
+        var created = await userManager.CreateAsync(user, request.Password);
+        if (!created.Succeeded)
+        {
+            // Map Identity's error codes to our own vocabulary rather than forwarding its text: the
+            // raw descriptions are English, unlocalised, and occasionally leak policy detail.
+            var codes = created.Errors.Select(e => e.Code).ToArray();
+
+            var reason = codes.Any(c => c.Contains("Password", StringComparison.Ordinal))
+                ? "invalid_password"
+                : codes.Any(c => c.Contains("Email", StringComparison.Ordinal)
+                    || c.Contains("UserName", StringComparison.Ordinal))
+                    ? "invalid_email"
+                    : "invalid_registration";
+
+            return Results.Json(new RegisterFailure(reason), statusCode: 400);
+        }
+
+        var roleAssigned = await userManager.AddToRoleAsync(user, ApplicationRoles.User);
+        if (!roleAssigned.Succeeded)
+        {
+            // A role-less account is unrecoverable through anything this slice ships: it satisfies
+            // the ActiveMember policy's status check, fails its RequireRole, and the admin surface
+            // here is approve-only. Better to undo the registration and let them retry than to leave
+            // an account that can be approved and still cannot do anything.
+            var logger = loggerFactory.CreateLogger(typeof(AuthEndpoints));
+            logger.LogError(
+                "Role assignment failed for new user {UserId}; deleting the account. Errors: {Errors}",
+                user.Id,
+                string.Join("; ", roleAssigned.Errors.Select(e => e.Description)));
+
+            await userManager.DeleteAsync(user);
+            return Results.Problem("Registration could not be completed.", statusCode: 500);
+        }
+
+        // Signed in immediately, and persistent for the same reason login is: the member closes the
+        // tab, waits hours for approval, and must not have to re-enter credentials to check.
+        await signInManager.SignInAsync(user, isPersistent: true);
+
+        // Same shape /login returns, so the SPA has one code path for "you now have a session".
+        return Results.Ok(await BuildCurrentUserAsync(user, userManager));
+    }
+
+    /// <summary>
+    /// Re-mints the caller's claims from their current row, without ending the session.
+    ///
+    /// Why this exists: the ActiveMember/Admin policies read the account_status CLAIM from the
+    /// cookie, not the database (AuthorizationPolicies), and that claim is re-minted only when the
+    /// security-stamp validator refreshes - every 30 minutes (Program.cs). So a member approved by
+    /// the admin keeps a cookie that says Pending for up to half an hour, while /me (which reads the
+    /// database) correctly reports Active. Without this endpoint the SPA routes them into the app on
+    /// the strength of /me and every ActiveMember call then returns 403.
+    ///
+    /// RefreshSignInAsync re-runs AppUserClaimsPrincipalFactory against the current entity, so status
+    /// and roles are both corrected in one round-trip. It is safe to call while still Pending - it
+    /// simply re-mints Pending claims - so the awaiting screen's button calls it unconditionally and
+    /// reads the status from the response.
+    /// </summary>
+    private static async Task<IResult> RefreshAsync(
+        ClaimsPrincipal principal,
+        SignInManager<ApplicationUser> signInManager,
+        UserManager<ApplicationUser> userManager)
+    {
+        var user = await userManager.GetUserAsync(principal);
+        if (user is null)
+        {
+            return Results.Unauthorized();
+        }
+
+        await signInManager.RefreshSignInAsync(user);
         return Results.Ok(await BuildCurrentUserAsync(user, userManager));
     }
 

@@ -57,18 +57,22 @@ public class PushEndpointTests(IntegrationTestFixture fixture)
 
     // A Pending member's device must be able to subscribe: the account-approved notification is
     // exactly the message they are waiting for. This is why the endpoints use bare
-    // RequireAuthorization() rather than the ActiveMember policy.
+    // RequireAuthorization() rather than the ActiveMember policy — under ActiveMember, the one member
+    // who most needs a push subscription would be the one who could not create one.
+    //
+    // Reachable since S-01 (D1) gave pending members a session.
     [Fact]
     public async Task Pending_member_can_also_subscribe()
     {
-        var client = fixture.CreateClient();
-        var login = await client.PostAsJsonAsync(
-            "/api/auth/login",
-            new { email = TestUsers.PendingMemberEmail, password = TestUsers.Password });
+        var client = await fixture.CreateAuthenticatedClientAsync(TestUsers.PendingMemberEmail);
+        var endpoint = NewEndpoint();
 
-        // A pending member cannot log in at all, so they subscribe only after approval in practice.
-        // Assert the current contract rather than a hoped-for one.
-        Assert.Equal(HttpStatusCode.Unauthorized, login.StatusCode);
+        var response = await client.PostAsJsonAsync("/api/push/subscribe", Subscription(endpoint));
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+
+        await using var db = NewContext();
+        Assert.True(await db.PushSubscriptions.AnyAsync(s => s.Endpoint == endpoint));
     }
 
     [Fact]
