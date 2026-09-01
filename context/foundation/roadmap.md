@@ -43,7 +43,7 @@ A single gym runs class sign-ups, schedule changes, and individual training plan
 | ---- | ------------------------------- | ----------------------------------------------------------------------- | ---------------------- | ------------------------------------- | -------- |
 | F-01 | persistence-foundation          | (foundation) EF Core + Azure SQL wired; migrations run on deploy        | —                      | NFR privacy, Business Logic           | done     |
 | F-02 | auth-identity-foundation        | (foundation) Identity auth, User/Admin roles, admin seeded              | F-01                   | FR-001, FR-002, Access Control        | done     |
-| F-03 | notification-delivery-foundation | (foundation) email + push transport with outbox/retry landed            | F-01                   | FR-021, NFR promptness                | proposed |
+| F-03 | notification-delivery-foundation | (foundation) email + push transport with outbox/retry landed            | F-01                   | FR-021, NFR promptness                | in-progress |
 | S-01 | registration-and-approval       | register, wait at approval screen; admin approves                       | F-01, F-02             | FR-001, FR-002, FR-003                | proposed |
 | S-02 | member-management               | admin searches/filters members, blocks and unblocks                     | S-01                   | FR-004, FR-005                        | blocked  |
 | S-03 | class-schedule-and-admin        | browse day-by-day schedule; admin creates/edits/duplicates classes      | S-01                   | FR-007, FR-011, FR-012                | proposed |
@@ -120,7 +120,7 @@ Foundations below assume these are present and do NOT re-scaffold them.
 - **Unknowns:**
   - Push on iOS requires iOS 16.4+ and a home-screen install — acceptable for the member base, with email as the guaranteed channel and push best-effort? — Owner: user. Block: no.
 - **Risk:** the #1-blocker foundation, pulled early because domain verification is multi-day elapsed time infrastructure.md says "belongs in week 1, not week 3". App Service recycles drop in-flight sends unless delivery goes through the outbox + retry — fire-and-forget is explicitly ruled out.
-- **Status:** proposed
+- **Status:** in-progress
 
 ## Slices
 

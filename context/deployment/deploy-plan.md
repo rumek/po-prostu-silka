@@ -68,11 +68,11 @@ Note: `az appservice plan create` reported a `FreeOfferExpirationTime` of **2026
 
 ## Known follow-ups (not blocking, but don't lose track)
 
-- Azure CLI locally is `2.35.0` (~2022) — very old. No OIDC support, missing newer command surface. Worth upgrading before the next infra-touching session.
+- ~~Azure CLI locally is `2.35.0` (~2022) — very old. No OIDC support, missing newer command surface. Worth upgrading before the next infra-touching session.~~ **RESOLVED 2026-08-31 by `notification-delivery-foundation`.** Upgraded to `2.89.1`. The prediction was accurate and it bit exactly as described: 2.35.0 capped the `communication` extension at a version with no `email` subgroup, so ACS could not be provisioned until the CLI was upgraded mid-phase. This also unblocks OIDC federated credentials for CI (still using a publish profile) and clears the Graph API deprecation that broke `az role assignment list` during F-02.
 - GitHub CLI (`gh`) is not installed — all GitHub-side operations (secrets, PR checks) went through the web UI / plain git. Installing it would remove a recurring manual step.
 - ~~`dotnet restore` on this project pulls from private organizational NuGet feeds configured in a machine-level NuGet.Config, in addition to nuget.org... worth an explicit public-only `nuget.config` in the repo before that happens.~~ **RESOLVED 2026-08-31 by `persistence-foundation`.** A repo-root `nuget.config` with `<clear />` now pins nuget.org only. The prediction was accurate: at the time EF Core was added, `dotnet package search` reported two extra active sources on the dev machine (a local artifacts folder and the Visual Studio offline packages). Keep the `<clear />` — without it those sources are merged in rather than replaced.
 - ~~Azure SQL Database is intentionally deferred to the deploy that introduces EF Core/Identity — don't forget to also enable Always On and HTTPS Only at that point.~~ **RESOLVED 2026-08-31 by `persistence-foundation`** — see the F-01 section at the end of this file. Always On and HTTPS Only were re-verified and were already `true`; no change was needed.
-- **Still open — Managed Identity for Azure SQL.** The app authenticates with SQL auth and a password stored in App Service settings. Managed Identity would remove the credential entirely; deferred as post-MVP because the local Azure CLI (`2.35.0`) predates the tooling and the Entra plumbing risked burning the session. Revisit alongside the CLI upgrade above.
+- **Still open — Managed Identity for Azure SQL.** The app authenticates with SQL auth and a password stored in App Service settings. Managed Identity would remove the credential entirely; deferred as post-MVP because the local Azure CLI predated the tooling and the Entra plumbing risked burning the session. **The CLI blocker is now gone** (upgraded to 2.89.1 above), so this is newly actionable — only the post-MVP scheduling call remains.
 
 ---
 
@@ -149,3 +149,64 @@ Two decisions worth not re-litigating:
 
 EF migrations do **not** roll back with an artifact redeploy (no slots on B1). Migrations must ship a
 working `Down`, and destructive changes lag one release behind the code that stops needing them.
+
+## Notification delivery foundation (F-03) — 2026-08-31, Phase 1
+
+### Azure CLI upgraded
+
+The local Azure CLI was **2.35.0 (~2022)** — the standing follow-up below. It capped the
+`communication` extension at `1.3.0`, which has `az communication create` but **no `email`
+subgroup at all**, so the Email Service and managed domain were not creatable. Upgraded via
+`winget upgrade --id Microsoft.AzureCLI -e` to **2.89.1**, then `az extension update --name
+communication` moved the extension to **1.14.0**, where `az communication email` exists.
+
+Note for future sessions: after the upgrade the new binary is at
+`/c/Program Files/Microsoft SDKs/Azure/CLI2/wbin` and an already-open shell will not see it until
+its PATH is refreshed.
+
+### Azure resources added
+
+| Resource | Value |
+| --- | --- |
+| Resource provider | `Microsoft.Communication` — was `NotRegistered`; registered this change (subscription-scoped, ~1 min) |
+| Email Service | `pps-email` (`pps-rg`, location `Global`, **data at rest: `Europe`**) |
+| Email domain | `AzureManagedDomain` under `pps-email` — `domainManagement: AzureManaged`, verification `Verified` (SPF verified too) |
+| Sender domain | `a47eab51-bc3d-4b51-92c5-43d2a40802b8.azurecomm.net` |
+| Sender address | `DoNotReply@a47eab51-bc3d-4b51-92c5-43d2a40802b8.azurecomm.net` |
+| Communication Service | `pps-acs` (`pps-rg`, location `Global`, data location `Europe`), linked to the managed domain |
+
+### App Service settings added (names only — values are secrets)
+
+`Acs__ConnectionString`, `Acs__SenderAddress`, `VapidKeys__PublicKey`, `VapidKeys__PrivateKey`,
+`VapidKeys__Subject`. Double-underscore nesting, matching the `AdminSeed__*` convention. Setting
+them restarts the app; the live site returned 503 briefly, then `Healthy`.
+
+### The managed-domain decision
+
+`roadmap.md` and `infrastructure.md:77` both treat ACS sender-domain verification as the milestone's
+**#1 blocker** — multi-day, DNS-gated, provider-side lead time that "belongs in week 1, not week 3".
+An **Azure Managed Domain** sidesteps it entirely: no DNS records, provisioned and `Verified` in well
+under a minute. That removed the blocker from the critical path rather than waiting it out.
+
+The trade accepted: an unbranded `*.azurecomm.net` sender, lower send limits, and weaker
+deliverability than a verified custom domain. Against a "no missed cancellations" guardrail this is a
+real risk — **if members report mail landing in spam, the custom-domain migration moves from optional
+to required.** Switching later changes only `Acs__SenderAddress`, not application code.
+
+### Gotchas confirmed or discovered this change
+
+- **Git Bash mangles Azure resource IDs.** `--linked-domains /subscriptions/...` was rewritten to
+  `C:/Program Files/Git/subscriptions/...` and rejected with `LinkedInvalidPropertyId`. Prefix such
+  commands with `MSYS_NO_PATHCONV=1`. The same applies to `docker exec` paths.
+- `az communication email` is still marked **preview** on extension 1.14.0 — it warns on every call.
+- VAPID keys are a P-256 keypair, base64url-encoded raw (87-char public point, 43-char private
+  scalar). Generated with `openssl ecparam -genkey -name prime256v1`; the local Python had no
+  `cryptography` module.
+- **Rotating the VAPID keypair invalidates every stored push subscription.** Members would silently
+  stop receiving push until they re-subscribe. Treat it as a one-time value.
+
+### Follow-up opened by this change
+
+- **Custom sender domain.** Deferred deliberately (see above). Requires DNS access to the chosen
+  domain and multi-day provider-side verification; closing it is a change to
+  `Acs__SenderAddress` only.
