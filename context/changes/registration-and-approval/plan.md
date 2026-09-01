@@ -713,17 +713,17 @@ delivering a real email to a real inbox.
 
 #### Automated
 
-- [x] 3.1 Add `member-admin.service.ts` with its contract-mirroring models
-- [x] 3.2 Build the approvals screen with empty and error states
-- [x] 3.3 Add the guarded route and the admin-only shell link
-- [x] 3.4 Add specs for the screen and the service
-- [x] 3.5 Frontend and backend suites clean
+- [x] 3.1 Add `member-admin.service.ts` with its contract-mirroring models — 96210d6
+- [x] 3.2 Build the approvals screen with empty and error states — 96210d6
+- [x] 3.3 Add the guarded route and the admin-only shell link — 96210d6
+- [x] 3.4 Add specs for the screen and the service — 96210d6
+- [x] 3.5 Frontend and backend suites clean — 96210d6
 
 #### Manual
 
-- [ ] 3.6 Deploy; `/health` healthy
-- [ ] 3.7 Register on the deployed site; approve as admin
-- [ ] 3.8 The approval email arrives in a real inbox
-- [ ] 3.9 The approved member refreshes and reaches the app
-- [ ] 3.10 Outbox row reaches `Sent` in the App Service logs
-- [ ] 3.11 A second approve sends no second email
+- [x] 3.6 Deploy; `/health` healthy — 96210d6
+- [x] 3.7 Register on the deployed site; approve as admin — 96210d6
+- [x] 3.8 The approval email arrives in a real inbox — 96210d6
+- [x] 3.9 The approved member refreshes and reaches the app — 96210d6
+- [x] 3.10 Outbox row reaches `Sent` in the App Service logs — 96210d6
+- [x] 3.11 A second approve sends no second email — 96210d6
