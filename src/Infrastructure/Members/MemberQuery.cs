@@ -25,10 +25,17 @@ public class MemberQuery(AppDbContext db) : IMemberQuery
         AccountStatus? status,
         CancellationToken cancellationToken)
     {
+        // Matched on NormalizedName, not Name, because that is what Identity itself compares:
+        // UserManager.IsInRoleAsync - the guard BlockAsync uses - normalizes its argument and looks
+        // at NormalizedName. Matching on Name here would leave two admin checks using two different
+        // conventions, which agree today only because AdminSeeder is the one path that creates a
+        // role and sets both fields together.
+        var adminRoleName = ApplicationRoles.Admin.ToUpperInvariant();
+
         var adminIds =
             from userRole in db.UserRoles
             join role in db.Roles on userRole.RoleId equals role.Id
-            where role.Name == ApplicationRoles.Admin
+            where role.NormalizedName == adminRoleName
             select userRole.UserId;
 
         var members = db.Users

@@ -11,8 +11,9 @@ namespace po_prostu_silka.Infrastructure.Identity;
 ///
 /// Identity calls this when a principal is created (at sign-in, and again whenever the security
 /// stamp validator refreshes the cookie), so the claim tracks the stored status without any
-/// per-request database round-trip. That refresh interval - 30 minutes, set in Program.cs - is what
-/// bounds how long a just-blocked member keeps their access.
+/// per-request database round-trip. That refresh interval - SecurityStampValidatorOptions
+/// .ValidationInterval, set in Program.cs, which is the one place it is stated - is what bounds how
+/// long a just-blocked member keeps their access.
 /// </summary>
 public class AppUserClaimsPrincipalFactory(
     UserManager<ApplicationUser> userManager,

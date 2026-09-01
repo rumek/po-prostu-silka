@@ -217,8 +217,9 @@ public static class AuthEndpoints
     ///
     /// Why this exists: the ActiveMember/Admin policies read the account_status CLAIM from the
     /// cookie, not the database (AuthorizationPolicies), and that claim is re-minted only when the
-    /// security-stamp validator refreshes - every 30 minutes (Program.cs). So a member approved by
-    /// the admin keeps a cookie that says Pending for up to half an hour, while /me (which reads the
+    /// security-stamp validator refreshes - on the interval set in Program.cs, which is the one
+    /// place that number is stated. So a member approved by the admin keeps a cookie that says
+    /// Pending until that interval elapses, while /me (which reads the
     /// database) correctly reports Active. Without this endpoint the SPA routes them into the app on
     /// the strength of /me and every ActiveMember call then returns 403.
     ///

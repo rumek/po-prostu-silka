@@ -133,6 +133,66 @@ describe('Members', () => {
   });
 
   /**
+   * Nothing cancels an in-flight request, so without a generation guard the last RESPONSE would
+   * win rather than the last request — leaving the rows disagreeing with the highlighted chip.
+   */
+  it('discards a stale load response that resolves after a newer one', async () => {
+    await createWith([ANNA, BARTEK]);
+
+    const chips = Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('.chip'),
+    );
+    chips.find((b) => (b.textContent ?? '').includes('Aktywni'))!.click();
+    chips.find((b) => (b.textContent ?? '').includes('Zablokowani'))!.click();
+
+    const active = await vi.waitFor(() => controller.expectOne('/api/admin/members?status=Active'));
+    const blocked = await vi.waitFor(() =>
+      controller.expectOne('/api/admin/members?status=Blocked'),
+    );
+
+    // The NEWER request answers first, the older one second — the out-of-order case.
+    blocked.flush([BARTEK]);
+    await settle();
+    active.flush([ANNA]);
+    await settle();
+
+    // Blocked was the last filter chosen, so its rows must survive.
+    expect(rows().length).toBe(1);
+    expect(html()).toContain('Bartek Nowak');
+    expect(html()).not.toContain('Anna Kowalska');
+  });
+
+  /**
+   * A mutation resolving after the list moved on must not patch rows it never acted on — that
+   * silently no-ops and makes a successful block look like it did nothing.
+   */
+  it('refetches instead of patching when the list reloaded mid-mutation', async () => {
+    await createWith([ANNA]);
+
+    buttonIn(rows()[0], 'Zablokuj').click();
+    const block = await vi.waitFor(() => controller.expectOne('/api/admin/members/m1/block'));
+
+    // The admin switches filter before the block comes back.
+    Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('.chip'))
+      .find((b) => (b.textContent ?? '').includes('Zablokowani'))!
+      .click();
+    (await vi.waitFor(() => controller.expectOne('/api/admin/members?status=Blocked'))).flush([]);
+    await settle();
+
+    block.flush(null);
+    await settle();
+
+    // A refetch, not a silent no-op against a list this mutation never saw.
+    (await vi.waitFor(() => controller.expectOne('/api/admin/members?status=Blocked'))).flush([
+      { ...ANNA, status: 'Blocked' },
+    ]);
+    await settle();
+
+    expect(rows().length).toBe(1);
+    expect(html()).toContain('Zablokowany');
+  });
+
+  /**
    * The core difference from the approvals screen: a blocked member still belongs on this list.
    * Removing the row would tell the admin the member vanished.
    */

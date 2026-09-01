@@ -13,8 +13,8 @@ namespace po_prostu_silka.Infrastructure.Authorization;
 ///
 /// Account status is read from a claim rather than the database, so a policy check costs no query
 /// on a 5-DTU Basic tier. The claim is minted at sign-in by
-/// <see cref="Identity.AppUserClaimsPrincipalFactory"/>; staleness is bounded by the 30-minute
-/// security-stamp validation interval configured in Program.cs.
+/// <see cref="Identity.AppUserClaimsPrincipalFactory"/>; staleness is bounded by the security-stamp
+/// validation interval configured in Program.cs, which is the one place that number is stated.
 ///
 /// THE NAMES THEMSELVES LIVE IN DOMAIN (<see cref="AuthorizationPolicyNames"/>), not here: endpoint
 /// definitions in Application reference them, and Application may not reference Infrastructure. This

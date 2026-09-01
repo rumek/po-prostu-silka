@@ -52,6 +52,14 @@ export class Members implements OnInit {
   protected readonly notice = signal<string | null>(null);
 
   /**
+   * Incremented on every load. Nothing cancels an in-flight request, so without this the LAST
+   * RESPONSE would win rather than the last request: two quick filter clicks can resolve out of
+   * order and leave the rows disagreeing with the highlighted chip, silently. A response whose
+   * generation is stale is discarded instead of applied.
+   */
+  private generation = 0;
+
+  /**
    * Search runs here rather than at the API. Matches display name or email, case-insensitively;
    * both are what an admin actually has to hand when looking someone up.
    */
@@ -73,15 +81,33 @@ export class Members implements OnInit {
   }
 
   protected async load(): Promise<void> {
+    const generation = ++this.generation;
+
     this.loading.set(true);
     this.loadFailed.set(false);
 
     try {
-      this.rows.set(await this.members.getMembers(this.filter() ?? undefined));
+      const rows = await this.members.getMembers(this.filter() ?? undefined);
+
+      // A newer load started while this one was in flight — its answer is the current one, so drop
+      // ours rather than overwriting fresher rows with staler ones.
+      if (generation !== this.generation) {
+        return;
+      }
+
+      this.rows.set(rows);
     } catch {
+      if (generation !== this.generation) {
+        return;
+      }
+
       this.loadFailed.set(true);
     } finally {
-      this.loading.set(false);
+      // Only the newest load owns the spinner; an older one finishing must not clear it while the
+      // newer request is still running.
+      if (generation === this.generation) {
+        this.loading.set(false);
+      }
     }
   }
 
@@ -146,12 +172,23 @@ export class Members implements OnInit {
     becomes: MemberStatus,
     explain: (reason: string | undefined) => string | null,
   ): Promise<void> {
+    const generation = this.generation;
+
     this.failedId.set(null);
     this.notice.set(null);
     this.setBusy(member.id, true);
 
     try {
       await action();
+
+      // The list was reloaded while this mutation was in flight, so the rows we would patch are no
+      // longer the rows we acted on — the member may not even be in the current filter. Patching
+      // would silently no-op and make a successful action look like it did nothing; refetch instead.
+      if (generation !== this.generation) {
+        await this.load();
+        return;
+      }
+
       this.rows.update((rows) =>
         rows.map((row) => (row.id === member.id ? { ...row, status: becomes } : row)),
       );
