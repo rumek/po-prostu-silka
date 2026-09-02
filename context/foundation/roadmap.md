@@ -51,7 +51,7 @@ Mid-milestone, a second decision landed: a class stops being retyped text and be
 | S-03 | class-schedule-and-admin         | browse day-by-day schedule; admin creates/edits/duplicates classes       | S-01                   | v1 FR-007, v1 FR-011, v1 FR-012                                 | done        |
 | S-04 | trainer-role-and-assignment      | admin grants and revokes the Trainer role on an approved account         | S-02                   | v2 FR-001, v2 FR-002, v2 FR-003                                 | done        |
 | S-05 | class-type-definitions           | admin defines, edits and deactivates a class type                        | S-03                   | v2 FR-004, v2 FR-005, v2 FR-006, v2 FR-007                      | done        |
-| S-06 | occurrences-from-class-types     | admin schedules a class by picking a type and a trainer; no room field   | S-03, S-04, S-05       | v2 US-01, v2 FR-008–FR-013, v1 FR-011, v1 FR-012                | in-progress |
+| S-06 | occurrences-from-class-types     | admin schedules a class by picking a type and a trainer; no room field   | S-03, S-04, S-05       | v2 US-01, v2 FR-008–FR-013, v1 FR-011, v1 FR-012                | done        |
 | S-07 | schedule-calendar-view           | browse the schedule as a week strip on a phone, a full week on a tablet  | S-06                   | v2 US-02, v2 FR-015, v2 FR-016, v2 FR-017, v2 FR-018, v1 FR-007 | proposed    |
 | S-08 | class-booking-and-cancel         | book a spot, cancel it, see upcoming classes; admin sees bookings        | S-07                   | v1 US-01, v1 FR-008, v1 FR-009, v1 FR-010, v1 FR-014, v2 FR-014 | blocked     |
 | S-09 | class-change-notifications       | booked member gets email + push on class cancel/change                   | F-03, S-08             | v1 US-02, v1 FR-013, v1 FR-021, v2 FR-014                       | proposed    |
@@ -201,7 +201,7 @@ What's already in place in the codebase as of `2026-09-02` (auto-researched + us
 - **Unknowns:**
   - A guest instructor without an account runs one class — what then? — Owner: user. Block: no. (`prd-v2` Open Question 1; the case ships unsupported.)
 - **Risk:** the structural heart of `prd-v2` and the slice that discards existing scheduling data. The wipe must stay narrow — classes only, with accounts, roles, statuses and training plans untouched — and the schema change must stay reversible, with the room column left in place for one release rather than dropped in step with the code. The overlap rule changes meaning rather than disappearing; losing it here would let duplication silently create doubles.
-- **Status:** in-progress
+- **Status:** done
 
 ### S-07: Member and admin browse the schedule as a calendar
 
@@ -359,3 +359,4 @@ Resolved since the previous roadmap: the sender-domain question that gated F-03 
 - **S-03: user (admin) can create a class (name, date/time, room, instructor, capacity), edit it, and duplicate classes to following weeks; an active member can browse the schedule as a mobile-friendly day-by-day list.** — Archived 2026-09-02 → `context/archive/2026-09-01-class-schedule-and-admin/`. Lesson: —.
 - **S-04: user (admin) can grant the Trainer role to an approved account from the member list, and revoke it; the account keeps every member capability it had, and an account may hold Admin and Trainer at once.** — Archived 2026-09-02 → `context/archive/2026-09-02-trainer-role-and-assignment/`. Lesson: —.
 - **S-05: user (admin) can create a class type with a name, description, default duration and default capacity, browse and edit types, and deactivate one so it disappears from selection while existing classes and history stay intact.** — Archived 2026-09-02 → `context/archive/2026-09-02-class-type-definitions/`. Lesson: —.
+- **S-06: user (admin) creates an occurrence by selecting a class type and a trainer — duration and capacity prefill from the definition and stay overridable, the name comes from the type, and there is no room field; two classes may not overlap in time anywhere in the club; duplication to following weeks still skips and reports conflicting weeks.** — Archived 2026-09-02 → `context/archive/2026-09-02-occurrences-from-class-types/`. Lesson: —.
