@@ -577,10 +577,10 @@ difference is unmeasurable either way.
 
 #### Automated
 
-- [x] 2.1 Frontend unit tests pass
-- [x] 2.2 Lint and format clean
-- [x] 2.3 Frontend builds
-- [x] 2.4 Backend tests still pass
+- [x] 2.1 Frontend unit tests pass — 41ec4a3
+- [x] 2.2 Lint and format clean — 41ec4a3
+- [x] 2.3 Frontend builds — 41ec4a3
+- [x] 2.4 Backend tests still pass — 41ec4a3
 
 #### Manual
 
