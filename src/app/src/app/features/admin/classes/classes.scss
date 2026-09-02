@@ -13,6 +13,12 @@
   margin: 0;
 }
 
+.classes-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
 .classes {
   list-style: none;
   padding: 0;

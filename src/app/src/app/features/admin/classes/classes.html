@@ -1,6 +1,12 @@
 <div class="classes-header">
   <h1>Zajęcia</h1>
-  <a class="button" routerLink="/admin/classes/new">Dodaj zajęcia</a>
+  <div class="classes-header-actions">
+    <!-- The only way into the class-type screen. Placed here rather than in the global nav because
+         /admin/members and /admin/classes carry no nav entry either, and types are what these
+         classes are built from — the sibling relationship is the navigation. -->
+    <a class="button button--secondary" routerLink="/admin/class-types">Typy zajęć</a>
+    <a class="button" routerLink="/admin/classes/new">Dodaj zajęcia</a>
+  </div>
 </div>
 <p class="hint">
   Nadchodzące zajęcia. Zajęcia przeniesione w przeszłość znikają z tej listy — sprawdź datę przed

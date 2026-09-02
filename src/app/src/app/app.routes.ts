@@ -5,6 +5,8 @@ import { authGuard } from './core/auth/auth.guard';
 import { Approvals } from './features/admin/approvals/approvals';
 import { Classes } from './features/admin/classes/classes';
 import { ClassForm } from './features/admin/classes/class-form';
+import { ClassTypes } from './features/admin/class-types/class-types';
+import { ClassTypeForm } from './features/admin/class-types/class-type-form';
 import { Members } from './features/admin/members/members';
 import { Schedule } from './features/schedule/schedule';
 import { Login } from './features/auth/login/login';
@@ -32,5 +34,9 @@ export const routes: Routes = [
   // 'new' MUST precede ':id', or the literal segment is swallowed by the parameter.
   { path: 'admin/classes/new', component: ClassForm, canActivate: [authGuard, adminGuard] },
   { path: 'admin/classes/:id', component: ClassForm, canActivate: [authGuard, adminGuard] },
+  { path: 'admin/class-types', component: ClassTypes, canActivate: [authGuard, adminGuard] },
+  // 'new' MUST precede ':id' here too, or the literal segment is swallowed by the parameter.
+  { path: 'admin/class-types/new', component: ClassTypeForm, canActivate: [authGuard, adminGuard] },
+  { path: 'admin/class-types/:id', component: ClassTypeForm, canActivate: [authGuard, adminGuard] },
   { path: '**', redirectTo: '' },
 ];

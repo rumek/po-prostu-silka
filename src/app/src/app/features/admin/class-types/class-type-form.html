@@ -1,0 +1,105 @@
+<h1>{{ editingId() ? 'Edytuj typ zajęć' : 'Nowy typ zajęć' }}</h1>
+
+@if (loading()) {
+  <p class="notice" role="status">Wczytywanie…</p>
+} @else if (loadFailed()) {
+  <p class="alert" role="alert">
+    Nie udało się wczytać tego typu zajęć.
+    <a class="link-button" routerLink="/admin/class-types">Wróć do listy</a>
+  </p>
+} @else {
+  @if (error()) {
+    <p class="alert" role="alert">{{ error() }}</p>
+  }
+
+  <form class="panel" [formGroup]="form" (ngSubmit)="submit()">
+    <div class="field">
+      <label for="name">Nazwa</label>
+      <input
+        id="name"
+        type="text"
+        formControlName="name"
+        [attr.aria-invalid]="form.controls.name.touched && form.controls.name.invalid"
+      />
+      <p class="field-hint">
+        Widoczna przy każdych zajęciach tego typu. Zmiana nazwy zmienia ją wszędzie, także w
+        zajęciach, które już się odbyły.
+      </p>
+      @if (form.controls.name.touched && form.controls.name.invalid) {
+        @if (form.controls.name.hasError('nameTaken')) {
+          <p class="field-error">
+            Aktywny typ o tej nazwie już istnieje. Wybierz inną nazwę albo dezaktywuj tamten typ.
+          </p>
+        } @else {
+          <p class="field-error">Podaj nazwę typu zajęć.</p>
+        }
+      }
+    </div>
+
+    <div class="field">
+      <label for="description">Opis (opcjonalnie)</label>
+      <textarea
+        id="description"
+        rows="4"
+        [attr.maxlength]="maxDescription"
+        formControlName="description"
+        [attr.aria-invalid]="form.controls.description.touched && form.controls.description.invalid"
+      ></textarea>
+      <p class="field-hint">
+        Co to za zajęcia, dla kogo, co zabrać. To jedyne miejsce, w którym członek dowie się tego
+        przed zapisaniem.
+      </p>
+      @if (form.controls.description.touched && form.controls.description.invalid) {
+        <p class="field-error">Opis może mieć najwyżej {{ maxDescription }} znaków.</p>
+      }
+    </div>
+
+    <div class="field">
+      <label for="defaultDurationMinutes">Domyślny czas trwania (minuty)</label>
+      <input
+        id="defaultDurationMinutes"
+        type="number"
+        min="1"
+        max="480"
+        formControlName="defaultDurationMinutes"
+        [attr.aria-invalid]="
+          form.controls.defaultDurationMinutes.touched &&
+          form.controls.defaultDurationMinutes.invalid
+        "
+      />
+      @if (
+        form.controls.defaultDurationMinutes.touched && form.controls.defaultDurationMinutes.invalid
+      ) {
+        <p class="field-error">Czas trwania musi mieścić się w zakresie 1–480 minut.</p>
+      }
+    </div>
+
+    <div class="field">
+      <label for="defaultCapacity">Domyślna liczba miejsc</label>
+      <input
+        id="defaultCapacity"
+        type="number"
+        min="1"
+        max="200"
+        formControlName="defaultCapacity"
+        [attr.aria-invalid]="
+          form.controls.defaultCapacity.touched && form.controls.defaultCapacity.invalid
+        "
+      />
+      <p class="field-hint">
+        Zajęcia dostają kopię tej liczby przy tworzeniu. Późniejsza zmiana tutaj nie ruszy zajęć,
+        które już zaplanowano.
+      </p>
+      @if (form.controls.defaultCapacity.touched && form.controls.defaultCapacity.invalid) {
+        <p class="field-error">Liczba miejsc musi mieścić się w zakresie 1–200.</p>
+      }
+    </div>
+
+    <div class="class-type-form-actions">
+      <button type="submit" class="button" [disabled]="submitting()">
+        {{ submitting() ? 'Zapisywanie…' : 'Zapisz' }}
+      </button>
+      <a class="link-button" routerLink="/admin/class-types">Anuluj</a>
+    </div>
+  </form>
+}

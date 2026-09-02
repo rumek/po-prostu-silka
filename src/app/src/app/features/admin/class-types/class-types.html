@@ -1,0 +1,89 @@
+<div class="class-types-header">
+  <h1>Typy zajęć</h1>
+  <a class="button" routerLink="/admin/class-types/new">Dodaj typ</a>
+</div>
+<p class="hint">
+  Typ zajęć definiujesz raz — nazwa i opis obowiązują wszystkie zajęcia tego typu, także te już
+  odbyte. Czas trwania i liczba miejsc to wartości domyślne: zajęcia dostają ich kopię przy
+  tworzeniu i można ją tam zmienić. Typów się nie usuwa — dezaktywacja znika z wyboru, a zaplanowane
+  zajęcia zostają nietknięte.
+</p>
+
+<div class="class-types-controls">
+  <label class="class-types-toggle">
+    <input type="checkbox" [checked]="showInactive()" (change)="toggleInactive()" />
+    Pokaż nieaktywne
+  </label>
+</div>
+
+@if (notice()) {
+  <p class="notice" role="status">{{ notice() }}</p>
+}
+
+@if (loading()) {
+  <p class="notice" role="status">Wczytywanie…</p>
+} @else if (loadFailed()) {
+  <p class="alert" role="alert">
+    Nie udało się wczytać typów zajęć.
+    <button type="button" class="link-button" (click)="load()">Spróbuj ponownie</button>
+  </p>
+} @else if (rows().length === 0) {
+  <div class="card">
+    <p class="empty">Nie zdefiniowano jeszcze żadnego typu zajęć.</p>
+  </div>
+} @else if (hiddenByFilter()) {
+  <div class="card">
+    <p class="empty">Wszystkie typy są nieaktywne. Zaznacz „Pokaż nieaktywne”, żeby je zobaczyć.</p>
+  </div>
+} @else {
+  <ul class="class-types">
+    @for (row of visible(); track row.id) {
+      <li class="card class-types-row">
+        <div class="class-types-identity">
+          <p class="class-types-name">
+            {{ row.name }}
+            @if (!row.isActive) {
+              <span class="badge badge-inactive">Nieaktywny</span>
+            }
+          </p>
+          @if (row.description) {
+            <p class="class-types-description">{{ row.description }}</p>
+          }
+          <p class="class-types-meta">
+            Domyślnie: {{ row.defaultDurationMinutes }} min · {{ row.defaultCapacity }} miejsc
+          </p>
+        </div>
+
+        <div class="class-types-actions">
+          <a class="button button--secondary" [routerLink]="['/admin/class-types', row.id]">
+            Edytuj
+          </a>
+
+          @if (row.isActive) {
+            <button
+              type="button"
+              class="button button--secondary"
+              [disabled]="isBusy(row.id)"
+              (click)="deactivate(row)"
+            >
+              {{ isBusy(row.id) ? 'Dezaktywowanie…' : 'Dezaktywuj' }}
+            </button>
+          } @else {
+            <button
+              type="button"
+              class="button button--secondary"
+              [disabled]="isBusy(row.id)"
+              (click)="activate(row)"
+            >
+              {{ isBusy(row.id) ? 'Aktywowanie…' : 'Aktywuj' }}
+            </button>
+          }
+        </div>
+
+        @if (failedId() === row.id) {
+          <p class="field-error" role="alert">Nie udało się. Spróbuj ponownie.</p>
+        }
+      </li>
+    }
+  </ul>
+}

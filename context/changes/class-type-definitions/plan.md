@@ -599,9 +599,9 @@ filter would move server-side, but nothing in this product suggests it will.
 
 #### Automated
 
-- [x] 2.1 Solution builds warning-free: `dotnet build` from `src/`
-- [x] 2.2 No EF Core using appears under `src/Application/` or `src/Domain/`
-- [x] 2.3 The API starts and the new routes appear in the OpenAPI document
+- [x] 2.1 Solution builds warning-free: `dotnet build` from `src/` — aece0e0
+- [x] 2.2 No EF Core using appears under `src/Application/` or `src/Domain/` — aece0e0
+- [x] 2.3 The API starts and the new routes appear in the OpenAPI document — aece0e0
 
 #### Manual
 
@@ -618,9 +618,9 @@ filter would move server-side, but nothing in this product suggests it will.
 
 #### Automated
 
-- [ ] 3.1 Unit tests pass: `npm test` from `src/app/`
-- [ ] 3.2 Prettier and ESLint pass: `npm run quality:check` from `src/app/`
-- [ ] 3.3 The production build succeeds: `npm run build` from `src/app/`
+- [x] 3.1 Unit tests pass: `npm test` from `src/app/`
+- [x] 3.2 Prettier and ESLint pass: `npm run quality:check` from `src/app/`
+- [x] 3.3 The production build succeeds: `npm run build` from `src/app/`
 
 #### Manual
 
