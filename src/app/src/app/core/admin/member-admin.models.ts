@@ -35,8 +35,24 @@ export interface Member {
   displayName: string;
   status: MemberStatus;
 
+  /**
+   * Role names as stored ("User", "Admin", "Trainer") — same reasoning as `status`: a name survives
+   * a renumbering. A list rather than an is-trainer flag because admins now appear in this list, so
+   * a single boolean would immediately need an is-admin one beside it.
+   */
+  roles: string[];
+
   /** ISO 8601 from the API. Kept as a string; the screen formats it, nothing does arithmetic on it. */
   createdAt: string;
+}
+
+/**
+ * Mirrors TrainerRoleFailure. `not_active` — the target is Pending or Blocked, and the role is
+ * granted to approved accounts only; `failed` — Identity refused the write, which in practice means
+ * a concurrent change already produced the outcome asked for.
+ */
+export interface TrainerRoleFailure {
+  reason: 'not_active' | 'failed';
 }
 
 /**

@@ -9,6 +9,7 @@ const ANNA: Member = {
   email: 'anna@test.local',
   displayName: 'Anna Kowalska',
   status: 'Active',
+  roles: ['User'],
   createdAt: '2026-09-01T08:00:00+00:00',
 };
 
@@ -17,6 +18,7 @@ const BARTEK: Member = {
   email: 'bartek@test.local',
   displayName: 'Bartek Nowak',
   status: 'Blocked',
+  roles: ['User'],
   createdAt: '2026-09-01T09:00:00+00:00',
 };
 
@@ -25,7 +27,28 @@ const CELINA: Member = {
   email: 'celina@test.local',
   displayName: 'Celina Wiśniewska',
   status: 'Pending',
+  roles: ['User'],
   createdAt: '2026-09-01T10:00:00+00:00',
+};
+
+/** An active member who already holds the Trainer role — the revoke direction. */
+const DOROTA: Member = {
+  id: 'm4',
+  email: 'dorota@test.local',
+  displayName: 'Dorota Lis',
+  status: 'Active',
+  roles: ['User', 'Trainer'],
+  createdAt: '2026-09-01T11:00:00+00:00',
+};
+
+/** The club's admin. S-04 stopped excluding admins from this list so FR-003's grant can reach them. */
+const EWA: Member = {
+  id: 'm5',
+  email: 'ewa@test.local',
+  displayName: 'Ewa Zając',
+  status: 'Active',
+  roles: ['Admin'],
+  createdAt: '2026-09-01T12:00:00+00:00',
 };
 
 describe('Members', () => {
@@ -57,10 +80,31 @@ describe('Members', () => {
     return Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.members-row'));
   }
 
-  function buttonIn(row: HTMLElement, label: string): HTMLButtonElement {
-    return Array.from(row.querySelectorAll('button')).find((b) =>
-      (b.textContent ?? '').includes(label),
-    )!;
+  function menuTrigger(row: HTMLElement): HTMLButtonElement {
+    return row.querySelector<HTMLButtonElement>('[aria-haspopup="menu"]')!;
+  }
+
+  /** Opens the row's menu if it is closed, and returns its entries. */
+  function openMenu(row: HTMLElement): HTMLButtonElement[] {
+    const trigger = menuTrigger(row);
+    if (trigger.getAttribute('aria-expanded') !== 'true') {
+      trigger.click();
+      fixture.detectChanges();
+    }
+
+    return Array.from(row.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'));
+  }
+
+  function menuLabels(row: HTMLElement): string[] {
+    return openMenu(row).map((item) => (item.textContent ?? '').trim());
+  }
+
+  /**
+   * Row actions live behind a per-row menu since S-04, so opening it is part of reaching any of
+   * them. Replaces the direct `buttonIn` lookup the pre-menu tests used.
+   */
+  function menuItemIn(row: HTMLElement, label: string): HTMLButtonElement {
+    return openMenu(row).find((b) => (b.textContent ?? '').includes(label))!;
   }
 
   async function settle() {
@@ -169,7 +213,7 @@ describe('Members', () => {
   it('refetches instead of patching when the list reloaded mid-mutation', async () => {
     await createWith([ANNA]);
 
-    buttonIn(rows()[0], 'Zablokuj').click();
+    menuItemIn(rows()[0], 'Zablokuj').click();
     const block = await vi.waitFor(() => controller.expectOne('/api/admin/members/m1/block'));
 
     // The admin switches filter before the block comes back.
@@ -199,7 +243,7 @@ describe('Members', () => {
   it('updates the row in place on block, without removing it', async () => {
     await createWith([ANNA]);
 
-    buttonIn(rows()[0], 'Zablokuj').click();
+    menuItemIn(rows()[0], 'Zablokuj').click();
 
     (await vi.waitFor(() => controller.expectOne('/api/admin/members/m1/block'))).flush(null);
     await settle();
@@ -213,7 +257,7 @@ describe('Members', () => {
   it('updates the row in place on unblock', async () => {
     await createWith([BARTEK]);
 
-    buttonIn(rows()[0], 'Odblokuj').click();
+    menuItemIn(rows()[0], 'Odblokuj').click();
 
     (await vi.waitFor(() => controller.expectOne('/api/admin/members/m2/unblock'))).flush(null);
     await settle();
@@ -225,7 +269,7 @@ describe('Members', () => {
   it('offers approve on a pending row', async () => {
     await createWith([CELINA]);
 
-    buttonIn(rows()[0], 'Zatwierdź').click();
+    menuItemIn(rows()[0], 'Zatwierdź').click();
 
     (await vi.waitFor(() => controller.expectOne('/api/admin/members/m3/approve'))).flush(null);
     await settle();
@@ -240,7 +284,7 @@ describe('Members', () => {
   it('refetches and explains when block is refused for an admin', async () => {
     await createWith([ANNA]);
 
-    buttonIn(rows()[0], 'Zablokuj').click();
+    menuItemIn(rows()[0], 'Zablokuj').click();
 
     (await vi.waitFor(() => controller.expectOne('/api/admin/members/m1/block'))).flush(
       { reason: 'is_admin' },
@@ -258,7 +302,7 @@ describe('Members', () => {
   it('refetches on a lost-race conflict', async () => {
     await createWith([ANNA]);
 
-    buttonIn(rows()[0], 'Zablokuj').click();
+    menuItemIn(rows()[0], 'Zablokuj').click();
 
     (await vi.waitFor(() => controller.expectOne('/api/admin/members/m1/block'))).flush(
       { reason: 'conflict' },
@@ -282,7 +326,7 @@ describe('Members', () => {
   it('leaves the status unchanged and surfaces the error when block fails', async () => {
     await createWith([ANNA]);
 
-    buttonIn(rows()[0], 'Zablokuj').click();
+    menuItemIn(rows()[0], 'Zablokuj').click();
 
     (await vi.waitFor(() => controller.expectOne('/api/admin/members/m1/block'))).flush(null, {
       status: 500,
@@ -295,8 +339,10 @@ describe('Members', () => {
     expect(html()).not.toContain('Zablokowany');
     expect(html()).toContain('Nie udało się');
 
-    // Still actionable — a failed block must be retryable.
-    expect(buttonIn(rows()[0], 'Zablokuj').disabled).toBe(false);
+    // Still actionable — a failed block must be retryable. Busy-state now lives on the menu
+    // trigger rather than on the individual action, so that is what must be re-enabled.
+    expect(menuTrigger(rows()[0]).disabled).toBe(false);
+    expect(menuItemIn(rows()[0], 'Zablokuj')).toBeTruthy();
   });
 
   it('reports a failed load and offers a retry', async () => {
@@ -324,5 +370,139 @@ describe('Members', () => {
     await settle();
 
     expect(rows().length).toBe(1);
+  });
+
+  // --- roles and the row menu (S-04) ----------------------------------------
+
+  /** `User` gets no badge: every member holds it, so a badge on every row distinguishes nothing. */
+  it('badges notable roles and stays silent about the member role', async () => {
+    await createWith([ANNA, DOROTA, EWA]);
+
+    expect(html()).toContain('Trener');
+    expect(html()).toContain('Administrator');
+
+    const annaBadges = Array.from(rows()[0].querySelectorAll('.badge-role'));
+    expect(annaBadges.length).toBe(0);
+  });
+
+  it('offers the grant direction on an active member without the role', async () => {
+    await createWith([ANNA]);
+
+    expect(menuLabels(rows()[0])).toContain('Nadaj rolę Trenera');
+  });
+
+  it('offers the revoke direction on a member who already holds the role', async () => {
+    await createWith([DOROTA]);
+
+    expect(menuLabels(rows()[0])).toContain('Odbierz rolę Trenera');
+  });
+
+  /** Mirrors the API's not_active guard — a button whose only outcome is a 409 is not an action. */
+  it('hides the role action on non-active rows', async () => {
+    await createWith([BARTEK, CELINA]);
+
+    expect(menuLabels(rows()[0]).join(' ')).not.toContain('Trenera');
+    expect(menuLabels(rows()[1]).join(' ')).not.toContain('Trenera');
+  });
+
+  /**
+   * Admins appear on this list since S-04, but the API refuses to block them (is_admin), so
+   * offering it would only produce a 409. The role action must still be there — that is the whole
+   * reason admins became visible (FR-003).
+   */
+  it('offers the role action but not block on an admin row', async () => {
+    await createWith([EWA]);
+
+    const labels = menuLabels(rows()[0]);
+    expect(labels).toContain('Nadaj rolę Trenera');
+    expect(labels.join(' ')).not.toContain('Zablokuj');
+    expect(labels.join(' ')).not.toContain('Odblokuj');
+  });
+
+  it('patches the row in place when the role is granted', async () => {
+    await createWith([ANNA]);
+
+    menuItemIn(rows()[0], 'Nadaj rolę Trenera').click();
+
+    (await vi.waitFor(() => controller.expectOne('/api/admin/members/m1/roles/trainer'))).flush(
+      null,
+    );
+    await settle();
+
+    expect(rows().length).toBe(1);
+    expect(html()).toContain('Trener');
+    expect(menuLabels(rows()[0])).toContain('Odbierz rolę Trenera');
+  });
+
+  it('patches the row in place when the role is revoked', async () => {
+    await createWith([DOROTA]);
+
+    menuItemIn(rows()[0], 'Odbierz rolę Trenera').click();
+
+    const request = await vi.waitFor(() =>
+      controller.expectOne('/api/admin/members/m4/roles/trainer'),
+    );
+    expect(request.request.method).toBe('DELETE');
+    request.flush(null);
+    await settle();
+
+    expect(rows().length).toBe(1);
+    expect(rows()[0].querySelectorAll('.badge-role').length).toBe(0);
+  });
+
+  it('refetches and explains when the role change is refused as not_active', async () => {
+    await createWith([ANNA]);
+
+    menuItemIn(rows()[0], 'Nadaj rolę Trenera').click();
+
+    (await vi.waitFor(() => controller.expectOne('/api/admin/members/m1/roles/trainer'))).flush(
+      { reason: 'not_active' },
+      { status: 409, statusText: 'Conflict' },
+    );
+    await settle();
+
+    (await vi.waitFor(() => controller.expectOne('/api/admin/members'))).flush([
+      { ...ANNA, status: 'Blocked' },
+    ]);
+    await settle();
+
+    expect(html()).toContain('nie jest aktywny');
+    expect(html()).toContain('Zablokowany');
+  });
+
+  it('closes the menu and returns focus to its trigger on Escape', async () => {
+    await createWith([ANNA]);
+
+    const trigger = menuTrigger(rows()[0]);
+    openMenu(rows()[0]);
+    expect(trigger.getAttribute('aria-expanded')).toBe('true');
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    fixture.detectChanges();
+
+    expect(menuTrigger(rows()[0]).getAttribute('aria-expanded')).toBe('false');
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it('closes the menu on a click outside it', async () => {
+    await createWith([ANNA]);
+
+    openMenu(rows()[0]);
+    expect(menuTrigger(rows()[0]).getAttribute('aria-expanded')).toBe('true');
+
+    document.body.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    fixture.detectChanges();
+
+    expect(menuTrigger(rows()[0]).getAttribute('aria-expanded')).toBe('false');
+  });
+
+  it('keeps at most one menu open', async () => {
+    await createWith([ANNA, DOROTA]);
+
+    openMenu(rows()[0]);
+    openMenu(rows()[1]);
+
+    expect(menuTrigger(rows()[0]).getAttribute('aria-expanded')).toBe('false');
+    expect(menuTrigger(rows()[1]).getAttribute('aria-expanded')).toBe('true');
   });
 });

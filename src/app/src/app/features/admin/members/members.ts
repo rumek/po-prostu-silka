@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, HostListener, OnInit, computed, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MemberAdminService } from '../../../core/admin/member-admin.service';
@@ -7,11 +7,24 @@ import {
   BlockFailure,
   Member,
   MemberStatus,
+  TrainerRoleFailure,
   UnblockFailure,
 } from '../../../core/admin/member-admin.models';
 
 /** The filter positions, including "everyone". `null` means no status parameter is sent. */
 type StatusFilter = MemberStatus | null;
+
+/**
+ * Role names as the API stores them, mirroring ApplicationRoles on the server. Literals rather than
+ * a shared enum because the wire format is a plain string and a typo here would silently render no
+ * badge rather than fail.
+ */
+const MEMBER_ROLE = 'User';
+const ADMIN_ROLE = 'Admin';
+const TRAINER_ROLE = 'Trainer';
+
+/** Stable DOM id for a row's menu trigger, so Escape can return focus to it. */
+const triggerId = (memberId: string): string => `member-menu-${memberId}`;
 
 /**
  * The admin's member list (FR-004, FR-005): everyone, filterable by status, searchable by name or
@@ -50,6 +63,9 @@ export class Members implements OnInit {
 
   /** A list-level message — a stale row, or a refused action that retrying cannot fix. */
   protected readonly notice = signal<string | null>(null);
+
+  /** Id of the row whose action menu is open, or null. At most one is ever open. */
+  protected readonly openMenuId = signal<string | null>(null);
 
   /**
    * Incremented on every load. Nothing cancels an in-flight request, so without this the LAST
@@ -127,7 +143,7 @@ export class Members implements OnInit {
     await this.mutate(
       member,
       () => this.members.approve(member.id),
-      'Active',
+      (row) => ({ ...row, status: 'Active' }),
       () => `Nie udało się zatwierdzić — ${member.displayName} nie oczekuje już na zatwierdzenie.`,
     );
   }
@@ -136,7 +152,7 @@ export class Members implements OnInit {
     await this.mutate(
       member,
       () => this.members.block(member.id),
-      'Blocked',
+      (row) => ({ ...row, status: 'Blocked' }),
       (reason) =>
         reason === 'is_admin'
           ? `${member.displayName} zarządza klubem i nie może zostać zablokowany.`
@@ -148,12 +164,157 @@ export class Members implements OnInit {
     await this.mutate(
       member,
       () => this.members.unblock(member.id),
-      'Active',
+      (row) => ({ ...row, status: 'Active' }),
       (reason) =>
         reason === 'not_blocked'
           ? `${member.displayName} nie jest zablokowany — użyj „Zatwierdź”.`
           : null,
     );
+  }
+
+  /** Whether the row holds a role. Names are compared as stored — see Member.roles. */
+  protected hasRole(member: Member, role: string): boolean {
+    return member.roles.includes(role);
+  }
+
+  protected isAdmin(member: Member): boolean {
+    return this.hasRole(member, ADMIN_ROLE);
+  }
+
+  protected isTrainer(member: Member): boolean {
+    return this.hasRole(member, TRAINER_ROLE);
+  }
+
+  /**
+   * Roles worth a badge. `User` is excluded because every member has it — a badge every row carries
+   * distinguishes nothing and only crowds the row on a phone.
+   */
+  protected notableRoles(member: Member): string[] {
+    return member.roles.filter((role) => role !== MEMBER_ROLE);
+  }
+
+  protected roleLabel(role: string): string {
+    switch (role) {
+      case ADMIN_ROLE:
+        return 'Administrator';
+      case TRAINER_ROLE:
+        return 'Trener';
+      default:
+        return role;
+    }
+  }
+
+  /**
+   * The role action exists only on active accounts, mirroring the API's not_active guard. Offering
+   * it elsewhere would put a button on the screen whose only outcome is a 409.
+   */
+  protected canChangeTrainer(member: Member): boolean {
+    return member.status === 'Active';
+  }
+
+  /**
+   * Grant or revoke in one action, because the row already tells the admin which way it will go.
+   * Patches `roles` in place on success, exactly as the status actions patch `status`.
+   */
+  protected async toggleTrainer(member: Member): Promise<void> {
+    const held = this.isTrainer(member);
+    this.closeMenu();
+
+    await this.mutate(
+      member,
+      () => (held ? this.members.revokeTrainer(member.id) : this.members.grantTrainer(member.id)),
+      (row) => ({
+        ...row,
+        roles: held
+          ? row.roles.filter((name) => name !== TRAINER_ROLE)
+          : [...row.roles, TRAINER_ROLE],
+      }),
+      (reason) =>
+        reason === 'not_active'
+          ? `${member.displayName} nie jest aktywny — rolę Trenera można zmienić tylko aktywnemu koncie.`
+          : null,
+    );
+  }
+
+  // --- row menu -------------------------------------------------------------
+  //
+  // The first menu in this SPA; nothing else here had one, so open/close, outside-click and keyboard
+  // handling are all built here rather than reused.
+
+  protected toggleMenu(member: Member): void {
+    this.openMenuId.update((current) => (current === member.id ? null : member.id));
+  }
+
+  protected closeMenu(): void {
+    this.openMenuId.set(null);
+  }
+
+  /**
+   * Any click outside an open menu dismisses it — the conventional behaviour for a popup.
+   *
+   * The inside/outside test is done HERE, by inspecting the click's target, rather than by having
+   * the menu stop propagation in the template. A stopPropagation handler would have to sit on a
+   * plain div, which is a non-focusable element with an interaction handler — exactly what the
+   * accessibility lint rules forbid, and for good reason.
+   */
+  @HostListener('document:click', ['$event'])
+  protected onDocumentClick(event: MouseEvent): void {
+    const target = event.target as HTMLElement | null;
+
+    // Covers the trigger too: it lives inside .row-menu, so the click that opens a menu is not also
+    // read as a click outside it.
+    if (target?.closest('.row-menu')) {
+      return;
+    }
+
+    this.closeMenu();
+  }
+
+  /**
+   * Escape closes and returns focus to the trigger. Losing focus to the document body would strand
+   * a keyboard user at the top of the page.
+   */
+  @HostListener('document:keydown.escape')
+  protected onEscape(): void {
+    const id = this.openMenuId();
+    if (!id) {
+      return;
+    }
+
+    this.closeMenu();
+    document.getElementById(triggerId(id))?.focus();
+  }
+
+  /** Arrow keys move between entries; Home/End jump to the ends. */
+  protected onMenuKeydown(event: KeyboardEvent): void {
+    const keys = ['ArrowDown', 'ArrowUp', 'Home', 'End'];
+    if (!keys.includes(event.key)) {
+      return;
+    }
+
+    const menu = event.currentTarget as HTMLElement;
+    const items = Array.from(menu.querySelectorAll<HTMLElement>('[role="menuitem"]'));
+    if (items.length === 0) {
+      return;
+    }
+
+    event.preventDefault();
+
+    const current = items.indexOf(document.activeElement as HTMLElement);
+    const next =
+      event.key === 'Home'
+        ? 0
+        : event.key === 'End'
+          ? items.length - 1
+          : event.key === 'ArrowDown'
+            ? (current + 1 + items.length) % items.length
+            : (current - 1 + items.length) % items.length;
+
+    items[next]?.focus();
+  }
+
+  protected triggerIdFor(id: string): string {
+    return triggerId(id);
   }
 
   /**
@@ -169,7 +330,7 @@ export class Members implements OnInit {
   private async mutate(
     member: Member,
     action: () => Promise<void>,
-    becomes: MemberStatus,
+    patch: (row: Member) => Member,
     explain: (reason: string | undefined) => string | null,
   ): Promise<void> {
     const generation = this.generation;
@@ -189,14 +350,14 @@ export class Members implements OnInit {
         return;
       }
 
-      this.rows.update((rows) =>
-        rows.map((row) => (row.id === member.id ? { ...row, status: becomes } : row)),
-      );
+      this.rows.update((rows) => rows.map((row) => (row.id === member.id ? patch(row) : row)));
     } catch (failure) {
       const response = failure as HttpErrorResponse;
 
       if (response?.status === 409) {
-        const reason = (response.error as BlockFailure | UnblockFailure | undefined)?.reason;
+        const reason = (
+          response.error as BlockFailure | UnblockFailure | TrainerRoleFailure | undefined
+        )?.reason;
         this.notice.set(explain(reason) ?? 'Lista była nieaktualna — odświeżono.');
         await this.load();
         return;

@@ -1,7 +1,8 @@
 <h1>Członkowie</h1>
 <p class="hint">
-  Wszyscy zarejestrowani członkowie. Administratorzy nie są tu wyświetlani. Odblokowanie przywraca
-  pełny dostęp — także kontu, które przed zablokowaniem czekało na zatwierdzenie.
+  Wszystkie konta, łącznie z administratorami — rola Trenera nadawana jest właśnie tutaj.
+  Administratora nie da się zablokować. Odblokowanie przywraca pełny dostęp — także kontu, które
+  przed zablokowaniem czekało na zatwierdzenie.
 </p>
 
 <div class="members-controls">
@@ -94,42 +95,87 @@
                 }
               }
             </span>
+            @for (role of notableRoles(member); track role) {
+              <span class="badge badge-role">{{ roleLabel(role) }}</span>
+            }
           </p>
           <p class="members-email">{{ member.email }}</p>
           <p class="members-since">Od {{ member.createdAt | date: 'd MMMM y' }}</p>
         </div>
 
         <div class="members-action">
-          @if (member.status === 'Pending') {
-            <button
-              type="button"
-              class="button"
-              [disabled]="isBusy(member.id)"
-              (click)="approve(member)"
-            >
-              {{ isBusy(member.id) ? 'Pracuję…' : 'Zatwierdź' }}
-            </button>
-          }
-
-          @if (member.status === 'Blocked') {
-            <button
-              type="button"
-              class="button"
-              [disabled]="isBusy(member.id)"
-              (click)="unblock(member)"
-            >
-              {{ isBusy(member.id) ? 'Pracuję…' : 'Odblokuj' }}
-            </button>
-          } @else {
+          <!-- The wrapper is the "inside the menu" boundary the document click handler tests for. -->
+          <div class="row-menu">
             <button
               type="button"
               class="button button--secondary"
+              [id]="triggerIdFor(member.id)"
               [disabled]="isBusy(member.id)"
-              (click)="block(member)"
+              [attr.aria-expanded]="openMenuId() === member.id"
+              aria-haspopup="menu"
+              (click)="toggleMenu(member)"
             >
-              {{ isBusy(member.id) ? 'Pracuję…' : 'Zablokuj' }}
+              {{ isBusy(member.id) ? 'Pracuję…' : 'Akcje' }}
             </button>
-          }
+
+            @if (openMenuId() === member.id) {
+              <!-- tabindex="-1" so the container carrying the keydown handler is focusable, which
+                   is what makes arrow-key roving legitimate rather than a trap. -->
+              <div
+                class="row-menu-list"
+                role="menu"
+                tabindex="-1"
+                [attr.aria-label]="'Akcje — ' + member.displayName"
+                (keydown)="onMenuKeydown($event)"
+              >
+                @if (member.status === 'Pending') {
+                  <button
+                    type="button"
+                    role="menuitem"
+                    class="row-menu-item"
+                    (click)="closeMenu(); approve(member)"
+                  >
+                    Zatwierdź
+                  </button>
+                }
+
+                @if (canChangeTrainer(member)) {
+                  <button
+                    type="button"
+                    role="menuitem"
+                    class="row-menu-item"
+                    (click)="toggleTrainer(member)"
+                  >
+                    {{ isTrainer(member) ? 'Odbierz rolę Trenera' : 'Nadaj rolę Trenera' }}
+                  </button>
+                }
+
+                <!-- An admin administers the club and is not a member; the API refuses the block
+                     anyway (is_admin), so offering it here would only produce a 409. -->
+                @if (!isAdmin(member)) {
+                  @if (member.status === 'Blocked') {
+                    <button
+                      type="button"
+                      role="menuitem"
+                      class="row-menu-item"
+                      (click)="closeMenu(); unblock(member)"
+                    >
+                      Odblokuj
+                    </button>
+                  } @else {
+                    <button
+                      type="button"
+                      role="menuitem"
+                      class="row-menu-item"
+                      (click)="closeMenu(); block(member)"
+                    >
+                      Zablokuj
+                    </button>
+                  }
+                }
+              </div>
+            }
+          </div>
 
           @if (failedId() === member.id) {
             <p class="field-error" role="alert">Nie udało się. Spróbuj ponownie.</p>

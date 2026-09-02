@@ -285,6 +285,31 @@ This is the first menu in the SPA — no existing component has one. It must be 
 (open, arrow between entries, `Escape` to close, focus returned to the trigger) and must close on
 outside click, since nothing in the codebase provides that behaviour yet.
 
+**Adapted during implementation.** Four points the contract above did not anticipate:
+
+1. **`mutate` was generalised.** Its `becomes: MemberStatus` parameter became `patch: (row) =>
+   Member`. A role change does not touch `status`, so the helper could not be reused as written.
+   All three existing callers were updated; the generation guard, busy set and 409 handling are
+   unchanged.
+2. **Outside-click is detected by inspecting the click target**, not by `stopPropagation` in the
+   template. The template handler would have had to sit on a plain `div`, which
+   `@angular-eslint/template/interactive-supports-focus` and `click-events-have-key-events` both
+   reject — correctly, since a non-focusable element with a click handler is unreachable by
+   keyboard. The document handler now returns early when the target is inside `.row-menu`. The
+   menu container carries `tabindex="-1"` for the same reason.
+3. **The screen's hint text was wrong after Phase 1.** It read "Administratorzy nie są tu
+   wyświetlani", which Phase 1 made false. Rewritten to say that all accounts appear, that the role
+   is granted here, and that an admin cannot be blocked.
+4. **The existing component tests had to be rewritten.** Every row action moved behind the menu, so
+   the spec's `buttonIn` helper stopped finding them; it was replaced by `menuItemIn`, which opens
+   the row's menu first. One assertion moved from the action button to the menu trigger, because
+   busy-state now lives on the trigger. `member-admin.service.spec.ts` also needed its `Member`
+   fixture updated and gained tests for the two new methods — the contract named only
+   `members.spec.ts`.
+
+Also decided during implementation: the `User` role gets **no badge**. Every member holds it, so a
+badge on every row distinguishes nothing and only crowds the row at phone width.
+
 #### 4. Component tests
 
 **File**: `src/app/src/app/features/admin/members/members.spec.ts`
@@ -384,9 +409,9 @@ code leaves an unused role row in `AspNetRoles`, which is harmless.
 
 #### Automated
 
-- [x] 1.1 Solution builds warning-free: `dotnet build` from `src/`
-- [x] 1.2 Backend tests pass: `dotnet test` from the repository root
-- [x] 1.3 New endpoint tests cover grant, revoke, idempotency, `not_active`, and 404
+- [x] 1.1 Solution builds warning-free: `dotnet build` from `src/` — 831f0e2
+- [x] 1.2 Backend tests pass: `dotnet test` from the repository root — 831f0e2
+- [x] 1.3 New endpoint tests cover grant, revoke, idempotency, `not_active`, and 404 — 831f0e2
 
 #### Manual
 
@@ -400,8 +425,8 @@ code leaves an unused role row in `AspNetRoles`, which is harmless.
 
 #### Automated
 
-- [ ] 2.1 Frontend tests pass: `npm test` from `src/app/`
-- [ ] 2.2 Lint and formatting pass: `npm run quality:check` from `src/app/`
+- [x] 2.1 Frontend tests pass: `npm test` from `src/app/`
+- [x] 2.2 Lint and formatting pass: `npm run quality:check` from `src/app/`
 
 #### Manual
 

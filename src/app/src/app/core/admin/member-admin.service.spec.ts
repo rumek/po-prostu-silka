@@ -14,6 +14,7 @@ const MEMBER: PendingMember = {
 const FULL_MEMBER: Member = {
   ...MEMBER,
   status: 'Active',
+  roles: ['User'],
 };
 
 describe('MemberAdminService', () => {
@@ -127,5 +128,37 @@ describe('MemberAdminService', () => {
     );
 
     await expect(approved).rejects.toBeDefined();
+  });
+
+  /** Grant and revoke share a path and differ only by verb, so both are asserted together. */
+  it('grants with POST and revokes with DELETE on the same role path', async () => {
+    const granted = service.grantTrainer('m1');
+
+    const grantRequest = await vi.waitFor(() =>
+      controller.expectOne('/api/admin/members/m1/roles/trainer'),
+    );
+    expect(grantRequest.request.method).toBe('POST');
+    grantRequest.flush(null);
+    await expect(granted).resolves.toBeUndefined();
+
+    const revoked = service.revokeTrainer('m1');
+
+    const revokeRequest = await vi.waitFor(() =>
+      controller.expectOne('/api/admin/members/m1/roles/trainer'),
+    );
+    expect(revokeRequest.request.method).toBe('DELETE');
+    revokeRequest.flush(null);
+    await expect(revoked).resolves.toBeUndefined();
+  });
+
+  it('rejects rather than swallowing a refused role change', async () => {
+    const granted = service.grantTrainer('m1');
+
+    (await vi.waitFor(() => controller.expectOne('/api/admin/members/m1/roles/trainer'))).flush(
+      { reason: 'not_active' },
+      { status: 409, statusText: 'Conflict' },
+    );
+
+    await expect(granted).rejects.toBeDefined();
   });
 });

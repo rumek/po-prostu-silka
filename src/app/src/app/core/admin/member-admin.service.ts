@@ -53,4 +53,20 @@ export class MemberAdminService {
       this.http.post<void>(`/api/admin/members/${encodeURIComponent(id)}/unblock`, null),
     );
   }
+
+  /**
+   * Grant the Trainer role (S-04). Additive — it costs the account nothing it already had, and on
+   * its own it grants nothing either; S-06 consumes it to populate the instructor selection.
+   */
+  async grantTrainer(id: string): Promise<void> {
+    await firstValueFrom(
+      this.http.post<void>(`/api/admin/members/${encodeURIComponent(id)}/roles/trainer`, null),
+    );
+  }
+
+  async revokeTrainer(id: string): Promise<void> {
+    await firstValueFrom(
+      this.http.delete<void>(`/api/admin/members/${encodeURIComponent(id)}/roles/trainer`),
+    );
+  }
 }

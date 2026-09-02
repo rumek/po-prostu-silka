@@ -109,10 +109,55 @@
   color: var(--danger, #b3261e);
 }
 
+// Roles read as a second, quieter channel than status: an account's status is what gates access, a
+// role is what it may do once inside. Dashed so the two are distinguishable without relying on hue.
+.badge-role {
+  border-style: dashed;
+  color: var(--muted);
+}
+
 .members-action {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
+}
+
+// The first menu in the app. Anchored to its trigger rather than portalled: the list is short and
+// the row is never inside a scrolling or clipping container.
+.row-menu {
+  position: relative;
+}
+
+.row-menu-list {
+  position: absolute;
+  right: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  min-width: 14rem;
+  margin-top: var(--space-1, 0.25rem);
+  padding: var(--space-1, 0.25rem);
+  border: 1px solid var(--border, currentcolor);
+  border-radius: var(--radius, 0.5rem);
+  background: var(--surface, Canvas);
+  box-shadow: 0 0.5rem 1rem rgb(0 0 0 / 15%);
+}
+
+.row-menu-item {
+  padding: var(--space-2) var(--space-3, 0.75rem);
+  border: 0;
+  border-radius: var(--radius, 0.5rem);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+
+  &:hover,
+  &:focus-visible {
+    background: var(--surface-hover, rgb(0 0 0 / 6%));
+  }
 }
 
 .empty {
@@ -152,5 +197,13 @@
 
   .members-action .button {
     width: 100%;
+  }
+
+  // At phone width the menu spans the row rather than hanging off its right edge, which would put
+  // part of it off-screen once the row goes full-width.
+  .row-menu-list {
+    left: 0;
+    right: 0;
+    min-width: 0;
   }
 }
