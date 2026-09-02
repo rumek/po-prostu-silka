@@ -1,10 +1,10 @@
 ---
 change_id: trainer-role-and-assignment
 title: Grant and revoke the Trainer role from the member list
-status: impl_reviewed
+status: archived
 created: 2026-09-02
 updated: 2026-09-02
-archived_at: null
+archived_at: 2026-09-02T10:24:25Z
 ---
 
 ## Notes

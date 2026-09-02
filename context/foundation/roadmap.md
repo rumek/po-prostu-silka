@@ -49,7 +49,7 @@ Mid-milestone, a second decision landed: a class stops being retyped text and be
 | S-01 | registration-and-approval        | register, wait at approval screen; admin approves                        | F-01, F-02             | v1 FR-001, v1 FR-002, v1 FR-003                                 | done        |
 | S-02 | member-management                | admin searches/filters members, blocks and unblocks                      | S-01                   | v1 FR-004, v1 FR-005                                            | done        |
 | S-03 | class-schedule-and-admin         | browse day-by-day schedule; admin creates/edits/duplicates classes       | S-01                   | v1 FR-007, v1 FR-011, v1 FR-012                                 | done        |
-| S-04 | trainer-role-and-assignment      | admin grants and revokes the Trainer role on an approved account         | S-02                   | v2 FR-001, v2 FR-002, v2 FR-003                                 | in-progress |
+| S-04 | trainer-role-and-assignment      | admin grants and revokes the Trainer role on an approved account         | S-02                   | v2 FR-001, v2 FR-002, v2 FR-003                                 | done        |
 | S-05 | class-type-definitions           | admin defines, edits and deactivates a class type                        | S-03                   | v2 FR-004, v2 FR-005, v2 FR-006, v2 FR-007                      | proposed    |
 | S-06 | occurrences-from-class-types     | admin schedules a class by picking a type and a trainer; no room field   | S-03, S-04, S-05       | v2 US-01, v2 FR-008–FR-013, v1 FR-011, v1 FR-012                | proposed    |
 | S-07 | schedule-calendar-view           | browse the schedule as a week strip on a phone, a full week on a tablet  | S-06                   | v2 US-02, v2 FR-015, v2 FR-016, v2 FR-017, v2 FR-018, v1 FR-007 | proposed    |
@@ -176,7 +176,7 @@ What's already in place in the codebase as of `2026-09-02` (auto-researched + us
 - **Blockers:** —
 - **Unknowns:** —
 - **Risk:** small and low-risk — an extra action on a list that already exists. Its value is only realised by S-06, which consumes the role to populate the instructor selection; shipped alone it is a label nothing reads. Kept separate anyway so S-06 stays tractable, and because it is the one piece of `prd-v2` that touches identity rather than scheduling.
-- **Status:** in-progress
+- **Status:** done
 
 ### S-05: Admin defines a class type
 
@@ -357,3 +357,4 @@ Resolved since the previous roadmap: the sender-domain question that gated F-03 
 - **S-01: user can register with email + password, log in while `pending` and see only the awaiting-approval screen (no schedule, no booking); the admin sees pending registrations and approves one; the approved member logs in and reaches the app proper.** — Archived 2026-09-01 → `context/archive/2026-09-01-registration-and-approval/`. Lesson: —.
 - **S-02: user (admin) can browse all members in one searchable list with status badges and a pending / active / blocked filter, block a member (who then loses access to app content), and unblock them.** — Archived 2026-09-01 → `context/archive/2026-09-01-member-management/`. Lesson: —.
 - **S-03: user (admin) can create a class (name, date/time, room, instructor, capacity), edit it, and duplicate classes to following weeks; an active member can browse the schedule as a mobile-friendly day-by-day list.** — Archived 2026-09-02 → `context/archive/2026-09-01-class-schedule-and-admin/`. Lesson: —.
+- **S-04: user (admin) can grant the Trainer role to an approved account from the member list, and revoke it; the account keeps every member capability it had, and an account may hold Admin and Trainer at once.** — Archived 2026-09-02 → `context/archive/2026-09-02-trainer-role-and-assignment/`. Lesson: —.
