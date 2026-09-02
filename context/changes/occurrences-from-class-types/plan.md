@@ -583,10 +583,10 @@ difference is unmeasurable either way.
 
 #### Manual
 
-- [ ] 1.5 `GET /health` reports a healthy database connection
-- [ ] 1.6 `GET /api/admin/trainers` returns only active trainers
-- [ ] 1.7 Create with a valid type and trainer resolves the name and display name
-- [ ] 1.8 Overlapping start times are refused with `time_conflict`
+- [x] 1.5 `GET /health` reports a healthy database connection — 67679b7
+- [x] 1.6 `GET /api/admin/trainers` returns only active trainers — 67679b7
+- [x] 1.7 Create with a valid type and trainer resolves the name and display name — 67679b7
+- [x] 1.8 Overlapping start times are refused with `time_conflict` — 67679b7
 
 ### Phase 2: The screens
 
@@ -599,10 +599,10 @@ difference is unmeasurable either way.
 
 #### Manual
 
-- [ ] 2.5 Empty-state signposts appear on an empty database
-- [ ] 2.6 Prefill, override and save round-trip correctly
-- [ ] 2.7 Edit shows the type disabled and the numbers as saved
-- [ ] 2.8 A type rename propagates to an existing class
-- [ ] 2.9 Time conflict lands on the start-time field
-- [ ] 2.10 Duplicate reports the skipped week and creates the rest
-- [ ] 2.11 No room anywhere on the member schedule; comfortable on a phone
+- [x] 2.5 Empty-state signposts appear on an empty database — 41ec4a3
+- [x] 2.6 Prefill, override and save round-trip correctly — 41ec4a3
+- [x] 2.7 Edit shows the type disabled and the numbers as saved — 41ec4a3
+- [x] 2.8 A type rename propagates to an existing class — 41ec4a3
+- [x] 2.9 Time conflict lands on the start-time field — 41ec4a3
+- [x] 2.10 Duplicate reports the skipped week and creates the rest — 41ec4a3
+- [x] 2.11 No room anywhere on the member schedule; comfortable on a phone — 41ec4a3

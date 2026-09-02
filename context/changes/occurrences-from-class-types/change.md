@@ -1,7 +1,7 @@
 ---
 change_id: occurrences-from-class-types
 title: Admin schedules a class by picking a type and a trainer
-status: implementing
+status: implemented
 created: 2026-09-02
 updated: 2026-09-02
 ---
