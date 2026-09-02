@@ -492,3 +492,8 @@ $RECYCLE.BIN/
 
 # fetched publish profile — credential material, never commit
 publish-profile.xml
+
+/.claude/skills/10x-*
+/.claude/.10x-cli-manifest.json
+/.claude/.10x-cli-manifest.json
+/.claude/.10x*
