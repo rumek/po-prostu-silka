@@ -3,9 +3,15 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { classFailureMessage } from '../../../core/scheduling/class-failure';
 import { ClassService } from '../../../core/scheduling/class.service';
 import { ScheduledClass } from '../../../core/scheduling/class.models';
-import { CalendarRange, ScheduleCalendar } from '../../../shared/calendar/schedule-calendar';
+import {
+  CalendarRange,
+  DrawnRange,
+  ScheduleCalendar,
+} from '../../../shared/calendar/schedule-calendar';
+import { ClassCreateOverlay } from './class-create-overlay';
 
 /**
  * The admin's class management (prd-v2 FR-011, FR-012, FR-017).
@@ -28,7 +34,7 @@ import { CalendarRange, ScheduleCalendar } from '../../../shared/calendar/schedu
  * explanation reads as broken.
  */
 @Component({
-  imports: [DatePipe, FormsModule, RouterLink, ScheduleCalendar],
+  imports: [ClassCreateOverlay, DatePipe, FormsModule, RouterLink, ScheduleCalendar],
   selector: 'app-classes',
   styleUrl: './classes.scss',
   templateUrl: './classes.html',
@@ -59,6 +65,9 @@ export class Classes {
   /** Which class is asking to confirm a delete. */
   protected readonly confirmingDelete = signal<ScheduledClass | null>(null);
 
+  /** The range drawn on the grid, awaiting a type and a trainer. Null when no overlay is open. */
+  protected readonly drawn = signal<DrawnRange | null>(null);
+
   /** The whole visible window is behind us. Looking is fine; changing it is not. */
   protected readonly isPast = computed(() => {
     const range = this.range();
@@ -75,6 +84,7 @@ export class Classes {
     // A window change invalidates any open panel: its class may not even be on screen any more.
     this.duplicating.set(null);
     this.confirmingDelete.set(null);
+    this.drawn.set(null);
 
     const generation = ++this.generation;
 
@@ -106,6 +116,25 @@ export class Classes {
     if (range) {
       await this.load(range);
     }
+  }
+
+  /** A gesture on empty grid (prd-v2 FR-019). The calendar withholds it entirely in a past week. */
+  protected openCreate(range: DrawnRange): void {
+    this.notice.set(null);
+    this.failedId.set(null);
+    this.duplicating.set(null);
+    this.confirmingDelete.set(null);
+    this.drawn.set(range);
+  }
+
+  protected closeCreate(): void {
+    this.drawn.set(null);
+  }
+
+  protected async afterCreate(): Promise<void> {
+    this.drawn.set(null);
+    // The new class is inside the visible window by construction — it was drawn there.
+    await this.reload();
   }
 
   protected openDuplicate(row: ScheduledClass): void {
@@ -144,7 +173,8 @@ export class Classes {
         ?.reason;
 
       if (reason === 'invalid_weeks') {
-        this.notice.set('Liczba tygodni musi mieścić się w zakresie 1–8.');
+        // Through the shared table, so this reads the same here as it would anywhere else.
+        this.notice.set(classFailureMessage(reason));
         return;
       }
 

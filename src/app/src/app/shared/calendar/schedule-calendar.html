@@ -80,7 +80,9 @@
     [daysInWeek]="daysInWeek()"
     [events]="events()"
     [locale]="locale"
+    [hourSegments]="2"
     [eventTemplate]="tile"
+    [hourSegmentTemplate]="segment"
   />
 
   @if (isEmpty()) {
@@ -96,6 +98,40 @@
     </p>
   }
 </div>
+
+<!-- Replaces the library's own segment template so each row carries the instant it represents and a
+     press handler. The `data-segment` attribute is how the drag finds the segment under the pointer:
+     reading the DOM beats computing it from pixel offsets and segment heights, which would have to
+     track the stylesheet. The time-label branch mirrors the library's default — dropping it would
+     empty the hour column. -->
+<ng-template
+  #segment
+  let-segment="segment"
+  let-locale="locale"
+  let-segmentHeight="segmentHeight"
+  let-isTimeLabel="isTimeLabel"
+  let-daysInWeek="daysInWeek"
+>
+  <div
+    class="cal-hour-segment"
+    [style.height.px]="segmentHeight"
+    [class.cal-hour-start]="segment.isStart"
+    [class.cal-after-hour-start]="!segment.isStart"
+    [class.calendar-segment-drawing]="isDrawn(segment.date)"
+    [class.calendar-segment-drawable]="!readOnly()"
+    [attr.data-segment]="segment.date.toISOString()"
+    (mousedown)="startDraw(segment.date, $event)"
+  >
+    @if (isTimeLabel) {
+      <div class="cal-time">
+        {{
+          segment.displayDate
+            | calendarDate: (daysInWeek === 1 ? 'dayViewHour' : 'weekViewHour') : locale
+        }}
+      </div>
+    }
+  </div>
+</ng-template>
 
 <ng-template #tile let-weekEvent="weekEvent">
   <div class="calendar-tile">

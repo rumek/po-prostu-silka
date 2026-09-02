@@ -19,6 +19,7 @@
   [loadFailed]="loadFailed()"
   [readOnly]="isPast()"
   (rangeChange)="load($event)"
+  (rangeDrawn)="openCreate($event)"
 >
   <!-- Screen-level actions ride along the calendar's toolbar, so navigation and the things you do
        with it stay in one place. "Typy zajęć" lives here rather than in the global nav because
@@ -99,4 +100,8 @@
   <p class="alert" role="alert">
     <button type="button" class="link-button" (click)="reload()">Spróbuj ponownie</button>
   </p>
+}
+
+@if (drawn(); as range) {
+  <app-class-create-overlay [drawn]="range" (created)="afterCreate()" (closed)="closeCreate()" />
 }

@@ -13,6 +13,7 @@ import {
   signal,
 } from '@angular/core';
 import {
+  CalendarDatePipe,
   CalendarEvent,
   CalendarWeekViewComponent,
   DateAdapter,
@@ -22,6 +23,19 @@ import { adapterFactory } from 'angular-calendar/date-adapters/date-fns';
 import { addDays, startOfDay, startOfWeek } from 'date-fns';
 import { ScheduledClass } from '../../core/scheduling/class.models';
 import { WEEK_VIEW_MEDIA_QUERY } from './calendar-breakpoint';
+
+/** A time range drawn on the grid, ready for the overlay that will turn it into a class. */
+export interface DrawnRange {
+  startsAt: Date;
+  durationMinutes: number;
+}
+
+/**
+ * How long one row of the grid is. Two segments per hour is the library's default and this binds it
+ * explicitly, because the drag gesture snaps to it: the drawn duration is always a whole number of
+ * segments, so a stray click cannot produce a zero-minute class.
+ */
+const SEGMENT_MINUTES = 30;
 
 /** The window the calendar is currently showing, as UTC instants for the API. */
 export interface CalendarRange {
@@ -65,7 +79,7 @@ export interface CalendarRange {
  * at the edges of a week would silently land in the wrong one.
  */
 @Component({
-  imports: [CalendarWeekViewComponent, DatePipe, NgTemplateOutlet],
+  imports: [CalendarDatePipe, CalendarWeekViewComponent, DatePipe, NgTemplateOutlet],
   // ON THE COMPONENT, NOT IN app.config.ts. Registering the adapter in the application providers
   // pulls angular-calendar into the INITIAL bundle - it did, and the budget caught it: +62 kB over
   // the 500 kB ceiling with the lazy chunks left nearly empty. Declared here, the library ships in
@@ -104,6 +118,16 @@ export class ScheduleCalendar {
 
   /** The visible window changed — fetch for it. Emitted on init too, which is the first load. */
   readonly rangeChange = output<CalendarRange>();
+
+  /**
+   * The admin drew a time range on empty grid (prd-v2 FR-019). Carries only what the GESTURE can
+   * know — when and how long. The class type and the trainer are the screen's problem, because a
+   * pointer cannot express them.
+   *
+   * Never emitted while {@link readOnly}, which is what keeps the member schedule and past weeks
+   * inert without either of them knowing this output exists.
+   */
+  readonly rangeDrawn = output<DrawnRange>();
 
   /**
    * Per-class actions, projected by the screen that has any. Receives the `ScheduledClass` as
@@ -162,6 +186,12 @@ export class ScheduleCalendar {
     () => !this.loading() && !this.loadFailed() && this.classes().length === 0,
   );
 
+  /** Ends of the segment range being drawn, or null when no gesture is in flight. */
+  protected readonly drawFrom = signal<Date | null>(null);
+  protected readonly drawTo = signal<Date | null>(null);
+
+  protected readonly segmentMinutes = SEGMENT_MINUTES;
+
   /** What the `<input type="date">` shows: the anchor as a local `YYYY-MM-DD`. */
   protected readonly anchorInputValue = computed(() => {
     const day = this.anchor();
@@ -190,6 +220,93 @@ export class ScheduleCalendar {
     // Emits on creation too — that first emission is what triggers the initial load, so the parent
     // needs no ngOnInit of its own.
     effect(() => this.rangeChange.emit(this.range()));
+  }
+
+  /** Whether a segment falls inside the range currently being drawn — drives the preview highlight. */
+  protected isDrawn(date: Date): boolean {
+    const from = this.drawFrom();
+    const to = this.drawTo();
+
+    if (!from || !to) {
+      return false;
+    }
+
+    const at = date.getTime();
+
+    return (
+      at >= Math.min(from.getTime(), to.getTime()) && at <= Math.max(from.getTime(), to.getTime())
+    );
+  }
+
+  /**
+   * Begins a drag-to-create gesture on an empty segment.
+   *
+   * Events are painted ABOVE the segments, so a press that lands on an existing class never reaches
+   * here — the "don't start on an existing class" rule needs no code of its own.
+   *
+   * The move and release listeners go on the document rather than the segment: a drag that leaves the
+   * grid, or releases outside the window, still has to end cleanly rather than leave the calendar
+   * stuck mid-gesture.
+   */
+  protected startDraw(date: Date, event: MouseEvent): void {
+    // Left button only; a right-click is a context menu, not a gesture.
+    if (this.readOnly() || event.button !== 0) {
+      return;
+    }
+
+    event.preventDefault();
+
+    this.drawFrom.set(date);
+    this.drawTo.set(date);
+
+    const move = (moved: MouseEvent) => {
+      const over = this.segmentAt(moved);
+
+      if (over) {
+        this.drawTo.set(over);
+      }
+    };
+
+    const release = () => {
+      document.removeEventListener('mousemove', move);
+      document.removeEventListener('mouseup', release);
+      this.finishDraw();
+    };
+
+    document.addEventListener('mousemove', move);
+    document.addEventListener('mouseup', release);
+  }
+
+  /** The segment under the pointer, read off the DOM rather than computed from pixel offsets. */
+  private segmentAt(event: MouseEvent): Date | null {
+    const element = document
+      .elementFromPoint(event.clientX, event.clientY)
+      ?.closest('[data-segment]');
+
+    const iso = element?.getAttribute('data-segment');
+
+    return iso ? new Date(iso) : null;
+  }
+
+  private finishDraw(): void {
+    const from = this.drawFrom();
+    const to = this.drawTo();
+
+    this.drawFrom.set(null);
+    this.drawTo.set(null);
+
+    if (!from || !to) {
+      return;
+    }
+
+    const startsAt = new Date(Math.min(from.getTime(), to.getTime()));
+    const lastSegment = Math.max(from.getTime(), to.getTime());
+
+    // The drawn range covers the last segment too, so a single click is one segment rather than zero
+    // minutes — the class the API would refuse as invalid_duration.
+    const durationMinutes = (lastSegment - startsAt.getTime()) / 60_000 + SEGMENT_MINUTES;
+
+    this.rangeDrawn.emit({ startsAt, durationMinutes });
   }
 
   protected stepDays(days: number): void {

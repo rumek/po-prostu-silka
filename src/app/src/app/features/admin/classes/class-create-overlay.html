@@ -1,0 +1,97 @@
+<!-- A button, not a styled div: it carries the same click-outside-to-close affordance but is
+     focusable and answers the keyboard, which a div with a click handler is not. Escape is bound on
+     the host (see the component) so it works wherever focus happens to be. -->
+<button
+  type="button"
+  class="overlay-backdrop"
+  aria-label="Zamknij bez zapisywania"
+  (click)="close()"
+></button>
+
+<div class="card overlay-panel" role="dialog" aria-modal="true" aria-labelledby="overlay-title">
+  <h2 id="overlay-title" class="overlay-title">Nowe zajęcia</h2>
+
+  <!-- What the gesture already decided. Shown, not editable here: to change the time, redraw. -->
+  <p class="overlay-when">
+    {{ drawn().startsAt | date: 'EEEE, d MMMM' }}, {{ drawn().startsAt | date: 'HH:mm' }} ·
+    {{ drawn().durationMinutes }} min
+  </p>
+
+  @if (loading()) {
+    <p class="notice" role="status">Wczytywanie…</p>
+  } @else if (loadFailed()) {
+    <p class="alert" role="alert">Nie udało się wczytać typów zajęć i trenerów.</p>
+  } @else if (nothingToPick()) {
+    <!-- No submit that cannot succeed: same rule as the class form's empty states. -->
+    <p class="alert" role="alert">
+      Aby dodać zajęcia, potrzebny jest aktywny typ zajęć i konto z rolą trenera.
+    </p>
+  } @else {
+    @if (error()) {
+      <p class="alert" role="alert">{{ error() }}</p>
+    }
+
+    <label class="field">
+      <span class="field-label">Typ zajęć</span>
+      <select [ngModel]="classTypeId()" (ngModelChange)="selectType($event)" name="classTypeId">
+        <option value="" disabled>Wybierz typ</option>
+        @for (type of types(); track type.id) {
+          <option [value]="type.id">{{ type.name }}</option>
+        }
+      </select>
+    </label>
+
+    <label class="field">
+      <span class="field-label">Prowadzący</span>
+      <select
+        [ngModel]="instructorUserId()"
+        (ngModelChange)="instructorUserId.set($event)"
+        name="instructorUserId"
+      >
+        <option value="" disabled>Wybierz prowadzącego</option>
+        @for (trainer of trainers(); track trainer.id) {
+          <option [value]="trainer.id">{{ trainer.displayName }}</option>
+        }
+      </select>
+    </label>
+
+    <div class="overlay-numbers">
+      <label class="field">
+        <span class="field-label">Czas trwania (min)</span>
+        <input
+          type="number"
+          min="1"
+          max="480"
+          [ngModel]="durationMinutes()"
+          (ngModelChange)="durationMinutes.set(+$event)"
+          name="durationMinutes"
+        />
+      </label>
+
+      <label class="field">
+        <span class="field-label">Liczba miejsc</span>
+        <input
+          type="number"
+          min="1"
+          max="200"
+          [ngModel]="capacity()"
+          (ngModelChange)="capacity.set(+$event)"
+          name="capacity"
+        />
+      </label>
+    </div>
+
+    <div class="overlay-actions">
+      <button type="button" class="button" [disabled]="!canSubmit()" (click)="submit()">
+        {{ saving() ? 'Zapisywanie…' : 'Dodaj zajęcia' }}
+      </button>
+      <button type="button" class="link-button" (click)="close()">Anuluj</button>
+    </div>
+  }
+
+  @if (loadFailed() || nothingToPick()) {
+    <div class="overlay-actions">
+      <button type="button" class="link-button" (click)="close()">Zamknij</button>
+    </div>
+  }
+</div>

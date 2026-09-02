@@ -14,6 +14,7 @@ import { ClassService } from '../../../core/scheduling/class.service';
 import { ClassTypeService } from '../../../core/scheduling/class-type.service';
 import { ClassFailure } from '../../../core/scheduling/class.models';
 import { ClassTypeSummary } from '../../../core/scheduling/class-type.models';
+import { classFailureMessage } from '../../../core/scheduling/class-failure';
 import { fromLocalInputValue, toLocalInputValue } from '../../../core/scheduling/local-datetime';
 
 /** Matches the server's bounds in ClassEndpoints.Validate. Keep the two in step. */
@@ -266,6 +267,9 @@ export class ClassForm implements OnInit {
   /**
    * Maps a server refusal onto the control responsible for it, so the admin sees what to change.
    * Follows register.ts's applyFailure/reject pair.
+   *
+   * The CONTROL mapping is form-specific and stays here; the WORDS come from classFailureMessage, so
+   * this form and the calendar's create overlay cannot describe the same refusal differently.
    */
   private applyFailure(failure: unknown): void {
     const reason = ((failure as HttpErrorResponse)?.error as ClassFailure | undefined)?.reason;
@@ -289,7 +293,7 @@ export class ClassForm implements OnInit {
         // The control is disabled while editing, so setErrors alone would not show anything — the
         // banner carries these. They all mean the same thing to the admin: this type cannot be used
         // for this class, reload and start again.
-        this.error.set('Nie można użyć tego typu zajęć. Odśwież stronę i spróbuj ponownie.');
+        this.error.set(classFailureMessage(reason));
         return;
       case 'unknown_instructor':
       case 'instructor_not_trainer':
@@ -297,10 +301,10 @@ export class ClassForm implements OnInit {
         return;
       case 'missing_field':
         this.form.markAllAsTouched();
-        this.error.set('Wybierz typ zajęć i prowadzącego.');
+        this.error.set(classFailureMessage(reason));
         return;
       default:
-        this.error.set('Nie udało się zapisać zajęć. Spróbuj ponownie za chwilę.');
+        this.error.set(classFailureMessage(reason));
     }
   }
 

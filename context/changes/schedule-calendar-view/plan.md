@@ -624,7 +624,17 @@ instead of holding literals. Behaviour is unchanged; only the strings move.
 **Contract**: A new output `rangeDrawn: EventEmitter<{ startsAt: Date; durationMinutes: number }>`,
 emitted only when `readOnly` is false. Built on the library's hour-segment interaction together with
 `angular-draggable-droppable` — the pattern its own drag-to-create demo uses — showing a provisional
-block while the pointer is down. The provisional block is view state only; nothing is persisted until
+block while the pointer is down.
+
+**Adapted during implementation.** `angular-draggable-droppable` is not used for the gesture; it stays
+installed only as a required peer of the library. The gesture is a custom `hourSegmentTemplate` that
+stamps each segment with `data-segment="<iso>"` plus a `mousedown` handler, with move and release
+listeners on the DOCUMENT so a drag that leaves the grid still ends cleanly. The segment under the
+pointer is read with `elementFromPoint(...).closest('[data-segment]')` rather than computed from pixel
+offsets and segment heights — that arithmetic would have to track the stylesheet to stay correct.
+`hourSegments` is bound to 2 explicitly (30-minute snapping) because the drawn duration is measured in
+whole segments. The custom template also re-renders the library's own time-label branch; dropping it
+empties the hour column. The provisional block is view state only; nothing is persisted until
 the overlay submits. Snap to the grid's hour-segment size and enforce a minimum of one segment, so a
 stray click cannot emit a zero-minute class. The gesture is ignored when it starts on an existing
 class, and the empty-state overlay's `pointer-events: none` is what keeps it alive on an empty week.
@@ -648,6 +658,13 @@ one the gesture can plausibly hit — additionally highlighted on the time row. 
 overlay and refetches the visible range. Escape and a cancel control both close it without writing. The
 empty-trainer-list case behaves as `class-form`'s `noTrainers` does: say so, and do not offer a submit
 that cannot succeed. Field styling comes from the shared `.field` / `.button` classes in `styles.scss`.
+
+**Adapted during implementation.** The refusal is shown as a banner only; there is no per-control
+highlight for `time_conflict`. The overlay has no editable time control to attach one to — the time
+comes from the gesture and is displayed, not edited. To change it, redraw. Also: `classFailureMessage`
+takes `unknown` rather than the reason union, so a server one version ahead produces the fallback
+message instead of `undefined`; and the backdrop is a `<button>` with an aria-label rather than a
+click-handling `<div>`, with Escape bound on the host so it closes wherever focus is.
 
 #### 4. Wiring
 
@@ -821,9 +838,9 @@ Rollback is a redeploy of the previous artifact, with no schema to reverse.
 
 #### Automated
 
-- [x] 3.1 Front-end tests pass: `npm test` from `src/app/`
-- [x] 3.2 Lint and format pass: `npm run quality:check` from `src/app/`
-- [x] 3.3 Production build succeeds: `npm run build` from `src/app/`
+- [x] 3.1 Front-end tests pass: `npm test` from `src/app/` — 302cfe0
+- [x] 3.2 Lint and format pass: `npm run quality:check` from `src/app/` — 302cfe0
+- [x] 3.3 Production build succeeds: `npm run build` from `src/app/` — 302cfe0
 
 #### Manual
 
@@ -836,10 +853,10 @@ Rollback is a redeploy of the previous artifact, with no schema to reverse.
 
 #### Automated
 
-- [ ] 4.1 Front-end tests pass: `npm test` from `src/app/`
-- [ ] 4.2 Lint and format pass: `npm run quality:check` from `src/app/`
-- [ ] 4.3 Production build succeeds: `npm run build` from `src/app/`
-- [ ] 4.4 Backend tests still pass: `dotnet test` from the repo root
+- [x] 4.1 Front-end tests pass: `npm test` from `src/app/`
+- [x] 4.2 Lint and format pass: `npm run quality:check` from `src/app/`
+- [x] 4.3 Production build succeeds: `npm run build` from `src/app/`
+- [x] 4.4 Backend tests still pass: `dotnet test` from the repo root
 
 #### Manual
 

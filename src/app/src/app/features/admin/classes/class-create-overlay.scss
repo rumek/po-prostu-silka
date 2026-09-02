@@ -1,0 +1,72 @@
+// Layout only — .card/.field/.button/.alert/.notice come from src/styles.scss.
+
+:host {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+}
+
+.overlay-backdrop {
+  position: absolute;
+  inset: 0;
+  // A button reset: it exists for the click target and the keyboard, not for the chrome.
+  border: 0;
+  padding: 0;
+  background: color-mix(in srgb, var(--ink) 35%, transparent);
+  cursor: pointer;
+}
+
+.overlay-panel {
+  position: relative;
+  width: 100%;
+  max-width: 26rem;
+  max-height: 100%;
+  overflow-y: auto;
+  padding: var(--space-5);
+}
+
+.overlay-title {
+  margin: 0 0 var(--space-2);
+  font-size: 1.125rem;
+}
+
+.overlay-when {
+  margin: 0 0 var(--space-4);
+  color: var(--muted);
+  &::first-letter {
+    text-transform: uppercase;
+  }
+}
+
+// Side by side where there is room; the two numbers are short and belong together.
+.overlay-numbers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+
+  .field {
+    flex: 1 1 8rem;
+  }
+}
+
+.overlay-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+.link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
