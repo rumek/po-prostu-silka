@@ -415,22 +415,22 @@ code leaves an unused role row in `AspNetRoles`, which is harmless.
 
 #### Manual
 
-- [ ] 1.4 Granting `Trainer` to an active member succeeds; the member list shows the role
-- [ ] 1.5 Granting `Trainer` to the seeded admin account succeeds — FR-003's owner-who-teaches case
-- [ ] 1.6 Blocking the admin account is still refused with `is_admin`, proving the guard survived the query change
-- [ ] 1.7 An account holding only `Trainer` is admitted or refused by `ActiveMember` exactly as before this change
-- [ ] 1.8 An already-signed-in member keeps working; the role appears after `POST /api/auth/refresh`
+- [x] 1.4 Granting `Trainer` to an active member succeeds; the member list shows the role — 831f0e2
+- [x] 1.5 Granting `Trainer` to the seeded admin account succeeds — FR-003's owner-who-teaches case — 831f0e2
+- [x] 1.6 Blocking the admin account is still refused with `is_admin`, proving the guard survived the query change — 831f0e2
+- [x] 1.7 An account holding only `Trainer` is admitted or refused by `ActiveMember` exactly as before this change — 831f0e2
+- [x] 1.8 An already-signed-in member keeps working; the role appears after `POST /api/auth/refresh` — 831f0e2
 
 ### Phase 2: Member screen
 
 #### Automated
 
-- [x] 2.1 Frontend tests pass: `npm test` from `src/app/`
-- [x] 2.2 Lint and formatting pass: `npm run quality:check` from `src/app/`
+- [x] 2.1 Frontend tests pass: `npm test` from `src/app/` — 2f0f6f2
+- [x] 2.2 Lint and formatting pass: `npm run quality:check` from `src/app/` — 2f0f6f2
 
 #### Manual
 
-- [ ] 2.3 The role badge appears on a row immediately after granting, without a manual page reload
-- [ ] 2.4 The row menu opens, closes on `Escape` and on outside click, and returns focus to its trigger
-- [ ] 2.5 The menu is usable on a phone-width viewport
-- [ ] 2.6 Block and unblock are not offered on an admin row
+- [x] 2.3 The role badge appears on a row immediately after granting, without a manual page reload — 2f0f6f2
+- [x] 2.4 The row menu opens, closes on `Escape` and on outside click, and returns focus to its trigger — 2f0f6f2
+- [x] 2.5 The menu is usable on a phone-width viewport — 2f0f6f2
+- [x] 2.6 Block and unblock are not offered on an admin row — 2f0f6f2
