@@ -27,19 +27,26 @@
   <form class="panel" [formGroup]="form" (ngSubmit)="submit()">
     <div class="field">
       <label for="classTypeId">Typ zajęć</label>
-      <select
-        id="classTypeId"
-        formControlName="classTypeId"
-        (change)="applyTypeDefaults(form.controls.classTypeId.value)"
-        [attr.aria-invalid]="form.controls.classTypeId.touched && form.controls.classTypeId.invalid"
-      >
-        <option value="" disabled>Wybierz typ…</option>
-        @for (type of classTypeOptions(); track type.id) {
-          <option [value]="type.id">
-            {{ type.name }}{{ type.isActive ? '' : ' (nieaktywny)' }}
-          </option>
-        }
-      </select>
+      <!-- The .select wrapper is what carries the custom chevron: a select generates no
+           pseudo-elements of its own, so styles.scss puts ::after here. A select without this
+           wrapper has its native arrow suppressed and nothing in its place. -->
+      <span class="select">
+        <select
+          id="classTypeId"
+          formControlName="classTypeId"
+          (change)="applyTypeDefaults(form.controls.classTypeId.value)"
+          [attr.aria-invalid]="
+            form.controls.classTypeId.touched && form.controls.classTypeId.invalid
+          "
+        >
+          <option value="" disabled>Wybierz typ…</option>
+          @for (type of classTypeOptions(); track type.id) {
+            <option [value]="type.id">
+              {{ type.name }}{{ type.isActive ? '' : ' (nieaktywny)' }}
+            </option>
+          }
+        </select>
+      </span>
 
       @if (editingId()) {
         <p class="hint">
@@ -97,18 +104,20 @@
 
     <div class="field">
       <label for="instructorUserId">Prowadzący</label>
-      <select
-        id="instructorUserId"
-        formControlName="instructorUserId"
-        [attr.aria-invalid]="
-          form.controls.instructorUserId.touched && form.controls.instructorUserId.invalid
-        "
-      >
-        <option value="" disabled>Wybierz prowadzącego…</option>
-        @for (trainer of trainers(); track trainer.id) {
-          <option [value]="trainer.id">{{ trainer.displayName }}</option>
-        }
-      </select>
+      <span class="select">
+        <select
+          id="instructorUserId"
+          formControlName="instructorUserId"
+          [attr.aria-invalid]="
+            form.controls.instructorUserId.touched && form.controls.instructorUserId.invalid
+          "
+        >
+          <option value="" disabled>Wybierz prowadzącego…</option>
+          @for (trainer of trainers(); track trainer.id) {
+            <option [value]="trainer.id">{{ trainer.displayName }}</option>
+          }
+        </select>
+      </span>
       @if (form.controls.instructorUserId.touched && form.controls.instructorUserId.invalid) {
         @if (form.controls.instructorUserId.hasError('notATrainer')) {
           <p class="field-error">

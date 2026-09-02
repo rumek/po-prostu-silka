@@ -201,6 +201,20 @@ describe('ClassForm', () => {
     expect(select('instructorUserId').value).toBe('u1');
   });
 
+  /**
+   * styles.scss suppresses the native chevron with `appearance: none` and draws the replacement as
+   * `.select::after` — a select is a replaced element and generates no pseudo-element of its own. A
+   * select added without the wrapper therefore has NO arrow at all, and nothing else would catch it.
+   */
+  it('wraps every select so the custom chevron has somewhere to render', async () => {
+    await create(null);
+
+    const selects = [...el().querySelectorAll('select')];
+
+    expect(selects.length).toBeGreaterThan(0);
+    expect(selects.every((s) => s.parentElement?.classList.contains('select'))).toBe(true);
+  });
+
   it('disables the type select when editing', async () => {
     await create('c1');
 

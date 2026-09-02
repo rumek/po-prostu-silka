@@ -218,7 +218,10 @@ a {
   font-weight: 500;
 }
 
-.field input {
+// One box for every control. A select that does not match the inputs above and below it reads as a
+// different kind of thing, and the class form stacks all three in one column.
+.field input,
+.field select {
   padding: var(--space-3);
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-sm);
@@ -229,8 +232,60 @@ a {
   font-size: 1rem;
 }
 
-.field input[aria-invalid='true'] {
+.field input[aria-invalid='true'],
+.field select[aria-invalid='true'] {
   border-color: var(--danger);
+}
+
+// -----------------------------------------------------------------------------
+// Selects, with the platform chevron replaced by our own.
+//
+// The native arrow is drawn by the OS and cannot be styled - it ignores our colour and sits at a
+// different inset on every platform, which is what makes a select look foreign next to an input.
+// appearance: none removes it; the ::after below draws the replacement.
+//
+// THE ::after LIVES ON THE WRAPPER, NOT THE SELECT. A select is a replaced element and generates no
+// pseudo-element content of its own, so the markup pairs every select with a .select wrapper. If a
+// select is ever added without one it will have NO arrow at all - see class-form.html.
+// -----------------------------------------------------------------------------
+
+.field select {
+  appearance: none;
+  width: 100%;
+  // Room for the chevron: its inset plus its own width, so a long option label cannot run underneath.
+  padding-right: calc(var(--space-3) * 2 + 0.7rem);
+}
+
+.select {
+  position: relative;
+  display: block;
+}
+
+.select::after {
+  content: '▼';
+  position: absolute;
+  top: 50%;
+  right: var(--space-3);
+  transform: translateY(-50%);
+  color: var(--muted);
+  font-size: 0.7rem;
+  // Without this the chevron swallows the click that should open the dropdown - it sits directly
+  // over the select's own hit area.
+  pointer-events: none;
+}
+
+// A disabled select still has to look like a value the admin can read, not like a broken control:
+// the class form disables the type when editing, because the type is immutable once set.
+.field select:disabled {
+  // The page ground rather than the white of an editable field: it reads as "not paper you write on"
+  // without introducing a grey that is not in the palette.
+  background: var(--ground);
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
+.select:has(select:disabled)::after {
+  opacity: 0.5;
 }
 
 .field-error {
