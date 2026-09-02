@@ -561,10 +561,10 @@ difference is unmeasurable either way.
 
 #### Automated
 
-- [x] 1.1 Solution builds warning-free
-- [x] 1.2 Migration applies against a clean database and reverses
-- [x] 1.3 All tests pass, including `ClassEndpointTests`
-- [x] 1.4 No EF Core reference in `Domain` or `Application`
+- [x] 1.1 Solution builds warning-free — 67679b7
+- [x] 1.2 Migration applies against a clean database and reverses — 67679b7
+- [x] 1.3 All tests pass, including `ClassEndpointTests` — 67679b7
+- [x] 1.4 No EF Core reference in `Domain` or `Application` — 67679b7
 
 #### Manual
 

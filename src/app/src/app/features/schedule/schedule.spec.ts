@@ -8,10 +8,14 @@ import { Schedule } from './schedule';
 function at(local: string, over: Partial<ScheduledClass> = {}): ScheduledClass {
   return {
     id: over.id ?? local,
+    classTypeId: over.classTypeId ?? 't1',
+    // name, description and instructor arrive RESOLVED from the type and the trainer's account —
+    // the occurrence carries none of the three (prd-v2 FR-007, FR-009, FR-010).
     name: over.name ?? 'Joga',
+    description: over.description ?? null,
     startsAt: new Date(local).toISOString(),
     durationMinutes: over.durationMinutes ?? 60,
-    room: over.room ?? 'Sala A',
+    instructorUserId: over.instructorUserId ?? 'u1',
     instructor: over.instructor ?? 'Ola',
     capacity: over.capacity ?? 20,
     freeSpots: over.freeSpots ?? 20,
@@ -76,15 +80,21 @@ describe('Schedule', () => {
     expect(rows()[0].textContent).toContain('23:30');
   });
 
-  it('renders name, room, instructor and free spots', async () => {
+  it('renders the resolved name, the instructor and free spots', async () => {
     await createWith([
-      at('2026-09-04T18:00', { name: 'Pilates', room: 'Sala B', instructor: 'Ewa', freeSpots: 7 }),
+      at('2026-09-04T18:00', { name: 'Pilates', instructor: 'Ewa', freeSpots: 7 }),
     ]);
 
     expect(html()).toContain('Pilates');
-    expect(html()).toContain('Sala B');
     expect(html()).toContain('Ewa');
     expect(html()).toContain('7');
+  });
+
+  /** The club has one room, so the field never carried information (prd-v2 FR-011). */
+  it('shows no room anywhere', async () => {
+    await createWith([at('2026-09-04T18:00')]);
+
+    expect(html()).not.toContain('Sala');
   });
 
   it('shows the end time derived from the duration', async () => {

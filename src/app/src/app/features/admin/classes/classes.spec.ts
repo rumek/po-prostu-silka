@@ -7,17 +7,20 @@ import { Classes } from './classes';
 
 const JOGA: ScheduledClass = {
   id: 'c1',
+  classTypeId: 't1',
+  // Resolved from the class type, not stored on the occurrence — see class.models.
   name: 'Joga',
+  description: 'Dla poczatkujacych',
   startsAt: new Date('2026-09-04T18:00').toISOString(),
   durationMinutes: 60,
-  room: 'Sala A',
+  instructorUserId: 'u1',
   instructor: 'Ola',
   capacity: 20,
   freeSpots: 20,
   status: 'Scheduled',
 };
 
-const PILATES: ScheduledClass = { ...JOGA, id: 'c2', name: 'Pilates', room: 'Sala B' };
+const PILATES: ScheduledClass = { ...JOGA, id: 'c2', classTypeId: 't2', name: 'Pilates' };
 
 describe('Classes', () => {
   let fixture: ComponentFixture<Classes>;
@@ -73,7 +76,15 @@ describe('Classes', () => {
 
     expect(rows().length).toBe(2);
     expect(html()).toContain('Joga');
-    expect(html()).toContain('Sala B');
+    expect(html()).toContain('Pilates');
+  });
+
+  /** The club has one room, so the field never carried information (prd-v2 FR-011). */
+  it('shows no room on the meta line', async () => {
+    await createWith([JOGA]);
+
+    expect(html()).toContain('Ola · 20 miejsc');
+    expect(html()).not.toContain('Sala');
   });
 
   it('renders an explicit empty state rather than a blank page', async () => {

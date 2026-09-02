@@ -7,6 +7,18 @@
     Nie udało się wczytać tych zajęć.
     <a class="link-button" routerLink="/admin/classes">Wróć do listy</a>
   </p>
+} @else if (noClassTypes()) {
+  <!-- The signpost, not an unfillable form. After the schedule wipe this is the first screen an
+       admin reaches, so "why can I not do anything here" must never be a question they have to ask. -->
+  <div class="card">
+    <p class="empty">Najpierw zdefiniuj typ zajęć — zajęcia powstają z definicji.</p>
+    <a class="button" routerLink="/admin/class-types">Przejdź do typów zajęć</a>
+  </div>
+} @else if (noTrainers()) {
+  <div class="card">
+    <p class="empty">Nikt nie ma jeszcze roli prowadzącego. Nadaj ją zatwierdzonemu koncie.</p>
+    <a class="button" routerLink="/admin/members">Przejdź do listy członków</a>
+  </div>
 } @else {
   @if (error()) {
     <p class="alert" role="alert">{{ error() }}</p>
@@ -14,15 +26,34 @@
 
   <form class="panel" [formGroup]="form" (ngSubmit)="submit()">
     <div class="field">
-      <label for="name">Nazwa</label>
-      <input
-        id="name"
-        type="text"
-        formControlName="name"
-        [attr.aria-invalid]="form.controls.name.touched && form.controls.name.invalid"
-      />
-      @if (form.controls.name.touched && form.controls.name.invalid) {
-        <p class="field-error">Podaj nazwę zajęć.</p>
+      <label for="classTypeId">Typ zajęć</label>
+      <select
+        id="classTypeId"
+        formControlName="classTypeId"
+        (change)="applyTypeDefaults(form.controls.classTypeId.value)"
+        [attr.aria-invalid]="form.controls.classTypeId.touched && form.controls.classTypeId.invalid"
+      >
+        <option value="" disabled>Wybierz typ…</option>
+        @for (type of classTypeOptions(); track type.id) {
+          <option [value]="type.id">
+            {{ type.name }}{{ type.isActive ? '' : ' (nieaktywny)' }}
+          </option>
+        }
+      </select>
+
+      @if (editingId()) {
+        <p class="hint">
+          Typu nie można zmienić po utworzeniu zajęć. Aby użyć innego, usuń te zajęcia i utwórz
+          nowe.
+        </p>
+      } @else {
+        <p class="hint">
+          Czas trwania i liczba miejsc uzupełnią się z definicji — możesz je zmienić.
+        </p>
+      }
+
+      @if (form.controls.classTypeId.touched && form.controls.classTypeId.invalid) {
+        <p class="field-error">Wybierz typ zajęć.</p>
       }
     </div>
 
@@ -35,7 +66,11 @@
         [attr.aria-invalid]="form.controls.startsAt.touched && form.controls.startsAt.invalid"
       />
       @if (form.controls.startsAt.touched && form.controls.startsAt.invalid) {
-        @if (form.controls.startsAt.hasError('startsInPast')) {
+        @if (form.controls.startsAt.hasError('timeConflict')) {
+          <p class="field-error">
+            O tej porze odbywają się już inne zajęcia. Wybierz inną godzinę.
+          </p>
+        } @else if (form.controls.startsAt.hasError('startsInPast')) {
           <p class="field-error">Nowe zajęcia nie mogą zaczynać się w przeszłości.</p>
         } @else {
           <p class="field-error">Podaj datę i godzinę rozpoczęcia.</p>
@@ -49,43 +84,39 @@
         id="durationMinutes"
         type="number"
         min="1"
+        max="480"
         formControlName="durationMinutes"
         [attr.aria-invalid]="
           form.controls.durationMinutes.touched && form.controls.durationMinutes.invalid
         "
       />
       @if (form.controls.durationMinutes.touched && form.controls.durationMinutes.invalid) {
-        <p class="field-error">Czas trwania musi wynosić co najmniej 1 minutę.</p>
+        <p class="field-error">Czas trwania musi mieścić się w zakresie 1–480 minut.</p>
       }
     </div>
 
     <div class="field">
-      <label for="room">Sala</label>
-      <input
-        id="room"
-        type="text"
-        formControlName="room"
-        [attr.aria-invalid]="form.controls.room.touched && form.controls.room.invalid"
-      />
-      @if (form.controls.room.touched && form.controls.room.invalid) {
-        @if (form.controls.room.hasError('roomConflict')) {
-          <p class="field-error">Ta sala jest już zajęta w tym czasie. Zmień salę albo godzinę.</p>
-        } @else {
-          <p class="field-error">Podaj salę.</p>
+      <label for="instructorUserId">Prowadzący</label>
+      <select
+        id="instructorUserId"
+        formControlName="instructorUserId"
+        [attr.aria-invalid]="
+          form.controls.instructorUserId.touched && form.controls.instructorUserId.invalid
+        "
+      >
+        <option value="" disabled>Wybierz prowadzącego…</option>
+        @for (trainer of trainers(); track trainer.id) {
+          <option [value]="trainer.id">{{ trainer.displayName }}</option>
         }
-      }
-    </div>
-
-    <div class="field">
-      <label for="instructor">Prowadzący</label>
-      <input
-        id="instructor"
-        type="text"
-        formControlName="instructor"
-        [attr.aria-invalid]="form.controls.instructor.touched && form.controls.instructor.invalid"
-      />
-      @if (form.controls.instructor.touched && form.controls.instructor.invalid) {
-        <p class="field-error">Podaj prowadzącego.</p>
+      </select>
+      @if (form.controls.instructorUserId.touched && form.controls.instructorUserId.invalid) {
+        @if (form.controls.instructorUserId.hasError('notATrainer')) {
+          <p class="field-error">
+            Ta osoba nie jest już aktywnym prowadzącym. Odśwież stronę i wybierz kogoś innego.
+          </p>
+        } @else {
+          <p class="field-error">Wybierz prowadzącego.</p>
+        }
       }
     </div>
 
@@ -95,11 +126,12 @@
         id="capacity"
         type="number"
         min="1"
+        max="200"
         formControlName="capacity"
         [attr.aria-invalid]="form.controls.capacity.touched && form.controls.capacity.invalid"
       />
       @if (form.controls.capacity.touched && form.controls.capacity.invalid) {
-        <p class="field-error">Liczba miejsc musi wynosić co najmniej 1.</p>
+        <p class="field-error">Liczba miejsc musi mieścić się w zakresie 1–200.</p>
       }
     </div>
 

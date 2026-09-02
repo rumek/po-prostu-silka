@@ -1,7 +1,7 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import { Member, MemberStatus, PendingMember } from './member-admin.models';
+import { Member, MemberStatus, PendingMember, TrainerSummary } from './member-admin.models';
 
 /**
  * The admin's member surface: the pending queue and approve (S-01), plus the full member list and
@@ -36,6 +36,18 @@ export class MemberAdminService {
     const options = status ? { params: new HttpParams().set('status', status) } : {};
 
     return firstValueFrom(this.http.get<Member[]>('/api/admin/members', options));
+  }
+
+  /**
+   * The people a class occurrence may name as its instructor (prd-v2 FR-009): ACTIVE accounts
+   * holding the Trainer role, by display name.
+   *
+   * A separate endpoint rather than filtering `getMembers()` client-side: the filter belongs on the
+   * server, where it already backs the validation that refuses a non-trainer on write, and a
+   * dropdown has no business loading every account's email address to build itself.
+   */
+  getTrainers(): Promise<TrainerSummary[]> {
+    return firstValueFrom(this.http.get<TrainerSummary[]>('/api/admin/trainers'));
   }
 
   async approve(id: string): Promise<void> {

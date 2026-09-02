@@ -13,9 +13,9 @@ import { ScheduledClass } from '../../../core/scheduling/class.models';
  * row does not disable the list, and a generation guard so a refetch that resolves late cannot
  * overwrite fresher rows.
  *
- * Duplicate reports PARTIAL SUCCESS. The API skips weeks whose room is already taken and returns
- * which ones; showing a bare "done" would leave the admin believing in classes that were never
- * created. Delete confirms inline rather than through confirm(), which blocks the event loop and has
+ * Duplicate reports PARTIAL SUCCESS. The API skips weeks whose TIME is already taken - the rule is
+ * club-wide since S-06, not per-room - and returns which ones; showing a bare "done" would leave the
+ * admin believing in classes that were never created. Delete confirms inline rather than through confirm(), which blocks the event loop and has
  * no precedent in this codebase.
  */
 @Component({
@@ -99,7 +99,7 @@ export class Classes implements OnInit {
         result.skippedWeeks.length === 0
           ? `Utworzono ${result.created} ${this.copiesWord(result.created)}.`
           : `Utworzono ${result.created} ${this.copiesWord(result.created)}. ` +
-              `Pominięto tydzień ${result.skippedWeeks.join(', ')} — sala jest już zajęta.`,
+              `Pominięto tydzień ${result.skippedWeeks.join(', ')} — o tej porze są już inne zajęcia.`,
       );
 
       await this.load();

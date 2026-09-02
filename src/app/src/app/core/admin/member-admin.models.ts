@@ -47,6 +47,19 @@ export interface Member {
 }
 
 /**
+ * Mirrors TrainerSummary (src/Application/Members/TrainerEndpoints.cs) — one option in the class
+ * form's instructor select (prd-v2 FR-009).
+ *
+ * TWO FIELDS, DELIBERATELY: the value the select submits and the label it shows. `Member` describes
+ * an account far more fully, and reusing it here would ship every trainer's email address and status
+ * into a dropdown that needs neither.
+ */
+export interface TrainerSummary {
+  id: string;
+  displayName: string;
+}
+
+/**
  * Mirrors TrainerRoleFailure. `not_active` — the target is Pending or Blocked, and the role is
  * granted to approved accounts only; `failed` — a genuine concurrency failure, typically a block
  * that landed at the same moment. In that case the change did NOT happen and the account may now be

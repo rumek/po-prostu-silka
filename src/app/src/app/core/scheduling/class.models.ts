@@ -4,19 +4,44 @@
  */
 export interface ScheduledClass {
   id: string;
+
+  /** Which class type this occurrence instantiates. Immutable once created — see ClassRequest. */
+  classTypeId: string;
+
+  /**
+   * RESOLVED FROM THE CLASS TYPE, not stored on the occurrence (prd-v2 FR-010). The occurrence has
+   * no name of its own, which is what makes correcting a typo on the type correct it on every week
+   * at once, past occurrences included.
+   */
   name: string;
+
+  /** The type's description, same reference semantics as `name`. Absent as `null`. */
+  description: string | null;
 
   /** ISO 8601 UTC from the API. Kept as a string; the screen converts and formats it. */
   startsAt: string;
 
+  /**
+   * A COPY of the type's default, taken at creation and overridable for this occurrence alone. The
+   * opposite of `name`: never re-read from the type. Same for `capacity` — see prd-v2 FR-007.
+   */
   durationMinutes: number;
-  room: string;
+
+  /** The instructor's account id. What the form's trainer select submits. */
+  instructorUserId: string;
+
+  /**
+   * RESOLVED — the instructor's display name, not a typed string. Free text until S-06, when the
+   * Trainer role gave the schedule a real person to point at.
+   */
   instructor: string;
+
+  /** A COPY, like `durationMinutes`. The value the no-overbooking guarantee is checked against. */
   capacity: number;
 
   /**
    * Read this, never assume it equals capacity. It does today only because Booking does not exist
-   * until S-04 — that slice changes one projection expression on the server and this field starts
+   * until S-08 — that slice changes one projection expression on the server and this field starts
    * differing without any change here.
    */
   freeSpots: number;
@@ -25,16 +50,27 @@ export interface ScheduledClass {
   status: 'Scheduled' | 'Cancelled';
 }
 
-/** Mirrors ClassRequest. Create and edit take the same shape; an edit replaces every field. */
+/**
+ * Mirrors ClassRequest. Create and edit take the same shape.
+ *
+ * A FORM OF SELECTIONS, NOT OF TEXT (prd-v2 US-01): there is no name and no room to type. What
+ * remains typed are the two numbers, and they arrive prefilled from the type's defaults.
+ */
 export interface ClassRequest {
-  name: string;
+  /**
+   * Required on an edit too, but only so the server can refuse a CHANGE to it: the type is immutable
+   * once an occurrence exists (`class_type_immutable`). Send back what the class already has.
+   */
+  classTypeId: string;
 
   /** ISO 8601 UTC. The form works in local time and converts on submit — see class-form. */
   startsAt: string;
 
   durationMinutes: number;
-  room: string;
-  instructor: string;
+
+  /** An account id from `/api/admin/trainers`. Unlike the type, this IS editable. */
+  instructorUserId: string;
+
   capacity: number;
 }
 
@@ -46,15 +82,19 @@ export interface ClassRequest {
 export interface DuplicateResult {
   created: number;
 
-  /** 1-based week offsets refused for a room conflict. */
+  /**
+   * 1-based week offsets refused because another class already occupies that time. The REASON
+   * changed in S-06 — it used to be a room collision — but the shape did not.
+   */
   skippedWeeks: number[];
 }
 
 /**
  * Mirrors ClassFailure. Every reason the API can refuse a class write.
  *
- * `room_conflict` is the only 409 — it is a clash with existing state rather than bad input, and
- * the form maps it onto the room control rather than showing a banner.
+ * `time_conflict` is the only 409 — it is a clash with existing state rather than bad input, and the
+ * form maps it onto the start-time field rather than showing a banner. It replaced `room_conflict`
+ * when the overlap rule widened from one room to the whole club (prd-v2 FR-012).
  */
 export interface ClassFailure {
   reason:
@@ -62,6 +102,11 @@ export interface ClassFailure {
     | 'invalid_capacity'
     | 'invalid_duration'
     | 'starts_in_past'
-    | 'room_conflict'
-    | 'invalid_weeks';
+    | 'invalid_weeks'
+    | 'time_conflict'
+    | 'unknown_class_type'
+    | 'inactive_class_type'
+    | 'class_type_immutable'
+    | 'unknown_instructor'
+    | 'instructor_not_trainer';
 }
