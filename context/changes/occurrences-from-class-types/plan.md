@@ -579,7 +579,7 @@ difference is unmeasurable either way.
 - [x] 1.2 Migration applies against a clean database and reverses — 67679b7
 - [x] 1.3 All tests pass, including `ClassEndpointTests` — 67679b7
 - [x] 1.4 No EF Core reference in `Domain` or `Application` — 67679b7
-- [x] 1.9 The dead-column drop applies and reverses
+- [x] 1.9 The dead-column drop applies and reverses — ca9a5b0
 
 #### Manual
 
