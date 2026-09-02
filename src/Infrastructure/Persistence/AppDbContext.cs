@@ -24,6 +24,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
 
     public DbSet<Class> Classes => Set<Class>();
 
+    public DbSet<ClassType> ClassTypes => Set<ClassType>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         // Must come FIRST: this is what builds the Identity model. Inverting the order with

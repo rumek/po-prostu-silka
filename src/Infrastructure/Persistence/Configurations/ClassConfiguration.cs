@@ -42,5 +42,15 @@ public class ClassConfiguration : IEntityTypeConfiguration<Class>
         // the duration arithmetic is applied.
         builder.HasIndex(x => new { x.Room, x.StartsAt })
             .HasDatabaseName("IX_Classes_Room_StartsAt");
+
+        // The definition this occurrence instantiates. Nullable through S-05 - see Class.ClassTypeId.
+        //
+        // RESTRICT, never Cascade: FR-006 rules out hard-deleting a type at all, and a cascade that
+        // could take booked classes down with it is the worst failure available here. Configured
+        // without a navigation property on either side, deliberately - see Class.ClassTypeId.
+        builder.HasOne<ClassType>()
+            .WithMany()
+            .HasForeignKey(x => x.ClassTypeId)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }

@@ -53,4 +53,22 @@ public class Class
 
     /// <summary>When the admin created it. Not shown to members; useful for ordering and diagnostics.</summary>
     public DateTimeOffset CreatedAt { get; set; }
+
+    /// <summary>
+    /// Which <see cref="ClassType"/> this occurrence instantiates (prd-v2 FR-008).
+    ///
+    /// <para>
+    /// NULLABLE ON PURPOSE, AND ONLY FOR NOW. S-05 lands the column so the definition layer has
+    /// somewhere to attach, but nothing writes it yet: the create form cannot supply a type until
+    /// S-06 adds the selector, and a NOT NULL column would break every existing class write today.
+    /// S-06 populates it and tightens it to required in its own migration.
+    /// </para>
+    ///
+    /// <para>
+    /// No navigation property, deliberately. Nothing traverses this in S-05, and offering one would
+    /// invite S-06 to read <see cref="ClassType.DefaultCapacity"/> through it - the exact inversion
+    /// of FR-007 that the no-overbooking guarantee cannot survive. Capacity is COPIED.
+    /// </para>
+    /// </summary>
+    public Guid? ClassTypeId { get; set; }
 }

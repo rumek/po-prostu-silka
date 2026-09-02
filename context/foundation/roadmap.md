@@ -50,7 +50,7 @@ Mid-milestone, a second decision landed: a class stops being retyped text and be
 | S-02 | member-management                | admin searches/filters members, blocks and unblocks                      | S-01                   | v1 FR-004, v1 FR-005                                            | done        |
 | S-03 | class-schedule-and-admin         | browse day-by-day schedule; admin creates/edits/duplicates classes       | S-01                   | v1 FR-007, v1 FR-011, v1 FR-012                                 | done        |
 | S-04 | trainer-role-and-assignment      | admin grants and revokes the Trainer role on an approved account         | S-02                   | v2 FR-001, v2 FR-002, v2 FR-003                                 | done        |
-| S-05 | class-type-definitions           | admin defines, edits and deactivates a class type                        | S-03                   | v2 FR-004, v2 FR-005, v2 FR-006, v2 FR-007                      | proposed    |
+| S-05 | class-type-definitions           | admin defines, edits and deactivates a class type                        | S-03                   | v2 FR-004, v2 FR-005, v2 FR-006, v2 FR-007                      | in-progress |
 | S-06 | occurrences-from-class-types     | admin schedules a class by picking a type and a trainer; no room field   | S-03, S-04, S-05       | v2 US-01, v2 FR-008–FR-013, v1 FR-011, v1 FR-012                | proposed    |
 | S-07 | schedule-calendar-view           | browse the schedule as a week strip on a phone, a full week on a tablet  | S-06                   | v2 US-02, v2 FR-015, v2 FR-016, v2 FR-017, v2 FR-018, v1 FR-007 | proposed    |
 | S-08 | class-booking-and-cancel         | book a spot, cancel it, see upcoming classes; admin sees bookings        | S-07                   | v1 US-01, v1 FR-008, v1 FR-009, v1 FR-010, v1 FR-014, v2 FR-014 | blocked     |
@@ -188,7 +188,7 @@ What's already in place in the codebase as of `2026-09-02` (auto-researched + us
 - **Blockers:** —
 - **Unknowns:** —
 - **Risk:** the asymmetric binding is decided here and everything downstream inherits it — name and description resolve by reference, duration and capacity are copied at creation. Getting that backwards would let a type edit change the capacity of a class that already has bookings, which is exactly what the no-overbooking guarantee cannot survive. Deactivation rather than deletion keeps occurrences from being orphaned.
-- **Status:** proposed
+- **Status:** in-progress
 
 ### S-06: Admin schedules a class from a definition
 
