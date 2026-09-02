@@ -61,9 +61,12 @@ public record UnblockFailure(string Reason);
 /// FR-001 grants the role to an approved account only; letting it through would put an unvetted
 /// account into the instructor selection S-06 builds on top of this.
 ///
-/// There is no <c>conflict</c> reason here, unlike block and unblock: this handler does not do the
-/// read-then-write status transition those do, so there is no race of ours to lose. See
-/// <see cref="MemberAdminEndpoints"/>'s note on why role changes go through UserManager.
+/// <c>failed</c> — Identity refused the write. This IS a real concurrency failure, despite the role
+/// change looking like a simple insert: AddToRoleAsync goes through UpdateUserAsync, which is a
+/// read-then-write against the ConcurrencyStamp token, so a BlockAsync landing at the same moment
+/// (it rotates that stamp) makes the role write lose. The account is then Blocked and holds no
+/// Trainer role — NOT the outcome the caller asked for. What makes that safe is the SPA's generic
+/// 409 branch, which refetches rather than patching the row from a guess.
 /// </summary>
 public record TrainerRoleFailure(string Reason);
 
@@ -118,8 +121,11 @@ public static class MemberAdminEndpoints
         Results.Ok(await query.GetPendingAsync(cancellationToken));
 
     /// <summary>
-    /// Every member, or one status of them (FR-005). Admins are not members and never appear here —
-    /// the exclusion is in the query, and the block endpoint refuses them again on its own side.
+    /// Every account, or one status of them (FR-005). Admins ARE included since S-04 — prd-v2
+    /// FR-003 needs an owner who teaches to be grantable the Trainer role, and this list is the
+    /// surface that grant lives on. Nothing here is a security boundary: the only thing stopping the
+    /// club from blocking its own admin is <see cref="BlockAsync"/>'s is_admin check. See the note
+    /// on MemberQuery before assuming otherwise.
     ///
     /// <paramref name="status"/> binds as a nullable enum, so an unparseable value is a 400 from the
     /// framework's binding rather than a silent fall-through to "no filter". That distinction
@@ -230,10 +236,12 @@ public static class MemberAdminEndpoints
             return Results.NotFound();
         }
 
-        // The API half of the admin guard. MemberQuery already excludes admins from the list, so the
-        // button never renders - but the list is not a security boundary, and a hand-made request
-        // must not be able to block the only account that can administer the club. Checked by ROLE,
-        // so it still holds if a second admin is ever seeded.
+        // THE ONLY THING stopping the club from locking itself out of its own app. Do not remove or
+        // weaken it. This used to be the second of two layers - MemberQuery also excluded admins
+        // structurally - but S-04 lifted that exclusion so the Trainer role could be granted to an
+        // owner who teaches (prd-v2 FR-003). The screen hides block on an admin row, but a screen is
+        // not a boundary and a hand-made request must still be refused here. Checked by ROLE, so it
+        // holds if a second admin is ever seeded.
         if (await userManager.IsInRoleAsync(user, ApplicationRoles.Admin))
         {
             return Results.Json(new BlockFailure("is_admin"), statusCode: 409);
@@ -356,9 +364,15 @@ public static class MemberAdminEndpoints
 
         var result = await userManager.AddToRoleAsync(user, ApplicationRoles.Trainer);
 
-        // The role is seeded by AdminSeeder on every start, so the only realistic failure here is a
-        // concurrent grant that won the race — which leaves the account holding the role, i.e. the
-        // outcome the caller asked for. Report it rather than guess.
+        // A failed result here is a genuine Identity concurrency failure - typically a BlockAsync
+        // that rotated the concurrency stamp underneath us - so the caller's view is stale and the
+        // SPA's 409 branch refetches. Do NOT report success: the account may now be Blocked without
+        // the role.
+        //
+        // Note this does not cover a MISSING role row: UserStore throws InvalidOperationException
+        // there rather than returning a failed result, so that surfaces as a 500. AdminSeeder
+        // creates the role on every start, but Program.cs deliberately swallows seeder failures, so
+        // a started-but-unseeded app is the one state where that happens.
         return result.Succeeded ? Results.Ok() : Results.Json(new TrainerRoleFailure("failed"), statusCode: 409);
     }
 

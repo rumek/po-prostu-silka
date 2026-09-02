@@ -348,6 +348,30 @@ public class MemberAdminEndpointTests(IntegrationTestFixture fixture)
         Assert.False(await HoldsTrainerAsync(id));
     }
 
+    /// <summary>
+    /// The revoke side of the status guard — Phase 1's adaptation #3, and the one direction that is
+    /// not an obvious mirror of the other. A member who was granted the role and later blocked KEEPS
+    /// it: revoking is refused, and S-06 filters the instructor selection by status instead.
+    /// </summary>
+    [Fact]
+    public async Task Revoking_trainer_from_a_non_active_account_is_409()
+    {
+        var (id, _) = await CreateMemberAsync(AccountStatus.Active);
+        var admin = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveAdminEmail);
+        await admin.PostAsync($"/api/admin/members/{id}/roles/trainer", content: null);
+        await admin.PostAsync($"/api/admin/members/{id}/block", content: null);
+
+        var response = await admin.DeleteAsync($"/api/admin/members/{id}/roles/trainer");
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal(
+            "not_active",
+            (await response.Content.ReadFromJsonAsync<TrainerRoleFailureBody>())!.Reason);
+
+        // The role survives the refusal — that is the documented consequence, not a side effect.
+        Assert.True(await HoldsTrainerAsync(id));
+    }
+
     [Fact]
     public async Task Granting_trainer_to_an_unknown_id_is_404()
     {

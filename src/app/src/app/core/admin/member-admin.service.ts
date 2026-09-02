@@ -23,8 +23,10 @@ export class MemberAdminService {
   }
 
   /**
-   * The full member list, optionally narrowed to one status (FR-005). Admins are excluded by the
-   * API, not here.
+   * The full member list, optionally narrowed to one status (FR-005). Admins are INCLUDED since
+   * S-04 — the Trainer role is granted from this list, and an owner who teaches has to be reachable
+   * there. The screen decides which actions a row offers; the API refuses a block on an admin
+   * regardless.
    *
    * When no status is given the parameter is OMITTED rather than sent empty: the endpoint binds it
    * as a nullable enum and refuses an unparseable value with a 400, so `?status=` would be a broken

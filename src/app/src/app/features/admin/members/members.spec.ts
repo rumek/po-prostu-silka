@@ -121,7 +121,7 @@ describe('Members', () => {
     expect(html()).toContain('Zablokowany');
   });
 
-  // The admin exclusion lives in the API; the screen must not paper over an empty result.
+  // An empty list and a failed load must not look the same to the admin.
   it('renders an explicit empty state rather than a blank page', async () => {
     await createWith([]);
 

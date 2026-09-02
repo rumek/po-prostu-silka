@@ -2,6 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { CurrentUser, LoginRequest, RegisterRequest } from './auth.models';
+import { ROLES } from './roles';
 
 /**
  * Owns session state for the SPA, so guards and screens read one source instead of each calling
@@ -25,7 +26,7 @@ export class AuthService {
   /** True only for an approved account. A Pending member is authenticated but not active. */
   readonly isActive = computed(() => this.currentUser()?.status === 'Active');
 
-  readonly isAdmin = computed(() => this.currentUser()?.roles.includes('Admin') ?? false);
+  readonly isAdmin = computed(() => this.currentUser()?.roles.includes(ROLES.admin) ?? false);
 
   /**
    * Has loadCurrentUser() finished at least once? The guard waits on this so a page reload with a

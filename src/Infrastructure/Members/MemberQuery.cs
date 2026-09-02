@@ -36,10 +36,15 @@ public class MemberQuery(AppDbContext db) : IMemberQuery
             members = members.Where(u => u.Status == status);
         }
 
-        // Roles come back as a correlated projection rather than a join onto the outer query: a join
-        // would multiply the user row once per role and force a regroup in memory. Name, not
-        // NormalizedName — this is what crosses the wire to the screen, and Identity stores the
-        // display form in Name. (Comparisons still use NormalizedName; see BlockAsync's
+        // Roles come back as a correlated collection projection. What this buys is ONE round-trip:
+        // under EF's default SingleQuery behaviour the whole thing is a single statement (nothing in
+        // this repo sets UseQuerySplittingBehavior). It does NOT avoid a join or a client-side
+        // regroup - EF emits a LEFT JOIN and regroups in memory either way, which is fine at
+        // one-club scale. If splitting is ever enabled globally this becomes two queries, still not
+        // N+1; check the logged SQL if that day comes.
+        //
+        // Name, not NormalizedName — this is what crosses the wire to the screen, and Identity
+        // stores the display form in Name. (Comparisons still use NormalizedName; see BlockAsync's
         // IsInRoleAsync, which normalises its argument.)
         var rows = await members
             .OrderBy(u => u.DisplayName)

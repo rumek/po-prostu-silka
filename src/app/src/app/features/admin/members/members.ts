@@ -3,6 +3,7 @@ import { Component, HostListener, OnInit, computed, inject, signal } from '@angu
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MemberAdminService } from '../../../core/admin/member-admin.service';
+import { ROLES } from '../../../core/auth/roles';
 import {
   BlockFailure,
   Member,
@@ -13,15 +14,6 @@ import {
 
 /** The filter positions, including "everyone". `null` means no status parameter is sent. */
 type StatusFilter = MemberStatus | null;
-
-/**
- * Role names as the API stores them, mirroring ApplicationRoles on the server. Literals rather than
- * a shared enum because the wire format is a plain string and a typo here would silently render no
- * badge rather than fail.
- */
-const MEMBER_ROLE = 'User';
-const ADMIN_ROLE = 'Admin';
-const TRAINER_ROLE = 'Trainer';
 
 /** Stable DOM id for a row's menu trigger, so Escape can return focus to it. */
 const triggerId = (memberId: string): string => `member-menu-${memberId}`;
@@ -178,11 +170,11 @@ export class Members implements OnInit {
   }
 
   protected isAdmin(member: Member): boolean {
-    return this.hasRole(member, ADMIN_ROLE);
+    return this.hasRole(member, ROLES.admin);
   }
 
   protected isTrainer(member: Member): boolean {
-    return this.hasRole(member, TRAINER_ROLE);
+    return this.hasRole(member, ROLES.trainer);
   }
 
   /**
@@ -190,14 +182,14 @@ export class Members implements OnInit {
    * distinguishes nothing and only crowds the row on a phone.
    */
   protected notableRoles(member: Member): string[] {
-    return member.roles.filter((role) => role !== MEMBER_ROLE);
+    return member.roles.filter((role) => role !== ROLES.member);
   }
 
   protected roleLabel(role: string): string {
     switch (role) {
-      case ADMIN_ROLE:
+      case ROLES.admin:
         return 'Administrator';
-      case TRAINER_ROLE:
+      case ROLES.trainer:
         return 'Trener';
       default:
         return role;
@@ -226,8 +218,8 @@ export class Members implements OnInit {
       (row) => ({
         ...row,
         roles: held
-          ? row.roles.filter((name) => name !== TRAINER_ROLE)
-          : [...row.roles, TRAINER_ROLE],
+          ? row.roles.filter((name) => name !== ROLES.trainer)
+          : [...row.roles, ROLES.trainer],
       }),
       (reason) =>
         reason === 'not_active'

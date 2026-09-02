@@ -48,8 +48,10 @@ export interface Member {
 
 /**
  * Mirrors TrainerRoleFailure. `not_active` — the target is Pending or Blocked, and the role is
- * granted to approved accounts only; `failed` — Identity refused the write, which in practice means
- * a concurrent change already produced the outcome asked for.
+ * granted to approved accounts only; `failed` — a genuine concurrency failure, typically a block
+ * that landed at the same moment. In that case the change did NOT happen and the account may now be
+ * in a different state entirely, which is why the screen refetches on an unrecognised 409 rather
+ * than patching the row.
  */
 export interface TrainerRoleFailure {
   reason: 'not_active' | 'failed';
