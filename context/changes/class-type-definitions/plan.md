@@ -589,11 +589,11 @@ filter would move server-side, but nothing in this product suggests it will.
 
 #### Manual
 
-- [ ] 1.5 `GET /health` answers after the migration, confirming the connection still opens
-- [ ] 1.6 `ClassTypes` exists with the filtered unique index present on `(Name)` where `IsActive = 1`
-- [ ] 1.7 `Classes` is empty and `ClassTypeId` is present and nullable
-- [ ] 1.8 Creating a class through the existing `/admin/classes/new` form still works unchanged
-- [ ] 1.9 Identity tables, member accounts, roles and statuses are untouched
+- [x] 1.5 `GET /health` answers after the migration, confirming the connection still opens — db80aee
+- [x] 1.6 `ClassTypes` exists with the filtered unique index present on `(Name)` where `IsActive = 1` — db80aee
+- [x] 1.7 `Classes` is empty and `ClassTypeId` is present and nullable — db80aee
+- [x] 1.8 Creating a class through the existing `/admin/classes/new` form still works unchanged — db80aee
+- [x] 1.9 Identity tables, member accounts, roles and statuses are untouched — db80aee
 
 ### Phase 2: The admin API
 
@@ -605,30 +605,30 @@ filter would move server-side, but nothing in this product suggests it will.
 
 #### Manual
 
-- [ ] 2.4 Creating a class type returns `200`; the description round-trips and a blank one comes back `null`
-- [ ] 2.5 A second active type with the same name is refused `409 name_taken`
-- [ ] 2.6 Deactivating the first type frees its name for a new type
-- [ ] 2.7 Reactivating the first type while the new one holds its name is refused `409 name_taken`
-- [ ] 2.8 Editing a type keeping its own name succeeds (the `excludingId` path)
-- [ ] 2.9 Out-of-range duration, capacity, blank name and over-long description are each refused `400`
-- [ ] 2.10 Deactivate then activate round-trips, and a repeated deactivate is not an error
-- [ ] 2.11 All six routes answer `401`/`403` for an unauthenticated caller and a non-admin member
+- [x] 2.4 Creating a class type returns `200`; the description round-trips and a blank one comes back `null` — aece0e0
+- [x] 2.5 A second active type with the same name is refused `409 name_taken` — aece0e0
+- [x] 2.6 Deactivating the first type frees its name for a new type — aece0e0
+- [x] 2.7 Reactivating the first type while the new one holds its name is refused `409 name_taken` — aece0e0
+- [x] 2.8 Editing a type keeping its own name succeeds (the `excludingId` path) — aece0e0
+- [x] 2.9 Out-of-range duration, capacity, blank name and over-long description are each refused `400` — aece0e0
+- [x] 2.10 Deactivate then activate round-trips, and a repeated deactivate is not an error — aece0e0
+- [x] 2.11 All six routes answer `401`/`403` for an unauthenticated caller and a non-admin member — aece0e0
 
 ### Phase 3: The admin screens
 
 #### Automated
 
-- [x] 3.1 Unit tests pass: `npm test` from `src/app/`
-- [x] 3.2 Prettier and ESLint pass: `npm run quality:check` from `src/app/`
-- [x] 3.3 The production build succeeds: `npm run build` from `src/app/`
+- [x] 3.1 Unit tests pass: `npm test` from `src/app/` — 9007a55
+- [x] 3.2 Prettier and ESLint pass: `npm run quality:check` from `src/app/` — 9007a55
+- [x] 3.3 The production build succeeds: `npm run build` from `src/app/` — 9007a55
 
 #### Manual
 
-- [ ] 3.4 The full proof flow works: create, list, edit, deactivate, reveal, reactivate
-- [ ] 3.5 A duplicate active name shows the refusal on the name field, not as a banner
-- [ ] 3.6 Reactivating a type whose name has been taken shows a readable message, not a crash
-- [ ] 3.7 The description is genuinely optional and renders correctly when absent
-- [ ] 3.8 Out-of-range duration or capacity is caught client-side
-- [ ] 3.9 The screens are usable on a phone-width viewport
-- [ ] 3.10 A non-admin member navigating to `/admin/class-types` is redirected by `adminGuard`
-- [ ] 3.11 `/admin/classes` still creates, edits, duplicates and deletes classes exactly as before
+- [x] 3.4 The full proof flow works: create, list, edit, deactivate, reveal, reactivate — 9007a55
+- [x] 3.5 A duplicate active name shows the refusal on the name field, not as a banner — 9007a55
+- [x] 3.6 Reactivating a type whose name has been taken shows a readable message, not a crash — 9007a55
+- [x] 3.7 The description is genuinely optional and renders correctly when absent — 9007a55
+- [x] 3.8 Out-of-range duration or capacity is caught client-side — 9007a55
+- [x] 3.9 The screens are usable on a phone-width viewport — 9007a55
+- [x] 3.10 A non-admin member navigating to `/admin/class-types` is redirected by `adminGuard` — 9007a55
+- [x] 3.11 `/admin/classes` still creates, edits, duplicates and deletes classes exactly as before — 9007a55

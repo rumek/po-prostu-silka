@@ -1,7 +1,7 @@
 ---
 change_id: class-type-definitions
 title: Admin defines, edits and deactivates a class type
-status: implementing
+status: implemented
 created: 2026-09-02
 updated: 2026-09-02
 ---
