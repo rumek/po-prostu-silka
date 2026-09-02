@@ -173,6 +173,10 @@ builder.Services.AddScoped<IPendingMemberQuery, PendingMemberQuery>();
 // S-02's member list (FR-005). Scoped like the query above - it depends on the same DbContext.
 builder.Services.AddScoped<IMemberQuery, MemberQuery>();
 
+// S-06's instructor selection (prd-v2 FR-009). Separate from IMemberQuery on purpose: that one
+// browses accounts for the admin's management screen, this one answers "who may run a class".
+builder.Services.AddScoped<ITrainerQuery, TrainerQuery>();
+
 // S-03's schedule and class management (FR-007, FR-011, FR-012). The store must share the request's
 // DbContext with IUnitOfWork, or a duplicate batch would not commit as one transaction.
 builder.Services.AddScoped<IClassScheduleQuery, ClassScheduleQuery>();
@@ -231,6 +235,7 @@ app.MapHealthChecks("/health");
 app.MapAuthEndpoints();
 app.MapPushEndpoints();
 app.MapMemberAdminEndpoints();
+app.MapTrainerEndpoints();
 app.MapClassEndpoints();
 app.MapClassTypeEndpoints();
 
