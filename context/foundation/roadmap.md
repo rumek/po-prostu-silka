@@ -49,7 +49,7 @@ Mid-milestone, a second decision landed: a class stops being retyped text and be
 | S-01 | registration-and-approval        | register, wait at approval screen; admin approves                        | F-01, F-02             | v1 FR-001, v1 FR-002, v1 FR-003                                 | done        |
 | S-02 | member-management                | admin searches/filters members, blocks and unblocks                      | S-01                   | v1 FR-004, v1 FR-005                                            | done        |
 | S-03 | class-schedule-and-admin         | browse day-by-day schedule; admin creates/edits/duplicates classes       | S-01                   | v1 FR-007, v1 FR-011, v1 FR-012                                 | done        |
-| S-04 | trainer-role-and-assignment      | admin grants and revokes the Trainer role on an approved account         | S-02                   | v2 FR-001, v2 FR-002, v2 FR-003                                 | ready       |
+| S-04 | trainer-role-and-assignment      | admin grants and revokes the Trainer role on an approved account         | S-02                   | v2 FR-001, v2 FR-002, v2 FR-003                                 | in-progress |
 | S-05 | class-type-definitions           | admin defines, edits and deactivates a class type                        | S-03                   | v2 FR-004, v2 FR-005, v2 FR-006, v2 FR-007                      | proposed    |
 | S-06 | occurrences-from-class-types     | admin schedules a class by picking a type and a trainer; no room field   | S-03, S-04, S-05       | v2 US-01, v2 FR-008–FR-013, v1 FR-011, v1 FR-012                | proposed    |
 | S-07 | schedule-calendar-view           | browse the schedule as a week strip on a phone, a full week on a tablet  | S-06                   | v2 US-02, v2 FR-015, v2 FR-016, v2 FR-017, v2 FR-018, v1 FR-007 | proposed    |
@@ -176,7 +176,7 @@ What's already in place in the codebase as of `2026-09-02` (auto-researched + us
 - **Blockers:** —
 - **Unknowns:** —
 - **Risk:** small and low-risk — an extra action on a list that already exists. Its value is only realised by S-06, which consumes the role to populate the instructor selection; shipped alone it is a label nothing reads. Kept separate anyway so S-06 stays tractable, and because it is the one piece of `prd-v2` that touches identity rather than scheduling.
-- **Status:** ready
+- **Status:** in-progress
 
 ### S-05: Admin defines a class type
 
@@ -300,7 +300,7 @@ What's already in place in the codebase as of `2026-09-02` (auto-researched + us
 | F-03       | notification-delivery-foundation | Build email + push delivery with outbox/retry                | no                    | Done — archived 2026-08-31                          |
 | S-01       | registration-and-approval        | Member registration with admin approval gate                 | no                    | Done — archived 2026-09-01                          |
 | S-02       | member-management                | Member list, filter, block/unblock                           | no                    | Done — archived 2026-09-01                          |
-| S-03       | class-schedule-and-admin         | Class schedule browsing and admin class management           | no                    | In progress — finish and archive before S-05        |
+| S-03       | class-schedule-and-admin         | Class schedule browsing and admin class management           | no                    | Done — archived 2026-09-02                          |
 | S-04       | trainer-role-and-assignment      | Grant and revoke the Trainer role from the member list       | yes                   | Run `/10x-plan trainer-role-and-assignment`         |
 | S-05       | class-type-definitions           | Class type definitions with defaults and deactivation        | no                    | Needs S-03 closed                                   |
 | S-06       | occurrences-from-class-types     | Schedule occurrences from a class type; drop the room field  | no                    | Needs S-03, S-04, S-05                              |
