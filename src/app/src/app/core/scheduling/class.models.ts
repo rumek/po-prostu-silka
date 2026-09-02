@@ -99,6 +99,7 @@ export interface DuplicateResult {
 export interface ClassFailure {
   reason:
     | 'missing_field'
+    // NOTE: `invalid_range` is deliberately NOT here — see ScheduleReadFailure below.
     | 'invalid_capacity'
     | 'invalid_duration'
     | 'starts_in_past'
@@ -109,4 +110,21 @@ export interface ClassFailure {
     | 'class_type_immutable'
     | 'unknown_instructor'
     | 'instructor_not_trainer';
+}
+
+/**
+ * Why a schedule READ was refused. Mirrors the same `ClassFailure` record on the wire — the server
+ * reuses that shape — but is a separate type here on purpose.
+ *
+ * `invalid_range` is the only reason the two read endpoints produce, and no write path can ever
+ * return it. Folding it into ClassFailure would widen a union the class form switches over
+ * exhaustively, forcing a form-field message for a refusal the form cannot receive. Two endpoint
+ * groups, two types.
+ *
+ * Neither screen renders this today: a bad range is a client bug, not something the member can act
+ * on, so both fall back to their generic "failed to load" state. The type exists so that a screen
+ * which one day wants to distinguish the two has something to narrow on.
+ */
+export interface ScheduleReadFailure {
+  reason: 'invalid_range';
 }

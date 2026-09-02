@@ -1,6 +1,10 @@
 using System.Net;
 using System.Net.Http.Json;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using po_prostu_silka.Domain;
+using po_prostu_silka.Domain.Scheduling;
+using po_prostu_silka.Infrastructure.Persistence;
 
 namespace po_prostu_silka.Tests;
 
@@ -646,4 +650,164 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
         // FreeSpots is capacity by construction until Booking exists (S-08).
         Assert.Equal(row.Capacity, row.FreeSpots);
     }
+
+    // --- the date range (prd-v2 FR-015, FR-016) --------------------------------
+
+    /// <summary>
+    /// The no-parameter fallback is what makes the range additive rather than breaking. A regression
+    /// that silently dropped it would empty the schedule for every client that sends no window.
+    /// </summary>
+    [Fact]
+    public async Task Omitting_the_range_preserves_each_endpoints_previous_window()
+    {
+        var (admin, type, trainerId) = await ArrangeAsync();
+
+        // Inside the member fortnight. NextSlot() lives in 2030, so nothing there can collide here.
+        var soon = DateTimeOffset.UtcNow.AddDays(4);
+        var near = await PostClassAsync(admin, type.Id, soon, trainerId);
+
+        // Years out: past the member fortnight, but the admin list has no ceiling without a range.
+        var far = await PostClassAsync(admin, type.Id, NextSlot(), trainerId);
+
+        var member = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveMemberEmail);
+        var schedule = (await member.GetFromJsonAsync<List<ClassBody>>("/api/classes"))!;
+
+        Assert.Contains(schedule, c => c.Id == near.Id);
+        Assert.DoesNotContain(schedule, c => c.Id == far.Id);
+
+        var adminList = (await admin.GetFromJsonAsync<List<ClassBody>>(Endpoint))!;
+
+        Assert.Contains(adminList, c => c.Id == far.Id);
+    }
+
+    [Fact]
+    public async Task A_range_returns_only_the_classes_inside_it_on_both_endpoints()
+    {
+        var (admin, type, trainerId) = await ArrangeAsync();
+        var slot = NextSlot();
+
+        var inside = await PostClassAsync(admin, type.Id, slot, trainerId);
+        var outside = await PostClassAsync(admin, type.Id, slot.AddDays(20), trainerId);
+
+        var window = Range(slot.AddDays(-1), slot.AddDays(1));
+
+        var adminList = (await admin.GetFromJsonAsync<List<ClassBody>>(Endpoint + window))!;
+
+        Assert.Contains(adminList, c => c.Id == inside.Id);
+        Assert.DoesNotContain(adminList, c => c.Id == outside.Id);
+
+        var member = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveMemberEmail);
+        var schedule = (await member.GetFromJsonAsync<List<ClassBody>>("/api/classes" + window))!;
+
+        Assert.Contains(schedule, c => c.Id == inside.Id);
+        Assert.DoesNotContain(schedule, c => c.Id == outside.Id);
+    }
+
+    /// <summary>
+    /// The backward arrow is the reason these parameters exist (prd-v2 FR-015). Before this slice the
+    /// past was unreachable on both endpoints — the member window started at now, and so did the
+    /// admin list.
+    /// </summary>
+    [Fact]
+    public async Task A_from_in_the_past_returns_past_classes_on_both_endpoints()
+    {
+        var (admin, type, trainerId) = await ArrangeAsync();
+
+        // Created in the future because create refuses the past, then moved back — edit deliberately
+        // allows it, so this is the supported way to end up with a class that already happened.
+        var created = await PostClassAsync(admin, type.Id, NextSlot(), trainerId);
+        var past = new DateTimeOffset(2021, 3, 4, 9, 0, 0, TimeSpan.Zero);
+
+        var edit = await admin.PutAsJsonAsync(
+            Endpoint + "/" + created.Id, Request(type.Id, past, trainerId));
+        Assert.Equal(HttpStatusCode.OK, edit.StatusCode);
+
+        var window = Range(past.AddDays(-1), past.AddDays(1));
+
+        var adminList = (await admin.GetFromJsonAsync<List<ClassBody>>(Endpoint + window))!;
+        Assert.Contains(adminList, c => c.Id == created.Id);
+
+        var member = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveMemberEmail);
+        var schedule = (await member.GetFromJsonAsync<List<ClassBody>>("/api/classes" + window))!;
+        Assert.Contains(schedule, c => c.Id == created.Id);
+    }
+
+    /// <summary>
+    /// An empty result would render as "no classes this week" and hide the fault, so a malformed
+    /// window is refused rather than answered.
+    /// </summary>
+    [Theory]
+    [InlineData("/api/classes")]
+    [InlineData(Endpoint)]
+    public async Task A_malformed_range_is_refused(string endpoint)
+    {
+        var client = endpoint == Endpoint
+            ? await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveAdminEmail)
+            : await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveMemberEmail);
+
+        var start = new DateTimeOffset(2030, 1, 1, 0, 0, 0, TimeSpan.Zero);
+
+        // Inverted.
+        await AssertInvalidRangeAsync(client, endpoint + Range(start, start.AddDays(-1)));
+
+        // Empty — [from, to) with to == from can contain nothing.
+        await AssertInvalidRangeAsync(client, endpoint + Range(start, start));
+
+        // Wider than MaxRangeDays (62).
+        await AssertInvalidRangeAsync(client, endpoint + Range(start, start.AddDays(63)));
+
+        // Half-supplied: pairing one bound with a default would answer a window nobody asked for.
+        await AssertInvalidRangeAsync(client, endpoint + "?from=" + Iso(start));
+        await AssertInvalidRangeAsync(client, endpoint + "?to=" + Iso(start));
+    }
+
+    /// <summary>
+    /// The two paths filter status differently and must keep doing so once a window is supplied: the
+    /// member never sees a cancelled class, the admin always does.
+    ///
+    /// <para>
+    /// The cancelled state is written straight to the database because no endpoint produces it — the
+    /// transition and its notifications land whole in S-09. This seeds the state S-09 will create.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public async Task A_range_does_not_change_how_either_path_treats_a_cancelled_class()
+    {
+        var (admin, type, trainerId) = await ArrangeAsync();
+        var slot = NextSlot();
+
+        var cancelled = await PostClassAsync(admin, type.Id, slot, trainerId);
+
+        using (var scope = fixture.Factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var row = await db.Classes.SingleAsync(c => c.Id == cancelled.Id);
+            row.Status = ClassStatus.Cancelled;
+            await db.SaveChangesAsync();
+        }
+
+        var window = Range(slot.AddDays(-1), slot.AddDays(1));
+
+        var adminList = (await admin.GetFromJsonAsync<List<ClassBody>>(Endpoint + window))!;
+        Assert.Contains(adminList, c => c.Id == cancelled.Id);
+
+        var member = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveMemberEmail);
+        var schedule = (await member.GetFromJsonAsync<List<ClassBody>>("/api/classes" + window))!;
+        Assert.DoesNotContain(schedule, c => c.Id == cancelled.Id);
+    }
+
+    private static async Task AssertInvalidRangeAsync(HttpClient client, string url)
+    {
+        var response = await client.GetAsync(url);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(
+            "invalid_range", (await response.Content.ReadFromJsonAsync<FailureBody>())!.Reason);
+    }
+
+    private static string Iso(DateTimeOffset instant) =>
+        Uri.EscapeDataString(instant.ToString("O"));
+
+    private static string Range(DateTimeOffset from, DateTimeOffset to) =>
+        "?from=" + Iso(from) + "&to=" + Iso(to);
 }

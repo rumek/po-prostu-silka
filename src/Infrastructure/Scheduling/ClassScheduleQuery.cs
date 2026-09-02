@@ -22,10 +22,13 @@ public class ClassScheduleQuery(AppDbContext db) : IClassScheduleQuery
             cancellationToken);
 
     public Task<IReadOnlyList<ScheduledClass>> GetUpcomingForAdminAsync(
-        DateTimeOffset from, CancellationToken cancellationToken) =>
-        // No upper bound and no status filter: the admin manages what they scheduled, including
-        // anything S-09 later cancels.
-        ProjectAsync(db.Classes.Where(c => c.StartsAt >= from), cancellationToken);
+        DateTimeOffset from, DateTimeOffset? to, CancellationToken cancellationToken) =>
+        // Still NO STATUS FILTER, whether or not a window is given: the admin manages what they
+        // scheduled, including anything S-09 later cancels. Only the upper bound is new, and it stays
+        // optional — without one this is the unbounded list it has always been.
+        ProjectAsync(
+            db.Classes.Where(c => c.StartsAt >= from && (to == null || c.StartsAt < to)),
+            cancellationToken);
 
     private static async Task<IReadOnlyList<ScheduledClass>> ProjectAsync(
         IQueryable<Class> query, CancellationToken cancellationToken)

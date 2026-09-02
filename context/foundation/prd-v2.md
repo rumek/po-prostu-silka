@@ -64,7 +64,7 @@ correction has to be made occurrence by occurrence.
 **Why now.** The scheduling slice has just shipped and the data is still development-only, so the
 model can be restructured before real bookings exist to migrate. The same window makes the second
 half of this change cheap: the schedule currently renders as a day-grouped list, and moving it to
-a calendar — a week strip with a day picker on a phone, a full week on wider screens — is a
+a calendar — one day at a time on a phone, a full week on wider screens — is a
 rewrite that gets more expensive once members have habits built on the current view.
 
 ## User & Persona
@@ -75,7 +75,7 @@ instructor from dropdowns. Also receives the new calendar navigation in the admi
 
 **Gym member — same tasks, new lens.** Books and cancels exactly as before. Sees the schedule as a
 calendar instead of a day-grouped list: on a phone, the current date with a control to jump
-elsewhere, a week strip with arrows, and the selected day's classes listed beneath; on tablet and
+elsewhere, controls to move by day and by week, and that day's classes; on tablet and
 web, the whole week at once. Also sees a consistent class name across weeks, and a class
 description that has nowhere to live today.
 
@@ -95,8 +95,8 @@ Proof flow for this change — what a user does differently once it ships:
 3. Admin creates an occurrence by selecting that type — duration and capacity prefill from the
    definition and stay overridable — and selecting the instructor from the trainer list; there is
    no room field
-4. Member opens the schedule on a phone: a week strip with arrows, picks a day, sees that day's
-   classes with times
+4. Member opens the schedule on a phone: the day view for today, moves by day and by week, sees
+   that day's classes with times
 5. Member books a spot; the no-overbooking guarantee holds exactly as before
 6. The same calendar serves the admin panel; on tablet and web the whole week is visible at once
 
@@ -125,7 +125,10 @@ existing day-grouped list; Stage 2 depends on nothing Stage 1 defers.
 - **Duplicate-to-following-weeks keeps its partial-success behaviour.** Conflicting weeks are
   still skipped and reported rather than failing the whole operation.
 - **Mobile usability.** The calendar must not become the phone-hostile grid the product PRD ruled
-  out. On a phone it is a day picker with a list; the grid appears only where width allows.
+  out. On a phone it shows one day at full width; the seven-column week appears only from 48rem up.
+  Amended 2026-09-02 (`schedule-calendar-view`): this originally read "on a phone it is a day picker
+  with a list". The mechanism changed with FR-015 — a day view rather than a strip plus list — and the
+  guardrail itself did not: a phone never renders the week grid.
 - **No response-time regression.** Browsing the schedule and booking a class stay within the
   ~1 s user-perceived response the product already commits to, despite the occurrence now
   resolving its name through a type.
@@ -157,19 +160,24 @@ occurrence, and nothing connected it to the same class in another week.
 ### US-02: Member navigates the week on a phone
 
 - **Given** a logged-in member on a phone, with classes scheduled across the week
-- **When** they open the schedule, move to the next week with the forward arrow, and tap a weekday
-- **Then** that day's classes are listed beneath the strip with their times, and booking from the
-  list works exactly as before
+- **When** they open the schedule, move to the next week with the forward control, and land on a
+  weekday
+- **Then** that day's classes are shown with their times, and booking from them works exactly as
+  before
 
 **Before this change:** the schedule was a single day-grouped list with no week navigation and no
 way to jump to a chosen date.
 
 #### Acceptance Criteria
-- The current date is shown above the strip, with a control to jump to another date
-- Backward and forward controls move the strip one week at a time
-- Selecting a weekday reveals that day's classes with their start times
+- The current date is shown, with a control to jump to another date
+- Controls move the view by one day and by one week, in both directions
+- The selected day shows its classes with their start times
 - A day with no classes shows an explanatory empty state, not blank space
-- On tablet and web the whole week is visible without day-by-day selection
+- From 48rem up the whole week is visible without day-by-day selection
+
+> Amended 2026-09-02 (`schedule-calendar-view`): the story and its criteria described a week strip of
+> weekday chips with a list beneath. The user journey is unchanged — open, move between weeks, read a
+> day — but the phone renders that day as a day view rather than a chip strip plus list. See FR-015.
 
 ## Scope of Change
 
@@ -266,18 +274,29 @@ a requirement from the product PRD, that original is named in parentheses.
 
 ### Calendar
 
-- **[modified]** FR-015: On a phone the schedule shows the current date with a control to jump to
-  another date, a row beneath it with a backward arrow, the seven weekday chips, and a forward
-  arrow to move between weeks; selecting a day lists that day's classes with their times below.
-  Priority: must-have — was: a single day-grouped list with no week navigation
-  (product PRD FR-007)
+- **[modified]** FR-015: On a phone the schedule shows a single day at a time — the current date
+  above it, controls to move by day and by week, and a control to jump to a chosen date. That day's
+  classes appear with their times. Priority: must-have — was: a single day-grouped list with no week
+  navigation (product PRD FR-007)
   > Socratic: "The product PRD explicitly ruled out a calendar because grids are phone-hostile."
-  > Resolution: kept; the original concern was a grid, and this is a day picker with a list. The
-  > grid appears only at FR-016's width. The decision is revisited, not ignored.
-- **[modified]** FR-016: On tablet and web the whole week is visible at once. Priority: must-have
-  — was: the same day-grouped list at every width (product PRD FR-007)
+  > Resolution: kept; the original concern was a *week* grid — seven columns squeezed onto a phone —
+  > and one day at full width is not that. The week appears only at FR-016's width. The decision is
+  > revisited, not ignored.
+  > Amended 2026-09-02 (`schedule-calendar-view`): this requirement originally specified a day-picker
+  > strip — a row of seven weekday chips between arrows, with the selected day's classes listed
+  > beneath. It now specifies a day view. The change follows the decision to build both breakpoints on
+  > the `angular-calendar` library rather than by hand: the library renders a day and a week view, and
+  > has no day-strip. The mobile guardrail below was rewritten in the same edit and still holds — a
+  > phone never renders the seven-column week.
+- **[modified]** FR-016: From the tablet width up (48rem), the whole week is visible at once, as a
+  seven-column view; below that width the day view of FR-015 applies. The switch is automatic and
+  follows the viewport. Priority: must-have — was: the same day-grouped list at every width
+  (product PRD FR-007)
   > Socratic: "'Probably fits' is not a layout decision — what happens on a busy week?"
   > Resolution: kept, with the density question routed to Open Questions.
+  > Amended 2026-09-02 (`schedule-calendar-view`): the breakpoint is now named rather than left to
+  > "tablet and web", and the density question is answered by the library's own week layout rather
+  > than by a hand-built one.
 - **[modified]** FR-017: The admin class panel uses the same calendar navigation as the member
   schedule, with admin actions on top. Priority: must-have — was: a separate flat list in the
   admin panel
@@ -288,6 +307,15 @@ a requirement from the product PRD, that original is named in parentheses.
   spots; the room is gone from the display. Priority: must-have (product PRD FR-007)
   > Socratic: "Losing the room from the display could confuse existing members." Resolution:
   > kept; a single-room club never used the information.
+- **[new]** FR-019: On the admin calendar, dragging across empty time creates a class: the gesture
+  fixes the start time and the duration, and an overlay collects the class type and the trainer
+  before anything is written. The same refusals apply as on the class form, the time conflict of
+  FR-012 included. A week already in the past accepts no gesture. Priority: must-have
+  > Added 2026-09-02 (`schedule-calendar-view`). This requirement did not come from the shaping
+  > session — it exceeds the calendar scope FR-015 – FR-018 describe, which is browsing only, and was
+  > added by explicit decision during planning as the main return on adopting a calendar library.
+  > It does not replace the class form: FR-008's form remains the full path, and the gesture is a
+  > shortcut into the same validated write.
 
 ## Constraints & Compatibility
 
@@ -397,7 +425,9 @@ the role removed member features while this change adds no trainer features to r
   case". Returning to multiple rooms would be a deliberate future decision, not something this
   change prepares for.
 - **No month view.** The calendar works in days and weeks. Month view, agenda view, and export to
-  an external calendar are out of scope.
+  an external calendar are out of scope. Amended 2026-09-02 (`schedule-calendar-view`): the library
+  chosen to implement FR-015 and FR-016 ships a month view. No route, control or view mode reaches
+  it, so the Non-Goal stands as written — it is unreachable rather than unavailable.
 
 **Carried over from the product PRD and unaffected by this change:** no recurring series (weekly
 duplication stands in for it), no payments or memberships, no waitlist for full classes, no chat

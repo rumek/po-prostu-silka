@@ -1,7 +1,23 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { ClassRequest, DuplicateResult, ScheduledClass } from './class.models';
+
+/**
+ * A [from, to) window as the two read endpoints expect it: ISO-8601 UTC instants, or nothing at all.
+ *
+ * The screens work in the BROWSER's local clock — "this week" starts at local Monday midnight — and
+ * `toISOString()` is where that becomes an instant. Sending a local wall-clock string instead would
+ * shift every window by the UTC offset, which is silent: the week would simply contain the wrong
+ * classes at its edges.
+ */
+function rangeParams(from?: Date, to?: Date): HttpParams | undefined {
+  if (!from || !to) {
+    return undefined;
+  }
+
+  return new HttpParams().set('from', from.toISOString()).set('to', to.toISOString());
+}
 
 /**
  * The class schedule (FR-007) and the admin's management of it (FR-011, FR-012).
@@ -17,14 +33,24 @@ import { ClassRequest, DuplicateResult, ScheduledClass } from './class.models';
 export class ClassService {
   private readonly http = inject(HttpClient);
 
-  /** The member's schedule: the next fortnight, flat and time-ordered. The window is server-fixed. */
-  getSchedule(): Promise<ScheduledClass[]> {
-    return firstValueFrom(this.http.get<ScheduledClass[]>('/api/classes'));
+  /**
+   * The member's schedule, flat and time-ordered.
+   *
+   * Both bounds or neither — the API refuses a half-supplied range with `invalid_range` rather than
+   * pairing one bound with a default nobody asked for. Omitted, the server answers the fortnight it
+   * answered before the calendar existed.
+   */
+  getSchedule(from?: Date, to?: Date): Promise<ScheduledClass[]> {
+    return firstValueFrom(
+      this.http.get<ScheduledClass[]>('/api/classes', { params: rangeParams(from, to) }),
+    );
   }
 
-  /** Everything upcoming, for the admin list. Not window-bounded. */
-  getAdminClasses(): Promise<ScheduledClass[]> {
-    return firstValueFrom(this.http.get<ScheduledClass[]>('/api/admin/classes'));
+  /** The admin list. Omit the range for the unbounded "everything upcoming" it has always returned. */
+  getAdminClasses(from?: Date, to?: Date): Promise<ScheduledClass[]> {
+    return firstValueFrom(
+      this.http.get<ScheduledClass[]>('/api/admin/classes', { params: rangeParams(from, to) }),
+    );
   }
 
   /**

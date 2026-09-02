@@ -106,6 +106,14 @@ public record DuplicateResult(int Created, IReadOnlyList<int> SkippedWeeks);
 /// <c>instructor_not_trainer</c>. Adding one here means adding it to the SPA's ClassFailure union
 /// too — that type mirrors this one field for field.
 /// </para>
+///
+/// <para>
+/// ONE MORE REASON TRAVELS IN THIS SHAPE WITHOUT BELONGING TO THAT UNION: <c>invalid_range</c>,
+/// returned by the two READ endpoints when the requested date window is inverted or too wide. The
+/// record is reused because the wire shape is identical, but no write path can ever return it — so
+/// the SPA models it as its own <c>ScheduleReadFailure</c> rather than widening <c>ClassFailure</c>,
+/// which would force the class form to carry a message for a refusal it cannot receive.
+/// </para>
 /// </summary>
 public record ClassFailure(string Reason);
 
@@ -134,10 +142,30 @@ public record ClassFailure(string Reason);
 public static class ClassEndpoints
 {
     /// <summary>
-    /// How far ahead the member schedule reaches. A fortnight is one round-trip of a few dozen rows
-    /// for a single club, which is what keeps this inside the PRD's ~1 s perceived-response NFR.
+    /// How far ahead the member schedule reaches WHEN THE CALLER ASKS FOR NO RANGE. A fortnight is one
+    /// round-trip of a few dozen rows for a single club, which is what keeps this inside the PRD's
+    /// ~1 s perceived-response NFR.
+    ///
+    /// <para>
+    /// Since S-07 this is the FALLBACK, not the only answer: the calendar asks for the window it is
+    /// showing. Keeping the fallback exactly as it was is what makes the parameters additive — a
+    /// client that sends nothing still gets the fortnight it got before.
+    /// </para>
     /// </summary>
     private const int ScheduleWindowDays = 14;
+
+    /// <summary>
+    /// The widest window either read endpoint will answer for (prd-v2 FR-015, FR-016).
+    ///
+    /// <para>
+    /// Two months. Comfortably above anything the calendar asks for — it requests one day or one week
+    /// — and low enough that a malformed or hostile client cannot ask for a decade of rows in one
+    /// round trip. The admin list was UNBOUNDED before this slice, so this is a tightening; the
+    /// no-parameter fallback stays unbounded for compatibility, which is where the old behaviour
+    /// lives on.
+    /// </para>
+    /// </summary>
+    private const int MaxRangeDays = 62;
 
     /// <summary>Bounds on a duplicate batch. Above this it is a recurring series, which the PRD parks.</summary>
     private const int MaxDuplicateWeeks = 8;
@@ -183,34 +211,127 @@ public static class ClassEndpoints
     }
 
     /// <summary>
-    /// The member's schedule: the next fortnight, time-ordered and flat.
+    /// The member's schedule for a window, time-ordered and flat.
     ///
-    /// FLAT, deliberately — the SPA groups into day headings by the BROWSER's local date. Grouping
-    /// here would mean the server picking a timezone, and this stack has been UTC-in / local-render
-    /// throughout. It also takes no parameters: a fixed window is one fewer thing a caller can get
-    /// wrong.
+    /// FLAT, deliberately — the SPA groups by the BROWSER's local date. Grouping here would mean the
+    /// server picking a timezone, and this stack has been UTC-in / local-render throughout. The
+    /// window boundaries arrive already converted to UTC instants for the same reason: the calendar
+    /// computes "this week" in the member's own clock, and only the instants cross the wire.
+    ///
+    /// <para>
+    /// Both parameters are optional and move together. Omitted, this answers exactly what it
+    /// answered before S-07 — the next <see cref="ScheduleWindowDays"/> days — which is what keeps
+    /// the change additive. Supplied, a <paramref name="from"/> in the PAST is legitimate: the
+    /// calendar's backward navigation is the whole reason this parameter exists (prd-v2 FR-015).
+    /// </para>
     /// </summary>
     private static async Task<IResult> GetScheduleAsync(
         IClassScheduleQuery query,
         TimeProvider timeProvider,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        DateTimeOffset? from = null,
+        DateTimeOffset? to = null)
     {
         var now = timeProvider.GetUtcNow();
 
+        var (rangeFailure, resolved) = ResolveRange(
+            from, to, now, now.AddDays(ScheduleWindowDays));
+        if (rangeFailure is not null)
+        {
+            return rangeFailure;
+        }
+
         return Results.Ok(await query.GetScheduleAsync(
-            now, now.AddDays(ScheduleWindowDays), cancellationToken));
+            resolved.From, resolved.To!.Value, cancellationToken));
     }
 
     /// <summary>
-    /// Everything upcoming, for the admin's management list. Not window-bounded: an admin setting up
-    /// a term needs to see what they have already scheduled, however far out.
+    /// The admin's management list for a window.
+    ///
+    /// <para>
+    /// Its no-parameter behaviour is the one that differs from the member path: everything from now
+    /// ONWARD, with no upper bound, because an admin setting up a term needs to see what they have
+    /// already scheduled however far out. That is preserved exactly — <c>to</c> stays null and the
+    /// query applies no ceiling.
+    /// </para>
+    ///
+    /// <para>
+    /// With a range, the admin gets the same treatment as the member INCLUDING the past, which is new:
+    /// this list used to start at now and the past was simply unreachable. Read-only-ness of a past
+    /// week is a client concern (the admin screen withholds its actions), not an authorization one —
+    /// the write endpoints already refuse a create in the past on their own.
+    /// </para>
     /// </summary>
     private static async Task<IResult> GetAdminClassesAsync(
         IClassScheduleQuery query,
         TimeProvider timeProvider,
-        CancellationToken cancellationToken) =>
-        Results.Ok(await query.GetUpcomingForAdminAsync(
-            timeProvider.GetUtcNow(), cancellationToken));
+        CancellationToken cancellationToken,
+        DateTimeOffset? from = null,
+        DateTimeOffset? to = null)
+    {
+        var (rangeFailure, resolved) = ResolveRange(
+            from, to, timeProvider.GetUtcNow(), null);
+        if (rangeFailure is not null)
+        {
+            return rangeFailure;
+        }
+
+        return Results.Ok(await query.GetUpcomingForAdminAsync(
+            resolved.From, resolved.To, cancellationToken));
+    }
+
+    /// <summary>
+    /// Validates an optional [from, to) window and falls back to the endpoint's own default when it is
+    /// absent.
+    ///
+    /// <para>
+    /// PARTIAL RANGES ARE REFUSED rather than half-honoured. A caller sending only <c>from</c> has a
+    /// bug, and silently pairing it with the default <c>to</c> would answer a window nobody asked for
+    /// — the fortnight from an arbitrary date, or everything to the end of time. Both parameters or
+    /// neither.
+    /// </para>
+    /// </summary>
+    /// <param name="defaultTo">
+    /// The upper bound when no range is supplied — null for the admin path, which is deliberately
+    /// unbounded without one.
+    /// </param>
+    /// <returns>
+    /// <c>Failure</c> set and the range meaningless when refused; the reverse when accepted. The
+    /// accepted <c>To</c> is null only on the unbounded admin default.
+    /// </returns>
+    private static (IResult? Failure, (DateTimeOffset From, DateTimeOffset? To) Range) ResolveRange(
+        DateTimeOffset? from,
+        DateTimeOffset? to,
+        DateTimeOffset defaultFrom,
+        DateTimeOffset? defaultTo)
+    {
+        if (from is null && to is null)
+        {
+            return (null, (defaultFrom, defaultTo));
+        }
+
+        if (from is null || to is null)
+        {
+            return (InvalidRange(), default);
+        }
+
+        // An empty or inverted window is a client bug, not an empty schedule: answering it with [] would
+        // render as "no classes this week" and hide the fault.
+        if (to.Value <= from.Value)
+        {
+            return (InvalidRange(), default);
+        }
+
+        if ((to.Value - from.Value).TotalDays > MaxRangeDays)
+        {
+            return (InvalidRange(), default);
+        }
+
+        return (null, (from.Value, to.Value));
+    }
+
+    private static IResult InvalidRange() =>
+        Results.Json(new ClassFailure("invalid_range"), statusCode: 400);
 
     /// <summary>
     /// One class, for the edit form.
@@ -619,9 +740,16 @@ public interface IClassScheduleQuery
     Task<IReadOnlyList<ScheduledClass>> GetScheduleAsync(
         DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken);
 
-    /// <summary>Everything from <paramref name="from"/> onward, unbounded. The admin's list.</summary>
+    /// <summary>
+    /// Everything from <paramref name="from"/> onward for the admin's list, up to
+    /// <paramref name="to"/> when one is given.
+    /// </summary>
+    /// <param name="to">
+    /// Exclusive upper bound, or null for the unbounded list this returned before S-07 — an admin
+    /// laying out a term needs to see everything already scheduled, however far out.
+    /// </param>
     Task<IReadOnlyList<ScheduledClass>> GetUpcomingForAdminAsync(
-        DateTimeOffset from, CancellationToken cancellationToken);
+        DateTimeOffset from, DateTimeOffset? to, CancellationToken cancellationToken);
 }
 
 /// <summary>
