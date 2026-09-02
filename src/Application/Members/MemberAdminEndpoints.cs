@@ -24,12 +24,21 @@ public record PendingMember(string Id, string Email, string DisplayName, DateTim
 /// else's business; a badge keyed on 2 would break the day someone renumbers, which is exactly the
 /// scenario that enum's comment warns about.
 /// </para>
+///
+/// <para>
+/// <see cref="Roles"/> carries the account's role NAMES as stored ("User", "Admin", "Trainer") — the
+/// same reasoning as Status: a name survives a renumbering, and the screen needs to render a badge
+/// per role and decide which actions a row offers. It is a list rather than a boolean because
+/// admins now appear in this list, so a single is-trainer flag would immediately need a second
+/// is-admin flag beside it.
+/// </para>
 /// </summary>
 public record MemberSummary(
     string Id,
     string Email,
     string DisplayName,
     string Status,
+    IReadOnlyList<string> Roles,
     DateTimeOffset CreatedAt);
 
 public record ApproveFailure(string Reason);
@@ -46,6 +55,17 @@ public record BlockFailure(string Reason);
 /// approve, not unblock; <c>conflict</c> — as above.
 /// </summary>
 public record UnblockFailure(string Reason);
+
+/// <summary>
+/// Why a Trainer-role change was refused. <c>not_active</c> — the target is Pending or Blocked, and
+/// FR-001 grants the role to an approved account only; letting it through would put an unvetted
+/// account into the instructor selection S-06 builds on top of this.
+///
+/// There is no <c>conflict</c> reason here, unlike block and unblock: this handler does not do the
+/// read-then-write status transition those do, so there is no race of ours to lose. See
+/// <see cref="MemberAdminEndpoints"/>'s note on why role changes go through UserManager.
+/// </summary>
+public record TrainerRoleFailure(string Reason);
 
 /// <summary>
 /// The admin's member surface: the approval queue (S-01), and the full member list S-02 adds on top
@@ -79,6 +99,8 @@ public static class MemberAdminEndpoints
         group.MapPost("/{id}/approve", ApproveAsync);
         group.MapPost("/{id}/block", BlockAsync);
         group.MapPost("/{id}/unblock", UnblockAsync);
+        group.MapPost("/{id}/roles/trainer", GrantTrainerAsync);
+        group.MapDelete("/{id}/roles/trainer", RevokeTrainerAsync);
 
         return app;
     }
@@ -288,6 +310,93 @@ public static class MemberAdminEndpoints
         }
 
         return Results.Ok();
+    }
+
+    /// <summary>
+    /// Grant the Trainer role (FR-001). Additive: it takes nothing away, and on its own it confers
+    /// nothing — S-06 consumes it to populate the instructor selection.
+    ///
+    /// DELIBERATELY NOT the transition shape ApproveAsync and BlockAsync use, and this is the one
+    /// place on this surface that departs from it. Those two bypass UserManager and rotate the
+    /// concurrency stamp by hand so a status flip and its outbox rows land in ONE
+    /// SaveChangesAsync. A role change enqueues nothing, so there is no second write to bind to it
+    /// — and hand-writing the UserRoles join would mean re-implementing Identity's own name
+    /// normalisation, which MemberQuery already has to be careful to agree with.
+    ///
+    /// No security-stamp rotation either. The role reaches the holder's own cookie when the
+    /// security stamp next validates or they call POST /api/auth/refresh; that latency is harmless
+    /// while the role grants nothing. A later slice that gives Trainer real permissions must
+    /// revisit revocation timing — see the plan's Open Risks.
+    /// </summary>
+    private static async Task<IResult> GrantTrainerAsync(
+        string id,
+        UserManager<ApplicationUser> userManager)
+    {
+        var user = await userManager.FindByIdAsync(id);
+        if (user is null)
+        {
+            return Results.NotFound();
+        }
+
+        // Idempotent, like approve and block: a double-click must not be an error, and must not
+        // write. Checked before the status guard so that re-granting to an account that was
+        // approved-then-blocked reports the truth — it already holds the role — rather than
+        // refusing a change that would be a no-op anyway.
+        if (await userManager.IsInRoleAsync(user, ApplicationRoles.Trainer))
+        {
+            return Results.Ok();
+        }
+
+        // FR-001 grants to an approved account only. Pending and Blocked are both refused: an
+        // unvetted or barred account must not reach the instructor selection.
+        if (user.Status != AccountStatus.Active)
+        {
+            return Results.Json(new TrainerRoleFailure("not_active"), statusCode: 409);
+        }
+
+        var result = await userManager.AddToRoleAsync(user, ApplicationRoles.Trainer);
+
+        // The role is seeded by AdminSeeder on every start, so the only realistic failure here is a
+        // concurrent grant that won the race — which leaves the account holding the role, i.e. the
+        // outcome the caller asked for. Report it rather than guess.
+        return result.Succeeded ? Results.Ok() : Results.Json(new TrainerRoleFailure("failed"), statusCode: 409);
+    }
+
+    /// <summary>
+    /// Revoke the Trainer role (FR-001).
+    ///
+    /// Mirrors <see cref="GrantTrainerAsync"/>, including the status guard: revoking is refused on a
+    /// non-active account for the same reason granting is, so the two directions cannot disagree
+    /// about which accounts this surface may touch. An account that is blocked WHILE holding the
+    /// role keeps it — S-06 filters the selection by status, so a blocked trainer is already
+    /// unselectable there.
+    ///
+    /// Does not rotate the security stamp. Block rotates because it must destroy a session carrying
+    /// a stale permissive claim; this role carries no permission to destroy.
+    /// </summary>
+    private static async Task<IResult> RevokeTrainerAsync(
+        string id,
+        UserManager<ApplicationUser> userManager)
+    {
+        var user = await userManager.FindByIdAsync(id);
+        if (user is null)
+        {
+            return Results.NotFound();
+        }
+
+        if (!await userManager.IsInRoleAsync(user, ApplicationRoles.Trainer))
+        {
+            return Results.Ok();
+        }
+
+        if (user.Status != AccountStatus.Active)
+        {
+            return Results.Json(new TrainerRoleFailure("not_active"), statusCode: 409);
+        }
+
+        var result = await userManager.RemoveFromRoleAsync(user, ApplicationRoles.Trainer);
+
+        return result.Succeeded ? Results.Ok() : Results.Json(new TrainerRoleFailure("failed"), statusCode: 409);
     }
 }
 

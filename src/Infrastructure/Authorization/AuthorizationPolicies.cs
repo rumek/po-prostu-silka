@@ -34,10 +34,13 @@ public static class AuthorizationPolicies
 
     public static AuthorizationBuilder AddApplicationPolicies(this AuthorizationBuilder builder) =>
         builder
+            // MemberFacing, not All: the two are different sets since Trainer arrived. All is what
+            // the seeder creates; this is what may pass. Granting a role must never widen access as
+            // a side effect - see ApplicationRoles for which array a new role belongs in.
             .AddPolicy(ActiveMember, policy => policy
                 .RequireAuthenticatedUser()
                 .RequireClaim(StatusClaimType, nameof(AccountStatus.Active))
-                .RequireRole(ApplicationRoles.All))
+                .RequireRole(ApplicationRoles.MemberFacing))
             .AddPolicy(Admin, policy => policy
                 .RequireAuthenticatedUser()
                 .RequireClaim(StatusClaimType, nameof(AccountStatus.Active))

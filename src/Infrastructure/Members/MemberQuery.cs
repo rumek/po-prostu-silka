@@ -8,15 +8,18 @@ namespace po_prostu_silka.Infrastructure.Members;
 /// <summary>
 /// Infrastructure side of <see cref="IMemberQuery"/> — the admin's full member list (FR-005).
 /// Same shape as <see cref="PendingMemberQuery"/>: AsNoTracking, projected in the database, so the
-/// list costs five columns rather than whole Identity rows, and Application never sees EF Core.
+/// list costs a few columns rather than whole Identity rows, and Application never sees EF Core.
 ///
 /// <para>
-/// ADMINS ARE EXCLUDED STRUCTURALLY, and this is load-bearing, not tidiness. The seeded admin is an
-/// ordinary ApplicationUser with Status = Active in the same table (AdminSeeder), so a query
-/// filtered on Status alone — which is exactly what PendingMemberQuery does — would list the admin
-/// as a blockable member. With one admin ever seeded, blocking them locks the club out of its own
-/// app with no way back in through the UI. The exclusion is by ROLE rather than by user id so it
-/// still holds if a second admin is ever seeded.
+/// ADMINS ARE NO LONGER EXCLUDED, and the protection that exclusion provided has MOVED rather than
+/// vanished — read this before "restoring" the filter. It used to drop admins structurally, because
+/// the seeded admin is an ordinary ApplicationUser in the same table and blocking the only admin
+/// locks the club out of its own app. S-04 needs admins visible: prd-v2 FR-003 requires an owner who
+/// teaches to be grantable the Trainer role, and the member list is the surface that grant lives on.
+/// So the list now returns everyone, and the sole remaining guard is the is_admin check in
+/// MemberAdminEndpoints.BlockAsync, which refuses the block itself. That check is by ROLE, so it
+/// still holds if a second admin is ever seeded. The screen must not offer block on an admin row —
+/// but the screen is not the boundary; that endpoint is.
 /// </para>
 /// </summary>
 public class MemberQuery(AppDbContext db) : IMemberQuery
@@ -25,22 +28,7 @@ public class MemberQuery(AppDbContext db) : IMemberQuery
         AccountStatus? status,
         CancellationToken cancellationToken)
     {
-        // Matched on NormalizedName, not Name, because that is what Identity itself compares:
-        // UserManager.IsInRoleAsync - the guard BlockAsync uses - normalizes its argument and looks
-        // at NormalizedName. Matching on Name here would leave two admin checks using two different
-        // conventions, which agree today only because AdminSeeder is the one path that creates a
-        // role and sets both fields together.
-        var adminRoleName = ApplicationRoles.Admin.ToUpperInvariant();
-
-        var adminIds =
-            from userRole in db.UserRoles
-            join role in db.Roles on userRole.RoleId equals role.Id
-            where role.NormalizedName == adminRoleName
-            select userRole.UserId;
-
-        var members = db.Users
-            .AsNoTracking()
-            .Where(u => !adminIds.Contains(u.Id));
+        var members = db.Users.AsNoTracking();
 
         if (status is not null)
         {
@@ -48,8 +36,11 @@ public class MemberQuery(AppDbContext db) : IMemberQuery
             members = members.Where(u => u.Status == status);
         }
 
-        // Alphabetical: this is a browse-and-find surface, unlike the pending queue, where oldest
-        // first is the whole point.
+        // Roles come back as a correlated projection rather than a join onto the outer query: a join
+        // would multiply the user row once per role and force a regroup in memory. Name, not
+        // NormalizedName — this is what crosses the wire to the screen, and Identity stores the
+        // display form in Name. (Comparisons still use NormalizedName; see BlockAsync's
+        // IsInRoleAsync, which normalises its argument.)
         var rows = await members
             .OrderBy(u => u.DisplayName)
             .Select(u => new
@@ -59,6 +50,10 @@ public class MemberQuery(AppDbContext db) : IMemberQuery
                 u.DisplayName,
                 u.Status,
                 u.CreatedAt,
+                Roles = (from userRole in db.UserRoles
+                         join role in db.Roles on userRole.RoleId equals role.Id
+                         where userRole.UserId == u.Id
+                         select role.Name).ToList(),
             })
             .ToListAsync(cancellationToken);
 
@@ -70,6 +65,7 @@ public class MemberQuery(AppDbContext db) : IMemberQuery
                 r.Email ?? string.Empty,
                 r.DisplayName,
                 r.Status.ToString(),
+                r.Roles.Where(name => name is not null).Select(name => name!).ToList(),
                 r.CreatedAt))
             .ToList();
     }

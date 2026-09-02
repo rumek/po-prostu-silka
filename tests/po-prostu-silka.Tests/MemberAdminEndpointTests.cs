@@ -24,6 +24,17 @@ public class MemberAdminEndpointTests(IntegrationTestFixture fixture)
 
     private sealed record ApproveFailureBody(string Reason);
 
+    private sealed record TrainerRoleFailureBody(string Reason);
+
+    /// <summary>Mirrors MemberSummary, including the Roles field S-04 added.</summary>
+    private sealed record MemberSummaryBody(
+        string Id,
+        string Email,
+        string DisplayName,
+        string Status,
+        string[] Roles,
+        DateTimeOffset CreatedAt);
+
     private AppDbContext NewContext() =>
         new(new DbContextOptionsBuilder<AppDbContext>().UseSqlServer(fixture.ConnectionString).Options);
 
@@ -205,5 +216,193 @@ public class MemberAdminEndpointTests(IntegrationTestFixture fixture)
 
         var pending = await admin.GetFromJsonAsync<PendingMemberBody[]>("/api/admin/members/pending");
         Assert.DoesNotContain(pending!, p => p.Email == email);
+    }
+
+    // --- Trainer role (S-04, prd-v2 FR-001/FR-002/FR-003) ----------------------
+
+    private async Task<bool> HoldsTrainerAsync(string id)
+    {
+        using var scope = fixture.Factory.Services.CreateScope();
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var user = await userManager.FindByIdAsync(id);
+
+        return await userManager.IsInRoleAsync(user!, ApplicationRoles.Trainer);
+    }
+
+    private static async Task<IList<string>> RolesOfAsync(IntegrationTestFixture fixture, string email)
+    {
+        using var scope = fixture.Factory.Services.CreateScope();
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var user = await userManager.FindByEmailAsync(email);
+
+        return await userManager.GetRolesAsync(user!);
+    }
+
+    [Fact]
+    public async Task Granting_trainer_to_an_active_member_succeeds()
+    {
+        var (id, _) = await CreateMemberAsync(AccountStatus.Active);
+        var admin = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveAdminEmail);
+
+        var response = await admin.PostAsync($"/api/admin/members/{id}/roles/trainer", content: null);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.True(await HoldsTrainerAsync(id));
+    }
+
+    /// <summary>
+    /// Additive, per FR-002: the grant must not cost the account the User role it registered with.
+    /// </summary>
+    [Fact]
+    public async Task Granting_trainer_keeps_the_member_role()
+    {
+        var (id, email) = await CreateMemberAsync(AccountStatus.Active);
+        var admin = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveAdminEmail);
+
+        await admin.PostAsync($"/api/admin/members/{id}/roles/trainer", content: null);
+
+        var roles = await RolesOfAsync(fixture, email);
+        Assert.Contains(ApplicationRoles.User, roles);
+        Assert.Contains(ApplicationRoles.Trainer, roles);
+    }
+
+    /// <summary>
+    /// FR-003 — the owner who teaches. This is the case the member list stopped excluding admins
+    /// for; without it the grant surface could never reach an admin account.
+    /// </summary>
+    [Fact]
+    public async Task Granting_trainer_to_an_admin_succeeds()
+    {
+        var email = $"admin-trainer-{Guid.NewGuid():N}@test.local";
+        await fixture.CreateUserAsync(email, AccountStatus.Active, ApplicationRoles.Admin);
+
+        using (var scope = fixture.Factory.Services.CreateScope())
+        {
+            var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            var target = await userManager.FindByEmailAsync(email);
+
+            var admin = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveAdminEmail);
+            var response = await admin.PostAsync(
+                $"/api/admin/members/{target!.Id}/roles/trainer", content: null);
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        }
+
+        var roles = await RolesOfAsync(fixture, email);
+        Assert.Contains(ApplicationRoles.Admin, roles);
+        Assert.Contains(ApplicationRoles.Trainer, roles);
+    }
+
+    [Fact]
+    public async Task Revoking_trainer_removes_the_role()
+    {
+        var (id, _) = await CreateMemberAsync(AccountStatus.Active);
+        var admin = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveAdminEmail);
+        await admin.PostAsync($"/api/admin/members/{id}/roles/trainer", content: null);
+
+        var response = await admin.DeleteAsync($"/api/admin/members/{id}/roles/trainer");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.False(await HoldsTrainerAsync(id));
+    }
+
+    [Fact]
+    public async Task Granting_trainer_twice_is_idempotent()
+    {
+        var (id, email) = await CreateMemberAsync(AccountStatus.Active);
+        var admin = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveAdminEmail);
+
+        await admin.PostAsync($"/api/admin/members/{id}/roles/trainer", content: null);
+        var second = await admin.PostAsync($"/api/admin/members/{id}/roles/trainer", content: null);
+
+        Assert.Equal(HttpStatusCode.OK, second.StatusCode);
+        Assert.Single(await RolesOfAsync(fixture, email), ApplicationRoles.Trainer);
+    }
+
+    [Fact]
+    public async Task Revoking_a_role_the_member_does_not_hold_is_idempotent()
+    {
+        var (id, _) = await CreateMemberAsync(AccountStatus.Active);
+        var admin = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveAdminEmail);
+
+        var response = await admin.DeleteAsync($"/api/admin/members/{id}/roles/trainer");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.False(await HoldsTrainerAsync(id));
+    }
+
+    [Theory]
+    [InlineData(AccountStatus.Pending)]
+    [InlineData(AccountStatus.Blocked)]
+    public async Task Granting_trainer_to_a_non_active_account_is_409(AccountStatus status)
+    {
+        var (id, _) = await CreateMemberAsync(status);
+        var admin = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveAdminEmail);
+
+        var response = await admin.PostAsync($"/api/admin/members/{id}/roles/trainer", content: null);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal(
+            "not_active",
+            (await response.Content.ReadFromJsonAsync<TrainerRoleFailureBody>())!.Reason);
+        Assert.False(await HoldsTrainerAsync(id));
+    }
+
+    [Fact]
+    public async Task Granting_trainer_to_an_unknown_id_is_404()
+    {
+        var admin = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveAdminEmail);
+
+        var response = await admin.PostAsync(
+            $"/api/admin/members/{Guid.NewGuid()}/roles/trainer", content: null);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Revoking_trainer_from_an_unknown_id_is_404()
+    {
+        var admin = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveAdminEmail);
+
+        var response = await admin.DeleteAsync(
+            $"/api/admin/members/{Guid.NewGuid()}/roles/trainer");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    // --- the member list after the admin exclusion was lifted -----------------
+
+    /// <summary>
+    /// The list used to filter admins out structurally. S-04 lifted that so FR-003's grant can
+    /// reach them; the protection now lives solely in BlockAsync's is_admin check. That check is
+    /// covered by MANUAL verification (plan step 1.6), not by a test here — a deliberate scoping
+    /// decision recorded in the plan's Open Risks.
+    /// </summary>
+    [Fact]
+    public async Task Member_list_includes_admins_with_their_roles()
+    {
+        var admin = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveAdminEmail);
+
+        var members = await admin.GetFromJsonAsync<MemberSummaryBody[]>("/api/admin/members");
+
+        var adminRow = Assert.Single(members!, m => m.Email == TestUsers.ActiveAdminEmail);
+        Assert.Contains(ApplicationRoles.Admin, adminRow.Roles);
+
+        var memberRow = Assert.Single(members!, m => m.Email == TestUsers.ActiveMemberEmail);
+        Assert.Contains(ApplicationRoles.User, memberRow.Roles);
+        Assert.DoesNotContain(ApplicationRoles.Admin, memberRow.Roles);
+    }
+
+    [Fact]
+    public async Task Member_list_reports_a_granted_trainer_role()
+    {
+        var (id, email) = await CreateMemberAsync(AccountStatus.Active);
+        var admin = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveAdminEmail);
+        await admin.PostAsync($"/api/admin/members/{id}/roles/trainer", content: null);
+
+        var members = await admin.GetFromJsonAsync<MemberSummaryBody[]>("/api/admin/members");
+
+        var row = Assert.Single(members!, m => m.Email == email);
+        Assert.Contains(ApplicationRoles.Trainer, row.Roles);
     }
 }
