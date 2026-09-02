@@ -1,5 +1,9 @@
 import { provideHttpClient } from '@angular/common/http';
-import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import {
+  HttpTestingController,
+  provideHttpClientTesting,
+  TestRequest,
+} from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ScheduledClass } from '../../core/scheduling/class.models';
 import { Schedule } from './schedule';
@@ -23,11 +27,20 @@ function at(local: string, over: Partial<ScheduledClass> = {}): ScheduledClass {
   };
 }
 
+/**
+ * The screen since S-07 is a data shell around the shared calendar: the calendar says which window it
+ * is showing, this fetches it. So these tests are about REQUESTS — the window asked for, and which
+ * response is allowed to win — while the rendering they used to assert now lives in
+ * shared/calendar/schedule-calendar.spec.ts.
+ *
+ * jsdom provides no `matchMedia`, so the calendar stays in its day-first default here. That is
+ * deliberate: it is the same shape as a phone, which is the case this screen is designed around.
+ */
 describe('Schedule', () => {
   let fixture: ComponentFixture<Schedule>;
   let controller: HttpTestingController;
 
-  async function createWith(rows: ScheduledClass[]) {
+  beforeEach(() => {
     TestBed.configureTestingModule({
       imports: [Schedule],
       providers: [provideHttpClient(), provideHttpClientTesting()],
@@ -35,118 +48,85 @@ describe('Schedule', () => {
 
     controller = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(Schedule);
-
-    (await vi.waitFor(() => controller.expectOne('/api/classes'))).flush(rows);
-    await fixture.whenStable();
     fixture.detectChanges();
-  }
+  });
 
   afterEach(() => controller.verify());
 
-  function html(): string {
-    return (fixture.nativeElement as HTMLElement).textContent ?? '';
+  function scheduleRequests(): TestRequest[] {
+    return controller.match((request) => request.url === '/api/classes');
   }
 
-  function days(): HTMLElement[] {
-    return Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.schedule-day'));
-  }
-
-  function rows(): HTMLElement[] {
-    return Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.schedule-row'));
-  }
-
-  it('groups classes into one section per day', async () => {
-    await createWith([
-      at('2026-09-04T10:00', { id: 'a' }),
-      at('2026-09-04T18:00', { id: 'b' }),
-      at('2026-09-05T10:00', { id: 'c' }),
-    ]);
-
-    expect(days().length).toBe(2);
-    expect(rows().length).toBe(3);
-  });
-
-  /**
-   * The grouping key must be the LOCAL calendar date. A UTC-based key would push a late-evening
-   * class into the next day for any zone ahead of UTC — the club's own zone included.
-   */
-  it('keeps a late-evening class on its own local day', async () => {
-    await createWith([
-      at('2026-09-04T23:30', { id: 'late' }),
-      at('2026-09-05T08:00', { id: 'am' }),
-    ]);
-
-    expect(days().length).toBe(2);
-    expect(rows()[0].textContent).toContain('23:30');
-  });
-
-  it('renders the resolved name, the instructor and free spots', async () => {
-    await createWith([
-      at('2026-09-04T18:00', { name: 'Pilates', instructor: 'Ewa', freeSpots: 7 }),
-    ]);
-
-    expect(html()).toContain('Pilates');
-    expect(html()).toContain('Ewa');
-    expect(html()).toContain('7');
-  });
-
-  /** The club has one room, so the field never carried information (prd-v2 FR-011). */
-  it('shows no room anywhere', async () => {
-    await createWith([at('2026-09-04T18:00')]);
-
-    expect(html()).not.toContain('Sala');
-  });
-
-  it('shows the end time derived from the duration', async () => {
-    await createWith([at('2026-09-04T18:00', { durationMinutes: 90 })]);
-
-    expect(rows()[0].textContent).toContain('18:00');
-    expect(rows()[0].textContent).toContain('19:30');
-  });
-
-  /**
-   * freeSpots is read as its own field, never assumed equal to capacity — S-04 makes them differ by
-   * changing only the server projection.
-   */
-  it('says a class is full when no spots remain', async () => {
-    await createWith([at('2026-09-04T18:00', { freeSpots: 0, capacity: 20 })]);
-
-    expect(html()).toContain('Brak miejsc');
-  });
-
-  it('renders an explicit empty state rather than a blank page', async () => {
-    await createWith([]);
-
-    expect(days().length).toBe(0);
-    expect(html()).toContain('Brak zajęć');
-  });
-
-  it('reports a failed load and offers a retry', async () => {
-    TestBed.configureTestingModule({
-      imports: [Schedule],
-      providers: [provideHttpClient(), provideHttpClientTesting()],
-    });
-
-    controller = TestBed.inject(HttpTestingController);
-    fixture = TestBed.createComponent(Schedule);
-
-    (await vi.waitFor(() => controller.expectOne('/api/classes'))).flush(null, {
-      status: 500,
-      statusText: 'Server Error',
-    });
-    await fixture.whenStable();
-    fixture.detectChanges();
-
-    expect(html()).toContain('Nie udało się wczytać');
-
+  function step(label: string): void {
     (fixture.nativeElement as HTMLElement)
-      .querySelector<HTMLButtonElement>('.link-button')!
+      .querySelector<HTMLButtonElement>(`[aria-label="${label}"]`)!
       .click();
+    fixture.detectChanges();
+  }
 
-    (await vi.waitFor(() => controller.expectOne('/api/classes'))).flush([at('2026-09-04T18:00')]);
+  it('fetches the visible window on first render, without an ngOnInit of its own', () => {
+    const requests = scheduleRequests();
+
+    expect(requests.length).toBe(1);
+
+    const from = new Date(requests[0].request.params.get('from')!);
+    const to = new Date(requests[0].request.params.get('to')!);
+
+    // A day, starting at local midnight — the calendar's default view.
+    expect(from.getHours()).toBe(0);
+    expect(to.getTime() - from.getTime()).toBe(24 * 60 * 60 * 1000);
+
+    requests[0].flush([]);
+  });
+
+  it('refetches with the shifted window when the calendar moves a week', () => {
+    const first = scheduleRequests();
+    const firstFrom = new Date(first[0].request.params.get('from')!).getTime();
+    first[0].flush([]);
+
+    step('Następny tydzień');
+
+    const second = scheduleRequests();
+    const secondFrom = new Date(second[0].request.params.get('from')!).getTime();
+
+    expect(secondFrom).toBe(firstFrom + 7 * 24 * 60 * 60 * 1000);
+
+    second[0].flush([]);
+  });
+
+  it('does not let a stale response overwrite a fresher one', async () => {
+    // The race navigation made reachable: nothing cancels an in-flight request, so without the
+    // generation guard the LAST RESPONSE would win rather than the last request.
+    const first = scheduleRequests();
+    first[0].flush([]);
+
+    step('Następny tydzień');
+    const second = scheduleRequests()[0];
+
+    step('Następny tydzień');
+    const third = scheduleRequests()[0];
+
+    // Third answers first, then the stale second arrives.
+    third.flush([at('2026-09-18T10:00', { id: 'fresh' })]);
+    await fixture.whenStable();
+
+    second.flush([at('2026-09-11T10:00', { id: 'stale' })]);
     await fixture.whenStable();
     fixture.detectChanges();
 
-    expect(rows().length).toBe(1);
+    const rows = (fixture.componentInstance as unknown as { rows: () => ScheduledClass[] }).rows();
+
+    expect(rows.map((row) => row.id)).toEqual(['fresh']);
+  });
+
+  it('surfaces a failed load without pretending the window is empty', async () => {
+    scheduleRequests()[0].flush('boom', { status: 500, statusText: 'Server Error' });
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const html = fixture.nativeElement as HTMLElement;
+
+    expect(html.querySelector('.alert')).not.toBeNull();
+    expect(html.querySelector('.calendar-empty')).toBeNull();
   });
 });

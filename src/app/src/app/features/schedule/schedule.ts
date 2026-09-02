@@ -1,33 +1,26 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
-import { DatePipe } from '@angular/common';
+import { Component, inject, signal } from '@angular/core';
 import { ClassService } from '../../core/scheduling/class.service';
 import { ScheduledClass } from '../../core/scheduling/class.models';
-
-/** One day heading and the classes under it. */
-interface ScheduleDay {
-  /** Midnight local on that day — what the heading formats. */
-  day: Date;
-  classes: ScheduledClass[];
-}
+import { CalendarRange, ScheduleCalendar } from '../../shared/calendar/schedule-calendar';
 
 /**
- * The member's schedule (FR-007): the next fortnight as a day-by-day list.
+ * The member's schedule (prd.md FR-007, prd-v2 FR-015, FR-016, FR-018).
  *
- * A LIST, not a calendar grid — the PRD calls that out explicitly, because a weekly grid is painful
- * on a phone and this app is mobile-first.
+ * A CALENDAR since S-07, not the day-grouped list it was: one day at a time on a phone, the whole
+ * week from 48rem up. The grouping this screen used to do in a `computed` moved into the shared
+ * calendar, which is also what the admin panel renders — FR-017's whole point is that there is one
+ * of them.
  *
- * The API returns a flat, time-ordered list and this screen groups it. Grouping happens HERE, by the
- * browser's local date, for the same reason every other timestamp in this app renders in the
- * browser's clock: a member reads the schedule on their own device. The server never picks a
- * timezone for the read path.
+ * What is left here is data: the calendar says which window it is showing, this fetches it. The
+ * screen holds no navigation state at all, which is why moving between weeks needs no code here.
  */
 @Component({
-  imports: [DatePipe],
+  imports: [ScheduleCalendar],
   selector: 'app-schedule',
   styleUrl: './schedule.scss',
   templateUrl: './schedule.html',
 })
-export class Schedule implements OnInit {
+export class Schedule {
   private readonly classes = inject(ClassService);
 
   protected readonly rows = signal<ScheduledClass[]>([]);
@@ -35,51 +28,35 @@ export class Schedule implements OnInit {
   protected readonly loadFailed = signal(false);
 
   /**
-   * The flat list folded into day sections, in local time.
-   *
-   * Keyed on the LOCAL calendar date, so a class at 23:30 belongs to that evening rather than being
-   * pushed into the next day by a UTC-based key.
+   * NEW IN S-07, and not optional. Nothing cancels an in-flight request, so the last RESPONSE would
+   * otherwise win: two quick taps on "next week" can land their responses in either order, and the
+   * loser would overwrite the week actually on screen. The single fetch this screen used to do could
+   * not race with anything; navigation is what made it possible. Same guard as classes.ts.
    */
-  protected readonly days = computed<ScheduleDay[]>(() => {
-    const groups = new Map<string, ScheduleDay>();
+  private generation = 0;
 
-    for (const row of this.rows()) {
-      const startsAt = new Date(row.startsAt);
-      const day = new Date(startsAt.getFullYear(), startsAt.getMonth(), startsAt.getDate());
-      const key = day.toDateString();
+  /** Driven by the calendar's rangeChange, which fires on init too — hence no ngOnInit. */
+  protected async load(range: CalendarRange): Promise<void> {
+    const generation = ++this.generation;
 
-      const existing = groups.get(key);
-      if (existing) {
-        existing.classes.push(row);
-      } else {
-        groups.set(key, { day, classes: [row] });
-      }
-    }
-
-    // The API already ordered by time, and Map preserves insertion order, so the days and the
-    // classes within each day are both already in order.
-    return [...groups.values()];
-  });
-
-  async ngOnInit(): Promise<void> {
-    await this.load();
-  }
-
-  protected async load(): Promise<void> {
     this.loading.set(true);
     this.loadFailed.set(false);
 
     try {
-      this.rows.set(await this.classes.getSchedule());
+      const rows = await this.classes.getSchedule(range.from, range.to);
+      if (generation !== this.generation) {
+        return;
+      }
+      this.rows.set(rows);
     } catch {
+      if (generation !== this.generation) {
+        return;
+      }
       this.loadFailed.set(true);
     } finally {
-      this.loading.set(false);
+      if (generation === this.generation) {
+        this.loading.set(false);
+      }
     }
-  }
-
-  /** When the class ends, for display. Derived rather than stored — see the Class aggregate. */
-  protected endsAt(row: ScheduledClass): Date {
-    return new Date(new Date(row.startsAt).getTime() + row.durationMinutes * 60_000);
   }
 }

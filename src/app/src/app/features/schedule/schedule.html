@@ -1,46 +1,11 @@
 <h1>Grafik zajęć</h1>
-<p class="hint">Najbliższe dwa tygodnie. Zapisy pojawią się wkrótce.</p>
+<p class="hint">Zapisy pojawią się wkrótce.</p>
 
-@if (loading()) {
-  <p class="notice" role="status">Wczytywanie…</p>
-} @else if (loadFailed()) {
-  <p class="alert" role="alert">
-    Nie udało się wczytać grafiku.
-    <button type="button" class="link-button" (click)="load()">Spróbuj ponownie</button>
-  </p>
-} @else if (days().length === 0) {
-  <!-- An explicit empty state, not a blank page: "no classes scheduled" and "it failed to load"
-       must not look the same to the member. -->
-  <div class="card">
-    <p class="empty">Brak zajęć w najbliższych dwóch tygodniach.</p>
-  </div>
-} @else {
-  @for (day of days(); track day.day.getTime()) {
-    <section class="schedule-day">
-      <h2 class="schedule-heading">{{ day.day | date: 'EEEE, d MMMM' }}</h2>
-
-      <ul class="schedule-list">
-        @for (item of day.classes; track item.id) {
-          <li class="card schedule-row">
-            <p class="schedule-time">
-              {{ item.startsAt | date: 'HH:mm' }}–{{ endsAt(item) | date: 'HH:mm' }}
-            </p>
-
-            <div class="schedule-details">
-              <p class="schedule-name">{{ item.name }}</p>
-              <p class="schedule-meta">{{ item.instructor }}</p>
-            </div>
-
-            <p class="schedule-spots">
-              @if (item.freeSpots > 0) {
-                {{ item.freeSpots }} / {{ item.capacity }} wolnych
-              } @else {
-                <span class="schedule-full">Brak miejsc</span>
-              }
-            </p>
-          </li>
-        }
-      </ul>
-    </section>
-  }
-}
+<!-- Loading, failure and the empty state all live inside the calendar: it keeps the grid mounted
+     through all three, so navigating between weeks never makes the page jump. -->
+<app-schedule-calendar
+  [classes]="rows()"
+  [loading]="loading()"
+  [loadFailed]="loadFailed()"
+  (rangeChange)="load($event)"
+/>

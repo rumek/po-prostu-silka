@@ -111,6 +111,13 @@
   --space-7: 3rem;
 
   --shadow-card: 0 1px 2px rgb(39 35 33 / 4%), 0 8px 24px rgb(39 35 33 / 6%);
+
+  // The width at which the schedule stops showing one day and shows the whole week (prd-v2 FR-016).
+  //
+  // KEPT IN TWO PLACES ON PURPOSE, and they must move together: a CSS custom property cannot be read
+  // by matchMedia, and a TS constant cannot appear in a media query. The twin lives in
+  // src/app/shared/calendar/calendar-breakpoint.ts and says the same thing about this one.
+  --breakpoint-week: 48rem;
 }
 
 // -----------------------------------------------------------------------------

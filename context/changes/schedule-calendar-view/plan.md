@@ -353,6 +353,14 @@ untrue (`context/foundation/lessons.md`). Add `angular-calendar/css/angular-cale
 `LOCALE_ID` is already `'pl'` and `registerLocaleData(localePl)` already runs; the calendar's `locale`
 input is set from that, and the week starts on Monday.
 
+**Adapted during implementation.** The providers do **not** go in `app.config.ts`. Registering them
+there imports `angular-calendar` from the application config, which pulls the whole library into the
+INITIAL bundle — measured: 562.61 kB against the 500 kB budget, with the two lazy chunks left at
+~10 kB each. `provideCalendar({ provide: DateAdapter, useFactory: adapterFactory })` is declared on
+the `ScheduleCalendar` component instead, so it ships in the lazy chunk of whichever route rendered
+it: 465.95 kB initial, library in the 107 kB `schedule` chunk, budget met. The published API is
+`provideCalendar(...)` as the standalone path predicted; `CalendarModule.forRoot` was not needed.
+
 #### 3. Breakpoint token
 
 **File**: `src/app/src/styles.scss`, `src/app/src/app/shared/calendar/calendar-breakpoint.ts`
@@ -388,10 +396,27 @@ end; note in the file header why it is neither `core/` (which holds no component
 - State: `viewDate` signal; `viewMode` signal initialised to `'day'`; navigation by day and by week,
   plus a native `<input type="date">` for the jump control (no third-party date picker — the design
   system is hand-rolled).
+
+  **Adapted during implementation.** Both views are ONE renderer, not two: `mwl-calendar-week-view`
+  with `daysInWeek` bound to 1 or 7. The library does ship a separate day-view component, but one
+  renderer means one event template, one set of style overrides and — in Phase 4 — one drag path.
+  `viewDate` is bound to the computed range start rather than to a free-floating anchor, so what the
+  grid draws and what was fetched cannot disagree. (`weekStartsOn` is ignored by the library whenever
+  `daysInWeek` is set, which is exactly why the range start is computed here and passed in.)
 - View switching: inside an `isPlatformBrowser` guard, subscribe to
   `matchMedia('(min-width: ' + WEEK_VIEW_MIN_WIDTH + ')')` and set `viewMode` from its `matches`,
   including on later resizes. The signal's initial `'day'` is what renders before the first read and
   in specs, where jsdom provides no `matchMedia` — see "Critical Implementation Details".
+
+  **Adapted during implementation.** The platform check alone is not enough: jsdom IS a browser
+  platform and still has no `matchMedia`, so `isPlatformBrowser` passed and the call threw. The guard
+  is `isPlatformBrowser(...) && typeof window.matchMedia === 'function'`. The day-first default has to
+  actually survive the API's absence rather than merely be documented as doing so — the specs found
+  this, which is the coverage the build cannot give (see the Phase 2 build criterion).
+
+  Also adapted: the `locale` input is bound to the injected `LOCALE_ID`, not to a hardcoded `'pl'`.
+  Hardcoding it made the component demand CLDR data only `app.config.ts` registers, which failed with
+  NG0701 anywhere that config does not run.
 - Range computation: from `viewDate` and `viewMode`, using `date-fns` `startOfDay`/`startOfWeek`
   (`weekStartsOn: 1`) in the **browser's** local clock, converted to UTC instants on emit.
 - Mapping: `ScheduledClass` → `CalendarEvent` with `start` from `startsAt`,
@@ -755,10 +780,10 @@ Rollback is a redeploy of the previous artifact, with no schema to reverse.
 
 #### Automated
 
-- [x] 1.1 Backend builds: `dotnet build` from `src/`
-- [x] 1.2 Backend tests pass, new range cases included: `dotnet test` from the repo root
-- [x] 1.3 Front end type-checks and tests pass: `npm test` from `src/app/`
-- [x] 1.4 Front-end lint and format pass: `npm run quality:check` from `src/app/`
+- [x] 1.1 Backend builds: `dotnet build` from `src/` — e29367c
+- [x] 1.2 Backend tests pass, new range cases included: `dotnet test` from the repo root — e29367c
+- [x] 1.3 Front end type-checks and tests pass: `npm test` from `src/app/` — e29367c
+- [x] 1.4 Front-end lint and format pass: `npm run quality:check` from `src/app/` — e29367c
 
 #### Manual
 
@@ -770,11 +795,11 @@ Rollback is a redeploy of the previous artifact, with no schema to reverse.
 
 #### Automated
 
-- [ ] 2.1 Front-end tests pass: `npm test` from `src/app/`
-- [ ] 2.2 Lint and format pass: `npm run quality:check` from `src/app/`
-- [ ] 2.3 Initial bundle inside the 500 kB budget, calendar in its own lazy chunk
-- [ ] 2.4 Production build succeeds: `npm run build` from `src/app/`
-- [ ] 2.5 Backend tests still pass: `dotnet test` from the repo root
+- [x] 2.1 Front-end tests pass: `npm test` from `src/app/`
+- [x] 2.2 Lint and format pass: `npm run quality:check` from `src/app/`
+- [x] 2.3 Initial bundle inside the 500 kB budget, calendar in its own lazy chunk
+- [x] 2.4 Production build succeeds: `npm run build` from `src/app/`
+- [x] 2.5 Backend tests still pass: `dotnet test` from the repo root
 
 #### Manual
 

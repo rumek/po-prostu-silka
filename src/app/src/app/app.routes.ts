@@ -3,12 +3,10 @@ import { activeMemberGuard } from './core/auth/active-member.guard';
 import { adminGuard } from './core/auth/admin.guard';
 import { authGuard } from './core/auth/auth.guard';
 import { Approvals } from './features/admin/approvals/approvals';
-import { Classes } from './features/admin/classes/classes';
 import { ClassForm } from './features/admin/classes/class-form';
 import { ClassTypes } from './features/admin/class-types/class-types';
 import { ClassTypeForm } from './features/admin/class-types/class-type-form';
 import { Members } from './features/admin/members/members';
-import { Schedule } from './features/schedule/schedule';
 import { Login } from './features/auth/login/login';
 import { Pending } from './features/auth/pending/pending';
 import { Register } from './features/auth/register/register';
@@ -29,8 +27,21 @@ export const routes: Routes = [
   { path: '', component: Home, canActivate: [authGuard, activeMemberGuard] },
   { path: 'admin/approvals', component: Approvals, canActivate: [authGuard, adminGuard] },
   { path: 'admin/members', component: Members, canActivate: [authGuard, adminGuard] },
-  { path: 'schedule', component: Schedule, canActivate: [authGuard, activeMemberGuard] },
-  { path: 'admin/classes', component: Classes, canActivate: [authGuard, adminGuard] },
+  // LAZY, both of them, and deliberately (S-07). They are the only routes that pull in
+  // angular-calendar plus date-fns and its two drag/resize peers; eagerly loaded that lands in the
+  // initial bundle, which already sits at ~424 kB against a 500 kB budget. It also means login,
+  // register and the pending screen — everything an unapproved member ever sees — never download a
+  // calendar.
+  {
+    path: 'schedule',
+    loadComponent: () => import('./features/schedule/schedule').then((m) => m.Schedule),
+    canActivate: [authGuard, activeMemberGuard],
+  },
+  {
+    path: 'admin/classes',
+    loadComponent: () => import('./features/admin/classes/classes').then((m) => m.Classes),
+    canActivate: [authGuard, adminGuard],
+  },
   // 'new' MUST precede ':id', or the literal segment is swallowed by the parameter.
   { path: 'admin/classes/new', component: ClassForm, canActivate: [authGuard, adminGuard] },
   { path: 'admin/classes/:id', component: ClassForm, canActivate: [authGuard, adminGuard] },

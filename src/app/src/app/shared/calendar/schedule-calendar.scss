@@ -1,0 +1,200 @@
+// Layout, plus the overrides that bend angular-calendar onto this app's tokens.
+//
+// The library arrives with its own visual language; this app has a deliberate one (S-01 decision D7 —
+// Material and Tailwind were both rejected). Everything below either positions something or swaps a
+// library colour/metric for a token. No new colour literals: if a value is not in styles.scss, it
+// does not belong here.
+//
+// ::ng-deep is unavoidable for the library's internals — its markup is rendered by its own
+// components, so this component's emulated encapsulation would otherwise never reach it. Every
+// ::ng-deep below is anchored under .calendar-surface so it cannot leak past this component.
+
+.calendar-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.calendar-when {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.calendar-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  // The formatted range starts with a lowercase weekday in Polish; the heading wants a capital.
+  &::first-letter {
+    text-transform: uppercase;
+  }
+}
+
+.calendar-jump {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 0.875rem;
+  color: var(--muted);
+
+  input {
+    padding: var(--space-1) var(--space-2);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-sm);
+    background: var(--ground);
+    color: var(--ink);
+    font: inherit;
+  }
+}
+
+.calendar-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.calendar-step,
+.calendar-today {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--ground);
+  color: var(--ink);
+  font: inherit;
+  line-height: 1;
+  cursor: pointer;
+
+  &:hover {
+    border-color: var(--ink);
+    color: var(--accent);
+  }
+}
+
+.calendar-header-actions {
+  margin-left: auto;
+  display: flex;
+  gap: var(--space-2);
+}
+
+.calendar-surface {
+  // The positioning context for the empty-state overlay.
+  position: relative;
+  // A week of seven columns has a floor below which it stops being readable; below the breakpoint the
+  // view is a single day, so this only ever bites on a narrow tablet.
+  overflow-x: auto;
+}
+
+// The empty state sits OVER the grid and must not swallow the pointer — Phase 4's drag-to-create
+// happens on exactly this surface, and an empty week is the one that most needs filling.
+.calendar-empty {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: var(--space-5);
+  color: var(--muted);
+  text-align: center;
+  // Enough to read the message over the grid lines, not enough to hide which day is which.
+  background: color-mix(in srgb, var(--ground) 82%, transparent);
+}
+
+// --- the event tile ---------------------------------------------------------
+
+.calendar-tile {
+  height: 100%;
+  overflow: hidden;
+  padding: var(--space-2);
+  font-size: 0.8125rem;
+  line-height: 1.25;
+
+  p {
+    margin: 0;
+  }
+}
+
+.calendar-tile-time {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.calendar-tile-name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.calendar-tile-meta,
+.calendar-tile-spots {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.calendar-tile-full {
+  color: var(--danger);
+}
+
+.calendar-tile-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+}
+
+// --- library overrides ------------------------------------------------------
+
+.calendar-surface ::ng-deep {
+  .cal-week-view {
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--ground);
+    font-family: var(--font-body);
+  }
+
+  .cal-day-headers,
+  .cal-time-events,
+  .cal-day-column,
+  .cal-hour:not(:last-child) .cal-hour-segment,
+  .cal-hour-segment,
+  .cal-time-label-column {
+    border-color: var(--line);
+  }
+
+  .cal-day-headers .cal-header {
+    padding: var(--space-2) 0;
+    color: var(--ink);
+
+    &:hover,
+    &.cal-drag-over {
+      background: var(--section-warm);
+    }
+  }
+
+  .cal-day-headers .cal-today {
+    background: var(--section-warm);
+  }
+
+  .cal-time {
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+    font-weight: 400;
+  }
+
+  // The library colours events from event.color, which this app does not set: one club, one visual
+  // language, and a per-class palette would be decoration carrying no information.
+  .cal-event {
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-sm);
+    background: var(--section-warm);
+    color: var(--ink);
+  }
+
+  .cal-current-time-marker {
+    background: var(--accent);
+  }
+}

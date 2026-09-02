@@ -1,0 +1,124 @@
+<header class="calendar-toolbar">
+  <div class="calendar-when">
+    <!-- The heading names the visible range, not "today": after navigating away, "today" would be a
+         lie about what is on screen. -->
+    <h2 class="calendar-title">
+      @if (weekView()) {
+        {{ range().from | date: 'd MMMM' }} – {{ range().to | date: 'd MMMM y' }}
+      } @else {
+        {{ range().from | date: 'EEEE, d MMMM y' }}
+      }
+    </h2>
+
+    <label class="calendar-jump">
+      <span class="calendar-jump-label">Skocz do daty</span>
+      <input
+        type="date"
+        [value]="anchorInputValue()"
+        (change)="jumpTo($any($event.target).value)"
+      />
+    </label>
+  </div>
+
+  <div class="calendar-nav">
+    <button
+      type="button"
+      class="calendar-step"
+      (click)="stepWeeks(-1)"
+      aria-label="Poprzedni tydzień"
+    >
+      &laquo;
+    </button>
+
+    <!-- Day steps only where a day is what you see. In the week view they would move the week by a
+         day and leave it starting on a Wednesday. -->
+    @if (!weekView()) {
+      <button
+        type="button"
+        class="calendar-step"
+        (click)="stepDays(-1)"
+        aria-label="Poprzedni dzień"
+      >
+        &lsaquo;
+      </button>
+    }
+
+    <button type="button" class="calendar-today" (click)="goToToday()">Dziś</button>
+
+    @if (!weekView()) {
+      <button type="button" class="calendar-step" (click)="stepDays(1)" aria-label="Następny dzień">
+        &rsaquo;
+      </button>
+    }
+
+    <button
+      type="button"
+      class="calendar-step"
+      (click)="stepWeeks(1)"
+      aria-label="Następny tydzień"
+    >
+      &raquo;
+    </button>
+  </div>
+
+  <div class="calendar-header-actions">
+    <ng-content select="[calendarHeaderActions]" />
+  </div>
+</header>
+
+@if (loading()) {
+  <p class="notice" role="status">Wczytywanie…</p>
+} @else if (loadFailed()) {
+  <p class="alert" role="alert">Nie udało się wczytać grafiku.</p>
+}
+
+<!-- The grid stays mounted through loading and failure so navigation never jumps: only the overlay
+     above it changes. -->
+<div class="calendar-surface">
+  <mwl-calendar-week-view
+    [viewDate]="range().from"
+    [daysInWeek]="daysInWeek()"
+    [events]="events()"
+    [locale]="locale"
+    [eventTemplate]="tile"
+  />
+
+  @if (isEmpty()) {
+    <!-- Painted OVER the grid rather than replacing it: the grid is the reader's sense of which day
+         they are on, and (from Phase 4) the admin's drawing surface. pointer-events: none in the
+         stylesheet is what keeps that gesture alive on the week that most needs filling. -->
+    <p class="calendar-empty" role="status">
+      @if (weekView()) {
+        Brak zajęć w tym tygodniu.
+      } @else {
+        Brak zajęć tego dnia.
+      }
+    </p>
+  }
+</div>
+
+<ng-template #tile let-weekEvent="weekEvent">
+  <div class="calendar-tile">
+    <p class="calendar-tile-time">
+      {{ weekEvent.event.start | date: 'HH:mm' }}–{{ weekEvent.event.end | date: 'HH:mm' }}
+    </p>
+    <p class="calendar-tile-name">{{ weekEvent.event.meta.name }}</p>
+    <p class="calendar-tile-meta">{{ weekEvent.event.meta.instructor }}</p>
+    <p class="calendar-tile-spots">
+      @if (weekEvent.event.meta.freeSpots > 0) {
+        {{ weekEvent.event.meta.freeSpots }} / {{ weekEvent.event.meta.capacity }} wolnych
+      } @else {
+        <span class="calendar-tile-full">Brak miejsc</span>
+      }
+    </p>
+
+    @if (!readOnly() && classActions()) {
+      <div class="calendar-tile-actions">
+        <ng-container
+          [ngTemplateOutlet]="classActions()!"
+          [ngTemplateOutletContext]="{ $implicit: weekEvent.event.meta }"
+        />
+      </div>
+    }
+  </div>
+</ng-template>
