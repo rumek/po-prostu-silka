@@ -15,9 +15,15 @@ public class ClassStore(AppDbContext db) : IClassStore
         // Tracked, not AsNoTracking: UpdateAsync mutates what this returns and expects the change
         // tracker to notice.
         //
-        // Both navigations are included because ToDto RESOLVES the name, description and instructor
-        // display name through them (prd-v2 FR-007, FR-009, FR-010) - an occurrence carries none of
-        // the three itself, so without these the DTO would dereference null.
+        // Both navigations are included for GetByIdAsync, which is the one caller that projects
+        // straight from what this returns: an occurrence carries neither its name nor its instructor's
+        // display name (prd-v2 FR-007, FR-009, FR-010), so without these that DTO would dereference
+        // null.
+        //
+        // The WRITE paths do not rely on them. They pass the ClassType and ApplicationUser their own
+        // validation already resolved, because after an instructor is reassigned the tracked entity's
+        // Instructor navigation still points at the PREVIOUS account - projecting from it would give
+        // a correct id beside a stale name.
         //
         // Include, not a projection, precisely because the result is tracked and mutable. That is the
         // one place in this codebase where Include is the right tool; the read queries next door stay
@@ -86,6 +92,11 @@ public class ClassStore(AppDbContext db) : IClassStore
         // duplicate, whose copies are seven days apart and so cannot collide with one another - but a
         // checker that silently ignores pending writes is a trap for the next caller, and the trap is
         // now club-wide rather than per-room.
+        //
+        // The excludingId term is UNREACHABLE here and kept for symmetry with the predicate above: an
+        // Added entity has an id the caller has never seen, so it can never be the one being edited.
+        // Dropping it would make the two halves read differently and invite the next reader to wonder
+        // which one is right.
         return db.Classes.Local.Any(
             c => c.Status == ClassStatus.Scheduled
                  && (excludingId == null || c.Id != excludingId)

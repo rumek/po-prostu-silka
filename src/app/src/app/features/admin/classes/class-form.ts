@@ -120,14 +120,20 @@ export class ClassForm implements OnInit {
       ]);
 
       this.trainers.set(trainers);
-      this.noTrainers.set(trainers.length === 0);
 
       if (id) {
         await this.loadExisting(id, types);
       } else {
         const active = types.filter((type) => type.isActive);
         this.classTypeOptions.set(active);
+
+        // BOTH empty states are CREATE-ONLY preconditions. An existing class already has a type and
+        // an instructor; if the club later retires every type or revokes every Trainer role, the
+        // admin must still be able to open that class and fix its time or capacity. Setting either
+        // signal on the edit path replaces the whole form (see class-form.html) and locks them out
+        // of a class that is perfectly valid.
         this.noClassTypes.set(active.length === 0);
+        this.noTrainers.set(trainers.length === 0);
       }
     } catch {
       this.loadFailed.set(true);
@@ -164,6 +170,22 @@ export class ClassForm implements OnInit {
             },
           ],
     );
+
+    // The stored instructor may no longer be offered: /api/admin/trainers returns ACTIVE trainers
+    // only, so a trainer since blocked or de-roled is absent from the list. Without an option to
+    // match, the browser renders the select BLANK while the control quietly keeps its value - so a
+    // required field looks unfilled, passes validation, and the admin only learns something is wrong
+    // after submitting, as `unknown_instructor`.
+    //
+    // Class.cs documents the stale reference itself as an accepted risk of this slice; what is not
+    // acceptable is hiding it until save. Same fallback trick as the class type above, flagged in the
+    // label so the admin sees they must pick someone else.
+    if (!this.trainers().some((trainer) => trainer.id === existing.instructorUserId)) {
+      this.trainers.update((trainers) => [
+        { id: existing.instructorUserId, displayName: `${existing.instructor} (nieaktywny)` },
+        ...trainers,
+      ]);
+    }
 
     // setValue, NOT applyTypeDefaults: these numbers are the OCCURRENCE's, and re-deriving them from
     // the type is exactly the bug this component is shaped to prevent.

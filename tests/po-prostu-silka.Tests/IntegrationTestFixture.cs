@@ -93,7 +93,13 @@ public class IntegrationTestFixture : IAsyncLifetime
     /// Creates a user through Identity's UserManager rather than raw SQL, so password hashing,
     /// normalisation and role wiring match production exactly.
     /// </summary>
-    public async Task CreateUserAsync(string email, AccountStatus status, string role)
+    /// <param name="displayName">
+    /// Defaults to "Test {role}". Pass an explicit one when a test needs to tell two accounts of the
+    /// same role apart by name — asserting that a resolved display name is the RIGHT one is
+    /// meaningless while every trainer is called "Test Trainer".
+    /// </param>
+    public async Task CreateUserAsync(
+        string email, AccountStatus status, string role, string? displayName = null)
     {
         using var scope = Factory.Services.CreateScope();
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
@@ -108,7 +114,7 @@ public class IntegrationTestFixture : IAsyncLifetime
             UserName = email,
             Email = email,
             EmailConfirmed = true,
-            DisplayName = $"Test {role}",
+            DisplayName = displayName ?? $"Test {role}",
             Status = status,
             CreatedAt = DateTimeOffset.UtcNow,
         };

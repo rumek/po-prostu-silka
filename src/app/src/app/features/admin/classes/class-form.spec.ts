@@ -240,6 +240,42 @@ describe('ClassForm', () => {
     expect(el().querySelector('form')).toBeNull();
   });
 
+  /**
+   * Both empty states are CREATE-only preconditions. An existing class already has a type and an
+   * instructor, so an empty list must not replace the form — that would lock the admin out of a
+   * perfectly valid class they need to reschedule.
+   */
+  it('still renders the edit form when every trainer lost the role', async () => {
+    await create('c1', { trainers: [] });
+
+    expect(el().querySelector('form')).not.toBeNull();
+    expect(el().textContent).not.toContain('roli prowadzącego');
+    expect(input('capacity').value).toBe('20');
+  });
+
+  /**
+   * `/api/admin/trainers` is active-only, so a trainer since blocked or de-roled is missing from it.
+   * Without a fallback option the select renders blank while the control keeps its value — a
+   * required field that looks unfilled, validates fine, and only fails on submit.
+   */
+  it('keeps the stored instructor selectable when they are no longer an active trainer', async () => {
+    await create('c1', { trainers: [{ id: 'u2', displayName: 'Marek' }] });
+
+    const options = [...select('instructorUserId').querySelectorAll('option')];
+    const stale = options.find((o) => o.getAttribute('value') === 'u1');
+
+    expect(stale).toBeDefined();
+    expect(stale!.textContent).toContain('(nieaktywny)');
+    expect(select('instructorUserId').value).toBe('u1');
+  });
+
+  it('still renders the edit form when every class type was retired', async () => {
+    await create('c1', { types: [RETIRED] });
+
+    expect(el().querySelector('form')).not.toBeNull();
+    expect(el().textContent).not.toContain('Najpierw zdefiniuj typ zajęć');
+  });
+
   // --- time handling ---------------------------------------------------------
 
   /**

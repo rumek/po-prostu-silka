@@ -17,12 +17,15 @@ namespace po_prostu_silka.Infrastructure.Persistence.Migrations
     /// </para>
     ///
     /// <para>
-    /// THREE COLUMNS ARE DELIBERATELY NOT DROPPED: Name, Room and Instructor. Nothing reads or writes
+    /// THREE COLUMNS ARE RELAXED HERE, NOT DROPPED: Name, Room and Instructor. Nothing reads or writes
     /// them after this migration - the name and description resolve through ClassTypes and the
-    /// instructor through AspNetUsers - but AGENTS.md's rule is that rollback redeploys the previous
-    /// artifact WITHOUT rolling back the schema, so the previous build must still find the columns it
-    /// INSERTs. Dropping them belongs to a follow-up change, one release later. They are relaxed to
-    /// NULL here rather than left NOT NULL because the new build stops supplying them.
+    /// instructor through AspNetUsers - so they go NULL rather than staying NOT NULL, because the new
+    /// build stops supplying them.
+    ///
+    /// They are dropped by DropDeadClassColumns, which ships in the SAME release. This migration
+    /// originally deferred that drop by one release per AGENTS.md; the product owner reversed that
+    /// decision, and DropDeadClassColumns' own header states the rollback cost that reversal accepts.
+    /// Read it before assuming this pair is rollback-safe.
     /// </para>
     ///
     /// <para>

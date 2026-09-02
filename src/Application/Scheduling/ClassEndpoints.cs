@@ -33,6 +33,16 @@ namespace po_prostu_silka.Application.Scheduling;
 /// FreeSpots is <see cref="Capacity"/> until S-08 — see IClassScheduleQuery. There is no Room: the
 /// club has one, so the field never carried information (prd-v2 FR-011).
 /// </para>
+///
+/// <para>
+/// <see cref="InstructorUserId"/> REACHES MEMBERS, and that is a considered decision rather than an
+/// oversight. ClassScheduleQuery projects one shape for both the admin list and the member schedule,
+/// so every active member receives the trainer's Identity id. The member SPA never reads it — the
+/// field exists for the admin form's trainer select — and it grants nothing on its own, since every
+/// admin surface is policy-gated. Splitting the projection in two was weighed and declined: it would
+/// hand S-07 and S-08 a branch to maintain for a field with no exploit path. Revisit if the id ever
+/// becomes guessable-to-useful, e.g. if a member-facing endpoint ever accepts a user id.
+/// </para>
 /// </summary>
 public record ScheduledClass(
     Guid Id,
@@ -216,7 +226,11 @@ public static class ClassEndpoints
     {
         var found = await store.FindAsync(id, cancellationToken);
 
-        return found is null ? Results.NotFound() : Results.Ok(ToDto(found));
+        // The one caller whose entity genuinely arrives with both navigations populated - FindAsync
+        // Includes them - and the one place a null truly means "no such class".
+        return found is null
+            ? Results.NotFound()
+            : Results.Ok(ToDto(found, found.ClassType, found.Instructor));
     }
 
     private static async Task<IResult> CreateAsync(
@@ -258,7 +272,8 @@ public static class ClassEndpoints
             return Results.Json(new ClassFailure("inactive_class_type"), statusCode: 400);
         }
 
-        var instructorFailure = await ValidateInstructorAsync(request.InstructorUserId, userManager);
+        var (instructorFailure, instructor) =
+            await ValidateInstructorAsync(request.InstructorUserId, userManager);
         if (instructorFailure is not null)
         {
             return instructorFailure;
@@ -292,11 +307,14 @@ public static class ClassEndpoints
         store.Add(created);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // Re-read so the response carries the resolved name, description and display name rather than
-        // the nulls the freshly-constructed entity holds for its navigations.
-        var saved = await store.FindAsync(created.Id, cancellationToken);
-
-        return saved is null ? Results.NotFound() : Results.Ok(ToDto(saved));
+        // Projected from what this handler already holds, NOT from a re-read.
+        //
+        // The freshly-constructed entity's navigations are null, so ToDto cannot take it alone - but
+        // classType and instructor are both in hand from the validation above. Re-reading here used
+        // to mean a second round-trip AND, when it came back null, a 404 for a row that had just been
+        // committed: the client was told the write failed after it succeeded, and an admin retrying a
+        // create would produce a duplicate class.
+        return Results.Ok(ToDto(created, classType, instructor!));
     }
 
     private static async Task<IResult> UpdateAsync(
@@ -332,7 +350,8 @@ public static class ClassEndpoints
 
         // The instructor, unlike the type, IS mutable - reassigning a class to another trainer is
         // ordinary admin work - so it is re-validated on every edit.
-        var instructorFailure = await ValidateInstructorAsync(request.InstructorUserId, userManager);
+        var (instructorFailure, instructor) =
+            await ValidateInstructorAsync(request.InstructorUserId, userManager);
         if (instructorFailure is not null)
         {
             return instructorFailure;
@@ -362,11 +381,12 @@ public static class ClassEndpoints
         // revisit - at which point Class needs a ConcurrencyStamp and both handlers need the 409.
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // Re-read: changing the instructor leaves the tracked entity's Instructor navigation pointing
-        // at the PREVIOUS account, so projecting from it would return a stale display name.
-        var saved = await store.FindAsync(id, cancellationToken);
-
-        return saved is null ? Results.NotFound() : Results.Ok(ToDto(saved));
+        // Projected from what this handler already holds, NOT from a re-read - see CreateAsync for
+        // why the re-read was wrong. The type is immutable on an edit, so existing.ClassType (loaded
+        // by FindAsync) is still correct; the instructor may have just changed, which is exactly why
+        // the validated account is used rather than the tracked entity's navigation - that one still
+        // points at the PREVIOUS account and would render a stale display name.
+        return Results.Ok(ToDto(existing, existing.ClassType, instructor!));
     }
 
     /// <summary>
@@ -527,8 +547,23 @@ public static class ClassEndpoints
     /// a stale list, and "pick someone else" is the whole of the useful advice. Telling the caller
     /// which accounts exist but are blocked would leak account state onto a scheduling surface.
     /// </para>
+    ///
+    /// <para>
+    /// RETURNS THE ACCOUNT, not just a verdict. The caller needs its DisplayName to build the
+    /// response, and this method has already fetched it - handing it back is what lets both write
+    /// paths answer without a second round-trip to the database after they have committed.
+    /// </para>
+    ///
+    /// <para>
+    /// No CancellationToken: UserManager exposes no token overload for either call, so an aborted
+    /// request still pays for both. A deliberate gap, not an omission.
+    /// </para>
     /// </summary>
-    private static async Task<IResult?> ValidateInstructorAsync(
+    /// <returns>
+    /// <c>Failure</c> set and <c>Instructor</c> null when the account may not be assigned; the
+    /// reverse when it may. Exactly one of the two is ever non-null.
+    /// </returns>
+    private static async Task<(IResult? Failure, ApplicationUser? Instructor)> ValidateInstructorAsync(
         string instructorUserId,
         UserManager<ApplicationUser> userManager)
     {
@@ -536,33 +571,38 @@ public static class ClassEndpoints
 
         if (instructor is null || instructor.Status != AccountStatus.Active)
         {
-            return Results.Json(new ClassFailure("unknown_instructor"), statusCode: 400);
+            return (Results.Json(new ClassFailure("unknown_instructor"), statusCode: 400), null);
         }
 
         if (!await userManager.IsInRoleAsync(instructor, ApplicationRoles.Trainer))
         {
-            return Results.Json(new ClassFailure("instructor_not_trainer"), statusCode: 400);
+            return (Results.Json(new ClassFailure("instructor_not_trainer"), statusCode: 400), null);
         }
 
-        return null;
+        return (null, instructor);
     }
 
     /// <summary>
-    /// Projects a loaded occurrence onto the wire contract.
+    /// Projects an occurrence onto the wire contract.
     ///
-    /// REQUIRES BOTH NAVIGATIONS LOADED — see IClassStore.FindAsync, which is the only place an
-    /// entity reaches this method from. The name, description and instructor name are RESOLVED here,
-    /// which is why this can no longer be built from the entity alone.
+    /// <para>
+    /// THE RESOLVED PARTS ARE PASSED IN, not read off the entity's navigations. The name,
+    /// description and instructor name do not live on the occurrence (prd-v2 FR-007, FR-009,
+    /// FR-010), and the caller is not always holding an entity whose navigations are populated: a
+    /// freshly created one has none, and an edited one still points at the PREVIOUS instructor.
+    /// Taking them as parameters makes the caller state where each came from.
+    /// </para>
     /// </summary>
-    private static ScheduledClass ToDto(Class entity) =>
+    private static ScheduledClass ToDto(
+        Class entity, ClassType classType, ApplicationUser instructor) =>
         new(entity.Id,
             entity.ClassTypeId,
-            entity.ClassType.Name,
-            entity.ClassType.Description,
+            classType.Name,
+            classType.Description,
             entity.StartsAt,
             entity.DurationMinutes,
             entity.InstructorUserId,
-            entity.Instructor.DisplayName,
+            instructor.DisplayName,
             entity.Capacity,
             // Same construction as the read query: no bookings exist until S-08.
             entity.Capacity,

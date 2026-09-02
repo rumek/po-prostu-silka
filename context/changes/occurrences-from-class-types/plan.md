@@ -140,8 +140,9 @@ same release.
 >
 > Second: the plan deferred the drop by one release, per `AGENTS.md`. The product owner then chose to
 > drop all three immediately, with the rollback cost stated and accepted. The interim
-> `InstructorName` property that carried the renamed column therefore never shipped — the properties
-> are simply gone.
+> `InstructorName` property that carried the renamed column *did* ship — it landed in `67679b7` with
+> `HasColumnName("Instructor")` and was removed two commits later in `ca9a5b0`, when the drop decision
+> was reversed. At HEAD the three properties are simply gone.
 
 **The conflict check has two halves and needs both.** `HasTimeConflictAsync` must keep
 `ClassStore`'s existing database query *and* the `db.Classes.Local` / `EntityState.Added` pass.
@@ -433,6 +434,12 @@ state when there is nothing to choose from.
   `durationMinutes`; `unknown_class_type` / `inactive_class_type` / `class_type_immutable` →
   `classTypeId`; `unknown_instructor` / `instructor_not_trainer` → `instructorUserId`; everything
   else → the form-level banner. Polish copy in the existing register/class-form voice.
+
+  > **Adapted during implementation.** The three class-type reasons go to the form-level BANNER, not
+  > to the `classTypeId` control. The control is disabled whenever an edit can produce these
+  > refusals, and `setErrors` on a disabled control renders nothing — the admin would see a silent
+  > no-op. All three mean the same thing to them ("this type cannot be used for this class, reload"),
+  > so one banner message carries all three.
 - Specs cover: prefill on type change, no prefill when loading an existing class, the two empty
   states, and the `time_conflict` mapping landing on the start-time control.
 
@@ -458,6 +465,24 @@ beyond that.
 day-grouped layout alone — S-07 replaces it. The existing empty-state block stays as is. Do **not**
 surface `description` here; it has no place in a one-line list row, and S-07 owns the schedule's
 information design.
+
+#### 6. Select styling
+
+**Files**: `src/app/src/styles.scss`, `src/app/src/app/features/admin/classes/class-form.html`
+
+> **Added during implementation**, at the product owner's request after manual verification. Not part
+> of the original plan; recorded here so a later reader diffing plan against code does not find an
+> unexplained global stylesheet change.
+
+**Intent**: The two new selects kept the platform's own box and chevron, reading as a different kind
+of control from the inputs stacked directly above and below them.
+
+**Contract**: `.field input, .field select` share one box. `appearance: none` suppresses the native
+arrow; a custom `▼` is drawn as `.select::after` on a wrapper `<span class="select">` — a select is a
+replaced element and generates no pseudo-element of its own, so the wrapper is load-bearing and a
+select added without one has no arrow at all. `pointer-events: none` on the chevron keeps it from
+swallowing the click. A disabled select takes `--ground` rather than white. A spec asserts every
+select sits inside a `.select` wrapper.
 
 ### Success Criteria:
 
