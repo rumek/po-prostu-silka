@@ -853,10 +853,10 @@ Rollback is a redeploy of the previous artifact, with no schema to reverse.
 
 #### Automated
 
-- [x] 4.1 Front-end tests pass: `npm test` from `src/app/`
-- [x] 4.2 Lint and format pass: `npm run quality:check` from `src/app/`
-- [x] 4.3 Production build succeeds: `npm run build` from `src/app/`
-- [x] 4.4 Backend tests still pass: `dotnet test` from the repo root
+- [x] 4.1 Front-end tests pass: `npm test` from `src/app/` — 68e10c3
+- [x] 4.2 Lint and format pass: `npm run quality:check` from `src/app/` — 68e10c3
+- [x] 4.3 Production build succeeds: `npm run build` from `src/app/` — 68e10c3
+- [x] 4.4 Backend tests still pass: `dotnet test` from the repo root — 68e10c3
 
 #### Manual
 
