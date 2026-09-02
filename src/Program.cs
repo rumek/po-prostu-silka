@@ -178,6 +178,11 @@ builder.Services.AddScoped<IMemberQuery, MemberQuery>();
 builder.Services.AddScoped<IClassScheduleQuery, ClassScheduleQuery>();
 builder.Services.AddScoped<IClassStore, ClassStore>();
 
+// S-05's class-type definitions (prd-v2 FR-004..FR-007). Scoped for the same reason as the two
+// above - the store must share the request's DbContext with IUnitOfWork, which is what commits it.
+builder.Services.AddScoped<IClassTypeQuery, ClassTypeQuery>();
+builder.Services.AddScoped<IClassTypeStore, ClassTypeStore>();
+
 builder.Services.AddHostedService<OutboxDeliveryWorker>();
 
 var app = builder.Build();
@@ -227,6 +232,7 @@ app.MapAuthEndpoints();
 app.MapPushEndpoints();
 app.MapMemberAdminEndpoints();
 app.MapClassEndpoints();
+app.MapClassTypeEndpoints();
 
 // Probe endpoints for the ActiveMember and Admin policies, in the "Testing" environment only.
 //

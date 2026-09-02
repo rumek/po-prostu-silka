@@ -366,6 +366,12 @@ scheduling registrations, and `app.MapClassTypeEndpoints();` after `app.MapClass
 - Solution builds warning-free: `dotnet build` from `src/`
 - No EF Core using appears under `src/Application/` or `src/Domain/`:
   `grep -rn "Microsoft.EntityFrameworkCore" src/Application src/Domain` returns nothing
+
+  **Adapted during implementation.** The bare grep cannot return nothing: `src/Domain/ApplicationUser.cs:13`
+  carries a pre-existing doc comment that names the namespace in order to state the very rule being
+  checked. The criterion is scoped to actual `using` directives instead —
+  `grep -rnE "^\s*using\s+Microsoft\.EntityFrameworkCore" src/Application src/Domain` — which is what
+  the rule was always about.
 - The API starts and the new routes appear in the OpenAPI document
 
 #### Manual Verification:
@@ -576,10 +582,10 @@ filter would move server-side, but nothing in this product suggests it will.
 
 #### Automated
 
-- [x] 1.1 Solution builds warning-free: `dotnet build` from `src/`
-- [x] 1.2 Migration applies cleanly against the Docker SQL Server: `dotnet ef database update`
-- [x] 1.3 Migration reverses cleanly: `dotnet ef database update <previous-migration>` then re-apply
-- [x] 1.4 The model snapshot is regenerated and committed alongside the migration
+- [x] 1.1 Solution builds warning-free: `dotnet build` from `src/` — db80aee
+- [x] 1.2 Migration applies cleanly against the Docker SQL Server: `dotnet ef database update` — db80aee
+- [x] 1.3 Migration reverses cleanly: `dotnet ef database update <previous-migration>` then re-apply — db80aee
+- [x] 1.4 The model snapshot is regenerated and committed alongside the migration — db80aee
 
 #### Manual
 
@@ -593,9 +599,9 @@ filter would move server-side, but nothing in this product suggests it will.
 
 #### Automated
 
-- [ ] 2.1 Solution builds warning-free: `dotnet build` from `src/`
-- [ ] 2.2 No EF Core using appears under `src/Application/` or `src/Domain/`
-- [ ] 2.3 The API starts and the new routes appear in the OpenAPI document
+- [x] 2.1 Solution builds warning-free: `dotnet build` from `src/`
+- [x] 2.2 No EF Core using appears under `src/Application/` or `src/Domain/`
+- [x] 2.3 The API starts and the new routes appear in the OpenAPI document
 
 #### Manual
 
