@@ -56,8 +56,13 @@ Requirements: `context/foundation/prd-v2.md` — FR-004, FR-005, FR-006, FR-007.
 - **Admin screens carry no global nav entry.** `app.html` links only `/admin/approvals`;
   `/admin/members` and `/admin/classes` are reached by URL. Nothing links to a class-type screen
   today.
-- **No backend test project exists** (AGENTS.md). Frontend tests are Vitest specs sitting beside
-  every component.
+- ~~**No backend test project exists** (AGENTS.md).~~ **FALSE — corrected during implementation
+  review (F1).** `tests/po-prostu-silka.Tests/` exists and holds integration tests booting the real
+  app against a real SQL Server via Testcontainers; `deploy.yml` gates the deploy on `dotnet test`.
+  The claim was copied from a stale line in `AGENTS.md` and never checked against the filesystem —
+  and it was the premise of this plan's backend-verification decision, so that decision was made on
+  bad information. `AGENTS.md` has been corrected. Frontend tests are Vitest specs beside every
+  component.
 
 ## Desired End State
 
@@ -128,6 +133,13 @@ Details.
 behaviour, or existing rows are still present when the constraint is introduced. Since the column
 is nullable, existing rows would in fact survive it — but ordering the wipe first keeps the
 migration's intent readable and is required if S-06 ever pulls the `NOT NULL` tightening forward.
+
+> **Adapted during implementation review (F4).** The wipe no longer runs *first* — it runs after
+> `AddColumn`, still before the foreign key. It was narrowed to
+> `DELETE FROM [Classes] WHERE [ClassTypeId] IS NULL;` so that a `Down` → re-`Up` cycle cannot
+> destroy rows created in between, and so it becomes a no-op once S-06 tightens the column. The
+> predicate tests a column that must therefore already exist. The constraint that actually mattered
+> — wipe before the FK — is unchanged.
 
 **Irreversibility, accepted knowingly.** `Down` restores the *schema* (drops the column, drops the
 table) but cannot restore the deleted `Classes` rows. This is the one place this slice departs from
@@ -512,7 +524,12 @@ here for manual confirmation from the human that the manual testing was successf
 
 ### Unit Tests:
 
-Frontend only — there is no backend test project and this slice does not introduce one.
+**Adapted during implementation review (F1).** The premise was wrong — a backend test project
+exists. `tests/po-prostu-silka.Tests/ClassTypeEndpointTests.cs` was added during review triage,
+covering the deactivate → reuse → reactivate-collision cycle against a real SQL Server, the
+`excludingId` edit path, every validation bound, and 401/403 across all six routes.
+
+Frontend specs additionally cover:
 
 - The list screen's filter behaviour: inactive rows hidden by default, revealed by the toggle
 - Activation/deactivation updating one row without refetching, and without disabling the list

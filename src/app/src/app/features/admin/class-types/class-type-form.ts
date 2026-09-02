@@ -24,6 +24,9 @@ const MIN_CAPACITY = 1;
 const MAX_CAPACITY = 200;
 
 /** Matches ClassTypeConfiguration's column length and the server's check. Keep all three in step. */
+const MAX_NAME = 200;
+
+/** Matches ClassTypeConfiguration's column length and the server's check. Keep all three in step. */
 const MAX_DESCRIPTION = 1000;
 
 /**
@@ -48,10 +51,11 @@ export class ClassTypeForm implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
 
+  protected readonly maxName = MAX_NAME;
   protected readonly maxDescription = MAX_DESCRIPTION;
 
   protected readonly form = inject(FormBuilder).nonNullable.group({
-    name: ['', [Validators.required]],
+    name: ['', [Validators.required, Validators.maxLength(MAX_NAME)]],
     // Optional — the one field here that may legitimately be empty.
     description: ['', [Validators.maxLength(MAX_DESCRIPTION)]],
     defaultDurationMinutes: [
@@ -147,6 +151,9 @@ export class ClassTypeForm implements OnInit {
     switch (reason) {
       case 'name_taken':
         this.reject(this.form.controls.name, { nameTaken: true });
+        return;
+      case 'name_too_long':
+        this.reject(this.form.controls.name, { maxlength: true });
         return;
       case 'invalid_duration':
         this.reject(this.form.controls.defaultDurationMinutes, { min: true });

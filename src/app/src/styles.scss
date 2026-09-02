@@ -243,6 +243,23 @@ a {
   font-size: 0.875rem;
 }
 
+// A small pill carrying a state word. Status is carried by TEXT, not by colour alone — colour is a
+// second channel, never the only one.
+//
+// Global rather than component-scoped: this base rule is shared by the members screen (account
+// status and roles) and the class-types screen (active/inactive). It lived in members.scss until a
+// second screen needed it, where Angular's default Emulated encapsulation silently kept it from
+// reaching anyone else — the badge rendered as bare text with no pill at all. Per-state modifiers
+// (.badge-pending, .badge-inactive, …) stay in the component that owns their meaning.
+.badge {
+  padding: 0 var(--space-2);
+  border: 1px solid currentcolor;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
 .button {
   padding: var(--space-3) var(--space-5);
   border: 1px solid transparent;

@@ -11,6 +11,12 @@ namespace po_prostu_silka.Infrastructure.Persistence.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.AddColumn<Guid>(
+                name: "ClassTypeId",
+                table: "Classes",
+                type: "uniqueidentifier",
+                nullable: true);
+
             // Development-only data, discarded rather than migrated (prd-v2.md, Constraints &
             // Compatibility). S-06 builds occurrences from class types, and generating types out of
             // retyped names would be work spent on rows nobody booked.
@@ -24,15 +30,18 @@ namespace po_prostu_silka.Infrastructure.Persistence.Migrations
             // and the departure is deliberate: no real club is using the application, so there is
             // nothing here to lose. Read it as a decision, not an oversight.
             //
-            // Runs FIRST, before ClassTypeId becomes a foreign key. The column is nullable today so
-            // the order is not yet load-bearing - it becomes so the moment S-06 tightens it.
-            migrationBuilder.Sql("DELETE FROM [Classes];");
-
-            migrationBuilder.AddColumn<Guid>(
-                name: "ClassTypeId",
-                table: "Classes",
-                type: "uniqueidentifier",
-                nullable: true);
+            // WHY THE PREDICATE, and why this runs AFTER AddColumn rather than first.
+            //
+            // Unconditional, this statement is only safe once. A Down followed by a re-Up would run
+            // it again and destroy rows created in between - and deploy.yml applies migrations
+            // automatically on merge, with no backup and no manual gate, so "safe only once" is not
+            // a property worth relying on. Scoped to ClassTypeId IS NULL it has exactly the same
+            // effect today (every existing row predates the column, so every row matches), and
+            // becomes a NO-OP the moment S-06 populates the column and tightens it to NOT NULL.
+            //
+            // That predicate is why the wipe cannot run first any more: the column it tests has to
+            // exist. It still precedes the foreign key below, which is the ordering that matters.
+            migrationBuilder.Sql("DELETE FROM [Classes] WHERE [ClassTypeId] IS NULL;");
 
             migrationBuilder.CreateTable(
                 name: "ClassTypes",

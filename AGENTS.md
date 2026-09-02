@@ -39,7 +39,7 @@ One project, three layers as folders. Bounded contexts (membership, scheduling, 
 
 ## Build, test, and dev commands
 
-Backend, from `src/`: `dotnet build`, `dotnet run`, `dotnet list package --vulnerable` (the audit used at bootstrap). No test project exists yet.
+Backend, from `src/`: `dotnet build`, `dotnet run`, `dotnet list package --vulnerable` (the audit used at bootstrap). Tests live in `tests/po-prostu-silka.Tests/` — run them from the repo root with `dotnet test`. They are integration tests: `IntegrationTestFixture` boots the real app via `WebApplicationFactory<Program>` against a real SQL Server started by Testcontainers, so behaviour that depends on the engine (filtered unique indexes, locking) is actually exercised. CI gates the deploy on `dotnet test`.
 
 Frontend, from `src/app/` (npm 11, pinned via `packageManager`): `npm start` (dev server), `npm test` (unit tests via Vitest), `npm run quality:check` / `quality:fix` (Prettier + ESLint — run `quality:check` before committing frontend changes).
 

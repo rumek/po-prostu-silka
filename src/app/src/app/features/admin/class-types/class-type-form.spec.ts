@@ -197,6 +197,41 @@ describe('ClassTypeForm', () => {
     expect(el().querySelector('.alert')).toBeNull();
   });
 
+  /**
+   * The name column is nvarchar(200). Before this was validated, an over-long name reached SQL
+   * Server and came back as an unhandled 500 — see the implementation review, F2.
+   */
+  it('puts an over-long name on the name field', async () => {
+    await create(null);
+    await fillValid();
+    submit();
+
+    (await vi.waitFor(() => controller.expectOne('/api/admin/class-types'))).flush(
+      { reason: 'name_too_long' },
+      { status: 400, statusText: 'Bad Request' },
+    );
+    await settle();
+
+    expect(field('name').getAttribute('aria-invalid')).toBe('true');
+    expect(el().textContent).toContain('najwyżej 200 znaków');
+    expect(el().querySelector('.alert')).toBeNull();
+  });
+
+  it('refuses an over-long name client-side', async () => {
+    await create(null);
+
+    set('name', 'n'.repeat(201));
+    set('defaultDurationMinutes', '45');
+    set('defaultCapacity', '10');
+    await settle();
+
+    submit();
+    await settle();
+
+    // afterEach's controller.verify() proves the request never went out.
+    expect(el().textContent).toContain('najwyżej 200 znaków');
+  });
+
   it('puts an over-long description on the description field', async () => {
     await create(null);
     await fillValid();

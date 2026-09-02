@@ -56,6 +56,7 @@ export interface ClassTypeRequest {
 export interface ClassTypeFailure {
   reason:
     | 'missing_field'
+    | 'name_too_long'
     | 'invalid_duration'
     | 'invalid_capacity'
     | 'description_too_long'

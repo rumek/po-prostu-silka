@@ -18,6 +18,7 @@
       <input
         id="name"
         type="text"
+        [attr.maxlength]="maxName"
         formControlName="name"
         [attr.aria-invalid]="form.controls.name.touched && form.controls.name.invalid"
       />
@@ -30,6 +31,8 @@
           <p class="field-error">
             Aktywny typ o tej nazwie już istnieje. Wybierz inną nazwę albo dezaktywuj tamten typ.
           </p>
+        } @else if (form.controls.name.hasError('maxlength')) {
+          <p class="field-error">Nazwa może mieć najwyżej {{ maxName }} znaków.</p>
         } @else {
           <p class="field-error">Podaj nazwę typu zajęć.</p>
         }

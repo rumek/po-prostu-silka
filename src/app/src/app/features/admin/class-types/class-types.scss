@@ -72,7 +72,8 @@
 }
 
 // Retired, not broken — muted like .badge-pending rather than coloured like .badge-blocked. A
-// deactivated type is a deliberate state, not a problem to fix.
+// deactivated type is a deliberate state, not a problem to fix. The .badge base rule this sits on
+// is global (src/styles.scss); only this modifier is local.
 .badge-inactive {
   color: var(--muted);
   font-weight: 400;

@@ -127,6 +127,21 @@ describe('ClassTypes', () => {
     expect(html()).toContain('Nieaktywny');
   });
 
+  /** Absence is a poor confirmation — the admin cannot tell a vanished row from a failed request. */
+  it('confirms a deactivation in words, not only by the row disappearing', async () => {
+    await createWith([JOGA]);
+
+    buttonIn(rows()[0], 'Dezaktywuj').click();
+
+    (await vi.waitFor(() => controller.expectOne('/api/admin/class-types/t1/deactivate'))).flush({
+      ...JOGA,
+      isActive: false,
+    });
+    await settle();
+
+    expect(html()).toContain('został dezaktywowany');
+  });
+
   it('reactivates an inactive type', async () => {
     await createWith([RETIRED]);
     toggle().click();

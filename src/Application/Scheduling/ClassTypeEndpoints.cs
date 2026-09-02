@@ -48,6 +48,12 @@ public record ClassTypeRequest(
 /// <summary>
 /// Why a class-type write was refused. All 400 except <c>name_taken</c>, which is a 409 — it is a
 /// conflict with existing state rather than bad input, exactly like <c>room_conflict</c>.
+///
+/// <para>
+/// Reasons: <c>missing_field</c>, <c>name_too_long</c>, <c>description_too_long</c>,
+/// <c>invalid_duration</c>, <c>invalid_capacity</c>, <c>name_taken</c>. Adding one here means adding
+/// it to the SPA's ClassTypeFailure union too — that type mirrors this one field for field.
+/// </para>
 /// </summary>
 public record ClassTypeFailure(string Reason);
 
@@ -91,6 +97,15 @@ public static class ClassTypeEndpoints
     private const int MinCapacity = 1;
 
     private const int MaxCapacity = 200;
+
+    /// <summary>
+    /// Matches ClassTypeConfiguration's column length. Keep the two in step.
+    ///
+    /// NOT optional to check. Without it a longer name reaches SQL Server, which refuses the INSERT
+    /// with "String or binary data would be truncated" - an unhandled DbUpdateException, i.e. a 500
+    /// for what is ordinary bad input. Every column with a HasMaxLength needs its own guard here.
+    /// </summary>
+    private const int MaxNameLength = 200;
 
     /// <summary>Matches ClassTypeConfiguration's column length. Keep the two in step.</summary>
     private const int MaxDescriptionLength = 1000;
@@ -307,6 +322,12 @@ public static class ClassTypeEndpoints
         if (string.IsNullOrWhiteSpace(request.Name))
         {
             return Results.Json(new ClassTypeFailure("missing_field"), statusCode: 400);
+        }
+
+        // Measured on the TRIMMED value, like the description below and like the write itself.
+        if (request.Name.Trim().Length > MaxNameLength)
+        {
+            return Results.Json(new ClassTypeFailure("name_too_long"), statusCode: 400);
         }
 
         // Measured on the TRIMMED value, which is what gets stored - otherwise trailing whitespace

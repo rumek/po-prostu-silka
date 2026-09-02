@@ -1,4 +1,4 @@
-// Layout only — .card/.button/.alert/.notice/.field-error/.hint come from src/styles.scss.
+// Layout only — .card/.button/.alert/.notice/.field-error/.hint/.badge come from src/styles.scss.
 
 .members-controls {
   display: flex;
@@ -87,16 +87,9 @@
   overflow-wrap: anywhere;
 }
 
-// Status is carried by text, not by colour alone — colour is a second channel, never the only one.
-.badge {
-  padding: 0 var(--space-2);
-  border: 1px solid currentcolor;
-  border-radius: 999px;
-  font-size: 0.75rem;
-  font-weight: 500;
-  white-space: nowrap;
-}
-
+// The .badge base rule lives in src/styles.scss — it is shared with the class-types screen, and a
+// component stylesheet cannot reach another component under Emulated encapsulation. Only the
+// per-state modifiers belong here, where their meaning is owned.
 .badge-pending {
   color: var(--muted);
 }

@@ -66,6 +66,11 @@ export class ClassTypes implements OnInit {
     this.loading.set(true);
     this.loadFailed.set(false);
 
+    // A message about rows that are about to be replaced does not survive them. Without this, a
+    // retry after a failed activation renders the old name_taken notice above a fresh list.
+    this.notice.set(null);
+    this.failedId.set(null);
+
     try {
       const rows = await this.classTypes.getAll();
       if (generation !== this.generation) {
@@ -114,6 +119,14 @@ export class ClassTypes implements OnInit {
         : await this.classTypes.deactivate(row.id);
 
       this.rows.update((rows) => rows.map((t) => (t.id === updated.id ? updated : t)));
+
+      // Deactivating while the filter is off makes the row vanish, and absence is a poor
+      // confirmation — the admin cannot tell it from a failed request. Say what happened.
+      this.notice.set(
+        active
+          ? `Typ „${updated.name}” jest znowu aktywny.`
+          : `Typ „${updated.name}” został dezaktywowany. Zaznacz „Pokaż nieaktywne”, aby go zobaczyć.`,
+      );
     } catch (failure) {
       const reason = ((failure as HttpErrorResponse)?.error as ClassTypeFailure | undefined)
         ?.reason;
