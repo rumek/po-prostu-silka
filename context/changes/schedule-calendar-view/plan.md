@@ -540,6 +540,13 @@ successful duplicate the current range is refetched — copies land in *later* w
 outside the visible one, and the existing "created N, skipped weeks X" message remains the report of
 what happened.
 
+**Adapted during implementation.** The duplicate and delete-confirm panels do **not** go inside the
+projected per-class template. A tile in a week grid cannot hold a number input and two buttons. They
+render BELOW the calendar instead, one at a time, each naming the class and start time it acts on —
+the naming is what replaces the positional context an inline strip used to give. The tile keeps three
+plain link-buttons and the per-row error. Also: a range change closes any open panel, because the
+class it refers to may no longer be on screen.
+
 #### 2. Past weeks are read-only
 
 **File**: `src/app/src/app/features/admin/classes/classes.ts`,
@@ -795,11 +802,11 @@ Rollback is a redeploy of the previous artifact, with no schema to reverse.
 
 #### Automated
 
-- [x] 2.1 Front-end tests pass: `npm test` from `src/app/`
-- [x] 2.2 Lint and format pass: `npm run quality:check` from `src/app/`
-- [x] 2.3 Initial bundle inside the 500 kB budget, calendar in its own lazy chunk
-- [x] 2.4 Production build succeeds: `npm run build` from `src/app/`
-- [x] 2.5 Backend tests still pass: `dotnet test` from the repo root
+- [x] 2.1 Front-end tests pass: `npm test` from `src/app/` — 4c0b911
+- [x] 2.2 Lint and format pass: `npm run quality:check` from `src/app/` — 4c0b911
+- [x] 2.3 Initial bundle inside the 500 kB budget, calendar in its own lazy chunk — 4c0b911
+- [x] 2.4 Production build succeeds: `npm run build` from `src/app/` — 4c0b911
+- [x] 2.5 Backend tests still pass: `dotnet test` from the repo root — 4c0b911
 
 #### Manual
 
@@ -814,9 +821,9 @@ Rollback is a redeploy of the previous artifact, with no schema to reverse.
 
 #### Automated
 
-- [ ] 3.1 Front-end tests pass: `npm test` from `src/app/`
-- [ ] 3.2 Lint and format pass: `npm run quality:check` from `src/app/`
-- [ ] 3.3 Production build succeeds: `npm run build` from `src/app/`
+- [x] 3.1 Front-end tests pass: `npm test` from `src/app/`
+- [x] 3.2 Lint and format pass: `npm run quality:check` from `src/app/`
+- [x] 3.3 Production build succeeds: `npm run build` from `src/app/`
 
 #### Manual
 

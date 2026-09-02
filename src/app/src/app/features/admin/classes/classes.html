@@ -1,109 +1,102 @@
 <div class="classes-header">
   <h1>Zajęcia</h1>
-  <div class="classes-header-actions">
-    <!-- The only way into the class-type screen. Placed here rather than in the global nav because
-         /admin/members and /admin/classes carry no nav entry either, and types are what these
-         classes are built from — the sibling relationship is the navigation. -->
-    <a class="button button--secondary" routerLink="/admin/class-types">Typy zajęć</a>
-    <a class="button" routerLink="/admin/classes/new">Dodaj zajęcia</a>
-  </div>
 </div>
-<p class="hint">
-  Nadchodzące zajęcia. Zajęcia przeniesione w przeszłość znikają z tej listy — sprawdź datę przed
-  zapisaniem.
-</p>
 
 @if (notice()) {
   <p class="notice" role="status">{{ notice() }}</p>
 }
 
-@if (loading()) {
-  <p class="notice" role="status">Wczytywanie…</p>
-} @else if (loadFailed()) {
-  <p class="alert" role="alert">
-    Nie udało się wczytać listy zajęć.
-    <button type="button" class="link-button" (click)="load()">Spróbuj ponownie</button>
+@if (isPast()) {
+  <!-- A withheld action needs a reason, or it reads as broken rather than deliberate. -->
+  <p class="hint classes-past" role="status">
+    Ten tydzień już minął — zajęcia są widoczne, ale nie można ich zmieniać.
   </p>
-} @else if (rows().length === 0) {
-  <div class="card">
-    <p class="empty">Brak zaplanowanych zajęć.</p>
+}
+
+<app-schedule-calendar
+  [classes]="rows()"
+  [loading]="loading()"
+  [loadFailed]="loadFailed()"
+  [readOnly]="isPast()"
+  (rangeChange)="load($event)"
+>
+  <!-- Screen-level actions ride along the calendar's toolbar, so navigation and the things you do
+       with it stay in one place. "Typy zajęć" lives here rather than in the global nav because
+       /admin/classes carries no nav entry either, and types are what these classes are built from. -->
+  <div calendarHeaderActions>
+    <a class="button button--secondary" routerLink="/admin/class-types">Typy zajęć</a>
+    <a class="button" routerLink="/admin/classes/new">Dodaj zajęcia</a>
   </div>
-} @else {
-  <ul class="classes">
-    @for (row of rows(); track row.id) {
-      <li class="card classes-row">
-        <div class="classes-identity">
-          <p class="classes-name">{{ row.name }}</p>
-          <p class="classes-when">
-            {{ row.startsAt | date: 'EEEE, d MMMM y' }}, {{ row.startsAt | date: 'HH:mm' }}–{{
-              endsAt(row) | date: 'HH:mm'
-            }}
-          </p>
-          <p class="classes-meta">{{ row.instructor }} · {{ row.capacity }} miejsc</p>
-        </div>
 
-        <div class="classes-actions">
-          <a class="button button--secondary" [routerLink]="['/admin/classes', row.id]">Edytuj</a>
+  <!-- Per-class actions, rendered inside each tile. Kept to three plain buttons: a tile in a week
+       grid has no room for the panels, which open below the calendar instead. -->
+  <ng-template #classActions let-row>
+    <a class="link-button" [routerLink]="['/admin/classes', row.id]">Edytuj</a>
+    <button
+      type="button"
+      class="link-button"
+      [disabled]="isBusy(row.id)"
+      (click)="openDuplicate(row)"
+    >
+      Powiel
+    </button>
+    <button
+      type="button"
+      class="link-button"
+      [disabled]="isBusy(row.id)"
+      (click)="confirmDelete(row)"
+    >
+      Usuń
+    </button>
 
-          <button
-            type="button"
-            class="button button--secondary"
-            [disabled]="isBusy(row.id)"
-            (click)="openDuplicate(row.id)"
-          >
-            Powiel
-          </button>
-
-          <button
-            type="button"
-            class="button button--secondary"
-            [disabled]="isBusy(row.id)"
-            (click)="confirmDelete(row.id)"
-          >
-            Usuń
-          </button>
-        </div>
-
-        @if (duplicatingId() === row.id) {
-          <div class="classes-panel">
-            <label class="classes-weeks">
-              Powiel na kolejne tygodnie:
-              <input
-                type="number"
-                min="1"
-                max="8"
-                [ngModel]="weeks()"
-                (ngModelChange)="weeks.set(+$event)"
-              />
-            </label>
-            <button
-              type="button"
-              class="button"
-              [disabled]="isBusy(row.id)"
-              (click)="duplicate(row)"
-            >
-              {{ isBusy(row.id) ? 'Powielanie…' : 'Powiel' }}
-            </button>
-            <button type="button" class="link-button" (click)="openDuplicate(row.id)">
-              Anuluj
-            </button>
-          </div>
-        }
-
-        @if (confirmingDeleteId() === row.id) {
-          <div class="classes-panel">
-            <p class="classes-confirm">Usunąć „{{ row.name }}” na dobre?</p>
-            <button type="button" class="button" [disabled]="isBusy(row.id)" (click)="remove(row)">
-              {{ isBusy(row.id) ? 'Usuwanie…' : 'Tak, usuń' }}
-            </button>
-            <button type="button" class="link-button" (click)="cancelDelete()">Anuluj</button>
-          </div>
-        }
-
-        @if (failedId() === row.id) {
-          <p class="field-error" role="alert">Nie udało się. Spróbuj ponownie.</p>
-        }
-      </li>
+    @if (failedId() === row.id) {
+      <p class="field-error" role="alert">Nie udało się. Spróbuj ponownie.</p>
     }
-  </ul>
+  </ng-template>
+</app-schedule-calendar>
+
+<!-- The action panels sit BELOW the calendar and name the class they act on. They used to be strips
+     inside a list row; a tile in a week grid is too small to hold a number input and two buttons, and
+     naming the class is what keeps the panel unambiguous now that it is no longer inside the row. -->
+@if (duplicating(); as row) {
+  <div class="card classes-panel">
+    <p class="classes-panel-subject">
+      Powiel „{{ row.name }}” z {{ row.startsAt | date: 'd MMMM, HH:mm' }}
+    </p>
+
+    <label class="classes-weeks">
+      Na kolejne tygodnie:
+      <input
+        type="number"
+        min="1"
+        max="8"
+        [ngModel]="weeks()"
+        (ngModelChange)="weeks.set(+$event)"
+      />
+    </label>
+
+    <button type="button" class="button" [disabled]="isBusy(row.id)" (click)="duplicate(row)">
+      {{ isBusy(row.id) ? 'Powielanie…' : 'Powiel' }}
+    </button>
+    <button type="button" class="link-button" (click)="closeDuplicate()">Anuluj</button>
+  </div>
+}
+
+@if (confirmingDelete(); as row) {
+  <div class="card classes-panel">
+    <p class="classes-panel-subject">
+      Usunąć „{{ row.name }}” z {{ row.startsAt | date: 'd MMMM, HH:mm' }} na dobre?
+    </p>
+
+    <button type="button" class="button" [disabled]="isBusy(row.id)" (click)="remove(row)">
+      {{ isBusy(row.id) ? 'Usuwanie…' : 'Tak, usuń' }}
+    </button>
+    <button type="button" class="link-button" (click)="cancelDelete()">Anuluj</button>
+  </div>
+}
+
+@if (loadFailed()) {
+  <p class="alert" role="alert">
+    <button type="button" class="link-button" (click)="reload()">Spróbuj ponownie</button>
+  </p>
 }

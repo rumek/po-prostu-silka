@@ -1,35 +1,47 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ClassService } from '../../../core/scheduling/class.service';
 import { ScheduledClass } from '../../../core/scheduling/class.models';
+import { CalendarRange, ScheduleCalendar } from '../../../shared/calendar/schedule-calendar';
 
 /**
- * The admin's class management list (FR-011, FR-012).
+ * The admin's class management (prd-v2 FR-011, FR-012, FR-017).
  *
- * Same shape as the members screen: loading / failed / empty signals, a per-row busy Set so one slow
- * row does not disable the list, and a generation guard so a refetch that resolves late cannot
- * overwrite fresher rows.
+ * A CALENDAR since S-07, and deliberately the SAME one the member sees — that is the whole of
+ * FR-017, whose stated failure mode is two calendars drifting apart. This screen adds its actions
+ * through content projection rather than through a `mode` flag on the shared component, so nothing
+ * admin-specific is compiled into the member's screen.
  *
- * Duplicate reports PARTIAL SUCCESS. The API skips weeks whose TIME is already taken - the rule is
- * club-wide since S-06, not per-room - and returns which ones; showing a bare "done" would leave the
- * admin believing in classes that were never created. Delete confirms inline rather than through confirm(), which blocks the event loop and has
- * no precedent in this codebase.
+ * Everything this screen did as a list, it still does: per-row busy tracking so one slow row does not
+ * disable the rest, a generation guard so a late refetch cannot overwrite fresher rows, partial
+ * success reported per week on duplicate, and an inline delete confirmation rather than confirm(),
+ * which blocks the event loop and has no precedent in this codebase.
+ *
+ * <h2>Past weeks are read-only</h2>
+ *
+ * Navigating backwards is possible for the first time (the list used to start at now). Looking is the
+ * point; editing history is not, and the API refuses a create in the past anyway — so when the visible
+ * window has already ended, the actions are withheld and a note says why. A missing button with no
+ * explanation reads as broken.
  */
 @Component({
-  imports: [DatePipe, FormsModule, RouterLink],
+  imports: [DatePipe, FormsModule, RouterLink, ScheduleCalendar],
   selector: 'app-classes',
   styleUrl: './classes.scss',
   templateUrl: './classes.html',
 })
-export class Classes implements OnInit {
+export class Classes {
   private readonly classes = inject(ClassService);
 
   protected readonly rows = signal<ScheduledClass[]>([]);
   protected readonly loading = signal(true);
   protected readonly loadFailed = signal(false);
+
+  /** The window the calendar is showing. Null until its first emission, which is the first load. */
+  protected readonly range = signal<CalendarRange | null>(null);
 
   /** Ids with an action in flight. */
   protected readonly busy = signal<ReadonlySet<string>>(new Set());
@@ -37,31 +49,40 @@ export class Classes implements OnInit {
   /** Id of the row whose action failed. Cleared when another action starts. */
   protected readonly failedId = signal<string | null>(null);
 
-  /** A list-level message — the duplicate outcome, or a refusal retrying cannot fix. */
+  /** A screen-level message — the duplicate outcome, or a refusal retrying cannot fix. */
   protected readonly notice = signal<string | null>(null);
 
-  /** Which row has its duplicate control open, and for how many weeks. */
-  protected readonly duplicatingId = signal<string | null>(null);
+  /** Which class has its duplicate control open, and for how many weeks. */
+  protected readonly duplicating = signal<ScheduledClass | null>(null);
   protected readonly weeks = signal(4);
 
-  /** Which row is asking to confirm a delete. */
-  protected readonly confirmingDeleteId = signal<string | null>(null);
+  /** Which class is asking to confirm a delete. */
+  protected readonly confirmingDelete = signal<ScheduledClass | null>(null);
+
+  /** The whole visible window is behind us. Looking is fine; changing it is not. */
+  protected readonly isPast = computed(() => {
+    const range = this.range();
+
+    return range !== null && range.to.getTime() <= Date.now();
+  });
 
   /** See members.ts — nothing cancels an in-flight request, so the last RESPONSE would otherwise win. */
   private generation = 0;
 
-  async ngOnInit(): Promise<void> {
-    await this.load();
-  }
+  protected async load(range: CalendarRange): Promise<void> {
+    this.range.set(range);
 
-  protected async load(): Promise<void> {
+    // A window change invalidates any open panel: its class may not even be on screen any more.
+    this.duplicating.set(null);
+    this.confirmingDelete.set(null);
+
     const generation = ++this.generation;
 
     this.loading.set(true);
     this.loadFailed.set(false);
 
     try {
-      const rows = await this.classes.getAdminClasses();
+      const rows = await this.classes.getAdminClasses(range.from, range.to);
       if (generation !== this.generation) {
         return;
       }
@@ -78,11 +99,24 @@ export class Classes implements OnInit {
     }
   }
 
-  protected openDuplicate(id: string): void {
+  /** Refetches the window currently on screen — after a duplicate, or a retry. */
+  protected async reload(): Promise<void> {
+    const range = this.range();
+
+    if (range) {
+      await this.load(range);
+    }
+  }
+
+  protected openDuplicate(row: ScheduledClass): void {
     this.notice.set(null);
     this.failedId.set(null);
-    this.confirmingDeleteId.set(null);
-    this.duplicatingId.set(this.duplicatingId() === id ? null : id);
+    this.confirmingDelete.set(null);
+    this.duplicating.set(this.duplicating()?.id === row.id ? null : row);
+  }
+
+  protected closeDuplicate(): void {
+    this.duplicating.set(null);
   }
 
   protected async duplicate(row: ScheduledClass): Promise<void> {
@@ -92,17 +126,19 @@ export class Classes implements OnInit {
 
     try {
       const result = await this.classes.duplicate(row.id, this.weeks());
-      this.duplicatingId.set(null);
+      this.duplicating.set(null);
 
-      // The whole point of the endpoint's contract: say what actually happened, per week.
+      // The whole point of the endpoint's contract: say what actually happened, per week. Doubly so
+      // now that the copies land in weeks this view is not showing — the message is the only place
+      // the admin learns they exist.
       this.notice.set(
         result.skippedWeeks.length === 0
-          ? `Utworzono ${result.created} ${this.copiesWord(result.created)}.`
+          ? `Utworzono ${result.created} ${this.copiesWord(result.created)} w kolejnych tygodniach.`
           : `Utworzono ${result.created} ${this.copiesWord(result.created)}. ` +
               `Pominięto tydzień ${result.skippedWeeks.join(', ')} — o tej porze są już inne zajęcia.`,
       );
 
-      await this.load();
+      await this.reload();
     } catch (failure) {
       const reason = ((failure as HttpErrorResponse)?.error as { reason?: string } | undefined)
         ?.reason;
@@ -118,15 +154,15 @@ export class Classes implements OnInit {
     }
   }
 
-  protected confirmDelete(id: string): void {
+  protected confirmDelete(row: ScheduledClass): void {
     this.notice.set(null);
     this.failedId.set(null);
-    this.duplicatingId.set(null);
-    this.confirmingDeleteId.set(id);
+    this.duplicating.set(null);
+    this.confirmingDelete.set(row);
   }
 
   protected cancelDelete(): void {
-    this.confirmingDeleteId.set(null);
+    this.confirmingDelete.set(null);
   }
 
   protected async remove(row: ScheduledClass): Promise<void> {
@@ -136,20 +172,16 @@ export class Classes implements OnInit {
 
     try {
       await this.classes.remove(row.id);
-      this.confirmingDeleteId.set(null);
+      this.confirmingDelete.set(null);
 
-      // Unlike block/unblock on the members screen, a deleted class genuinely leaves the list —
-      // removing the row locally is the honest representation, and the list is small.
+      // A deleted class genuinely leaves the window — removing it locally is the honest
+      // representation, and avoids a refetch that would only confirm what we already know.
       this.rows.update((rows) => rows.filter((r) => r.id !== row.id));
     } catch {
       this.failedId.set(row.id);
     } finally {
       this.setBusy(row.id, false);
     }
-  }
-
-  protected endsAt(row: ScheduledClass): Date {
-    return new Date(new Date(row.startsAt).getTime() + row.durationMinutes * 60_000);
   }
 
   protected isBusy(id: string): boolean {
