@@ -84,8 +84,9 @@ invariants), `npm test` from `src/app/`, and the manual checklist in each phase.
 
 - **No calendar.** The week strip, day picker and full-week grid are S-07 (`schedule-calendar-view`).
   Both views keep their current layout; only their fields change.
-- **No `DROP COLUMN`.** `Name`, `Room` and the old free-text `Instructor` column go nullable and stop
-  being read or written; the drop is a later migration, one release behind, per the repository rule.
+- ~~**No `DROP COLUMN`.**~~ **Reversed during implementation** — `Name`, `Room` and the old
+  free-text `Instructor` column are dropped in this slice, one release earlier than the repository
+  rule prescribes. See the Migration Notes for what that costs.
 - **No rename of `Class` / `ScheduledClass` / `/api/classes` / the `Classes` table.** The PRD says
   "occurrence"; the code keeps saying "class". Recorded as accepted vocabulary drift.
 - **No changes to the Trainer grant/revoke endpoints.** Revoking the role or blocking an account with
@@ -129,14 +130,18 @@ the server loads the type only to validate that it exists and is active. `Update
 `DuplicateAsync` never touch the type's defaults at all. This is the one rule whose breach is silent,
 and `ClassEndpointTests` is what catches it.
 
-**There are three dead columns, not two.** `Name`, `Room` **and** the old free-text `Instructor`
-column all stop being read after this slice, and all three must stay in the schema for one release so
-a rollback's older build still finds the columns it writes.
+**Three columns are removed, not two.** `Name`, `Room` **and** the old free-text `Instructor`
+column all stop being read after this slice, and all three are dropped by a second migration in the
+same release.
 
-> **Adapted during implementation.** The plan originally named only `Name` and `Room`. The third was
-> missed because the entity property `Instructor` is *reused* as the navigation to `ApplicationUser`,
-> which hides the fact that a `nvarchar(100)` column is left behind. The dead column is now mapped by
-> a separate property, `InstructorName`, with `HasColumnName("Instructor")`.
+> **Adapted during implementation, twice.** First: the plan originally named only `Name` and `Room`.
+> The third was missed because the entity property `Instructor` is *reused* as the navigation to
+> `ApplicationUser`, which hides the fact that a `nvarchar(100)` column is left behind.
+>
+> Second: the plan deferred the drop by one release, per `AGENTS.md`. The product owner then chose to
+> drop all three immediately, with the rollback cost stated and accepted. The interim
+> `InstructorName` property that carried the renamed column therefore never shipped — the properties
+> are simply gone.
 
 **The conflict check has two halves and needs both.** `HasTimeConflictAsync` must keep
 `ClassStore`'s existing database query *and* the `db.Classes.Local` / `EntityState.Added` pass.
@@ -168,14 +173,13 @@ compile-time guard.
 
 **Intent**: Turn the flat class into an instance of a definition. `ClassTypeId` becomes required and
 gains a navigation property; a required `InstructorUserId` plus its navigation replaces the free-text
-instructor; `Name`, `Room` and `InstructorName` are marked dead-in-place — nullable properties with a
-comment pointing at the deferred drop, never assigned again.
+instructor; `Name`, `Room` and the free-text instructor property are removed outright.
 
 **Contract**: `Guid ClassTypeId` (non-nullable), `ClassType ClassType` navigation,
-`string InstructorUserId` (Identity's string key), `ApplicationUser Instructor` navigation,
-`string? Name`, `string? Room`, `string? InstructorName`. The XML doc on `ClassType` must state that
-its `Default*` values are never read through the navigation — that comment is the replacement for the
-barrier S-05 got from having no navigation at all.
+`string InstructorUserId` (Identity's string key), `ApplicationUser Instructor` navigation. No
+`Name`, no `Room`, no instructor string. The XML doc on `ClassType` must state that its `Default*`
+values are never read through the navigation — that comment is the replacement for the barrier S-05
+got from having no navigation at all.
 
 #### 2. EF configuration
 
@@ -185,8 +189,7 @@ barrier S-05 got from having no navigation at all.
 columns, and re-point the overlap index now that `Room` is not part of the predicate.
 
 **Contract**:
-- `Name`, `Room` and `InstructorName` lose `IsRequired()` and keep their max lengths;
-  `InstructorName` maps to the existing column via `HasColumnName("Instructor")`.
+- `Name`, `Room` and the instructor string lose their mappings entirely — the columns are dropped.
 - `ClassTypeId` required; `HasOne(x => x.ClassType).WithMany().HasForeignKey(x => x.ClassTypeId)`
   with `OnDelete(DeleteBehavior.Restrict)` — the navigation replaces the current `HasOne<ClassType>()`
   form.
@@ -204,12 +207,13 @@ columns, and re-point the overlap index now that `Room` is not part of the predi
 
 **Intent**: Apply the above. No data statements — the table is empty.
 
-**Contract**: `Up` drops `IX_Classes_Room_StartsAt`, adds `IX_Classes_StartsAt`, alters `Name`,
-`Room` and `Instructor` to nullable, alters `ClassTypeId` to `NOT NULL` (dropping and re-adding its
-FK as EF generates), adds `InstructorUserId` `nvarchar(450) NOT NULL` with its FK to `AspNetUsers`
-and index. `Down` reverses every step. Both directions are safe on an empty table; add a comment
-saying so, and saying that dropping the three dead columns is a separate later migration per the
-repository's one-release lag rule.
+**Contract**: TWO migrations. `AddOccurrenceBinding.Up` drops `IX_Classes_Room_StartsAt`, adds
+`IX_Classes_StartsAt`, relaxes `Name`, `Room` and `Instructor` to nullable, alters `ClassTypeId` to
+`NOT NULL` (dropping and re-adding its FK as EF generates), and adds `InstructorUserId`
+`nvarchar(450) NOT NULL` with its FK to `AspNetUsers` and index. `DropDeadClassColumns.Up` then drops
+the three relaxed columns; its `Down` restores them as nullable — the state the first migration left
+them in, not the `NOT NULL` they carried before S-06. Both directions of both migrations are safe on
+an empty table. The second migration's header must state the rollback cost it accepts.
 
 #### 4. The trainer list
 
@@ -534,10 +538,20 @@ difference is unmeasurable either way.
 
 - The `Classes` table is already empty (migration `20260902111715_AddClassTypes`), so tightening
   `ClassTypeId` and adding a required `InstructorUserId` need no backfill and no data decision.
-- **Three columns are not dropped:** `Name`, `Room` and the old free-text `Instructor`. They go
-  nullable, stop being written, and are dropped in a separate migration one release later, per
-  `AGENTS.md`: rollback redeploys the previous artifact but does not roll back the schema, so the
-  previous build must still find the columns it writes. Open a follow-up change for the drop.
+- **Three columns ARE dropped, in this same release:** `Name`, `Room` and the old free-text
+  `Instructor`. This is a deliberate exception to `AGENTS.md`, taken by the product owner after the
+  cost was stated twice.
+
+  What the exception costs: rollback redeploys the previous artifact but does not roll back the
+  schema, so a rollback past this release leaves the pre-S-06 build looking for three columns that no
+  longer exist. It does not degrade gracefully — `ClassScheduleQuery` projects all three, so
+  `GET /api/classes` and the admin list both fail with "invalid column name" and the member schedule
+  stops rendering entirely. Recovery is rolling forward, or running `DropDeadClassColumns.Down` by
+  hand.
+
+  What makes it defensible: `Classes` has been empty since `AddClassTypes` cleared it, no real club
+  is using the application, and the alternative was carrying three dead columns plus a follow-up
+  change nothing would have enforced.
 - Both directions of the migration are safe on an empty table; verify `Down` by actually running it
   before committing the phase.
 
@@ -565,6 +579,7 @@ difference is unmeasurable either way.
 - [x] 1.2 Migration applies against a clean database and reverses — 67679b7
 - [x] 1.3 All tests pass, including `ClassEndpointTests` — 67679b7
 - [x] 1.4 No EF Core reference in `Domain` or `Application` — 67679b7
+- [x] 1.9 The dead-column drop applies and reverses
 
 #### Manual
 

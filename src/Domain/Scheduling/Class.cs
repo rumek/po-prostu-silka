@@ -23,23 +23,6 @@ public class Class
     public Guid Id { get; set; }
 
     /// <summary>
-    /// DEAD COLUMN. Read <see cref="ClassType"/>.Name instead.
-    ///
-    /// <para>
-    /// The occurrence stopped owning its name in S-06 (prd-v2 FR-010): a typed name is exactly what
-    /// drifted between weeks, and resolving it through the type is what makes a correction apply
-    /// everywhere at once. Nothing reads or writes this property any more.
-    /// </para>
-    ///
-    /// <para>
-    /// It survives as a NULLABLE column for exactly one release. AGENTS.md: rollback redeploys the
-    /// previous artifact but does NOT roll back the schema, so the previous build - which still
-    /// INSERTs this column - has to find it. A follow-up change drops it.
-    /// </para>
-    /// </summary>
-    public string? Name { get; set; }
-
-    /// <summary>
     /// When the class starts, in UTC like every other timestamp in this app. The SPA groups the
     /// schedule into days by the BROWSER's local date and renders with DatePipe; the server never
     /// groups and never hardcodes a timezone.
@@ -57,39 +40,6 @@ public class Class
     /// </para>
     /// </summary>
     public int DurationMinutes { get; set; }
-
-    /// <summary>
-    /// DEAD COLUMN. There is no room.
-    ///
-    /// <para>
-    /// The club has one room, so the field never carried information (prd-v2 FR-011). The overlap
-    /// invariant it used to serve did not disappear with it - it WIDENED, from "one room, one class
-    /// at a time" to "one club, one class at a time" (FR-012).
-    /// </para>
-    ///
-    /// <para>
-    /// Nullable for one release, for the same rollback reason as <see cref="Name"/>.
-    /// </para>
-    /// </summary>
-    public string? Room { get; set; }
-
-    /// <summary>
-    /// DEAD COLUMN, mapped to <c>Instructor</c>. Read <see cref="Instructor"/>.DisplayName instead.
-    ///
-    /// <para>
-    /// This is the free-text instructor the schedule used to carry (prd-v2 FR-009). It was free text
-    /// only because the product shipped without a Trainer role, so there was no person to point at;
-    /// S-04 added the role and S-06 points at it, leaving this string behind.
-    /// </para>
-    ///
-    /// <para>
-    /// The PROPERTY is renamed but the COLUMN is not: <see cref="Instructor"/> is now the navigation,
-    /// and the two cannot share a name. ClassConfiguration keeps the column name with
-    /// <c>HasColumnName("Instructor")</c>, so the older build a rollback restores still finds the
-    /// column it writes. Dropped one release later, with <see cref="Name"/> and <see cref="Room"/>.
-    /// </para>
-    /// </summary>
-    public string? InstructorName { get; set; }
 
     /// <summary>
     /// How many spots exist. S-08 enforces that bookings never exceed this, even under simultaneous

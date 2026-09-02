@@ -12,23 +12,14 @@ public class ClassConfiguration : IEntityTypeConfiguration<Class>
         builder.ToTable("Classes");
         builder.HasKey(x => x.Id);
 
-        // THE THREE DEAD COLUMNS (Name, Room, Instructor). Nothing reads or writes them since S-06 -
-        // the name and description resolve through ClassType, the instructor through ApplicationUser,
-        // and the club has one room so that field never carried information.
+        // Name, Room and Instructor are GONE, not merely unused. They were the occurrence's own
+        // identity until S-06; the name and description now resolve through ClassType and the
+        // instructor through ApplicationUser, and the club has one room so that field never carried
+        // information at all.
         //
-        // They stay in the schema, nullable, for exactly ONE RELEASE. AGENTS.md: rollback redeploys
-        // the previous artifact but does NOT roll back the database, so the previous build - which
-        // still INSERTs all three, NOT NULL - has to find them. A follow-up change drops them.
-        //
-        // The lengths are kept as they were: a column that may come back into use on a rollback must
-        // still accept what that build writes.
-        builder.Property(x => x.Name).HasMaxLength(200);
-        builder.Property(x => x.Room).HasMaxLength(100);
-
-        // The property is renamed, the column is not - Instructor is the navigation now, and the two
-        // cannot share a name. See Class.InstructorName.
-        builder.Property(x => x.InstructorName).HasColumnName("Instructor").HasMaxLength(100);
-
+        // DROPPED IN THE SAME RELEASE THAT STOPPED WRITING THEM - a deliberate exception to
+        // AGENTS.md's one-release lag, taken by the product owner. See DropDeadClassColumns for what
+        // that costs on a rollback.
         builder.Property(x => x.StartsAt).IsRequired();
         builder.Property(x => x.DurationMinutes).IsRequired();
         builder.Property(x => x.Capacity).IsRequired();

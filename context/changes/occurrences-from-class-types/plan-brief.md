@@ -36,7 +36,7 @@ capacity changes nothing about classes that already exist.
 | UI reach | Minimal update to **both** views | S-07 rewrites the schedule anyway, but leaving the member view on the old DTO would mean a broken app between the two slices. | Plan |
 | Trainer list | New `GET /api/admin/trainers` + `ITrainerQuery` | An explicit contract that filters by role in SQL, instead of shipping every account's email to a dropdown. | Plan |
 | Trainer revoked / blocked | No warning, no block | Accepted risk: the schedule can name someone who no longer teaches, and nothing signals it. | Plan |
-| `Name` / `Room` columns | Nullable now, `DROP` one release later | The repo rule — rollback redeploys the previous artifact but not the schema, so the old build must still find the columns it writes. | prd-v2 + AGENTS.md |
+| `Name` / `Room` / `Instructor` columns | **Dropped in this release** | Reversed mid-implementation by the product owner: an accepted exception to the one-release lag, safe only because `Classes` is empty and nothing is live. | Plan (revised) |
 | Type on an existing occurrence | **Immutable**; `400 class_type_immutable` | Keeps the reference stable and makes a client bug loud; a wrong type is fixed by delete-and-recreate while nothing is booked. | Plan |
 | Deactivated type | Editing its occurrences still works | FR-006 promises existing occurrences survive deactivation; the active-type check therefore runs on create only. | prd-v2 FR-006 |
 | Name resolution | Navigation property `Class.ClassType` | Idiomatic single-statement joins — **against S-05's explicit warning**, so integration tests replace the compile-time barrier. | Plan |
@@ -46,20 +46,20 @@ capacity changes nothing about classes that already exist.
 
 ## Scope
 
-**In scope:** the required `ClassTypeId` + `InstructorUserId` references with navigations, one
-reversible migration, the `/api/admin/trainers` endpoint and its query seam, the rewritten class
+**In scope:** the required `ClassTypeId` + `InstructorUserId` references with navigations, two
+reversible migrations, the `/api/admin/trainers` endpoint and its query seam, the rewritten class
 contract (`time_conflict`, four reference failures, resolved name/description/instructor), the
 club-wide overlap rule across create/edit/duplicate, `ClassEndpointTests`, and the rewritten admin
 form plus the two de-roomed lists.
 
-**Out of scope:** the calendar (S-07), `DROP COLUMN` on `Name`/`Room`, renaming `Class` →
-`ClassOccurrence`, changes to trainer grant/revoke, guest instructors, booking and cancellation
-notifications (S-08/S-09), a concurrency token on `Class`, and any member-facing class-type screen.
+**Out of scope:** the calendar (S-07), renaming `Class` → `ClassOccurrence`, changes to trainer
+grant/revoke, guest instructors, booking and cancellation notifications (S-08/S-09), a concurrency
+token on `Class`, and any member-facing class-type screen.
 
 ## Architecture / Approach
 
 ```
-Domain/Scheduling/Class.cs          ClassTypeId (NOT NULL) + nav, InstructorUserId + nav, Name/Room dead
+Domain/Scheduling/Class.cs          ClassTypeId (NOT NULL) + nav, InstructorUserId + nav; Name/Room/Instructor gone
   └─ Infrastructure/Persistence/Configurations/ClassConfiguration.cs   IX_Classes_StartsAt replaces IX_Classes_Room_StartsAt
 Application/Members/TrainerEndpoints.cs   GET /api/admin/trainers + ITrainerQuery
   └─ Infrastructure/Members/TrainerQuery.cs
@@ -74,27 +74,34 @@ type only to *validate* it; the numbers come from the request, which the client 
 
 ## Phases at a Glance
 
+> **Adapted during implementation.** Phases 1 and 2 were merged: the `NOT NULL` references break the
+> old write path the moment the schema lands, so splitting the model from the API would have left
+> `POST /api/admin/classes` broken between them for no benefit. Three phases became two.
+
 | Phase | What it delivers | Key risk |
 | --- | --- | --- |
-| 1. Model and migration | Required references, nullable dead columns, re-pointed index, reversible migration | `Down` must genuinely reverse — verify by running it, not by reading it |
-| 2. API + tests | Trainer list, rewritten contract, club-wide time rule, `ClassEndpointTests` | A write path reading `DefaultCapacity` through the new navigation — silent, and exactly what the tests exist to catch |
-| 3. Screens | Two selects with prefill, signposted empty states, no room anywhere | Prefill firing when loading an existing class would silently overwrite an occurrence's own numbers |
+| 1. Model, schema and API | Required references, two migrations, trainer list, club-wide time rule, `ClassEndpointTests` | A write path reading `DefaultCapacity` through the new navigation — silent, and exactly what the tests exist to catch |
+| 2. Screens | Two selects with prefill, signposted empty states, no room anywhere | Prefill firing when loading an existing class would silently overwrite an occurrence's own numbers |
 
 **Prerequisites:** S-03, S-04 and S-05 closed — all three are. Docker SQL Server running for the
-migration and for `dotnet test` (Testcontainers).
-**Estimated effort:** ~3 sessions, one per phase; Phase 2 is the largest.
+migrations and for `dotnet test` (Testcontainers).
+**Estimated effort:** ~2 sessions, one per phase; Phase 1 is the largest.
 
 ## Open Risks & Assumptions
 
 - **The navigation property overrides a documented warning** in `Class.cs`. The barrier is now a
   comment plus three integration tests. A future slice adding a write path near the type must re-read
   FR-007 first.
-- **Phases 2 and 3 are not independently deployable** — the client is broken between them. Ship them
+- **The two phases are not independently deployable** — the client is broken between them. Ship them
   as one release, or accept a window with a non-functional admin class form.
 - **A revoked or blocked trainer leaves a stale reference** on future classes, unflagged, by explicit
   choice. If it bites, the fix is a badge on the admin list, not a schema change.
-- **`Name` and `Room` linger as dead nullable columns** until a follow-up migration drops them. That
-  follow-up is real work someone has to remember.
+- **Rollback past this release breaks the schedule outright.** The three dead columns are dropped in
+  the same release that stopped writing them, against the repository's one-release lag rule. A
+  rollback leaves the pre-S-06 build projecting columns that no longer exist, so `GET /api/classes`
+  fails with "invalid column name" rather than degrading — the member schedule stops rendering, not
+  just class creation. Accepted knowingly; recovery is rolling forward or running
+  `DropDeadClassColumns.Down` by hand.
 - The occurrence's numeric bounds (1–480 / 1–200) are **duplicated** from `ClassTypeEndpoints` rather
   than shared — an occurrence may legitimately override its type, so it cannot inherit them.
 
