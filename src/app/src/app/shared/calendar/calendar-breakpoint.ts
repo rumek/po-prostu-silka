@@ -1,9 +1,12 @@
 /**
  * The width at which the schedule stops showing one day and shows the whole week (prd-v2 FR-016).
  *
- * KEPT IN TWO PLACES ON PURPOSE, and they must move together: this constant is what `matchMedia`
- * needs, and a CSS custom property is what a stylesheet needs. Neither can read the other. The twin
- * is `--breakpoint-week` in `src/styles.scss`.
+ * THE only definition. There was briefly a `--breakpoint-week` twin in `styles.scss`, on the theory
+ * that a stylesheet would need its own copy — but no stylesheet ever read it, and a CSS custom
+ * property cannot legally appear in a media condition anyway, so it could never have played that
+ * part. The day/week switch is a `matchMedia` read, not a media query, which is why this is a TS
+ * constant and why one is enough. A stylesheet that needs the number should take it from here via a
+ * host binding rather than growing a second source of truth.
  *
  * 48rem is 768px at the default root size — the first width at which seven day columns stay legible
  * rather than becoming the phone-hostile grid the product PRD ruled out.

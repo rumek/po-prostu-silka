@@ -160,9 +160,9 @@ public static class ClassEndpoints
     /// <para>
     /// Two months. Comfortably above anything the calendar asks for — it requests one day or one week
     /// — and low enough that a malformed or hostile client cannot ask for a decade of rows in one
-    /// round trip. The admin list was UNBOUNDED before this slice, so this is a tightening; the
-    /// no-parameter fallback stays unbounded for compatibility, which is where the old behaviour
-    /// lives on.
+    /// round trip. The admin list was UNBOUNDED before this slice, so this is a tightening — and
+    /// since 2026-09-03 it binds the admin's no-parameter fallback too: once the calendar shipped,
+    /// every caller sends a window, so the unbounded path had no client left and was pure surface.
     /// </para>
     /// </summary>
     private const int MaxRangeDays = 62;
@@ -249,10 +249,11 @@ public static class ClassEndpoints
     /// The admin's management list for a window.
     ///
     /// <para>
-    /// Its no-parameter behaviour is the one that differs from the member path: everything from now
-    /// ONWARD, with no upper bound, because an admin setting up a term needs to see what they have
-    /// already scheduled however far out. That is preserved exactly — <c>to</c> stays null and the
-    /// query applies no ceiling.
+    /// Its no-parameter fallback still reaches further than the member's — <see cref="MaxRangeDays"/>
+    /// rather than <see cref="ScheduleWindowDays"/>, because an admin setting up a term looks further
+    /// ahead than a member browsing next week. It is no longer UNBOUNDED: that was preserved through
+    /// this slice for compatibility, and once the calendar shipped every caller began sending a
+    /// window, so the unbounded path had no client left.
     /// </para>
     ///
     /// <para>
@@ -269,15 +270,16 @@ public static class ClassEndpoints
         DateTimeOffset? from = null,
         DateTimeOffset? to = null)
     {
+        var now = timeProvider.GetUtcNow();
         var (rangeFailure, resolved) = ResolveRange(
-            from, to, timeProvider.GetUtcNow(), null);
+            from, to, now, now.AddDays(MaxRangeDays));
         if (rangeFailure is not null)
         {
             return rangeFailure;
         }
 
         return Results.Ok(await query.GetUpcomingForAdminAsync(
-            resolved.From, resolved.To, cancellationToken));
+            resolved.From, resolved.To!.Value, cancellationToken));
     }
 
     /// <summary>
@@ -741,15 +743,16 @@ public interface IClassScheduleQuery
         DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken);
 
     /// <summary>
-    /// Everything from <paramref name="from"/> onward for the admin's list, up to
-    /// <paramref name="to"/> when one is given.
+    /// The admin's list for the window [<paramref name="from"/>, <paramref name="to"/>).
+    ///
+    /// <para>
+    /// Same shape as <see cref="GetScheduleAsync"/> and deliberately so: the bound is not optional.
+    /// It was, briefly — the endpoint's fallback used to be unbounded — and nothing asks for that any
+    /// more.
+    /// </para>
     /// </summary>
-    /// <param name="to">
-    /// Exclusive upper bound, or null for the unbounded list this returned before S-07 — an admin
-    /// laying out a term needs to see everything already scheduled, however far out.
-    /// </param>
     Task<IReadOnlyList<ScheduledClass>> GetUpcomingForAdminAsync(
-        DateTimeOffset from, DateTimeOffset? to, CancellationToken cancellationToken);
+        DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken);
 }
 
 /// <summary>

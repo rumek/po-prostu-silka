@@ -347,8 +347,10 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
         Assert.Equal(2, result.Created);
         Assert.Equal([2], result.SkippedWeeks);
 
-        // The copies are real, and they carry the source's references and numbers.
-        var admin_list = await admin.GetFromJsonAsync<List<ClassBody>>(Endpoint);
+        // The copies are real, and they carry the source's references and numbers. Asked for by
+        // WINDOW: NextSlot() is years out, past the admin fallback's two months.
+        var admin_list = await admin.GetFromJsonAsync<List<ClassBody>>(
+            Endpoint + Range(slot.AddDays(-1), slot.AddDays(29)));
         var copies = admin_list!
             .Where(c => c.ClassTypeId == type.Id && c.Id != source.Id)
             .ToList();
@@ -656,28 +658,39 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
     /// <summary>
     /// The no-parameter fallback is what makes the range additive rather than breaking. A regression
     /// that silently dropped it would empty the schedule for every client that sends no window.
+    ///
+    /// <para>
+    /// The two fallbacks are deliberately different widths — a fortnight for the member, two months
+    /// for the admin, who looks further ahead when laying out a term. NEITHER is unbounded: the
+    /// admin's was, until every caller began sending a window of its own.
+    /// </para>
     /// </summary>
     [Fact]
-    public async Task Omitting_the_range_preserves_each_endpoints_previous_window()
+    public async Task Omitting_the_range_gives_each_endpoint_its_own_default_window()
     {
         var (admin, type, trainerId) = await ArrangeAsync();
 
         // Inside the member fortnight. NextSlot() lives in 2030, so nothing there can collide here.
-        var soon = DateTimeOffset.UtcNow.AddDays(4);
-        var near = await PostClassAsync(admin, type.Id, soon, trainerId);
+        var near = await PostClassAsync(admin, type.Id, DateTimeOffset.UtcNow.AddDays(4), trainerId);
 
-        // Years out: past the member fortnight, but the admin list has no ceiling without a range.
+        // Past the member's fortnight, inside the admin's two months.
+        var mid = await PostClassAsync(admin, type.Id, DateTimeOffset.UtcNow.AddDays(30), trainerId);
+
+        // Years out: past both.
         var far = await PostClassAsync(admin, type.Id, NextSlot(), trainerId);
 
         var member = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveMemberEmail);
         var schedule = (await member.GetFromJsonAsync<List<ClassBody>>("/api/classes"))!;
 
         Assert.Contains(schedule, c => c.Id == near.Id);
+        Assert.DoesNotContain(schedule, c => c.Id == mid.Id);
         Assert.DoesNotContain(schedule, c => c.Id == far.Id);
 
         var adminList = (await admin.GetFromJsonAsync<List<ClassBody>>(Endpoint))!;
 
-        Assert.Contains(adminList, c => c.Id == far.Id);
+        Assert.Contains(adminList, c => c.Id == near.Id);
+        Assert.Contains(adminList, c => c.Id == mid.Id);
+        Assert.DoesNotContain(adminList, c => c.Id == far.Id);
     }
 
     [Fact]

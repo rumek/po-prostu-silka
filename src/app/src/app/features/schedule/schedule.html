@@ -9,3 +9,11 @@
   [loadFailed]="loadFailed()"
   (rangeChange)="load($event)"
 />
+
+@if (loadFailed()) {
+  <!-- The calendar states the failure; the recovery belongs to the screen that owns the fetch. Same
+       shape as the admin panel's, so a dropped connection reads the same on both. -->
+  <p class="alert" role="alert">
+    <button type="button" class="link-button" (click)="reload()">Spróbuj ponownie</button>
+  </p>
+}

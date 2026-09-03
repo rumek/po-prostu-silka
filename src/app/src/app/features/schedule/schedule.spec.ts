@@ -129,4 +129,36 @@ describe('Schedule', () => {
     expect(html.querySelector('.alert')).not.toBeNull();
     expect(html.querySelector('.calendar-empty')).toBeNull();
   });
+
+  it('offers a retry that refetches the window on screen', async () => {
+    const first = scheduleRequests()[0];
+    const window = first.request.params.get('from');
+
+    first.flush('boom', { status: 500, statusText: 'Server Error' });
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const html = fixture.nativeElement as HTMLElement;
+    const retry = Array.from(html.querySelectorAll<HTMLButtonElement>('.alert .link-button')).find(
+      (button) => (button.textContent ?? '').includes('Spróbuj ponownie'),
+    )!;
+
+    // Without this the member's only recovery from a dropped connection is a page reload.
+    expect(retry).not.toBeUndefined();
+
+    retry.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const again = await vi.waitFor(() => scheduleRequests()[0]);
+
+    // The window ON SCREEN, not a reset to today: the member may have navigated before it failed.
+    expect(again.request.params.get('from')).toBe(window);
+
+    again.flush([]);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(html.querySelector('.alert')).toBeNull();
+  });
 });

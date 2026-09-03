@@ -238,6 +238,45 @@ describe('ScheduleCalendar', () => {
     expect(element().querySelectorAll('[aria-label="Następny tydzień"]').length).toBe(1);
   });
 
+  // --- the week that is not 168 hours long ----------------------------------
+
+  /*
+   * 2026-10-25 is the Sunday Poland puts its clocks back, so that day is 25 hours long and the week
+   * containing it is 169. These two cases are timezone-agnostic on purpose: they assert the
+   * INVARIANT — every boundary is a local midnight — which is trivially true where there is no
+   * transition and the first thing to break if the calendar arithmetic ever becomes `+ 7 * 86400000`.
+   */
+
+  it('computes a week in calendar days, not in a fixed number of hours', () => {
+    stubMatchMedia(true);
+    create();
+
+    goTo(new Date(2026, 9, 21));
+
+    const { from, to } = lastRange();
+
+    expect(from.getDay()).toBe(1);
+    expect(from.getDate()).toBe(19);
+    expect(from.getHours()).toBe(0);
+
+    // Seven calendar days later, and still midnight. Adding 168 hours across the transition would
+    // land this an hour out, and every class at the edge of the week would fall in the wrong one.
+    expect(to.getDate()).toBe(26);
+    expect(to.getMonth()).toBe(9);
+    expect(to.getHours()).toBe(0);
+  });
+
+  it('measures the grid edges against the day, on a day that is not 24 hours long', () => {
+    create();
+    host.readOnly.set(false);
+    goTo(new Date(2026, 9, 25));
+    schedule(10);
+
+    // The last row still ends exactly at the next local midnight, 25 hours after this day began.
+    expect(allows(new Date(2026, 9, 25, 23), new Date(2026, 9, 26))).toBe(true);
+    expect(allows(new Date(2026, 9, 25, 5, 30), new Date(2026, 9, 25, 6))).toBe(false);
+  });
+
   // --- the hour column ------------------------------------------------------
 
   it('renders 06:00 to 24:00, in 24-hour Polish time', () => {
@@ -265,13 +304,31 @@ describe('ScheduleCalendar', () => {
     return [...element().querySelectorAll<HTMLElement>('[data-segment]')];
   }
 
+  /**
+   * A primary-pointer press on a segment.
+   *
+   * jsdom has no `PointerEvent` constructor and no `setPointerCapture`, so both are stood in for: a
+   * `MouseEvent` under the pointer type name carries every field the handler reads, and the capture
+   * call is stubbed on the element. Neither is what the browser does — what these specs own is the
+   * handler's rules, not the pointer machinery.
+   */
   function press(segment: HTMLElement): void {
-    segment.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+    const captured: number[] = [];
+    (segment as unknown as { setPointerCapture: (id: number) => void }).setPointerCapture = (id) =>
+      captured.push(id);
+
+    const event = new MouseEvent('pointerdown', { bubbles: true });
+    Object.defineProperties(event, {
+      isPrimary: { value: true },
+      pointerId: { value: 1 },
+    });
+
+    segment.dispatchEvent(event);
     fixture.detectChanges();
   }
 
   function release(): void {
-    document.dispatchEvent(new MouseEvent('mouseup'));
+    document.dispatchEvent(new MouseEvent('pointerup'));
     fixture.detectChanges();
   }
 

@@ -1,6 +1,7 @@
 import { DatePipe, NgTemplateOutlet, isPlatformBrowser } from '@angular/common';
 import {
   Component,
+  DestroyRef,
   LOCALE_ID,
   PLATFORM_ID,
   TemplateRef,
@@ -132,6 +133,7 @@ export interface CalendarRange {
 })
 export class ScheduleCalendar {
   private readonly platformId = inject(PLATFORM_ID);
+  private readonly destroyRef = inject(DestroyRef);
 
   /**
    * Taken from the app's LOCALE_ID rather than hardcoded 'pl'. app.config.ts sets that and registers
@@ -250,6 +252,16 @@ export class ScheduleCalendar {
   /** Set when a press lands in the past; cleared by the next legal gesture or by the close button. */
   protected readonly pastRefusal = signal(false);
 
+  /**
+   * Undoes the document listeners of a gesture in flight; null when none is.
+   *
+   * Held as a field rather than closed over inside {@link startDraw} because two things other than a
+   * `mouseup` have to be able to end a gesture: the component being destroyed, and the next press
+   * after a release the browser never reported — one outside the window, which fires no `mouseup` at
+   * all and would otherwise leave a second pair of listeners stacked on the first.
+   */
+  private stopDrag: (() => void) | null = null;
+
   protected readonly segmentMinutes = SEGMENT_MINUTES;
   protected readonly dayStartHour = DAY_START_HOUR;
   protected readonly dayEndHour = DAY_END_HOUR;
@@ -314,10 +326,20 @@ export class ScheduleCalendar {
     // claimed.
     if (isPlatformBrowser(this.platformId) && typeof window.matchMedia === 'function') {
       const query = window.matchMedia(WEEK_VIEW_MEDIA_QUERY);
+      const follow = (event: MediaQueryListEvent) => this.weekView.set(event.matches);
 
       this.weekView.set(query.matches);
-      query.addEventListener('change', (event) => this.weekView.set(event.matches));
+      query.addEventListener('change', follow);
+
+      // A MediaQueryList lives as long as the page, so an un-removed listener outlives this
+      // component - and BOTH routes that host it are lazy, so it is destroyed on every navigation
+      // away. Without this, each visit to /schedule leaves another listener holding a dead instance.
+      this.destroyRef.onDestroy(() => query.removeEventListener('change', follow));
     }
+
+    // Same reasoning for a gesture interrupted by a route change: the listeners are on the document,
+    // which does not go away when this component does.
+    this.destroyRef.onDestroy(() => this.stopDrag?.());
 
     // Emits on creation too — that first emission is what triggers the initial load, so the parent
     // needs no ngOnInit of its own.
@@ -387,6 +409,13 @@ export class ScheduleCalendar {
    * then puts the block back where it was.
    */
   protected applyTimesChanged(change: CalendarEventTimesChangedEvent<ScheduledClass>): void {
+    // Checked here as well as through the events' own flags. Unreachable today — a read-only
+    // calendar marks nothing draggable — but this is the handler that WRITES to an existing class,
+    // and its sibling startDraw gates on the same signal as its first statement.
+    if (this.readOnly()) {
+      return;
+    }
+
     const row = change.event.meta;
     const startsAt = change.newStart;
     const endsAt = change.newEnd;
@@ -429,10 +458,17 @@ export class ScheduleCalendar {
    * The move and release listeners go on the document rather than the segment: a drag that leaves the
    * grid, or releases outside the window, still has to end cleanly rather than leave the calendar
    * stuck mid-gesture.
+   *
+   * POINTER events, not mouse. The day view exists because the product is mobile-first, so the gesture
+   * has to work with a finger — and under mouse-event emulation a touch drag never extends the range,
+   * which quietly reduced drawing to "tap creates half an hour". The stylesheet's `touch-action: none`
+   * on a drawable segment is the other half: without it the browser pans the page instead of sending
+   * the moves.
    */
-  protected startDraw(date: Date, event: MouseEvent): void {
-    // Left button only; a right-click is a context menu, not a gesture.
-    if (this.readOnly() || event.button !== 0) {
+  protected startDraw(date: Date, event: PointerEvent): void {
+    // Primary button of the primary pointer. A right-click is a context menu, and a second finger
+    // during a drag is not a second gesture.
+    if (this.readOnly() || event.button !== 0 || event.isPrimary === false) {
       return;
     }
 
@@ -446,11 +482,23 @@ export class ScheduleCalendar {
       return;
     }
 
+    // Abandons a gesture whose release the browser never reported - see stopDrag.
+    this.stopDrag?.();
+
     this.pastRefusal.set(false);
     this.drawFrom.set(date);
     this.drawTo.set(date);
 
-    const move = (moved: MouseEvent) => {
+    // Capture, so every later event of this pointer is delivered even once it leaves the segment or
+    // the window. Captured events still bubble, so the document listeners below keep working - what
+    // capture buys is that the `pointerup` ending the gesture cannot go missing.
+    const target = event.target as Element | null;
+
+    if (target && typeof event.pointerId === 'number') {
+      target.setPointerCapture(event.pointerId);
+    }
+
+    const move = (moved: PointerEvent) => {
       const over = this.segmentAt(moved);
 
       // Same day only. A drag that wanders into the next column would otherwise produce a range
@@ -462,17 +510,32 @@ export class ScheduleCalendar {
     };
 
     const release = () => {
-      document.removeEventListener('mousemove', move);
-      document.removeEventListener('mouseup', release);
+      this.stopDrag?.();
       this.finishDraw();
     };
 
-    document.addEventListener('mousemove', move);
-    document.addEventListener('mouseup', release);
+    // The browser took the pointer away — a system gesture, or the element going out of the DOM.
+    // Ends the gesture without emitting: nothing was released, so nothing was decided.
+    const cancel = () => {
+      this.stopDrag?.();
+      this.drawFrom.set(null);
+      this.drawTo.set(null);
+    };
+
+    this.stopDrag = () => {
+      document.removeEventListener('pointermove', move);
+      document.removeEventListener('pointerup', release);
+      document.removeEventListener('pointercancel', cancel);
+      this.stopDrag = null;
+    };
+
+    document.addEventListener('pointermove', move);
+    document.addEventListener('pointerup', release);
+    document.addEventListener('pointercancel', cancel);
   }
 
   /** The segment under the pointer, read off the DOM rather than computed from pixel offsets. */
-  private segmentAt(event: MouseEvent): Date | null {
+  private segmentAt(event: PointerEvent): Date | null {
     const element = document
       .elementFromPoint(event.clientX, event.clientY)
       ?.closest('[data-segment]');

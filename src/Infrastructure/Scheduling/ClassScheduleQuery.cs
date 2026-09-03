@@ -22,12 +22,11 @@ public class ClassScheduleQuery(AppDbContext db) : IClassScheduleQuery
             cancellationToken);
 
     public Task<IReadOnlyList<ScheduledClass>> GetUpcomingForAdminAsync(
-        DateTimeOffset from, DateTimeOffset? to, CancellationToken cancellationToken) =>
-        // Still NO STATUS FILTER, whether or not a window is given: the admin manages what they
-        // scheduled, including anything S-09 later cancels. Only the upper bound is new, and it stays
-        // optional — without one this is the unbounded list it has always been.
+        DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken) =>
+        // Still NO STATUS FILTER: the admin manages what they scheduled, including anything S-09 later
+        // cancels. That, and not the window, is the whole difference from the member's query.
         ProjectAsync(
-            db.Classes.Where(c => c.StartsAt >= from && (to == null || c.StartsAt < to)),
+            db.Classes.Where(c => c.StartsAt >= from && c.StartsAt < to),
             cancellationToken);
 
     private static async Task<IReadOnlyList<ScheduledClass>> ProjectAsync(

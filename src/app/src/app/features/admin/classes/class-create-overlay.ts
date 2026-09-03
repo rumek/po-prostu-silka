@@ -9,6 +9,11 @@ import { ClassService } from '../../../core/scheduling/class.service';
 import { ClassTypeService } from '../../../core/scheduling/class-type.service';
 import { ClassTypeSummary } from '../../../core/scheduling/class-type.models';
 import { DrawnRange } from '../../../shared/calendar/schedule-calendar';
+import { MAX_CAPACITY, MAX_DURATION, MIN_CAPACITY, MIN_DURATION } from './class-form';
+
+function inRange(value: number, min: number, max: number): boolean {
+  return Number.isInteger(value) && value >= min && value <= max;
+}
 
 /**
  * Finishes a drag-to-create gesture (prd-v2 FR-019).
@@ -73,8 +78,20 @@ export class ClassCreateOverlay implements OnInit {
       (this.types().length === 0 || this.trainers().length === 0),
   );
 
+  /**
+   * The bounds come from `class-form`, imported rather than retyped.
+   *
+   * Without them an emptied number input submits as `+'' === 0` and the only feedback is the
+   * server's `invalid_duration` — a refusal the other create surface never lets you reach. `min` and
+   * `max` on the inputs stop the spinners, not a submit, so the check has to live here.
+   */
   protected readonly canSubmit = computed(
-    () => !!this.classTypeId() && !!this.instructorUserId() && !this.saving(),
+    () =>
+      !!this.classTypeId() &&
+      !!this.instructorUserId() &&
+      inRange(this.durationMinutes(), MIN_DURATION, MAX_DURATION) &&
+      inRange(this.capacity(), MIN_CAPACITY, MAX_CAPACITY) &&
+      !this.saving(),
   );
 
   ngOnInit(): void {

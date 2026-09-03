@@ -18,12 +18,12 @@ import { classFailureMessage } from '../../../core/scheduling/class-failure';
 import { fromLocalInputValue, toLocalInputValue } from '../../../core/scheduling/local-datetime';
 
 /** Matches the server's bounds in ClassEndpoints.Validate. Keep the two in step. */
-const MIN_CAPACITY = 1;
-const MAX_CAPACITY = 200;
+export const MIN_CAPACITY = 1;
+export const MAX_CAPACITY = 200;
 
 /** Matches the server's bounds in ClassEndpoints.Validate. Keep the two in step. */
-const MIN_DURATION = 1;
-const MAX_DURATION = 480;
+export const MIN_DURATION = 1;
+export const MAX_DURATION = 480;
 
 /**
  * Create and edit a class occurrence (prd-v2 US-01), in one component distinguished by the route

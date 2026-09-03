@@ -121,7 +121,7 @@
     [class.calendar-segment-drawable]="!readOnly() && !isPastSegment(segment.date)"
     [class.calendar-segment-past]="!readOnly() && isPastSegment(segment.date)"
     [attr.data-segment]="segment.date.toISOString()"
-    (mousedown)="startDraw(segment.date, $event)"
+    (pointerdown)="startDraw(segment.date, $event)"
   >
     @if (isTimeLabel) {
       <div class="cal-time">{{ segment.displayDate | date: 'HH:mm' }}</div>

@@ -53,7 +53,10 @@ const UNKNOWN = 'Nie udało się zapisać zajęć. Spróbuj ponownie za chwilę.
  * a message rather than as `undefined`.
  */
 export function classFailureMessage(reason: unknown): string {
-  return typeof reason === 'string' && reason in MESSAGES
+  // `hasOwn`, not `in`: `in` walks the prototype chain, so a server reason of "constructor" or
+  // "toString" would return a FUNCTION typed as string and render as source text — and a server one
+  // version ahead is the whole case this fallback exists for.
+  return typeof reason === 'string' && Object.hasOwn(MESSAGES, reason)
     ? MESSAGES[reason as ClassFailure['reason']]
     : UNKNOWN;
 }

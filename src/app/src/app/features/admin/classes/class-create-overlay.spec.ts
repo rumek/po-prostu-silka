@@ -104,6 +104,13 @@ describe('ClassCreateOverlay', () => {
     await settle();
   }
 
+  async function setNumber(name: string, value: string) {
+    const control = number(name);
+    control.value = value;
+    control.dispatchEvent(new Event('input'));
+    await settle();
+  }
+
   function button(label: string): HTMLButtonElement {
     return Array.from(element().querySelectorAll('button')).find((candidate) =>
       (candidate.textContent ?? '').includes(label),
@@ -175,6 +182,29 @@ describe('ClassCreateOverlay', () => {
 
     await choose('instructorUserId', 'u1');
     expect(button('Dodaj zajęcia').disabled).toBe(false);
+  });
+
+  it('will not submit a duration or a capacity outside the bounds the class form enforces', async () => {
+    await create();
+    await choose('classTypeId', 't1');
+    await choose('instructorUserId', 'u1');
+
+    // An emptied number input reads as 0. `min` on the input stops the spinner, not a submit — so
+    // without a bound here the only feedback would be the server's invalid_duration.
+    await setNumber('durationMinutes', '');
+    expect(button('Dodaj zajęcia').disabled).toBe(true);
+
+    await setNumber('durationMinutes', '481');
+    expect(button('Dodaj zajęcia').disabled).toBe(true);
+
+    await setNumber('durationMinutes', '60');
+    expect(button('Dodaj zajęcia').disabled).toBe(false);
+
+    await setNumber('capacity', '0');
+    expect(button('Dodaj zajęcia').disabled).toBe(true);
+
+    await setNumber('capacity', '201');
+    expect(button('Dodaj zajęcia').disabled).toBe(true);
   });
 
   // --- refusals --------------------------------------------------------------

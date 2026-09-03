@@ -269,6 +269,9 @@
   // Only where a gesture is actually on offer — the member's schedule leaves the default cursor.
   .calendar-segment-drawable {
     cursor: cell;
+    // Without this a finger on the grid pans the page and the browser cancels the gesture before a
+    // single pointermove lands. It is what makes drawing work on the view built for phones.
+    touch-action: none;
   }
 
   // Says "not here" before the press does. The press still answers, in words.

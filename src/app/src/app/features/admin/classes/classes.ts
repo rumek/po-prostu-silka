@@ -153,6 +153,10 @@ export class Classes {
     const row = change.class;
     const startsAt = change.startsAt.toISOString();
     const before = this.rows();
+    // The rollback below replaces the WHOLE row array, so it has to be fenced like every other write
+    // here: navigating to another week while the PUT is in flight would otherwise restore the
+    // previous window's rows over the one now on screen.
+    const generation = this.generation;
 
     this.notice.set(null);
     this.failedId.set(null);
@@ -174,6 +178,11 @@ export class Classes {
         capacity: row.capacity,
       });
     } catch (failure) {
+      if (generation !== this.generation) {
+        // A different week is on screen. Neither the rows nor the message belong to it any more.
+        return;
+      }
+
       // Back to exactly what was on screen before the gesture — the block returns to its old slot,
       // which is the only honest picture once the server has refused.
       this.rows.set(before);

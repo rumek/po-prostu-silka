@@ -128,8 +128,13 @@ Strategy".
 - **No booking from the calendar.** `freeSpots` is displayed; booking and cancelling are S-08.
 - **No class cancellation.** The `Cancelled` status transition and its notifications are S-09; the
   admin's destructive action here remains `DELETE`, as it is today.
-- **No drag-to-move or drag-to-resize of existing classes.** Only drag-to-*create* on empty grid space
-  was accepted. Moving an existing class stays an edit-form operation.
+- ~~**No drag-to-move or drag-to-resize of existing classes.** Only drag-to-*create* on empty grid
+  space was accepted. Moving an existing class stays an edit-form operation.~~ **Exclusion lifted
+  2026-09-03, after manual verification**, by explicit decision: an admin who can draw a class on the
+  grid but must open a form to move it by half an hour is being told the calendar is a picture rather
+  than the thing itself. Shipped as `prd-v2` FR-020 — see the "Added after manual verification: moving
+  and resizing" note in Phase 4. The edit form remains the full path; the gesture reaches only the
+  start and the duration.
 - **No recurring series.** Weekly duplication stands, unchanged (`prd-v2` FR-013).
 - **No trainer-facing screen.** The `Trainer` role still confers nothing (`prd-v2` Non-Goals).
 - **No offline caching of the calendar.** `ngsw-config.json` stays empty by design.
@@ -452,7 +457,7 @@ end; note in the file header why it is neither `core/` (which holds no component
 - Range computation: from `viewDate` and `viewMode`, using `date-fns` `startOfDay`/`startOfWeek`
   (`weekStartsOn: 1`) in the **browser's** local clock, converted to UTC instants on emit.
 - Mapping: `ScheduledClass` → `CalendarEvent` with `start` from `startsAt`,
-  `end = start + durationMinutes`, the title carrying name and instructor, and `meta` carrying the row
+  `end = start + durationMinutes`, the title carrying the name, and `meta` carrying the row
   so the projected action template gets the real object rather than a reconstruction.
 - Empty state: when `classes` is empty and neither `loading` nor `loadFailed`, an overlay across the
   grid with an explanatory message, `pointer-events: none` (see "Critical Implementation Details").
