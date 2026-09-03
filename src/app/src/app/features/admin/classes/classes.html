@@ -24,10 +24,10 @@
   <!-- Screen-level actions ride along the calendar's toolbar, so navigation and the things you do
        with it stay in one place. "Typy zajęć" lives here rather than in the global nav because
        /admin/classes carries no nav entry either, and types are what these classes are built from. -->
-  <div calendarHeaderActions>
+  <ng-container calendarHeaderActions>
     <a class="button button--secondary" routerLink="/admin/class-types">Typy zajęć</a>
     <a class="button" routerLink="/admin/classes/new">Dodaj zajęcia</a>
-  </div>
+  </ng-container>
 
   <!-- Per-class actions, rendered inside each tile. Kept to three plain buttons: a tile in a week
        grid has no room for the panels, which open below the calendar instead. -->
