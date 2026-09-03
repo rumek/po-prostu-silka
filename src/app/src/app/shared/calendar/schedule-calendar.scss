@@ -50,6 +50,44 @@
   }
 }
 
+// Nine cells across whatever width there is: two arrows and the seven days, all equal. A phone at
+// 320px still gives each day ~34px, which clears the tap-target floor.
+.calendar-strip {
+  display: grid;
+  grid-template-columns: auto repeat(7, minmax(0, 1fr)) auto;
+  gap: var(--space-1);
+  align-items: stretch;
+}
+
+.calendar-strip-day {
+  padding: var(--space-2) 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--ground);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.8125rem;
+  line-height: 1;
+  cursor: pointer;
+
+  &:hover {
+    border-color: var(--ink);
+  }
+
+  // Today is a fact about the calendar; the selected day is a fact about what you are reading. They
+  // are marked differently because they are usually not the same day.
+  &.is-today {
+    color: var(--accent);
+    font-weight: 600;
+  }
+
+  &.is-selected {
+    border-color: var(--accent);
+    background: var(--section-warm);
+    font-weight: 600;
+  }
+}
+
 .calendar-nav {
   display: flex;
   align-items: center;

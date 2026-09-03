@@ -301,6 +301,60 @@ describe('ScheduleCalendar', () => {
     expect(host.drawn.length).toBe(0);
   });
 
+  // --- the day strip --------------------------------------------------------
+
+  function stripDays(): HTMLButtonElement[] {
+    return [...element().querySelectorAll<HTMLButtonElement>('.calendar-strip-day')];
+  }
+
+  it('navigates the day view by the week it is in', () => {
+    create();
+
+    const labels = stripDays().map((day) => day.textContent!.trim());
+    expect(labels).toEqual(['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'So', 'Nd']);
+
+    // The day being read is marked, and it is the one the range starts on.
+    const selected = stripDays().findIndex((day) => day.classList.contains('is-selected'));
+    expect(selected).toBe((lastRange().from.getDay() + 6) % 7);
+
+    // Friday, in one press rather than four of an arrow — the whole point of the strip.
+    stripDays()[4].click();
+    fixture.detectChanges();
+
+    expect(lastRange().from.getDay()).toBe(5);
+    expect(stripDays()[4].classList).toContain('is-selected');
+  });
+
+  it('keeps the weekday when the strip steps a week, and stays a day wide', () => {
+    create();
+
+    stripDays()[2].click();
+    fixture.detectChanges();
+
+    const wednesday = lastRange().from.getTime();
+
+    click('[aria-label="Następny tydzień"]');
+
+    expect(lastRange().from.getTime()).toBe(wednesday + 7 * 24 * 60 * 60 * 1000);
+    expect(stripDays()[2].classList).toContain('is-selected');
+  });
+
+  it('shows the strip only in the day view, and never two sets of week arrows', () => {
+    const emit = stubMatchMedia(true);
+    create();
+
+    // Above the breakpoint the week is already on screen: a strip would point at the column beside it.
+    expect(stripDays().length).toBe(0);
+    expect(element().querySelectorAll('[aria-label="Następny tydzień"]').length).toBe(1);
+
+    emit(false);
+    fixture.detectChanges();
+
+    expect(stripDays().length).toBe(7);
+    // The strip carries the week arrows in the day view; .calendar-nav withholds its own pair.
+    expect(element().querySelectorAll('[aria-label="Następny tydzień"]').length).toBe(1);
+  });
+
   // --- rendering ------------------------------------------------------------
 
   it('renders a class with its time, name, instructor and free spots', () => {

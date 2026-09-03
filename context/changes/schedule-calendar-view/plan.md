@@ -414,6 +414,17 @@ end; note in the file header why it is neither `core/` (which holds no component
   actually survive the API's absence rather than merely be documented as doing so — the specs found
   this, which is the coverage the build cannot give (see the Phase 2 build criterion).
 
+  **Added after manual verification: the weekday strip.** The day view navigates by week again — seven
+  weekday buttons between week arrows, under the date control, rendered only below the breakpoint. A
+  day at a time is the right amount of schedule on a phone but a poor way to MOVE: reaching Friday
+  meant four presses of an arrow or a trip to the date picker. This is the strip prd-v2 FR-015
+  originally specified, back as navigation only — the classes stay in the day grid rather than in a
+  list beneath the chips, which is what that amendment actually dropped. `.calendar-nav` withholds its
+  own week arrows wherever the strip is showing; the two would otherwise sit a centimetre apart. The
+  labels are a written-out constant, not CLDR: Polish abbreviations are `pon.`/`wt.` — four characters
+  with a stop, which do not fit nine cells on a phone — and the narrow forms collide (`p` for both
+  Monday and Friday, `s` for both Saturday and Sunday).
+
   Also adapted: the `locale` input is bound to the injected `LOCALE_ID`, not to a hardcoded `'pl'`.
   Hardcoding it made the component demand CLDR data only `app.config.ts` registers, which failed with
   NG0701 anywhere that config does not run.

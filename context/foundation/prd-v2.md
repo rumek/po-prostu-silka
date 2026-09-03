@@ -288,6 +288,11 @@ a requirement from the product PRD, that original is named in parentheses.
   > the `angular-calendar` library rather than by hand: the library renders a day and a week view, and
   > has no day-strip. The mobile guardrail below was rewritten in the same edit and still holds — a
   > phone never renders the seven-column week.
+  > Amended 2026-09-03 (`schedule-calendar-view`): the weekday strip is back, as NAVIGATION rather than
+  > as layout — a row of seven weekday buttons between week arrows, sitting under the date control,
+  > with the day it selects rendered in the day view below. What the earlier amendment dropped was the
+  > strip *plus list*; what it took with it was the ability to reach Friday in one press instead of
+  > four. The strip appears only below FR-016's width, where the week is not already on screen.
 - **[modified]** FR-016: From the tablet width up (48rem), the whole week is visible at once, as a
   seven-column view; below that width the day view of FR-015 applies. The switch is automatic and
   follows the viewport. Priority: must-have — was: the same day-grouped list at every width
