@@ -96,15 +96,24 @@ public record DuplicateRequest(int Weeks);
 public record DuplicateResult(int Created, IReadOnlyList<int> SkippedWeeks);
 
 /// <summary>
-/// Why a class write was refused. All 400 except <c>time_conflict</c>, which is a 409 — it is a
-/// conflict with existing state, not bad input.
+/// Why a class write was refused. All 400 except the four 409s — <c>time_conflict</c>, <c>has_bookings</c>,
+/// <c>capacity_below_bookings</c> and <c>conflict</c> — each a disagreement with existing state
+/// rather than bad input.
 ///
 /// <para>
 /// Reasons: <c>missing_field</c>, <c>invalid_capacity</c>, <c>invalid_duration</c>,
 /// <c>starts_in_past</c>, <c>invalid_weeks</c>, <c>time_conflict</c>, <c>unknown_class_type</c>,
 /// <c>inactive_class_type</c>, <c>class_type_immutable</c>, <c>unknown_instructor</c>,
-/// <c>instructor_not_trainer</c>. Adding one here means adding it to the SPA's ClassFailure union
-/// too — that type mirrors this one field for field.
+/// <c>instructor_not_trainer</c>, <c>has_bookings</c>, <c>capacity_below_bookings</c>,
+/// <c>conflict</c>. Adding one here means adding it to the SPA's ClassFailure union too — that type
+/// mirrors this one field for field.
+/// </para>
+///
+/// <para>
+/// S-08 ADDED THE LAST THREE, ALL 409s. <c>has_bookings</c> and <c>capacity_below_bookings</c> are
+/// the two ways an admin action would otherwise break the no-overbooking guarantee from the
+/// management side; <c>conflict</c> means a booking committed between this request's check and its
+/// write, so the admin is asked to look again rather than shown a 500.
 /// </para>
 ///
 /// <para>
@@ -345,6 +354,7 @@ public static class ClassEndpoints
     private static async Task<IResult> GetByIdAsync(
         Guid id,
         IClassStore store,
+        IBookingStore bookings,
         CancellationToken cancellationToken)
     {
         var found = await store.FindAsync(id, cancellationToken);
@@ -353,7 +363,11 @@ public static class ClassEndpoints
         // Includes them - and the one place a null truly means "no such class".
         return found is null
             ? Results.NotFound()
-            : Results.Ok(ToDto(found, found.ClassType, found.Instructor));
+            : Results.Ok(ToDto(
+                found,
+                found.ClassType,
+                found.Instructor,
+                await bookings.CountActiveAsync(id, cancellationToken)));
     }
 
     private static async Task<IResult> CreateAsync(
@@ -437,13 +451,16 @@ public static class ClassEndpoints
         // to mean a second round-trip AND, when it came back null, a 404 for a row that had just been
         // committed: the client was told the write failed after it succeeded, and an admin retrying a
         // create would produce a duplicate class.
-        return Results.Ok(ToDto(created, classType, instructor!));
+        // Zero bookings, by construction: the occurrence was created this instant, and there is no
+        // route by which anything could have booked it before the response is written.
+        return Results.Ok(ToDto(created, classType, instructor!, bookedCount: 0));
     }
 
     private static async Task<IResult> UpdateAsync(
         Guid id,
         ClassRequest request,
         IClassStore store,
+        IBookingStore bookings,
         UserManager<ApplicationUser> userManager,
         IUnitOfWork unitOfWork,
         CancellationToken cancellationToken)
@@ -491,37 +508,69 @@ public static class ClassEndpoints
             return Results.Json(new ClassFailure("time_conflict"), statusCode: 409);
         }
 
+        // THE NO-OVERBOOKING GUARANTEE, FROM THE OTHER SIDE. Bookings cannot exceed capacity; an
+        // edit must not be able to move capacity below the bookings instead. Refused rather than
+        // truncated - the club has to decide WHO loses their spot, and this endpoint cannot.
+        //
+        // Equal is allowed: shrinking a class to exactly the number of people already in it is a
+        // legitimate "no more sign-ups" move.
+        var bookedCount = await bookings.CountActiveAsync(id, cancellationToken);
+        if (request.Capacity < bookedCount)
+        {
+            return Results.Json(new ClassFailure("capacity_below_bookings"), statusCode: 409);
+        }
+
         existing.StartsAt = request.StartsAt;
         existing.DurationMinutes = request.DurationMinutes;
         existing.Capacity = request.Capacity;
         existing.InstructorUserId = request.InstructorUserId;
 
-        // SaveChangesAsync, not TrySaveChangesAsync, and Class carries no concurrency token - a
-        // deliberate departure from the MemberAdminEndpoints pattern, on the same grounds
-        // ClassStore.HasTimeConflictAsync records: exactly one admin account is ever seeded
-        // (AdminSeeder), so there is no second writer to lose a race against. Two admins would make
-        // this last-write-wins, which is why ClassStore names a second admin as the trigger to
-        // revisit - at which point Class needs a ConcurrencyStamp and both handlers need the 409.
-        await unitOfWork.SaveChangesAsync(cancellationToken);
+        // TrySaveChangesAsync since S-08, and the reason is new: Class now CARRIES a concurrency
+        // token, so this UPDATE's WHERE clause includes it and a booking that committed between the
+        // count above and this line makes the save match no row.
+        //
+        // The old comment here said there was no second writer to race - true while only one admin
+        // account exists, and no longer true at all: every member who books is a writer against this
+        // row. A bare SaveChangesAsync would now surface that as an unhandled
+        // DbUpdateConcurrencyException, i.e. a 500 for a race the server understands perfectly well.
+        //
+        // Answering conflict is not a formality: the count this edit was validated against has
+        // moved, so the admin must see the new one before deciding again.
+        if (!await unitOfWork.TrySaveChangesAsync(cancellationToken))
+        {
+            return Results.Json(new ClassFailure("conflict"), statusCode: 409);
+        }
 
         // Projected from what this handler already holds, NOT from a re-read - see CreateAsync for
         // why the re-read was wrong. The type is immutable on an edit, so existing.ClassType (loaded
         // by FindAsync) is still correct; the instructor may have just changed, which is exactly why
         // the validated account is used rather than the tracked entity's navigation - that one still
         // points at the PREVIOUS account and would render a stale display name.
-        return Results.Ok(ToDto(existing, existing.ClassType, instructor!));
+        return Results.Ok(ToDto(existing, existing.ClassType, instructor!, bookedCount));
     }
 
     /// <summary>
     /// Deletes a class outright. For MISTAKES only — see the class doc comment.
     ///
-    /// Nothing is booked until S-08 because Booking does not exist, so this always succeeds. S-08
-    /// adds the guard that refuses a delete once someone has booked, at which point cancelling (S-09)
-    /// is the only correct way to take a class off the schedule.
+    /// <para>
+    /// GUARDED SINCE S-08. Once somebody has signed up, taking the class off the schedule is a
+    /// CANCELLATION — a state transition that owes everyone booked an email and a push (S-09) — and
+    /// deleting the row would destroy the very list of people owed that message, along with the
+    /// history FR-009 requires be kept.
+    /// </para>
+    ///
+    /// <para>
+    /// ANY booking guards it, not only active ones. Partly because the database says so — both FKs
+    /// on Bookings are RESTRICT, so an active-only guard would wave the delete through and then fail
+    /// on a foreign-key violation — and partly because it is the honest rule: this endpoint erases a
+    /// class created by MISTAKE, and a class somebody signed up for and then cancelled is a class
+    /// that happened. Deleting it would take that member's history with it.
+    /// </para>
     /// </summary>
     private static async Task<IResult> DeleteAsync(
         Guid id,
         IClassStore store,
+        IBookingStore bookings,
         IUnitOfWork unitOfWork,
         CancellationToken cancellationToken)
     {
@@ -531,13 +580,21 @@ public static class ClassEndpoints
             return Results.NotFound();
         }
 
+        if (await bookings.HasAnyAsync(id, cancellationToken))
+        {
+            return Results.Json(new ClassFailure("has_bookings"), statusCode: 409);
+        }
+
         store.Remove(existing);
 
-        // No concurrency token here either - same single-admin reasoning as UpdateAsync. The race
-        // this leaves open is delete-while-editing, which would surface as an unhandled
-        // DbUpdateConcurrencyException rather than a clean 409; acceptable only while one admin
-        // exists.
-        await unitOfWork.SaveChangesAsync(cancellationToken);
+        // TrySaveChangesAsync for the reason UpdateAsync records: Classes now carries a concurrency
+        // token, so a booking committed between the check above and this line makes the DELETE match
+        // no row. That is precisely the race the check exists to lose - somebody booked the class
+        // being deleted - so has_bookings is the honest answer, not a 500.
+        if (!await unitOfWork.TrySaveChangesAsync(cancellationToken))
+        {
+            return Results.Json(new ClassFailure("has_bookings"), statusCode: 409);
+        }
 
         return Results.NoContent();
     }
@@ -721,8 +778,14 @@ public static class ClassEndpoints
     /// stands, and two constructions of the same contract would drift the moment one of them learned
     /// about free spots and the other did not.
     /// </remarks>
+    /// <param name="bookedCount">
+    /// How many active bookings the occurrence has, which the caller must supply because this method
+    /// has no query of its own — and must NOT reach through a navigation, because Class deliberately
+    /// has no Bookings collection (see Booking.Class). A caller that has just created the occurrence
+    /// passes 0; every other caller counts.
+    /// </param>
     internal static ScheduledClass ToDto(
-        Class entity, ClassType classType, ApplicationUser instructor) =>
+        Class entity, ClassType classType, ApplicationUser instructor, int bookedCount) =>
         new(entity.Id,
             entity.ClassTypeId,
             classType.Name,
@@ -732,8 +795,9 @@ public static class ClassEndpoints
             entity.InstructorUserId,
             instructor.DisplayName,
             entity.Capacity,
-            // Same construction as the read query: no bookings exist until S-08.
-            entity.Capacity,
+            // Same construction as the read query, and unclamped for the same reason - see
+            // ClassScheduleQuery.
+            entity.Capacity - bookedCount,
             entity.Status.ToString());
 }
 

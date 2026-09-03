@@ -40,6 +40,9 @@ public class BookingStore(AppDbContext db) : IBookingStore
         db.Bookings.CountAsync(
             b => b.ClassId == classId && b.Status == BookingStatus.Active, cancellationToken);
 
+    public Task<bool> HasAnyAsync(Guid classId, CancellationToken cancellationToken) =>
+        db.Bookings.AnyAsync(b => b.ClassId == classId, cancellationToken);
+
     public async Task CancelActiveFutureForMemberAsync(
         string memberUserId, DateTimeOffset asOf, CancellationToken cancellationToken)
     {

@@ -143,6 +143,15 @@ public static class BookingEndpoints
 
         myBookings.MapGet("/mine", GetMineAsync);
 
+        // The admin's half. Under Admin rather than ActiveMember, and addressed under
+        // /api/admin/classes so it sits beside the management endpoints it belongs with.
+        var adminBookings = app.MapGroup("/api/admin/classes")
+            .WithTags("Bookings")
+            .RequireAuthorization(AuthorizationPolicyNames.Admin);
+
+        adminBookings.MapGet("/{classId:guid}/bookings", GetForClassAsync);
+        adminBookings.MapDelete("/{classId:guid}/bookings/{bookingId:guid}", ReleaseAsync);
+
         return app;
     }
 
@@ -210,7 +219,8 @@ public static class BookingEndpoints
 
             // Greater-or-equal, not equal: if the count has somehow passed capacity the answer is
             // still "full". Equality here would turn a broken invariant into an open door.
-            if (await bookings.CountActiveAsync(classId, cancellationToken) >= entity.Capacity)
+            var bookedCount = await bookings.CountActiveAsync(classId, cancellationToken);
+            if (bookedCount >= entity.Capacity)
             {
                 return Refuse("class_full");
             }
@@ -233,7 +243,14 @@ public static class BookingEndpoints
             {
                 // Projected from the tracked entity, whose navigations FindAsync included. Both
                 // failure modes below mean NOTHING was written, so there is no half-state to undo.
-                return Results.Ok(ClassEndpoints.ToDto(entity, entity.ClassType, entity.Instructor));
+                //
+                // bookedCount + 1 rather than a re-count, and that is EXACT rather than optimistic:
+                // the save succeeded, so no other booking write committed between the count above and
+                // this commit - any that had tried would have rotated the stamp and taken this save
+                // down with it. The count is therefore this class as of the instant it committed,
+                // which is the most any answer can claim.
+                return Results.Ok(ClassEndpoints.ToDto(
+                    entity, entity.ClassType, entity.Instructor, bookedCount + 1));
             }
 
             // ConcurrencyConflict: someone else's booking or cancellation rotated the stamp first.
@@ -293,6 +310,8 @@ public static class BookingEndpoints
                 return Refuse("not_booked");
             }
 
+            var bookedCount = await bookings.CountActiveAsync(classId, cancellationToken);
+
             booking.Status = BookingStatus.Cancelled;
             booking.CancelledAt = timeProvider.GetUtcNow();
 
@@ -301,7 +320,10 @@ public static class BookingEndpoints
             var outcome = await unitOfWork.TrySaveAsync(cancellationToken);
             if (outcome == SaveOutcome.Saved)
             {
-                return Results.Ok(ClassEndpoints.ToDto(entity, entity.ClassType, entity.Instructor));
+                // Minus one, exact for the same reason BookAsync's plus one is: the stamp serialized
+                // this write against every other booking write on the class.
+                return Results.Ok(ClassEndpoints.ToDto(
+                    entity, entity.ClassType, entity.Instructor, bookedCount - 1));
             }
 
             unitOfWork.DiscardChanges();
@@ -334,6 +356,84 @@ public static class BookingEndpoints
 
         return Results.Ok(await query.GetUpcomingForMemberAsync(
             memberUserId, timeProvider.GetUtcNow(), cancellationToken));
+    }
+
+    /// <summary>
+    /// Who signed up for a class (prd.md FR-014).
+    ///
+    /// <para>
+    /// Active only. The admin is looking at who to expect, not at who changed their mind — the
+    /// cancelled rows are history the application keeps but does not put in front of anyone.
+    /// </para>
+    /// </summary>
+    private static async Task<IResult> GetForClassAsync(
+        Guid classId,
+        IBookingQuery query,
+        CancellationToken cancellationToken) =>
+        Results.Ok(await query.GetForClassAsync(classId, cancellationToken));
+
+    /// <summary>
+    /// Releases somebody else's spot.
+    ///
+    /// <para>
+    /// BEYOND FR-014, WHICH ASKS ONLY FOR A VIEW, and deliberately so: it is what makes the
+    /// capacity_below_bookings refusal workable — an admin told they cannot shrink a class needs a
+    /// way to free a seat — and the server-side cancel path had to exist for the block cascade
+    /// anyway. Chosen by the product owner during planning.
+    /// </para>
+    ///
+    /// <para>
+    /// Rotates the class stamp and retries exactly like the member's cancel, so an admin releasing a
+    /// spot and a member claiming it cannot both win. 204 rather than the class, because the admin
+    /// screen is a list of people and reloads that list rather than a tile.
+    /// </para>
+    /// </summary>
+    private static async Task<IResult> ReleaseAsync(
+        Guid classId,
+        Guid bookingId,
+        IClassStore classes,
+        IBookingStore bookings,
+        IUnitOfWork unitOfWork,
+        TimeProvider timeProvider,
+        CancellationToken cancellationToken)
+    {
+        for (var attempt = 1; attempt <= MaxAttempts; attempt++)
+        {
+            var entity = await classes.FindAsync(classId, cancellationToken);
+            if (entity is null)
+            {
+                return Results.NotFound();
+            }
+
+            var booking = await bookings.FindByIdAsync(bookingId, cancellationToken);
+
+            // WRONG CLASS IS A 404, NOT A REFUSAL. A booking id addressed under a class it does not
+            // belong to is a wrong address, exactly like an id nobody ever issued - and collapsing
+            // the two also stops this route being used to probe which booking ids exist.
+            //
+            // An ALREADY CANCELLED booking is a 404 too, for a plainer reason: there is no spot here
+            // to release.
+            if (booking is null
+                || booking.ClassId != classId
+                || booking.Status != BookingStatus.Active)
+            {
+                return Results.NotFound();
+            }
+
+            booking.Status = BookingStatus.Cancelled;
+            booking.CancelledAt = timeProvider.GetUtcNow();
+
+            entity.ConcurrencyStamp = Guid.NewGuid().ToString();
+
+            if (await unitOfWork.TrySaveAsync(cancellationToken) == SaveOutcome.Saved)
+            {
+                return Results.NoContent();
+            }
+
+            unitOfWork.DiscardChanges();
+        }
+
+        return Refuse("conflict");
     }
 
     /// <summary>
@@ -387,6 +487,20 @@ public interface IBookingStore
     /// </para>
     /// </summary>
     Task<int> CountActiveAsync(Guid classId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Whether this class has EVER been booked, cancelled bookings included.
+    ///
+    /// <para>
+    /// The delete guard, and deliberately wider than <see cref="CountActiveAsync"/>. Both FKs on
+    /// Bookings are RESTRICT, so a class with any booking row at all cannot be deleted by the
+    /// database either — a guard that counted only active rows would answer "go ahead" and then let
+    /// the save fail with a foreign-key violation. Widening it also states the product rule
+    /// honestly: DELETE erases a class created by mistake, and a class somebody once signed up for
+    /// is not one.
+    /// </para>
+    /// </summary>
+    Task<bool> HasAnyAsync(Guid classId, CancellationToken cancellationToken);
 
     /// <summary>
     /// Marks every active booking this member holds on a class starting after

@@ -823,4 +823,98 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
 
     private static string Range(DateTimeOffset from, DateTimeOffset to) =>
         "?from=" + Iso(from) + "&to=" + Iso(to);
+
+    // --- S-08: the guards that keep the guarantee true from the admin side ----
+    //
+    // A class the members can book is no longer free for an admin to delete or shrink at will. Both
+    // refusals are 409s, and both are checked against ACTIVE bookings only.
+
+    /// <summary>
+    /// Books a class as a brand-new member and returns that member's client, so the caller can
+    /// cancel again. Goes through the real endpoint rather than inserting a row, because the point
+    /// of these tests is the interaction between two real surfaces.
+    /// </summary>
+    private async Task<HttpClient> BookAsync(Guid classId)
+    {
+        var email = $"guard-{Guid.NewGuid():N}@test.local";
+        await fixture.CreateUserAsync(email, AccountStatus.Active, ApplicationRoles.User);
+
+        var member = await fixture.CreateAuthenticatedClientAsync(email);
+        var response = await member.PostAsync($"/api/classes/{classId}/bookings", content: null);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        return member;
+    }
+
+    [Fact]
+    public async Task Deleting_a_class_with_a_booking_is_refused_and_the_class_survives()
+    {
+        var (admin, type, trainerId) = await ArrangeAsync();
+        var created = await PostClassAsync(admin, type.Id, NextSlot(), trainerId);
+
+        var member = await BookAsync(created.Id);
+
+        var refused = await admin.DeleteAsync($"{Endpoint}/{created.Id}");
+
+        Assert.Equal(HttpStatusCode.Conflict, refused.StatusCode);
+        Assert.Equal(
+            "has_bookings", (await refused.Content.ReadFromJsonAsync<FailureBody>())!.Reason);
+
+        // The class is still there - a refused delete must not half-happen.
+        Assert.Equal(
+            HttpStatusCode.OK, (await admin.GetAsync($"{Endpoint}/{created.Id}")).StatusCode);
+
+        // STILL REFUSED after the member releases the spot. The guard is any booking, not any
+        // ACTIVE booking: the RESTRICT foreign key would refuse the delete anyway, and the cancelled
+        // row is history this endpoint has no business erasing.
+        await member.DeleteAsync($"/api/classes/{created.Id}/bookings/mine");
+
+        var stillRefused = await admin.DeleteAsync($"{Endpoint}/{created.Id}");
+
+        Assert.Equal(HttpStatusCode.Conflict, stillRefused.StatusCode);
+        Assert.Equal(
+            "has_bookings", (await stillRefused.Content.ReadFromJsonAsync<FailureBody>())!.Reason);
+
+        // A class nobody ever touched is still erasable - the guard is about bookings, not about
+        // classes being undeletable.
+        var untouched = await PostClassAsync(admin, type.Id, NextSlot(), trainerId);
+
+        Assert.Equal(
+            HttpStatusCode.NoContent,
+            (await admin.DeleteAsync($"{Endpoint}/{untouched.Id}")).StatusCode);
+    }
+
+    [Fact]
+    public async Task Lowering_capacity_below_the_booked_count_is_refused()
+    {
+        var (admin, type, trainerId) = await ArrangeAsync();
+        var startsAt = NextSlot();
+        var created = await PostClassAsync(admin, type.Id, startsAt, trainerId, capacity: 4);
+
+        await BookAsync(created.Id);
+        await BookAsync(created.Id);
+
+        var refused = await admin.PutAsJsonAsync(
+            $"{Endpoint}/{created.Id}", Request(type.Id, startsAt, trainerId, capacity: 1));
+
+        Assert.Equal(HttpStatusCode.Conflict, refused.StatusCode);
+        Assert.Equal(
+            "capacity_below_bookings",
+            (await refused.Content.ReadFromJsonAsync<FailureBody>())!.Reason);
+
+        // Nothing was written - the capacity the class had is the capacity it still has.
+        var unchanged = await admin.GetFromJsonAsync<ClassBody>($"{Endpoint}/{created.Id}");
+        Assert.Equal(4, unchanged!.Capacity);
+
+        // EQUAL IS ALLOWED. Shrinking to exactly the number already signed up is the club saying
+        // "no more sign-ups", which is a legitimate move and not a broken invariant.
+        var allowed = await admin.PutAsJsonAsync(
+            $"{Endpoint}/{created.Id}", Request(type.Id, startsAt, trainerId, capacity: 2));
+
+        Assert.Equal(HttpStatusCode.OK, allowed.StatusCode);
+
+        var shrunk = (await allowed.Content.ReadFromJsonAsync<ClassBody>())!;
+        Assert.Equal(2, shrunk.Capacity);
+        Assert.Equal(0, shrunk.FreeSpots);
+    }
 }

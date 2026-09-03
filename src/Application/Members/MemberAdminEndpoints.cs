@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using po_prostu_silka.Application.Notifications;
 using po_prostu_silka.Application.Persistence;
+using po_prostu_silka.Application.Scheduling;
 using po_prostu_silka.Domain;
 
 namespace po_prostu_silka.Application.Members;
@@ -75,9 +76,9 @@ public record TrainerRoleFailure(string Reason);
 /// of it.
 ///
 /// There is still no reject — FR-003 dropped it from the MVP. The PRD's open question about a
-/// blocked member's existing bookings, which S-01 recorded here as blocking S-02, was reassigned to
-/// S-04 and S-07 during S-02's framing: it asks about aggregates that do not exist yet, and nothing
-/// on this surface touches them. See context/changes/member-management/frame.md.
+/// blocked member's existing bookings, recorded here by S-01 and reassigned during S-02's framing
+/// because it asked about an aggregate that did not exist, is ANSWERED as of S-08: blocking silently
+/// cancels the member's FUTURE bookings and leaves past ones alone. Unblocking restores nothing.
 ///
 /// These are the FIRST production consumers of the Admin policy; before this it existed only for the
 /// environment-guarded probes in Program.cs.
@@ -223,11 +224,17 @@ public static class MemberAdminEndpoints
     ///    avoid.
     /// 2. No notification. The PRD asks for no block email, and telling someone they have been
     ///    blocked is a product decision nobody has made.
+    ///
+    /// SINCE S-08 IT ALSO RELEASES THEIR FUTURE SPOTS — see the cascade comment in the body. That
+    /// answers the PRD open question this file recorded as reassigned, and it is the only place in
+    /// the application where a status change rewrites another aggregate.
     /// </summary>
     private static async Task<IResult> BlockAsync(
         string id,
         UserManager<ApplicationUser> userManager,
+        IBookingStore bookings,
         IUnitOfWork unitOfWork,
+        TimeProvider timeProvider,
         CancellationToken cancellationToken)
     {
         var user = await userManager.FindByIdAsync(id);
@@ -258,6 +265,25 @@ public static class MemberAdminEndpoints
         user.Status = AccountStatus.Blocked;
         user.ConcurrencyStamp = Guid.NewGuid().ToString();
         user.SecurityStamp = Guid.NewGuid().ToString();
+
+        // THE ONE STORED CASCADE IN THIS APPLICATION, and a deliberate exception to the convention
+        // this file otherwise follows: access consequences are enforced at READ time by policy
+        // claims, never by rewriting stored state. The exception is product-driven - a blocked member
+        // cannot attend, and leaving their seats held would have the schedule promise spots to
+        // nobody while other members are turned away as full.
+        //
+        // Queued into the SAME unit of work as the status flip, so a member is never blocked with
+        // their bookings still held, nor released while still Active.
+        //
+        // FUTURE ONLY. Past bookings are attendance history and rewriting them would falsify it.
+        //
+        // NO CLASS STAMP IS ROTATED, and none is owed: cancelling only ever FREES spots, so a booker
+        // racing this cascade reads a count that is conservative rather than permissive - the worst
+        // it can do is refuse a spot that had just come free.
+        //
+        // NO NOTIFICATION, consistent with the block itself sending none.
+        await bookings.CancelActiveFutureForMemberAsync(
+            user.Id, timeProvider.GetUtcNow(), cancellationToken);
 
         if (!await unitOfWork.TrySaveChangesAsync(cancellationToken))
         {

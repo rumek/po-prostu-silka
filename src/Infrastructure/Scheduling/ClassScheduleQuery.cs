@@ -29,7 +29,7 @@ public class ClassScheduleQuery(AppDbContext db) : IClassScheduleQuery
             db.Classes.Where(c => c.StartsAt >= from && c.StartsAt < to),
             cancellationToken);
 
-    private static async Task<IReadOnlyList<ScheduledClass>> ProjectAsync(
+    private async Task<IReadOnlyList<ScheduledClass>> ProjectAsync(
         IQueryable<Class> query, CancellationToken cancellationToken)
     {
         // The name, description and instructor name are RESOLVED through the navigations, not read
@@ -56,6 +56,18 @@ public class ClassScheduleQuery(AppDbContext db) : IClassScheduleQuery
                 InstructorDisplayName = c.Instructor.DisplayName,
                 c.Capacity,
                 c.Status,
+
+                // A CORRELATED SUBQUERY, NOT A COLLECTION NAVIGATION. Class deliberately has no
+                // Bookings collection - see Booking.Class for why: a collection hanging off the
+                // aggregate is a standing invitation for a write path to count spots through it,
+                // and a capacity check that does not also rotate ConcurrencyStamp is not a check.
+                //
+                // This costs nothing to avoid it. EF translates the subquery into the same single
+                // statement a navigation would have produced, seeking
+                // IX_Bookings_Class_Member_Active - whose filter is exactly this predicate's Status
+                // term - so the whole window is still ONE round trip.
+                BookedCount = db.Bookings.Count(
+                    b => b.ClassId == c.Id && b.Status == BookingStatus.Active),
             })
             .ToListAsync(cancellationToken);
 
@@ -70,11 +82,10 @@ public class ClassScheduleQuery(AppDbContext db) : IClassScheduleQuery
                 r.InstructorUserId,
                 r.InstructorDisplayName,
                 r.Capacity,
-                // FREE SPOTS = CAPACITY, by construction: Booking does not exist until S-08, so
-                // nothing can be booked. S-08 replaces this one expression with
-                // "r.Capacity - <booked count>" and nothing else in the stack changes - not this
-                // DTO, not the schedule template, not its spec.
-                r.Capacity,
+                // NOT CLAMPED AT ZERO. With the capacity_below_bookings guard on the edit path a
+                // negative value is unreachable, and clamping would turn a broken invariant into a
+                // plausible-looking number - the one failure nobody would notice.
+                r.Capacity - r.BookedCount,
                 r.Status.ToString()))
             .ToList();
     }

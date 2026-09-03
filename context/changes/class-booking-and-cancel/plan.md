@@ -783,11 +783,11 @@ required `SET` options; EF Core's connections do, hand-run raw SQL sessions may 
 
 #### Automated
 
-- [x] 1.1 Solution builds warning-free
-- [x] 1.2 Migration applies against a clean database and reverses
-- [x] 1.3 All tests pass including `BookingEndpointTests`
-- [x] 1.4 The concurrency test fails without the stamp rotation
-- [x] 1.5 No EF Core reference in `Domain` or `Application`
+- [x] 1.1 Solution builds warning-free — 03f99ea
+- [x] 1.2 Migration applies against a clean database and reverses — 03f99ea
+- [x] 1.3 All tests pass including `BookingEndpointTests` — 03f99ea
+- [x] 1.4 The concurrency test fails without the stamp rotation — 03f99ea
+- [x] 1.5 No EF Core reference in `Domain` or `Application` — 03f99ea
 
 #### Manual
 
@@ -799,9 +799,9 @@ required `SET` options; EF Core's connections do, hand-run raw SQL sessions may 
 
 #### Automated
 
-- [ ] 2.1 Solution builds warning-free
-- [ ] 2.2 All tests pass
-- [ ] 2.3 The member schedule for a week issues one SQL statement
+- [x] 2.1 Solution builds warning-free
+- [x] 2.2 All tests pass
+- [x] 2.3 The member schedule for a week issues one SQL statement
 
 #### Manual
 

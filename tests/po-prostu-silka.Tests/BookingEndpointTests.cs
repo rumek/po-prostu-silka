@@ -60,6 +60,14 @@ public class BookingEndpointTests(IntegrationTestFixture fixture)
         string Instructor,
         DateTimeOffset BookedAt);
 
+    /// <summary>Mirrors ClassBooking.</summary>
+    private sealed record ClassBookingBody(
+        Guid BookingId,
+        string MemberUserId,
+        string DisplayName,
+        string Email,
+        DateTimeOffset BookedAt);
+
     /// <summary>Mirrors BookingFailure.</summary>
     private sealed record FailureBody(string Reason);
 
@@ -70,6 +78,9 @@ public class BookingEndpointTests(IntegrationTestFixture fixture)
     private static string BookingsOf(Guid classId) => $"/api/classes/{classId}/bookings";
 
     private static string MyBookingOn(Guid classId) => $"/api/classes/{classId}/bookings/mine";
+
+    private static string AdminBookingsOf(Guid classId) =>
+        $"/api/admin/classes/{classId}/bookings";
 
     /// <summary>
     /// Slot allocator, 2032 rather than ClassEndpointTests' 2030. Both files write into the same
@@ -549,5 +560,207 @@ public class BookingEndpointTests(IntegrationTestFixture fixture)
         Assert.True(
             rows.Count(b => b.Status == BookingStatus.Active) <= Capacity,
             "the class holds more active bookings than it has spots");
+    }
+
+    // --- phase 2: bookings become visible ------------------------------------
+
+    /// <summary>
+    /// The read path's free-spot count, which was a placeholder equal to capacity until this phase.
+    /// Checked on BOTH the member schedule and the admin list because they share one projection —
+    /// and a regression that split them would be invisible from either side alone.
+    /// </summary>
+    [Fact]
+    public async Task Free_spots_fall_on_a_booking_and_recover_on_a_cancellation()
+    {
+        var (admin, typeId, trainerId) = await ArrangeAsync();
+        var scheduled = await PostClassAsync(admin, typeId, trainerId, capacity: 5);
+        var member = await NewMemberAsync();
+
+        var window = $"?from={Uri.EscapeDataString(scheduled.StartsAt.AddHours(-1).ToString("o"))}"
+                     + $"&to={Uri.EscapeDataString(scheduled.StartsAt.AddHours(1).ToString("o"))}";
+
+        async Task<int> FreeSpotsAsync(HttpClient client, string route)
+        {
+            var rows = await client.GetFromJsonAsync<List<ClassBody>>(route + window);
+            return rows!.Single(r => r.Id == scheduled.Id).FreeSpots;
+        }
+
+        Assert.Equal(5, await FreeSpotsAsync(member, "/api/classes"));
+
+        await BookAsync(member, scheduled.Id);
+
+        Assert.Equal(4, await FreeSpotsAsync(member, "/api/classes"));
+        Assert.Equal(4, await FreeSpotsAsync(admin, ClassesEndpoint));
+
+        // The single-class read the edit form uses has its own construction of the same number.
+        var one = await admin.GetFromJsonAsync<ClassBody>($"{ClassesEndpoint}/{scheduled.Id}");
+        Assert.Equal(4, one!.FreeSpots);
+
+        await member.DeleteAsync(MyBookingOn(scheduled.Id));
+
+        Assert.Equal(5, await FreeSpotsAsync(member, "/api/classes"));
+    }
+
+    /// <summary>
+    /// The booking response carries the class as it now stands, so the tile can be redrawn without a
+    /// refetch — the whole reason these two endpoints answer with a class rather than a booking.
+    /// </summary>
+    [Fact]
+    public async Task Booking_and_cancelling_answer_with_the_updated_free_spots()
+    {
+        var (scheduled, member) = await BookableAsync(capacity: 4);
+
+        var booked = await (await BookAsync(member, scheduled.Id))
+            .Content.ReadFromJsonAsync<ClassBody>();
+        Assert.Equal(3, booked!.FreeSpots);
+
+        var cancelled = await (await member.DeleteAsync(MyBookingOn(scheduled.Id)))
+            .Content.ReadFromJsonAsync<ClassBody>();
+        Assert.Equal(4, cancelled!.FreeSpots);
+    }
+
+    // --- FR-014: the admin's list ---------------------------------------------
+
+    [Fact]
+    public async Task Admin_sees_who_signed_up_in_booking_order()
+    {
+        var (admin, typeId, trainerId) = await ArrangeAsync();
+        var scheduled = await PostClassAsync(admin, typeId, trainerId);
+
+        Assert.Empty((await admin.GetFromJsonAsync<List<ClassBookingBody>>(
+            AdminBookingsOf(scheduled.Id)))!);
+
+        var first = await NewMemberAsync();
+        var second = await NewMemberAsync();
+        await BookAsync(first, scheduled.Id);
+        await BookAsync(second, scheduled.Id);
+
+        // Cancelled rows are history, not a sign-up list.
+        var third = await NewMemberAsync();
+        await BookAsync(third, scheduled.Id);
+        await third.DeleteAsync(MyBookingOn(scheduled.Id));
+
+        var rows = await admin.GetFromJsonAsync<List<ClassBookingBody>>(
+            AdminBookingsOf(scheduled.Id));
+
+        Assert.Equal(2, rows!.Count);
+        Assert.All(rows, r => Assert.False(string.IsNullOrWhiteSpace(r.Email)));
+        Assert.All(rows, r => Assert.False(string.IsNullOrWhiteSpace(r.DisplayName)));
+        Assert.True(rows[0].BookedAt <= rows[1].BookedAt);
+    }
+
+    [Fact]
+    public async Task Admin_releasing_a_spot_frees_it()
+    {
+        var (admin, typeId, trainerId) = await ArrangeAsync();
+        var scheduled = await PostClassAsync(admin, typeId, trainerId, capacity: 2);
+        var member = await NewMemberAsync();
+        await BookAsync(member, scheduled.Id);
+
+        var row = Assert.Single(
+            (await admin.GetFromJsonAsync<List<ClassBookingBody>>(AdminBookingsOf(scheduled.Id)))!);
+
+        var response = await admin.DeleteAsync($"{AdminBookingsOf(scheduled.Id)}/{row.BookingId}");
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+
+        var booking = Assert.Single(await BookingsForAsync(scheduled.Id));
+        Assert.Equal(BookingStatus.Cancelled, booking.Status);
+        Assert.NotNull(booking.CancelledAt);
+
+        // The member is free to book again - a release is a cancellation, not a ban.
+        Assert.Equal(HttpStatusCode.OK, (await BookAsync(member, scheduled.Id)).StatusCode);
+    }
+
+    [Fact]
+    public async Task Admin_releasing_a_booking_from_another_class_is_404()
+    {
+        var (admin, typeId, trainerId) = await ArrangeAsync();
+        var holding = await PostClassAsync(admin, typeId, trainerId);
+        var other = await PostClassAsync(admin, typeId, trainerId);
+
+        var member = await NewMemberAsync();
+        await BookAsync(member, holding.Id);
+
+        var row = Assert.Single(
+            (await admin.GetFromJsonAsync<List<ClassBookingBody>>(AdminBookingsOf(holding.Id)))!);
+
+        var response = await admin.DeleteAsync($"{AdminBookingsOf(other.Id)}/{row.BookingId}");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal(BookingStatus.Active, Assert.Single(await BookingsForAsync(holding.Id)).Status);
+    }
+
+    [Fact]
+    public async Task Admin_booking_routes_refuse_a_member()
+    {
+        var (admin, typeId, trainerId) = await ArrangeAsync();
+        var scheduled = await PostClassAsync(admin, typeId, trainerId);
+        var member = await NewMemberAsync();
+
+        Assert.Equal(
+            HttpStatusCode.Forbidden,
+            (await member.GetAsync(AdminBookingsOf(scheduled.Id))).StatusCode);
+
+        Assert.Equal(
+            HttpStatusCode.Forbidden,
+            (await member.DeleteAsync($"{AdminBookingsOf(scheduled.Id)}/{Guid.NewGuid()}")).StatusCode);
+    }
+
+    // --- the block cascade -----------------------------------------------------
+
+    /// <summary>
+    /// Blocking a member frees the seats they were holding — the answer to the PRD open question
+    /// that S-01 and S-02 both deferred.
+    ///
+    /// <para>
+    /// FUTURE ONLY. The past booking in this test is what stops the cascade being written as "cancel
+    /// everything they hold", which would rewrite attendance history.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public async Task Blocking_a_member_cancels_their_future_bookings_and_keeps_the_past()
+    {
+        var (admin, typeId, trainerId) = await ArrangeAsync();
+        var upcoming = await PostClassAsync(admin, typeId, trainerId, capacity: 3);
+        var past = await InsertClassAsync(
+            typeId, trainerId, DateTimeOffset.UtcNow.AddDays(-2), ClassStatus.Scheduled);
+
+        var email = $"cascade-{Guid.NewGuid():N}@test.local";
+        await fixture.CreateUserAsync(email, AccountStatus.Active, ApplicationRoles.User);
+        var member = await fixture.CreateAuthenticatedClientAsync(email);
+
+        await BookAsync(member, upcoming.Id);
+
+        var memberId = (await admin.GetFromJsonAsync<List<MemberBody>>("/api/admin/members"))!
+            .Single(m => m.Email == email).Id;
+
+        await using (var db = NewContext())
+        {
+            db.Bookings.Add(new Booking
+            {
+                Id = Guid.NewGuid(),
+                ClassId = past,
+                MemberUserId = memberId,
+                Status = BookingStatus.Active,
+                CreatedAt = DateTimeOffset.UtcNow.AddDays(-3),
+            });
+
+            await db.SaveChangesAsync();
+        }
+
+        var blocked = await admin.PostAsync($"/api/admin/members/{memberId}/block", content: null);
+        Assert.Equal(HttpStatusCode.OK, blocked.StatusCode);
+
+        Assert.Equal(
+            BookingStatus.Cancelled,
+            Assert.Single(await BookingsForAsync(upcoming.Id)).Status);
+
+        // Untouched: this class already happened.
+        Assert.Equal(BookingStatus.Active, Assert.Single(await BookingsForAsync(past)).Status);
+
+        // And the seat is genuinely back on the schedule, not merely marked cancelled.
+        var one = await admin.GetFromJsonAsync<ClassBody>($"{ClassesEndpoint}/{upcoming.Id}");
+        Assert.Equal(3, one!.FreeSpots);
     }
 }
