@@ -105,6 +105,63 @@
   background: color-mix(in srgb, var(--ground) 82%, transparent);
 }
 
+// The refusal to a press in the past. Bottom-anchored rather than centred so it never covers the
+// segment the admin just pressed — they need to see where they aimed.
+.calendar-refusal {
+  position: absolute;
+  right: var(--space-3);
+  bottom: var(--space-3);
+  left: var(--space-3);
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-sm);
+  background: var(--ground);
+  color: var(--danger);
+  text-align: center;
+}
+
+// --- the drag preview -------------------------------------------------------
+
+// Deliberately the tile's shape with the tile's colours turned down: same padding, same type scale,
+// same two lines. It has to read as "this is the class you are about to create" — a differently
+// shaped highlight would read as a selection instead. Dashed and muted is the whole difference.
+.calendar-draft {
+  position: absolute;
+  right: 0;
+  left: 0;
+  z-index: 1;
+  // The gesture is on the segments underneath; the preview must never become the drag target.
+  pointer-events: none;
+  overflow: hidden;
+  padding: var(--space-2);
+  font-size: 0.8125rem;
+  line-height: 1.25;
+  border: dashed 2px color-mix(in srgb, var(--accent) 55%, transparent);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--section-warm) 70%, transparent);
+  color: var(--muted);
+
+  p {
+    margin: 0;
+  }
+}
+
+.calendar-draft-time {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.calendar-draft-name {
+  font-weight: 600;
+}
+
 // --- the event tile ---------------------------------------------------------
 
 .calendar-tile {
@@ -113,8 +170,6 @@
   padding: var(--space-2);
   font-size: 0.8125rem;
   line-height: 1.25;
-  border: solid 2px var(--accent);
-  background: var(--section-warm);
   border: solid 2px var(--accent);
   background: var(--section-warm);
 
@@ -204,5 +259,21 @@
 
   .cal-current-time-marker {
     background: var(--accent);
+  }
+
+  // The preview is positioned against its own segment, so the segment has to be the containing block.
+  .cal-hour-segment {
+    position: relative;
+  }
+
+  // Only where a gesture is actually on offer — the member's schedule leaves the default cursor.
+  .calendar-segment-drawable {
+    cursor: cell;
+  }
+
+  // Says "not here" before the press does. The press still answers, in words.
+  .calendar-segment-past {
+    cursor: not-allowed;
+    background: color-mix(in srgb, var(--line) 22%, transparent);
   }
 }

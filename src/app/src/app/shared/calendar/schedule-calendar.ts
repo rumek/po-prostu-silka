@@ -13,16 +13,17 @@ import {
   signal,
 } from '@angular/core';
 import {
-  CalendarDatePipe,
+  CalendarDateFormatter,
   CalendarEvent,
   CalendarWeekViewComponent,
   DateAdapter,
   provideCalendar,
 } from 'angular-calendar';
 import { adapterFactory } from 'angular-calendar/date-adapters/date-fns';
-import { addDays, startOfDay, startOfWeek } from 'date-fns';
+import { addDays, isSameDay, startOfDay, startOfWeek } from 'date-fns';
 import { ScheduledClass } from '../../core/scheduling/class.models';
 import { WEEK_VIEW_MEDIA_QUERY } from './calendar-breakpoint';
+import { PolishCalendarDateFormatter } from './polish-date-formatter';
 
 /** A time range drawn on the grid, ready for the overlay that will turn it into a class. */
 export interface DrawnRange {
@@ -36,6 +37,20 @@ export interface DrawnRange {
  * segments, so a stray click cannot produce a zero-minute class.
  */
 const SEGMENT_MINUTES = 30;
+
+/**
+ * The hours the grid renders: 06:00 up to 24:00.
+ *
+ * A full 24-hour grid spent a third of its height on hours the club is shut, which on a phone is the
+ * difference between seeing the evening classes and scrolling for them. `DAY_END_HOUR` is the last
+ * hour DRAWN, not an exclusive bound — 23 renders the 23:00–24:00 row and stops there.
+ *
+ * Nothing outside this window is reachable, so a class scheduled at 05:00 would be invisible here.
+ * That is a deliberate bet on the club's opening hours; widen these two constants if it stops
+ * holding.
+ */
+const DAY_START_HOUR = 6;
+const DAY_END_HOUR = 23;
 
 /** The window the calendar is currently showing, as UTC instants for the API. */
 export interface CalendarRange {
@@ -79,7 +94,7 @@ export interface CalendarRange {
  * at the edges of a week would silently land in the wrong one.
  */
 @Component({
-  imports: [CalendarDatePipe, CalendarWeekViewComponent, DatePipe, NgTemplateOutlet],
+  imports: [CalendarWeekViewComponent, DatePipe, NgTemplateOutlet],
   // ON THE COMPONENT, NOT IN app.config.ts. Registering the adapter in the application providers
   // pulls angular-calendar into the INITIAL bundle - it did, and the budget caught it: +62 kB over
   // the 500 kB ceiling with the lazy chunks left nearly empty. Declared here, the library ships in
@@ -89,7 +104,14 @@ export interface CalendarRange {
   // The date-fns adapter, not moment: moment is an optional peer this app does not install, and
   // date-fns v4 is a hard requirement of the library since 0.32.0. The adapter is stateless, so one
   // instance per calendar costs nothing.
-  providers: [provideCalendar({ provide: DateAdapter, useFactory: adapterFactory })],
+  providers: [
+    provideCalendar(
+      { provide: DateAdapter, useFactory: adapterFactory },
+      // The library's own formatter writes American time and date patterns whatever the locale — see
+      // PolishCalendarDateFormatter.
+      { dateFormatter: { provide: CalendarDateFormatter, useClass: PolishCalendarDateFormatter } },
+    ),
+  ],
   selector: 'app-schedule-calendar',
   styleUrl: './schedule-calendar.scss',
   templateUrl: './schedule-calendar.html',
@@ -187,10 +209,55 @@ export class ScheduleCalendar {
   );
 
   /** Ends of the segment range being drawn, or null when no gesture is in flight. */
-  protected readonly drawFrom = signal<Date | null>(null);
-  protected readonly drawTo = signal<Date | null>(null);
+  private readonly drawFrom = signal<Date | null>(null);
+  private readonly drawTo = signal<Date | null>(null);
+
+  /** Set when a press lands in the past; cleared by the next legal gesture or by the close button. */
+  protected readonly pastRefusal = signal(false);
 
   protected readonly segmentMinutes = SEGMENT_MINUTES;
+  protected readonly dayStartHour = DAY_START_HOUR;
+  protected readonly dayEndHour = DAY_END_HOUR;
+
+  /**
+   * The range currently under the pointer, as the class it would become.
+   *
+   * The same shape {@link rangeDrawn} emits, and computed once: the preview the admin sees and the
+   * value the overlay is prefilled with are then the same number by construction, not two
+   * calculations that have to agree.
+   */
+  protected readonly draft = computed<DrawnRange | null>(() => {
+    const from = this.drawFrom();
+    const to = this.drawTo();
+
+    if (!from || !to) {
+      return null;
+    }
+
+    const startsAt = new Date(Math.min(from.getTime(), to.getTime()));
+    const lastSegment = Math.max(from.getTime(), to.getTime());
+
+    // The drawn range covers the last segment too, so a single click is one segment rather than zero
+    // minutes — the class the API would refuse as invalid_duration.
+    return {
+      startsAt,
+      durationMinutes: (lastSegment - startsAt.getTime()) / 60_000 + SEGMENT_MINUTES,
+    };
+  });
+
+  /** Where the preview block ends. Only for the label — the emitted range carries a duration. */
+  protected readonly draftEndsAt = computed(() => {
+    const draft = this.draft();
+
+    return draft && new Date(draft.startsAt.getTime() + draft.durationMinutes * 60_000);
+  });
+
+  /** How many segments tall the preview block is, so it can be sized off `segmentHeight`. */
+  protected readonly draftSegments = computed(() => {
+    const draft = this.draft();
+
+    return draft ? draft.durationMinutes / SEGMENT_MINUTES : 0;
+  });
 
   /** What the `<input type="date">` shows: the anchor as a local `YYYY-MM-DD`. */
   protected readonly anchorInputValue = computed(() => {
@@ -222,20 +289,25 @@ export class ScheduleCalendar {
     effect(() => this.rangeChange.emit(this.range()));
   }
 
-  /** Whether a segment falls inside the range currently being drawn — drives the preview highlight. */
-  protected isDrawn(date: Date): boolean {
-    const from = this.drawFrom();
-    const to = this.drawTo();
+  /**
+   * Whether this segment is where the preview block starts.
+   *
+   * The preview is ONE element anchored on the first segment and sized across the rest, not a class
+   * per highlighted segment: a run of highlighted segments carries the grid's own hour lines through
+   * the middle of it, which reads as several half-hour blocks rather than as the one class it is
+   * about to become.
+   */
+  protected isDraftStart(date: Date): boolean {
+    return this.draft()?.startsAt.getTime() === date.getTime();
+  }
 
-    if (!from || !to) {
-      return false;
-    }
+  /** Already been and gone — a class cannot start here (prd-v2 FR-019, and the API's `starts_in_past`). */
+  protected isPastSegment(date: Date): boolean {
+    return date.getTime() < Date.now();
+  }
 
-    const at = date.getTime();
-
-    return (
-      at >= Math.min(from.getTime(), to.getTime()) && at <= Math.max(from.getTime(), to.getTime())
-    );
+  protected dismissRefusal(): void {
+    this.pastRefusal.set(false);
   }
 
   /**
@@ -256,13 +328,25 @@ export class ScheduleCalendar {
 
     event.preventDefault();
 
+    // Refused ON THE GESTURE, before any form exists to fill in: nothing is drawn, {@link rangeDrawn}
+    // never fires, and no overlay opens. The API's `starts_in_past` stays as the backstop for time
+    // passing while an overlay is already open — it is just no longer the first the admin hears of it.
+    if (this.isPastSegment(date)) {
+      this.pastRefusal.set(true);
+      return;
+    }
+
+    this.pastRefusal.set(false);
     this.drawFrom.set(date);
     this.drawTo.set(date);
 
     const move = (moved: MouseEvent) => {
       const over = this.segmentAt(moved);
 
-      if (over) {
+      // Same day only. A drag that wanders into the next column would otherwise produce a range
+      // spanning the nights in between — a preview taller than the grid, and a class of many hours
+      // nobody meant to ask for.
+      if (over && isSameDay(over, date)) {
         this.drawTo.set(over);
       }
     };
@@ -289,24 +373,14 @@ export class ScheduleCalendar {
   }
 
   private finishDraw(): void {
-    const from = this.drawFrom();
-    const to = this.drawTo();
+    const draft = this.draft();
 
     this.drawFrom.set(null);
     this.drawTo.set(null);
 
-    if (!from || !to) {
-      return;
+    if (draft) {
+      this.rangeDrawn.emit(draft);
     }
-
-    const startsAt = new Date(Math.min(from.getTime(), to.getTime()));
-    const lastSegment = Math.max(from.getTime(), to.getTime());
-
-    // The drawn range covers the last segment too, so a single click is one segment rather than zero
-    // minutes — the class the API would refuse as invalid_duration.
-    const durationMinutes = (lastSegment - startsAt.getTime()) / 60_000 + SEGMENT_MINUTES;
-
-    this.rangeDrawn.emit({ startsAt, durationMinutes });
   }
 
   protected stepDays(days: number): void {

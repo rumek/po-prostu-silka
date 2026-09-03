@@ -417,6 +417,17 @@ end; note in the file header why it is neither `core/` (which holds no component
   Also adapted: the `locale` input is bound to the injected `LOCALE_ID`, not to a hardcoded `'pl'`.
   Hardcoding it made the component demand CLDR data only `app.config.ts` registers, which failed with
   NG0701 anywhere that config does not run.
+
+  **Adapted after manual verification.** Two things the contract left to the library's defaults were
+  wrong in use. (1) The grid renders `06:00`–`24:00` (`dayStartHour` 6, `dayEndHour` 23), not a full
+  24 hours: a third of the height went to hours the club is shut, which on a phone is the difference
+  between seeing the evening classes and scrolling for them. Anything scheduled outside that window is
+  unreachable here — a deliberate bet on opening hours, recorded on the two constants. (2) Setting the
+  locale is NOT enough to get Polish formats: `CalendarAngularDateFormatter` hardcodes American
+  patterns (`'h a'`, `'MMM d'`) and then applies the locale to them, so the hour column read `6 AM` and
+  the day headers `mar 4`. `PolishCalendarDateFormatter` subclasses it and replaces just those two;
+  subclassing rather than implementing `CalendarDateFormatter` from scratch keeps everything else the
+  library formats correct across upgrades.
 - Range computation: from `viewDate` and `viewMode`, using `date-fns` `startOfDay`/`startOfWeek`
   (`weekStartsOn: 1`) in the **browser's** local clock, converted to UTC instants on emit.
 - Mapping: `ScheduledClass` → `CalendarEvent` with `start` from `startsAt`,
@@ -638,6 +649,19 @@ empties the hour column. The provisional block is view state only; nothing is pe
 the overlay submits. Snap to the grid's hour-segment size and enforce a minimum of one segment, so a
 stray click cannot emit a zero-minute class. The gesture is ignored when it starts on an existing
 class, and the empty-state overlay's `pointer-events: none` is what keeps it alive on an empty week.
+
+**Adapted after manual verification.** Three gaps the contract's "provisional block" left open. (1) The
+preview was never actually drawn — the class the drag set on each covered segment had no stylesheet
+behind it. It is now ONE `.calendar-draft` element anchored on the first segment and sized from the
+library's own `segmentHeight`, deliberately the event tile's shape with its colours turned down and a
+dashed border: it has to read as "the class you are about to create", where a differently shaped
+highlight would read as a selection. It is computed from the same `draft()` signal that `rangeDrawn`
+emits, so the preview and the overlay's prefill are one number rather than two that must agree. (2) A
+press on a segment already in the past is refused ON THE GESTURE — nothing is drawn, `rangeDrawn` never
+fires, and a message says why. The API's `starts_in_past` stays as the backstop for time passing while
+an overlay is open, but it is no longer the first the admin hears of it. (3) The drag is constrained to
+the day it started in; without that, wandering into the next column produced a range spanning the
+nights in between.
 
 #### 3. The create overlay
 

@@ -1,7 +1,7 @@
 import { Component, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ScheduledClass } from '../../core/scheduling/class.models';
-import { CalendarRange, ScheduleCalendar } from './schedule-calendar';
+import { CalendarRange, DrawnRange, ScheduleCalendar } from './schedule-calendar';
 
 /** Builds a class starting at a LOCAL wall-clock time, expressed as the UTC instant the API sends. */
 function at(local: string, over: Partial<ScheduledClass> = {}): ScheduledClass {
@@ -55,6 +55,7 @@ function stubMatchMedia(matches: boolean): (matches: boolean) => void {
       [loadFailed]="loadFailed()"
       [readOnly]="readOnly()"
       (rangeChange)="ranges.push($event)"
+      (rangeDrawn)="drawn.push($event)"
     >
       <button calendarHeaderActions type="button" class="host-header-action">Dodaj</button>
 
@@ -70,6 +71,7 @@ class Host {
   readonly loadFailed = signal(false);
   readonly readOnly = signal(true);
   readonly ranges: CalendarRange[] = [];
+  readonly drawn: DrawnRange[] = [];
 }
 
 describe('ScheduleCalendar', () => {
@@ -200,6 +202,98 @@ describe('ScheduleCalendar', () => {
     fixture.detectChanges();
 
     expect(element().querySelector('[aria-label="Następny dzień"]')).not.toBeNull();
+  });
+
+  // --- the hour column ------------------------------------------------------
+
+  it('renders 06:00 to 24:00, in 24-hour Polish time', () => {
+    create();
+
+    // Hour starts only: the library renders a label on every segment and hides the half-hour ones in
+    // CSS, which a DOM query does not see.
+    const hours = [...element().querySelectorAll('.cal-hour-start .cal-time')].map((label) =>
+      label.textContent!.trim(),
+    );
+
+    // Six to twenty-three inclusive — the 23:00 row is the one that ends at midnight.
+    expect(hours.length).toBe(18);
+    expect(hours[0]).toBe('06:00');
+    expect(hours[hours.length - 1]).toBe('23:00');
+
+    // The library's own formatter would have written "6 AM" here whatever the locale.
+    expect(hours.some((hour) => hour.includes('AM') || hour.includes('PM'))).toBe(false);
+  });
+
+  // --- drawing --------------------------------------------------------------
+
+  /** The segments of the day on screen, in order. */
+  function segments(): HTMLElement[] {
+    return [...element().querySelectorAll<HTMLElement>('[data-segment]')];
+  }
+
+  function press(segment: HTMLElement): void {
+    segment.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+    fixture.detectChanges();
+  }
+
+  function release(): void {
+    document.dispatchEvent(new MouseEvent('mouseup'));
+    fixture.detectChanges();
+  }
+
+  it('previews the class a press would create, and emits it on release', () => {
+    create();
+    host.readOnly.set(false);
+    // Tomorrow, so every segment is ahead of now whatever time the suite runs at.
+    click('[aria-label="Następny dzień"]');
+    fixture.detectChanges();
+
+    press(segments()[0]);
+
+    const draft = element().querySelector('.calendar-draft')!;
+    expect(draft).not.toBeNull();
+    // The preview says the same thing the overlay will: 06:00, half an hour.
+    expect(draft.textContent).toContain('06:00');
+    expect(draft.textContent).toContain('06:30');
+    expect(host.drawn.length).toBe(0);
+
+    release();
+
+    expect(element().querySelector('.calendar-draft')).toBeNull();
+    expect(host.drawn.length).toBe(1);
+    expect(host.drawn[0].durationMinutes).toBe(30);
+    expect(host.drawn[0].startsAt.getHours()).toBe(6);
+  });
+
+  it('refuses a press in the past on the gesture, without opening anything', () => {
+    create();
+    host.readOnly.set(false);
+    click('[aria-label="Poprzedni dzień"]');
+    fixture.detectChanges();
+
+    press(segments()[0]);
+
+    // The whole point: the admin is told now, not after filling in a form the API would refuse.
+    expect(element().querySelector('.calendar-refusal')).not.toBeNull();
+    expect(element().querySelector('.calendar-draft')).toBeNull();
+
+    release();
+    expect(host.drawn.length).toBe(0);
+  });
+
+  it('draws nothing at all on a read-only calendar', () => {
+    create();
+    click('[aria-label="Następny dzień"]');
+    fixture.detectChanges();
+
+    press(segments()[0]);
+
+    // A member never sees a preview, and never sees a refusal either — there is no gesture to refuse.
+    expect(element().querySelector('.calendar-draft')).toBeNull();
+    expect(element().querySelector('.calendar-refusal')).toBeNull();
+
+    release();
+    expect(host.drawn.length).toBe(0);
   });
 
   // --- rendering ------------------------------------------------------------
