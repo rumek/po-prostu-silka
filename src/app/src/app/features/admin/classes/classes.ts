@@ -9,6 +9,7 @@ import { ScheduledClass } from '../../../core/scheduling/class.models';
 import {
   CalendarRange,
   DrawnRange,
+  RescheduledClass,
   ScheduleCalendar,
 } from '../../../shared/calendar/schedule-calendar';
 import { ClassCreateOverlay } from './class-create-overlay';
@@ -135,6 +136,55 @@ export class Classes {
     this.drawn.set(null);
     // The new class is inside the visible window by construction — it was drawn there.
     await this.reload();
+  }
+
+  /**
+   * A class was dragged to a new time or resized (prd-v2 FR-019).
+   *
+   * OPTIMISTIC, unlike every other write on this screen. The admin has just watched the block land
+   * where they put it; snapping it back to the old time for the length of a round trip and then
+   * moving it again is the one thing that would make a direct-manipulation gesture feel broken. The
+   * previous rows are kept so a refusal can put it back exactly, in one step.
+   *
+   * The fields the gesture cannot express — type, trainer, capacity — are sent back unchanged. The
+   * update endpoint takes a whole ClassRequest, so omitting them would blank them.
+   */
+  protected async reschedule(change: RescheduledClass): Promise<void> {
+    const row = change.class;
+    const startsAt = change.startsAt.toISOString();
+    const before = this.rows();
+
+    this.notice.set(null);
+    this.failedId.set(null);
+    this.rows.update((rows) =>
+      rows.map((candidate) =>
+        candidate.id === row.id
+          ? { ...candidate, startsAt, durationMinutes: change.durationMinutes }
+          : candidate,
+      ),
+    );
+    this.setBusy(row.id, true);
+
+    try {
+      await this.classes.update(row.id, {
+        classTypeId: row.classTypeId,
+        startsAt,
+        durationMinutes: change.durationMinutes,
+        instructorUserId: row.instructorUserId,
+        capacity: row.capacity,
+      });
+    } catch (failure) {
+      // Back to exactly what was on screen before the gesture — the block returns to its old slot,
+      // which is the only honest picture once the server has refused.
+      this.rows.set(before);
+
+      const reason = ((failure as HttpErrorResponse)?.error as { reason?: string } | undefined)
+        ?.reason;
+
+      this.notice.set(classFailureMessage(reason));
+    } finally {
+      this.setBusy(row.id, false);
+    }
   }
 
   protected openDuplicate(row: ScheduledClass): void {

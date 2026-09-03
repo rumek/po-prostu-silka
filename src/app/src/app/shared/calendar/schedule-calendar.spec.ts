@@ -1,7 +1,9 @@
 import { Component, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
+import { CalendarEventTimesChangedEventType, CalendarWeekViewComponent } from 'angular-calendar';
 import { ScheduledClass } from '../../core/scheduling/class.models';
-import { CalendarRange, DrawnRange, ScheduleCalendar } from './schedule-calendar';
+import { CalendarRange, DrawnRange, RescheduledClass, ScheduleCalendar } from './schedule-calendar';
 
 /** Builds a class starting at a LOCAL wall-clock time, expressed as the UTC instant the API sends. */
 function at(local: string, over: Partial<ScheduledClass> = {}): ScheduledClass {
@@ -56,6 +58,7 @@ function stubMatchMedia(matches: boolean): (matches: boolean) => void {
       [readOnly]="readOnly()"
       (rangeChange)="ranges.push($event)"
       (rangeDrawn)="drawn.push($event)"
+      (classRescheduled)="rescheduled.push($event)"
     >
       <button calendarHeaderActions type="button" class="host-header-action">Dodaj</button>
 
@@ -72,6 +75,7 @@ class Host {
   readonly readOnly = signal(true);
   readonly ranges: CalendarRange[] = [];
   readonly drawn: DrawnRange[] = [];
+  readonly rescheduled: RescheduledClass[] = [];
 }
 
 describe('ScheduleCalendar', () => {
@@ -331,6 +335,114 @@ describe('ScheduleCalendar', () => {
     fixture.detectChanges();
 
     expect(element().querySelector('.calendar-tile-full')).not.toBeNull();
+  });
+
+  // --- moving and resizing an existing class --------------------------------
+
+  /** Puts one class on the day currently on screen, at the given local hour. */
+  function schedule(hour: number, over: Partial<ScheduledClass> = {}): ScheduledClass {
+    const day = lastRange().from;
+    const row = at(
+      new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour, 0).toString(),
+      over,
+    );
+
+    host.classes.set([row]);
+    fixture.detectChanges();
+
+    return row;
+  }
+
+  /**
+   * Ends a move or a resize the way the library does, without simulating the pointer.
+   *
+   * jsdom has no layout, so a real drag has no pixels to snap to — what is worth testing here is our
+   * handler's rules, not `angular-draggable-droppable`'s arithmetic.
+   */
+  function finishGesture(newStart: Date, newEnd: Date): void {
+    const week = fixture.debugElement.query(By.directive(CalendarWeekViewComponent))
+      .componentInstance as CalendarWeekViewComponent;
+
+    week.eventTimesChanged.emit({
+      type: CalendarEventTimesChangedEventType.Drag,
+      event: week.events[0],
+      newStart,
+      newEnd,
+    });
+    fixture.detectChanges();
+  }
+
+  it('offers resize handles only where the calendar can be edited', () => {
+    create();
+    click('[aria-label="Następny dzień"]');
+    schedule(10);
+
+    expect(element().querySelectorAll('.cal-resize-handle').length).toBe(0);
+
+    host.readOnly.set(false);
+    fixture.detectChanges();
+
+    // Both edges: pulling the start earlier and the end later are two ways of saying "longer".
+    expect(element().querySelectorAll('.cal-resize-handle').length).toBe(2);
+    expect(element().querySelector('.cal-draggable')).not.toBeNull();
+  });
+
+  it('offers no gesture on a class that has already started', () => {
+    create();
+    host.readOnly.set(false);
+    // Yesterday: the calendar can show it, but history is not rearrangeable.
+    click('[aria-label="Poprzedni dzień"]');
+    schedule(10);
+
+    expect(element().querySelectorAll('.cal-resize-handle').length).toBe(0);
+    expect(element().querySelector('.cal-draggable')).toBeNull();
+  });
+
+  it('reports a move as a new start and a new duration', () => {
+    create();
+    host.readOnly.set(false);
+    click('[aria-label="Następny dzień"]');
+    const row = schedule(10);
+
+    const day = lastRange().from;
+    const newStart = new Date(day.getFullYear(), day.getMonth(), day.getDate(), 12, 30);
+
+    finishGesture(newStart, new Date(newStart.getTime() + 45 * 60_000));
+
+    expect(host.rescheduled.length).toBe(1);
+    // The class itself rides along, so the screen can send back what the gesture cannot express.
+    expect(host.rescheduled[0].class.id).toBe(row.id);
+    expect(host.rescheduled[0].startsAt.getHours()).toBe(12);
+    expect(host.rescheduled[0].durationMinutes).toBe(45);
+  });
+
+  it('refuses a move into the past, and reports nothing', () => {
+    create();
+    host.readOnly.set(false);
+    click('[aria-label="Następny dzień"]');
+    schedule(10);
+
+    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+    finishGesture(yesterday, new Date(yesterday.getTime() + 60 * 60_000));
+
+    expect(element().querySelector('.calendar-refusal')).not.toBeNull();
+    // Nothing emitted means the screen changes nothing, and the library puts the block back.
+    expect(host.rescheduled.length).toBe(0);
+  });
+
+  it('ignores a resize that collapses the class below one segment', () => {
+    create();
+    host.readOnly.set(false);
+    click('[aria-label="Następny dzień"]');
+    schedule(10);
+
+    const day = lastRange().from;
+    const start = new Date(day.getFullYear(), day.getMonth(), day.getDate(), 12, 0);
+
+    finishGesture(start, new Date(start.getTime() + 10 * 60_000));
+
+    expect(host.rescheduled.length).toBe(0);
   });
 
   // --- the three states that must not look alike ----------------------------

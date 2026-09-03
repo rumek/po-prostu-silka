@@ -20,6 +20,7 @@
   [readOnly]="isPast()"
   (rangeChange)="load($event)"
   (rangeDrawn)="openCreate($event)"
+  (classRescheduled)="reschedule($event)"
 >
   <!-- Screen-level actions ride along the calendar's toolbar, so navigation and the things you do
        with it stay in one place. "Typy zajęć" lives here rather than in the global nav because

@@ -84,6 +84,7 @@
     [dayEndHour]="dayEndHour"
     [eventTemplate]="tile"
     [hourSegmentTemplate]="segment"
+    (eventTimesChanged)="applyTimesChanged($event)"
   />
 
   @if (isEmpty()) {

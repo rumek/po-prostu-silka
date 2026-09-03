@@ -15,6 +15,7 @@ import {
 import {
   CalendarDateFormatter,
   CalendarEvent,
+  CalendarEventTimesChangedEvent,
   CalendarWeekViewComponent,
   DateAdapter,
   provideCalendar,
@@ -27,6 +28,18 @@ import { PolishCalendarDateFormatter } from './polish-date-formatter';
 
 /** A time range drawn on the grid, ready for the overlay that will turn it into a class. */
 export interface DrawnRange {
+  startsAt: Date;
+  durationMinutes: number;
+}
+
+/**
+ * An existing class moved or resized on the grid (prd-v2 FR-019).
+ *
+ * Carries the class it happened to, so the screen can send back the fields the gesture cannot touch —
+ * type, trainer, capacity — unchanged. The two it CAN touch arrive here already snapped to the grid.
+ */
+export interface RescheduledClass {
+  class: ScheduledClass;
   startsAt: Date;
   durationMinutes: number;
 }
@@ -152,6 +165,18 @@ export class ScheduleCalendar {
   readonly rangeDrawn = output<DrawnRange>();
 
   /**
+   * An existing class was dragged to a new time or resized (prd-v2 FR-019).
+   *
+   * Like {@link rangeDrawn}, this reports a GESTURE and writes nothing: the screen owns the class
+   * list and the API call. Until the screen updates that list the library puts the block back where
+   * it was, which is what makes a refused move visibly a refused move.
+   *
+   * Gated on {@link readOnly} through the events themselves — a read-only calendar marks nothing
+   * draggable or resizable, so there is no gesture to emit.
+   */
+  readonly classRescheduled = output<RescheduledClass>();
+
+  /**
    * Per-class actions, projected by the screen that has any. Receives the `ScheduledClass` as
    * `$implicit`, so the caller gets the real row rather than the library's wrapper.
    */
@@ -186,6 +211,10 @@ export class ScheduleCalendar {
   protected readonly events = computed<CalendarEvent<ScheduledClass>[]>(() =>
     this.classes().map((row) => {
       const start = new Date(row.startsAt);
+      // History is not rearrangeable — the same rule the create gesture applies to the segment it is
+      // pressed on, applied to the class itself. A class already under way is included: moving it now
+      // would move something members are standing in.
+      const editable = !this.readOnly() && start.getTime() > Date.now();
 
       return {
         id: row.id,
@@ -193,6 +222,11 @@ export class ScheduleCalendar {
         // Derived, never stored — see the Class aggregate. The grid needs an end to size the block.
         end: new Date(start.getTime() + row.durationMinutes * 60_000),
         title: row.name,
+        // Both edges resize, so the admin can pull the start earlier or the end later — the two ways
+        // of saying "this class is longer". Off entirely on a read-only calendar, which is what keeps
+        // the member's schedule and past weeks inert.
+        draggable: editable,
+        resizable: { beforeStart: editable, afterEnd: editable },
         // The real row rides along so the projected action template and the tile get an object they
         // can read, rather than one reconstructed from the parts the library kept.
         meta: row,
@@ -308,6 +342,44 @@ export class ScheduleCalendar {
 
   protected dismissRefusal(): void {
     this.pastRefusal.set(false);
+  }
+
+  /**
+   * A class was dropped somewhere new, or one of its edges was pulled.
+   *
+   * Both gestures arrive here — the library distinguishes them with `type`, and this does not need
+   * to: a move and a resize both come down to a new start and a new duration, which is exactly what
+   * the update endpoint takes. Snapping to the half-hour grid has already happened.
+   *
+   * The past is refused the same way a press on a past segment is, and for the same reason: the API
+   * answers `starts_in_past`, and hearing that after the block has visibly moved is worse than not
+   * being able to put it there. Emitting nothing leaves the class list untouched, and the library
+   * then puts the block back where it was.
+   */
+  protected applyTimesChanged(change: CalendarEventTimesChangedEvent<ScheduledClass>): void {
+    const row = change.event.meta;
+    const startsAt = change.newStart;
+    const endsAt = change.newEnd;
+
+    if (!row || !endsAt) {
+      return;
+    }
+
+    if (startsAt.getTime() < Date.now()) {
+      this.pastRefusal.set(true);
+      return;
+    }
+
+    const durationMinutes = (endsAt.getTime() - startsAt.getTime()) / 60_000;
+
+    // A resize that collapsed the block to nothing is not a class the API would accept
+    // (`invalid_duration`); dropping it here means the block simply springs back.
+    if (durationMinutes < SEGMENT_MINUTES) {
+      return;
+    }
+
+    this.pastRefusal.set(false);
+    this.classRescheduled.emit({ class: row, startsAt, durationMinutes });
   }
 
   /**

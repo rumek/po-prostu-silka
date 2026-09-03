@@ -52,7 +52,7 @@ Mid-milestone, a second decision landed: a class stops being retyped text and be
 | S-04 | trainer-role-and-assignment      | admin grants and revokes the Trainer role on an approved account         | S-02                   | v2 FR-001, v2 FR-002, v2 FR-003                                 | done        |
 | S-05 | class-type-definitions           | admin defines, edits and deactivates a class type                        | S-03                   | v2 FR-004, v2 FR-005, v2 FR-006, v2 FR-007                      | done        |
 | S-06 | occurrences-from-class-types     | admin schedules a class by picking a type and a trainer; no room field   | S-03, S-04, S-05       | v2 US-01, v2 FR-008–FR-013, v1 FR-011, v1 FR-012                | done        |
-| S-07 | schedule-calendar-view           | browse the schedule as a day on a phone, a full week from tablet width   | S-06                   | v2 US-02, v2 FR-015, v2 FR-016, v2 FR-017, v2 FR-018, v2 FR-019, v1 FR-007 | in-progress |
+| S-07 | schedule-calendar-view           | browse the schedule as a day on a phone, a full week from tablet width   | S-06                   | v2 US-02, v2 FR-015, v2 FR-016, v2 FR-017, v2 FR-018, v2 FR-019, v2 FR-020, v1 FR-007 | in-progress |
 | S-08 | class-booking-and-cancel         | book a spot, cancel it, see upcoming classes; admin sees bookings        | S-07                   | v1 US-01, v1 FR-008, v1 FR-009, v1 FR-010, v1 FR-014, v2 FR-014 | blocked     |
 | S-09 | class-change-notifications       | booked member gets email + push on class cancel/change                   | F-03, S-08             | v1 US-02, v1 FR-013, v1 FR-021, v2 FR-014                       | proposed    |
 | S-10 | exercise-library                 | admin manages exercises with instructions and videos                     | S-01                   | v1 FR-018, v1 FR-019                                            | ready       |
@@ -207,13 +207,13 @@ What's already in place in the codebase as of `2026-09-02` (auto-researched + us
 
 - **Outcome:** user opens the schedule on a phone and sees one day at a time — the current date, controls to move by day and by week, a control to jump to a chosen date, and that day's classes with their times; from 48rem up the whole week is visible at once; the admin panel uses the same calendar with admin actions on top, can look at past weeks read-only, and can create a class by dragging across empty time; a day or week with no classes says so.
 - **Change ID:** schedule-calendar-view
-- **PRD refs:** v2 US-02, v2 FR-015, v2 FR-016, v2 FR-017, v2 FR-018, v2 FR-019, v1 FR-007
+- **PRD refs:** v2 US-02, v2 FR-015, v2 FR-016, v2 FR-017, v2 FR-018, v2 FR-019, v2 FR-020, v1 FR-007
 - **Prerequisites:** S-06
 - **Parallel with:** S-10, S-11, S-13
 - **Blockers:** —
 - **Unknowns:**
   - How dense can the full-week view get before it stops working? — Owner: user. Block: no. (`prd-v2` Open Question 2; a design-time check — now answered by the calendar library's own week layout rather than a hand-built one.)
-- **Risk:** the one slice that revisits a locked product decision — the original PRD ruled out a calendar as phone-hostile, and this shows one day at a time on a phone, with the week appearing only from 48rem up. No longer presentation-only: `prd-v2` FR-019 was added during planning, so this slice also carries a write path (drag-to-create), and it adopts a third-party calendar library into a deliberately hand-rolled design system. Sequenced before booking because both rewrite the same schedule surface, and touching it twice is the cost this ordering avoids. It unblocks nothing downstream, which is the price of the chosen sequence.
+- **Risk:** the one slice that revisits a locked product decision — the original PRD ruled out a calendar as phone-hostile, and this shows one day at a time on a phone, with the week appearing only from 48rem up. No longer presentation-only: `prd-v2` FR-019 was added during planning and FR-020 after manual verification, so this slice also carries write paths (drag-to-create, drag-to-move and resize), and it adopts a third-party calendar library into a deliberately hand-rolled design system. Sequenced before booking because both rewrite the same schedule surface, and touching it twice is the cost this ordering avoids. It unblocks nothing downstream, which is the price of the chosen sequence.
 - **Status:** in-progress
 
 ### S-08: Member books and cancels a class spot

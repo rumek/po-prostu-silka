@@ -5,8 +5,10 @@ import {
   TestRequest,
 } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { provideRouter } from '@angular/router';
 import { ScheduledClass } from '../../../core/scheduling/class.models';
+import { ScheduleCalendar } from '../../../shared/calendar/schedule-calendar';
 import { Classes } from './classes';
 
 /**
@@ -281,6 +283,69 @@ describe('Classes', () => {
     await settle();
 
     expect(tiles().length).toBe(1);
+  });
+
+  // --- moving and resizing on the grid --------------------------------------
+
+  /**
+   * Ends a move or a resize on the calendar.
+   *
+   * The gesture itself is the shared component's business and is tested there; what this suite owns
+   * is what the SCREEN does with the result.
+   */
+  async function rescheduleJoga(hour: number, durationMinutes: number) {
+    const calendar = fixture.debugElement.query(By.directive(ScheduleCalendar))
+      .componentInstance as ScheduleCalendar;
+    const now = new Date();
+
+    calendar.classRescheduled.emit({
+      class: JOGA,
+      startsAt: new Date(now.getFullYear(), now.getMonth(), now.getDate(), hour, 0),
+      durationMinutes,
+    });
+    await settle();
+  }
+
+  function updateRequest(): TestRequest {
+    return controller.expectOne(
+      (request) => request.method === 'PUT' && request.url === '/api/admin/classes/c1',
+    );
+  }
+
+  it('moves the class on screen at once, and sends back what the gesture cannot express', async () => {
+    await createWith([JOGA]);
+
+    await rescheduleJoga(21, 90);
+
+    // OPTIMISTIC: the tile is already at the new time, before the server has answered. Snapping it
+    // back for the length of a round trip is what would make the gesture feel broken.
+    expect(tileFor('Joga').textContent).toContain('21:00');
+    expect(tileFor('Joga').textContent).toContain('22:30');
+
+    const body = updateRequest().request.body;
+
+    // The update endpoint takes a whole ClassRequest — omitting these would blank them.
+    expect(body.classTypeId).toBe('t1');
+    expect(body.instructorUserId).toBe('u1');
+    expect(body.capacity).toBe(20);
+    expect(body.durationMinutes).toBe(90);
+    expect(new Date(body.startsAt).getHours()).toBe(21);
+  });
+
+  it('puts the class back where it was when the server refuses the new time', async () => {
+    await createWith([JOGA, PILATES]);
+
+    await rescheduleJoga(21, 60);
+    expect(tileFor('Joga').textContent).toContain('21:00');
+
+    updateRequest().flush({ reason: 'time_conflict' }, { status: 409, statusText: 'Conflict' });
+    await settle();
+
+    // Back to 18:00 exactly, and said out loud — a block that silently returns reads as a bug.
+    expect(tileFor('Joga').textContent).toContain('18:00');
+    expect(html()).toContain('O tej porze są już inne zajęcia');
+    // The class that was not touched is untouched.
+    expect(tileFor('Pilates').textContent).toContain('20:00');
   });
 
   it('withholds every action in a week that has already passed', async () => {

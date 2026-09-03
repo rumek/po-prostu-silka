@@ -276,4 +276,27 @@
     cursor: not-allowed;
     background: color-mix(in srgb, var(--line) 22%, transparent);
   }
+
+  // --- move and resize ---
+  // The library adds .cal-draggable and renders the handles only for events marked draggable and
+  // resizable, which a read-only calendar marks none of — so nothing below can reach the member's
+  // schedule or a past week.
+
+  .cal-draggable {
+    cursor: move;
+  }
+
+  .cal-drag-active {
+    opacity: 0.7;
+  }
+
+  // The handles ship as 4px invisible strips. Invisible is right at rest — a grid full of grab bars
+  // is noise — but the edge has to answer the pointer, or the affordance is undiscoverable.
+  .cal-time-events .cal-resize-handle {
+    z-index: 2;
+
+    &:hover {
+      background: var(--accent);
+    }
+  }
 }

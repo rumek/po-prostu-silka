@@ -316,6 +316,17 @@ a requirement from the product PRD, that original is named in parentheses.
   > added by explicit decision during planning as the main return on adopting a calendar library.
   > It does not replace the class form: FR-008's form remains the full path, and the gesture is a
   > shortcut into the same validated write.
+- **[new]** FR-020: On the admin calendar, an existing class can be dragged to another time and
+  resized from either edge to change when it starts and how long it runs. Both gestures snap to the
+  calendar's half-hour grid and write through the same update path as FR-008's form, so every refusal
+  that form can receive applies here too — the FR-012 time conflict included. Nothing else about the
+  class is editable by gesture: the type, the trainer and the capacity are not things a pointer can
+  express, and stay the form's job. A class that has already started accepts no gesture, and a week
+  already in the past accepts none at all. Priority: must-have
+  > Added 2026-09-03 (`schedule-calendar-view`), by explicit decision after manual verification, on
+  > the same reasoning as FR-019: direct manipulation is the return on adopting a calendar library,
+  > and an admin who can draw a class on the grid but must open a form to move it by half an hour is
+  > being told the calendar is a picture rather than the thing itself.
 
 ## Constraints & Compatibility
 

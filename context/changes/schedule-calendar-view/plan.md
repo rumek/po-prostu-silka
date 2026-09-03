@@ -663,6 +663,21 @@ an overlay is open, but it is no longer the first the admin hears of it. (3) The
 the day it started in; without that, wandering into the next column produced a range spanning the
 nights in between.
 
+**Added after manual verification: moving and resizing (prd-v2 FR-020).** The contract stopped at
+creating. An admin who can draw a class on the grid but must open a form to move it by half an hour is
+being told the calendar is a picture rather than the thing itself, so existing classes are now
+draggable and resizable from either edge. The events are marked `draggable` / `resizable` only when the
+calendar is editable AND the class has not started — history is not rearrangeable, which is the create
+gesture's own rule applied to the class instead of to the segment. A move and a resize both arrive on
+the library's single `eventTimesChanged` output and both reduce to a new start and a new duration,
+which is exactly what the update endpoint takes; the calendar emits `classRescheduled` and writes
+nothing itself. The screen's write is OPTIMISTIC, and deliberately the only optimistic write on it: the
+admin has just watched the block land where they put it, and snapping it back for the length of a round
+trip is what would make a direct-manipulation gesture feel broken. A refusal restores the exact rows
+from before the gesture and says why through `classFailureMessage`. The whole `ClassRequest` is sent
+back — type, trainer and capacity unchanged — because the endpoint replaces the class rather than
+patching it.
+
 #### 3. The create overlay
 
 **File**: `src/app/src/app/features/admin/classes/class-create-overlay.ts` (+ `.html`, `.scss`)
