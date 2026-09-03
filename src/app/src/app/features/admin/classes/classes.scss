@@ -36,57 +36,6 @@
   margin: 0;
 }
 
-// The sign-up list needs the panel to stack rather than sit on one line: a list of people is taller
-// than a number input, and the flex row the other two panels use would squash it.
-.classes-bookings {
-  flex-direction: column;
-  align-items: stretch;
-}
-
-.classes-bookings-list {
-  display: grid;
-  gap: var(--space-3);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.classes-bookings-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-  padding-bottom: var(--space-3);
-  border-bottom: 1px solid var(--line);
-
-  &:last-child {
-    padding-bottom: 0;
-    border-bottom: 0;
-  }
-}
-
-.classes-bookings-person {
-  // Takes the remaining width so a long name or address wraps rather than pushing the action off the
-  // row — the case a class near capacity on a phone runs into first.
-  flex: 1 1 12rem;
-
-  p {
-    margin: 0;
-  }
-}
-
-.classes-bookings-name {
-  font-weight: 600;
-  overflow-wrap: anywhere;
-}
-
-.classes-bookings-meta {
-  color: var(--muted);
-  font-size: 0.875rem;
-  overflow-wrap: anywhere;
-}
-
 .classes-weeks {
   display: flex;
   align-items: center;

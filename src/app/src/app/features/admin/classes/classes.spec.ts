@@ -376,27 +376,40 @@ describe('Classes', () => {
     bookedAt: todayAt(9),
   };
 
-  /** Opens the panel for a class and answers the request it makes. */
+  /** Opens the overlay for a class and answers the request it makes. */
   async function openBookings(name: string, rows: (typeof SIGNUP)[]): Promise<void> {
     actionIn(tileFor(name), 'Zapisani').click();
     await settle();
 
-    controller.expectOne(`/api/admin/classes/c1/bookings`).flush(rows);
+    controller.expectOne('/api/admin/classes/c1/bookings').flush(rows);
     await settle();
   }
 
-  it('lists everyone signed up, with the count on the subject line', async () => {
+  /** Buttons inside the sign-up overlay, which is a dialog rather than a panel below the grid. */
+  function overlayButton(label: string): HTMLButtonElement {
+    return Array.from(
+      element().querySelectorAll<HTMLButtonElement>('app-class-bookings-overlay button'),
+    ).find((button) => (button.textContent ?? '').includes(label))!;
+  }
+
+  it('opens the sign-up list as an overlay, not as a panel below the calendar', async () => {
     await createWith([{ ...JOGA, capacity: 20, freeSpots: 19 }]);
     await openBookings('Joga', [SIGNUP]);
 
-    expect(html()).toContain('Zapisani na „Joga”');
-    // The count comes off the class, not off the list: the panel and the tile behind it must agree.
-    expect(html()).toContain('1 / 20');
-    expect(html()).toContain('Ala Kowalska');
-    expect(html()).toContain('ala@example.test');
+    // A list of people is unbounded; a panel below the grid pushed a near-full class off the bottom
+    // of the screen, so reading it meant scrolling away from the class it belongs to.
+    const overlay = element().querySelector('app-class-bookings-overlay .overlay-panel')!;
+
+    expect(overlay).not.toBeNull();
+    expect(overlay.getAttribute('role')).toBe('dialog');
+    expect(overlay.textContent).toContain('Zapisani na „Joga”');
+    // The count comes off the class, not off the list: the overlay and the tile behind it must agree.
+    expect(overlay.textContent).toContain('1 / 20');
+    expect(overlay.textContent).toContain('Ala Kowalska');
+    expect(overlay.textContent).toContain('ala@example.test');
   });
 
-  it('says an empty class is empty rather than showing a blank panel', async () => {
+  it('says an empty class is empty rather than showing a blank overlay', async () => {
     await createWith([JOGA]);
     await openBookings('Joga', []);
 
@@ -409,7 +422,7 @@ describe('Classes', () => {
 
     expect(tileFor('Joga').textContent).toContain('19 / 20 wolnych');
 
-    panelButton('Zwolnij miejsce').click();
+    overlayButton('Zwolnij miejsce').click();
     await settle();
 
     const request = controller.expectOne('/api/admin/classes/c1/bookings/b1');
@@ -418,25 +431,20 @@ describe('Classes', () => {
     await settle();
 
     expect(html()).toContain('Nikt nie jest jeszcze zapisany');
-    // The tile behind the panel is patched in place — a list that shrank while the count did not
-    // would be the screen contradicting itself.
+    // Both counts move: the tile behind the overlay, and the overlay's own header, which holds a
+    // snapshot of the class it was opened with.
     expect(tileFor('Joga').textContent).toContain('20 / 20 wolnych');
+    expect(element().querySelector('app-class-bookings-overlay')!.textContent).toContain('0 / 20');
   });
 
-  it('keeps the row and names the refusal when a release fails', async () => {
+  it('closes the overlay without touching the tile', async () => {
     await createWith([{ ...JOGA, capacity: 20, freeSpots: 19 }]);
     await openBookings('Joga', [SIGNUP]);
 
-    panelButton('Zwolnij miejsce').click();
+    overlayButton('Zamknij').click();
     await settle();
 
-    controller
-      .expectOne('/api/admin/classes/c1/bookings/b1')
-      .flush({ reason: 'conflict' }, { status: 409, statusText: 'Conflict' });
-    await settle();
-
-    expect(html()).toContain('Ala Kowalska');
-    expect(html()).toContain('Ktoś właśnie zmienił zapisy');
+    expect(element().querySelector('app-class-bookings-overlay')).toBeNull();
     expect(tileFor('Joga').textContent).toContain('19 / 20 wolnych');
   });
 

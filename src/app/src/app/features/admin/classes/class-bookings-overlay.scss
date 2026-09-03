@@ -1,0 +1,116 @@
+// Layout only — .card/.notice/.alert/.field-error come from src/styles.scss.
+//
+// Deliberately the same structure as class-create-overlay.scss: the two overlays sit over the same
+// calendar and must not read as two different mechanisms.
+
+:host {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+}
+
+.overlay-backdrop {
+  position: absolute;
+  inset: 0;
+  // A button reset: it exists for the click target and the keyboard, not for the chrome.
+  border: 0;
+  padding: 0;
+  background: color-mix(in srgb, var(--ink) 35%, transparent);
+  cursor: pointer;
+}
+
+.overlay-panel {
+  position: relative;
+  width: 100%;
+  // Wider than the create overlay: this one holds a list of names and addresses, not a short form.
+  max-width: 32rem;
+  max-height: 100%;
+  overflow-y: auto;
+  padding: var(--space-5);
+}
+
+.overlay-title {
+  margin: 0 0 var(--space-2);
+  font-size: 1.125rem;
+  overflow-wrap: anywhere;
+}
+
+.overlay-when {
+  margin: 0 0 var(--space-4);
+  color: var(--muted);
+  &::first-letter {
+    text-transform: uppercase;
+  }
+}
+
+.bookings-list {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bookings-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--line);
+
+  &:last-child {
+    padding-bottom: 0;
+    border-bottom: 0;
+  }
+}
+
+.bookings-person {
+  // Takes the remaining width so a long name or address wraps rather than pushing the action off the
+  // row — the case a class near capacity on a phone runs into first.
+  flex: 1 1 12rem;
+
+  p {
+    margin: 0;
+  }
+}
+
+.bookings-name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.bookings-meta {
+  color: var(--muted);
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+
+// Takes the whole row, beneath both the person and the action it belongs to.
+.bookings-error {
+  flex: 1 0 100%;
+  margin: 0;
+}
+
+.overlay-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+.link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}

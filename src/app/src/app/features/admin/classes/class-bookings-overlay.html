@@ -1,0 +1,61 @@
+<!-- A button, not a styled div: it carries the click-outside-to-close affordance but is focusable and
+     answers the keyboard. Escape is bound on the host so it works wherever focus happens to be. -->
+<button
+  type="button"
+  class="overlay-backdrop"
+  aria-label="Zamknij listę zapisanych"
+  (click)="close()"
+></button>
+
+<div class="card overlay-panel" role="dialog" aria-modal="true" aria-labelledby="bookings-title">
+  <h2 id="bookings-title" class="overlay-title">Zapisani na „{{ row().name }}”</h2>
+
+  <!-- The count comes off the CLASS, not off the list length: the two must agree, and the class is
+       what the calendar tile behind this overlay is drawing. -->
+  <p class="overlay-when">
+    {{ row().startsAt | date: 'EEEE, d MMMM' }}, {{ row().startsAt | date: 'HH:mm' }} ·
+    {{ row().capacity - row().freeSpots }} / {{ row().capacity }} miejsc zajętych
+  </p>
+
+  @if (loading()) {
+    <p class="notice" role="status">Wczytywanie…</p>
+  } @else if (loadFailed()) {
+    <p class="alert" role="alert">
+      Nie udało się wczytać listy zapisanych.
+      <button type="button" class="link-button" (click)="load()">Spróbuj ponownie</button>
+    </p>
+  } @else if (rows().length === 0) {
+    <!-- An empty class is a normal state, not a failure — the wording says so rather than leaving a
+         blank panel the admin has to interpret. -->
+    <p class="notice" role="status">Nikt nie jest jeszcze zapisany na te zajęcia.</p>
+  } @else {
+    <ul class="bookings-list">
+      @for (booking of rows(); track booking.bookingId) {
+        <li class="bookings-row">
+          <div class="bookings-person">
+            <p class="bookings-name">{{ booking.displayName }}</p>
+            <p class="bookings-meta">{{ booking.email }}</p>
+            <p class="bookings-meta">Zapis: {{ booking.bookedAt | date: 'd MMMM, HH:mm' }}</p>
+          </div>
+
+          <button
+            type="button"
+            class="link-button"
+            [disabled]="isBusy(booking.bookingId)"
+            (click)="release(booking)"
+          >
+            {{ isBusy(booking.bookingId) ? 'Zwalnianie…' : 'Zwolnij miejsce' }}
+          </button>
+
+          @if (failedId() === booking.bookingId) {
+            <p class="field-error bookings-error" role="alert">{{ failure() }}</p>
+          }
+        </li>
+      }
+    </ul>
+  }
+
+  <div class="overlay-actions">
+    <button type="button" class="link-button" (click)="close()">Zamknij</button>
+  </div>
+</div>

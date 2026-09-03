@@ -3,9 +3,6 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { bookingFailureMessage } from '../../../core/scheduling/booking-failure';
-import { BookingService } from '../../../core/scheduling/booking.service';
-import { ClassBooking } from '../../../core/scheduling/booking.models';
 import { classFailureMessage } from '../../../core/scheduling/class-failure';
 import { ClassService } from '../../../core/scheduling/class.service';
 import { ScheduledClass } from '../../../core/scheduling/class.models';
@@ -15,6 +12,7 @@ import {
   RescheduledClass,
   ScheduleCalendar,
 } from '../../../shared/calendar/schedule-calendar';
+import { ClassBookingsOverlay } from './class-bookings-overlay';
 import { ClassCreateOverlay } from './class-create-overlay';
 
 /**
@@ -38,14 +36,20 @@ import { ClassCreateOverlay } from './class-create-overlay';
  * explanation reads as broken.
  */
 @Component({
-  imports: [ClassCreateOverlay, DatePipe, FormsModule, RouterLink, ScheduleCalendar],
+  imports: [
+    ClassBookingsOverlay,
+    ClassCreateOverlay,
+    DatePipe,
+    FormsModule,
+    RouterLink,
+    ScheduleCalendar,
+  ],
   selector: 'app-classes',
   styleUrl: './classes.scss',
   templateUrl: './classes.html',
 })
 export class Classes {
   private readonly classes = inject(ClassService);
-  private readonly bookings = inject(BookingService);
 
   protected readonly rows = signal<ScheduledClass[]>([]);
   protected readonly loading = signal(true);
@@ -70,11 +74,13 @@ export class Classes {
   /** Which class is asking to confirm a delete. */
   protected readonly confirmingDelete = signal<ScheduledClass | null>(null);
 
-  /** Which class has its sign-up list open (prd.md FR-014), and what that list holds. */
+  /**
+   * Which class has its sign-up list open (prd.md FR-014).
+   *
+   * Just the class: the list itself, its loading state and its per-row actions all live inside
+   * `class-bookings-overlay`, the same way the create overlay owns its own two selects.
+   */
   protected readonly viewingBookings = signal<ScheduledClass | null>(null);
-  protected readonly bookingRows = signal<ClassBooking[]>([]);
-  protected readonly bookingsLoading = signal(false);
-  protected readonly bookingsFailed = signal(false);
 
   /** The range drawn on the grid, awaiting a type and a trainer. Null when no overlay is open. */
   protected readonly drawn = signal<DrawnRange | null>(null);
@@ -215,94 +221,45 @@ export class Classes {
     this.duplicating.set(this.duplicating()?.id === row.id ? null : row);
   }
 
-  /**
-   * Opens the sign-up list for a class (prd.md FR-014).
-   *
-   * Toggles, like the duplicate panel: the action that opened it is the action that closes it, which
-   * is what the other two panels on this screen already do.
-   */
+  /** Opens the sign-up list for a class (prd.md FR-014). */
   protected openBookings(row: ScheduledClass): void {
     this.notice.set(null);
     this.failedId.set(null);
     this.duplicating.set(null);
     this.confirmingDelete.set(null);
-
-    if (this.viewingBookings()?.id === row.id) {
-      this.viewingBookings.set(null);
-      return;
-    }
-
     this.viewingBookings.set(row);
-    void this.loadBookings(row);
   }
 
   protected closeBookings(): void {
     this.viewingBookings.set(null);
   }
 
-  private async loadBookings(row: ScheduledClass): Promise<void> {
-    this.bookingRows.set([]);
-    this.bookingsLoading.set(true);
-    this.bookingsFailed.set(false);
-
-    try {
-      const bookings = await this.bookings.getForClass(row.id);
-
-      // Fenced against the panel being closed or pointed at another class mid-flight — the same
-      // hazard the generation guard exists for, at panel scope.
-      if (this.viewingBookings()?.id !== row.id) {
-        return;
-      }
-
-      this.bookingRows.set(bookings);
-    } catch {
-      if (this.viewingBookings()?.id !== row.id) {
-        return;
-      }
-
-      this.bookingsFailed.set(true);
-    } finally {
-      if (this.viewingBookings()?.id === row.id) {
-        this.bookingsLoading.set(false);
-      }
-    }
-  }
-
   /**
-   * Releases somebody's spot.
+   * The overlay released a spot. Patches the class's freeSpots so the tile behind the overlay stops
+   * disagreeing with the list in front of it.
    *
-   * Removes the row AND patches the class's freeSpots, so the calendar tile behind the panel stays
-   * honest: the count is visible at the same time as the list, and a list that shrank while the tile
-   * did not would be the screen contradicting itself.
+   * Fenced like every other write here: navigating to another week while the overlay was open would
+   * otherwise patch a row belonging to the previous window. The overlay closes on a window change,
+   * so this is belt and braces — and cheap.
    */
-  protected async releaseSpot(row: ScheduledClass, booking: ClassBooking): Promise<void> {
-    this.failedId.set(null);
-    this.notice.set(null);
-    this.setBusy(booking.bookingId, true);
+  protected afterRelease(row: ScheduledClass): void {
+    const generation = this.generation;
 
-    try {
-      await this.bookings.cancelAsAdmin(row.id, booking.bookingId);
-
-      this.bookingRows.update((bookings) =>
-        bookings.filter((candidate) => candidate.bookingId !== booking.bookingId),
-      );
-
-      this.rows.update((rows) =>
-        rows.map((candidate) =>
-          candidate.id === row.id
-            ? { ...candidate, freeSpots: candidate.freeSpots + 1 }
-            : candidate,
-        ),
-      );
-    } catch (failure) {
-      const reason = ((failure as HttpErrorResponse)?.error as { reason?: string } | undefined)
-        ?.reason;
-
-      this.failedId.set(booking.bookingId);
-      this.notice.set(bookingFailureMessage(reason));
-    } finally {
-      this.setBusy(booking.bookingId, false);
+    if (generation !== this.generation) {
+      return;
     }
+
+    this.rows.update((rows) =>
+      rows.map((candidate) =>
+        candidate.id === row.id ? { ...candidate, freeSpots: candidate.freeSpots + 1 } : candidate,
+      ),
+    );
+
+    // The overlay holds a snapshot of the class it was opened with, so the count in its own header
+    // has to move too.
+    this.viewingBookings.update((open) =>
+      open && open.id === row.id ? { ...open, freeSpots: open.freeSpots + 1 } : open,
+    );
   }
 
   protected closeDuplicate(): void {

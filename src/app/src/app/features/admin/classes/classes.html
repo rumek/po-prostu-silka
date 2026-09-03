@@ -92,57 +92,6 @@
   </div>
 }
 
-<!-- Who signed up (prd.md FR-014), and the action to release a spot. Below the calendar and shaped
-     exactly like the duplicate and delete panels — subject line, content, Anuluj — so the screen
-     keeps one shape rather than growing a third kind of surface. -->
-@if (viewingBookings(); as row) {
-  <div class="card classes-panel classes-bookings">
-    <p class="classes-panel-subject">
-      Zapisani na „{{ row.name }}” z {{ row.startsAt | date: 'd MMMM, HH:mm' }} —
-      {{ row.capacity - row.freeSpots }} / {{ row.capacity }}
-    </p>
-
-    @if (bookingsLoading()) {
-      <p class="notice" role="status">Wczytywanie…</p>
-    } @else if (bookingsFailed()) {
-      <p class="alert" role="alert">Nie udało się wczytać listy zapisanych.</p>
-    } @else if (bookingRows().length === 0) {
-      <!-- An empty class is a normal state, not a failure — the wording says so rather than leaving
-           a blank panel the admin has to interpret. -->
-      <p class="notice" role="status">Nikt nie jest jeszcze zapisany na te zajęcia.</p>
-    } @else {
-      <ul class="classes-bookings-list">
-        @for (booking of bookingRows(); track booking.bookingId) {
-          <li class="classes-bookings-row">
-            <div class="classes-bookings-person">
-              <p class="classes-bookings-name">{{ booking.displayName }}</p>
-              <p class="classes-bookings-meta">{{ booking.email }}</p>
-              <p class="classes-bookings-meta">
-                Zapis: {{ booking.bookedAt | date: 'd MMMM, HH:mm' }}
-              </p>
-            </div>
-
-            <button
-              type="button"
-              class="link-button"
-              [disabled]="isBusy(booking.bookingId)"
-              (click)="releaseSpot(row, booking)"
-            >
-              {{ isBusy(booking.bookingId) ? 'Zwalnianie…' : 'Zwolnij miejsce' }}
-            </button>
-
-            @if (failedId() === booking.bookingId) {
-              <p class="field-error" role="alert">Nie udało się zwolnić miejsca.</p>
-            }
-          </li>
-        }
-      </ul>
-    }
-
-    <button type="button" class="link-button" (click)="closeBookings()">Anuluj</button>
-  </div>
-}
-
 @if (confirmingDelete(); as row) {
   <div class="card classes-panel">
     <p class="classes-panel-subject">
@@ -164,4 +113,16 @@
 
 @if (drawn(); as range) {
   <app-class-create-overlay [drawn]="range" (created)="afterCreate()" (closed)="closeCreate()" />
+}
+
+<!-- An OVERLAY rather than a panel below the calendar, unlike the duplicate and delete flows above.
+     Those are one line and one button; this is an unbounded list, and a class near capacity pushed
+     itself off the bottom of the screen — so reading it meant scrolling away from the class it
+     belongs to. -->
+@if (viewingBookings(); as row) {
+  <app-class-bookings-overlay
+    [row]="row"
+    (released)="afterRelease(row)"
+    (closed)="closeBookings()"
+  />
 }
