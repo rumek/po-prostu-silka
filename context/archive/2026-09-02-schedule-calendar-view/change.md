@@ -1,9 +1,10 @@
 ---
 change_id: schedule-calendar-view
 title: Member and admin browse the schedule as a calendar
-status: impl_reviewed
+status: archived
 created: 2026-09-02
 updated: 2026-09-03
+archived_at: 2026-09-03T11:59:14Z
 ---
 
 ## Notes

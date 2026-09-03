@@ -3,7 +3,7 @@ project: "Po Prostu Siłka"
 version: 2
 status: draft
 created: 2026-08-31
-updated: 2026-09-02
+updated: 2026-09-03
 prd_version: 1, 2
 main_goal: speed
 top_blocker: decisions
@@ -360,3 +360,4 @@ Resolved since the previous roadmap: the sender-domain question that gated F-03 
 - **S-04: user (admin) can grant the Trainer role to an approved account from the member list, and revoke it; the account keeps every member capability it had, and an account may hold Admin and Trainer at once.** — Archived 2026-09-02 → `context/archive/2026-09-02-trainer-role-and-assignment/`. Lesson: —.
 - **S-05: user (admin) can create a class type with a name, description, default duration and default capacity, browse and edit types, and deactivate one so it disappears from selection while existing classes and history stay intact.** — Archived 2026-09-02 → `context/archive/2026-09-02-class-type-definitions/`. Lesson: —.
 - **S-06: user (admin) creates an occurrence by selecting a class type and a trainer — duration and capacity prefill from the definition and stay overridable, the name comes from the type, and there is no room field; two classes may not overlap in time anywhere in the club; duplication to following weeks still skips and reports conflicting weeks.** — Archived 2026-09-02 → `context/archive/2026-09-02-occurrences-from-class-types/`. Lesson: —.
+- **S-07: user opens the schedule on a phone and sees one day at a time — the current date, a weekday strip that navigates the week it belongs to, a control to jump to a chosen date, and that day's classes with their times on a 06:00–24:00 grid; from 48rem up the whole week is visible at once; the admin panel uses the same calendar with admin actions on top, can look at past weeks read-only, can create a class by dragging across empty time, and can move or resize an existing one on the grid; a day or week with no classes says so.** — Archived 2026-09-03 → `context/archive/2026-09-02-schedule-calendar-view/`. Lesson: —.
