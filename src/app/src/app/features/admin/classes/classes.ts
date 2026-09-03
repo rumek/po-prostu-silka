@@ -3,6 +3,9 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { bookingFailureMessage } from '../../../core/scheduling/booking-failure';
+import { BookingService } from '../../../core/scheduling/booking.service';
+import { ClassBooking } from '../../../core/scheduling/booking.models';
 import { classFailureMessage } from '../../../core/scheduling/class-failure';
 import { ClassService } from '../../../core/scheduling/class.service';
 import { ScheduledClass } from '../../../core/scheduling/class.models';
@@ -42,6 +45,7 @@ import { ClassCreateOverlay } from './class-create-overlay';
 })
 export class Classes {
   private readonly classes = inject(ClassService);
+  private readonly bookings = inject(BookingService);
 
   protected readonly rows = signal<ScheduledClass[]>([]);
   protected readonly loading = signal(true);
@@ -66,6 +70,12 @@ export class Classes {
   /** Which class is asking to confirm a delete. */
   protected readonly confirmingDelete = signal<ScheduledClass | null>(null);
 
+  /** Which class has its sign-up list open (prd.md FR-014), and what that list holds. */
+  protected readonly viewingBookings = signal<ScheduledClass | null>(null);
+  protected readonly bookingRows = signal<ClassBooking[]>([]);
+  protected readonly bookingsLoading = signal(false);
+  protected readonly bookingsFailed = signal(false);
+
   /** The range drawn on the grid, awaiting a type and a trainer. Null when no overlay is open. */
   protected readonly drawn = signal<DrawnRange | null>(null);
 
@@ -85,6 +95,7 @@ export class Classes {
     // A window change invalidates any open panel: its class may not even be on screen any more.
     this.duplicating.set(null);
     this.confirmingDelete.set(null);
+    this.viewingBookings.set(null);
     this.drawn.set(null);
 
     const generation = ++this.generation;
@@ -200,7 +211,98 @@ export class Classes {
     this.notice.set(null);
     this.failedId.set(null);
     this.confirmingDelete.set(null);
+    this.viewingBookings.set(null);
     this.duplicating.set(this.duplicating()?.id === row.id ? null : row);
+  }
+
+  /**
+   * Opens the sign-up list for a class (prd.md FR-014).
+   *
+   * Toggles, like the duplicate panel: the action that opened it is the action that closes it, which
+   * is what the other two panels on this screen already do.
+   */
+  protected openBookings(row: ScheduledClass): void {
+    this.notice.set(null);
+    this.failedId.set(null);
+    this.duplicating.set(null);
+    this.confirmingDelete.set(null);
+
+    if (this.viewingBookings()?.id === row.id) {
+      this.viewingBookings.set(null);
+      return;
+    }
+
+    this.viewingBookings.set(row);
+    void this.loadBookings(row);
+  }
+
+  protected closeBookings(): void {
+    this.viewingBookings.set(null);
+  }
+
+  private async loadBookings(row: ScheduledClass): Promise<void> {
+    this.bookingRows.set([]);
+    this.bookingsLoading.set(true);
+    this.bookingsFailed.set(false);
+
+    try {
+      const bookings = await this.bookings.getForClass(row.id);
+
+      // Fenced against the panel being closed or pointed at another class mid-flight — the same
+      // hazard the generation guard exists for, at panel scope.
+      if (this.viewingBookings()?.id !== row.id) {
+        return;
+      }
+
+      this.bookingRows.set(bookings);
+    } catch {
+      if (this.viewingBookings()?.id !== row.id) {
+        return;
+      }
+
+      this.bookingsFailed.set(true);
+    } finally {
+      if (this.viewingBookings()?.id === row.id) {
+        this.bookingsLoading.set(false);
+      }
+    }
+  }
+
+  /**
+   * Releases somebody's spot.
+   *
+   * Removes the row AND patches the class's freeSpots, so the calendar tile behind the panel stays
+   * honest: the count is visible at the same time as the list, and a list that shrank while the tile
+   * did not would be the screen contradicting itself.
+   */
+  protected async releaseSpot(row: ScheduledClass, booking: ClassBooking): Promise<void> {
+    this.failedId.set(null);
+    this.notice.set(null);
+    this.setBusy(booking.bookingId, true);
+
+    try {
+      await this.bookings.cancelAsAdmin(row.id, booking.bookingId);
+
+      this.bookingRows.update((bookings) =>
+        bookings.filter((candidate) => candidate.bookingId !== booking.bookingId),
+      );
+
+      this.rows.update((rows) =>
+        rows.map((candidate) =>
+          candidate.id === row.id
+            ? { ...candidate, freeSpots: candidate.freeSpots + 1 }
+            : candidate,
+        ),
+      );
+    } catch (failure) {
+      const reason = ((failure as HttpErrorResponse)?.error as { reason?: string } | undefined)
+        ?.reason;
+
+      this.failedId.set(booking.bookingId);
+      this.notice.set(bookingFailureMessage(reason));
+    } finally {
+      this.setBusy(booking.bookingId, false);
+    }
   }
 
   protected closeDuplicate(): void {
@@ -247,6 +349,7 @@ export class Classes {
     this.notice.set(null);
     this.failedId.set(null);
     this.duplicating.set(null);
+    this.viewingBookings.set(null);
     this.confirmingDelete.set(row);
   }
 
@@ -266,7 +369,14 @@ export class Classes {
       // A deleted class genuinely leaves the window — removing it locally is the honest
       // representation, and avoids a refetch that would only confirm what we already know.
       this.rows.update((rows) => rows.filter((r) => r.id !== row.id));
-    } catch {
+    } catch (failure) {
+      // NAMED, not a generic "nie udało się". Since S-08 the likely refusal is has_bookings, and
+      // "someone signed up" is the difference between a broken button and a rule the admin can act
+      // on — by opening Zapisani, which is right there.
+      const reason = ((failure as HttpErrorResponse)?.error as { reason?: string } | undefined)
+        ?.reason;
+
+      this.notice.set(classFailureMessage(reason));
       this.failedId.set(row.id);
     } finally {
       this.setBusy(row.id, false);

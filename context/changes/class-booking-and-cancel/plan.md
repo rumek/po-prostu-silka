@@ -814,10 +814,10 @@ required `SET` options; EF Core's connections do, hand-run raw SQL sessions may 
 
 #### Automated
 
-- [x] 3.1 Frontend unit tests pass
-- [x] 3.2 Lint and format clean
-- [x] 3.3 Frontend builds within budget
-- [x] 3.4 Backend tests still pass
+- [x] 3.1 Frontend unit tests pass — 91dcb1d
+- [x] 3.2 Lint and format clean — 91dcb1d
+- [x] 3.3 Frontend builds within budget — 91dcb1d
+- [x] 3.4 Backend tests still pass — 91dcb1d
 
 #### Manual
 
@@ -833,9 +833,9 @@ required `SET` options; EF Core's connections do, hand-run raw SQL sessions may 
 
 #### Automated
 
-- [ ] 4.1 Frontend unit tests pass
-- [ ] 4.2 Lint and format clean
-- [ ] 4.3 Frontend builds within budget
+- [x] 4.1 Frontend unit tests pass
+- [x] 4.2 Lint and format clean
+- [x] 4.3 Frontend builds within budget
 
 #### Manual
 

@@ -365,4 +365,115 @@ describe('Classes', () => {
     expect(element().querySelector('.calendar-tile-actions')).toBeNull();
     expect(html()).toContain('Ten tydzień już minął');
   });
+
+  // --- FR-014: who signed up -------------------------------------------------
+
+  const SIGNUP = {
+    bookingId: 'b1',
+    memberUserId: 'm1',
+    displayName: 'Ala Kowalska',
+    email: 'ala@example.test',
+    bookedAt: todayAt(9),
+  };
+
+  /** Opens the panel for a class and answers the request it makes. */
+  async function openBookings(name: string, rows: (typeof SIGNUP)[]): Promise<void> {
+    actionIn(tileFor(name), 'Zapisani').click();
+    await settle();
+
+    controller.expectOne(`/api/admin/classes/c1/bookings`).flush(rows);
+    await settle();
+  }
+
+  it('lists everyone signed up, with the count on the subject line', async () => {
+    await createWith([{ ...JOGA, capacity: 20, freeSpots: 19 }]);
+    await openBookings('Joga', [SIGNUP]);
+
+    expect(html()).toContain('Zapisani na „Joga”');
+    // The count comes off the class, not off the list: the panel and the tile behind it must agree.
+    expect(html()).toContain('1 / 20');
+    expect(html()).toContain('Ala Kowalska');
+    expect(html()).toContain('ala@example.test');
+  });
+
+  it('says an empty class is empty rather than showing a blank panel', async () => {
+    await createWith([JOGA]);
+    await openBookings('Joga', []);
+
+    expect(html()).toContain('Nikt nie jest jeszcze zapisany');
+  });
+
+  it('releases a spot, removing the row and raising the tile count', async () => {
+    await createWith([{ ...JOGA, capacity: 20, freeSpots: 19 }]);
+    await openBookings('Joga', [SIGNUP]);
+
+    expect(tileFor('Joga').textContent).toContain('19 / 20 wolnych');
+
+    panelButton('Zwolnij miejsce').click();
+    await settle();
+
+    const request = controller.expectOne('/api/admin/classes/c1/bookings/b1');
+    expect(request.request.method).toBe('DELETE');
+    request.flush(null);
+    await settle();
+
+    expect(html()).toContain('Nikt nie jest jeszcze zapisany');
+    // The tile behind the panel is patched in place — a list that shrank while the count did not
+    // would be the screen contradicting itself.
+    expect(tileFor('Joga').textContent).toContain('20 / 20 wolnych');
+  });
+
+  it('keeps the row and names the refusal when a release fails', async () => {
+    await createWith([{ ...JOGA, capacity: 20, freeSpots: 19 }]);
+    await openBookings('Joga', [SIGNUP]);
+
+    panelButton('Zwolnij miejsce').click();
+    await settle();
+
+    controller
+      .expectOne('/api/admin/classes/c1/bookings/b1')
+      .flush({ reason: 'conflict' }, { status: 409, statusText: 'Conflict' });
+    await settle();
+
+    expect(html()).toContain('Ala Kowalska');
+    expect(html()).toContain('Ktoś właśnie zmienił zapisy');
+    expect(tileFor('Joga').textContent).toContain('19 / 20 wolnych');
+  });
+
+  it('names has_bookings when a delete is refused, rather than saying only that it failed', async () => {
+    await createWith([JOGA]);
+
+    actionIn(tileFor('Joga'), 'Usuń').click();
+    fixture.detectChanges();
+
+    panelButton('Tak, usuń').click();
+    await settle();
+
+    controller
+      .expectOne('/api/admin/classes/c1')
+      .flush({ reason: 'has_bookings' }, { status: 409, statusText: 'Conflict' });
+    await settle();
+
+    // "Cannot" without "why" reads as a broken button. The reason points at Zapisani, which is
+    // where the admin can do something about it.
+    expect(tiles().length).toBe(1);
+    expect(html()).toContain('ktoś się już zapisał');
+  });
+
+  it('withholds Zapisani in a past week along with the rest of the actions', async () => {
+    await createWith([JOGA]);
+
+    expect(actionIn(tileFor('Joga'), 'Zapisani')).not.toBeUndefined();
+
+    element().querySelector<HTMLButtonElement>('[aria-label="Poprzedni tydzień"]')!.click();
+    fixture.detectChanges();
+
+    const past = await vi.waitFor(() => adminRequests()[0]);
+    past.flush([{ ...JOGA, startsAt: new Date(Date.now() - 7 * 86_400_000).toISOString() }]);
+    await settle();
+
+    // The new action is projected through the same template as the other three, so it is gated by
+    // readOnly along with them — this pins that it stayed that way.
+    expect(element().querySelector('.calendar-tile-actions')).toBeNull();
+  });
 });
