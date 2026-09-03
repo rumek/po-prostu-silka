@@ -21,7 +21,7 @@ import {
   provideCalendar,
 } from 'angular-calendar';
 import { adapterFactory } from 'angular-calendar/date-adapters/date-fns';
-import { addDays, isSameDay, startOfDay, startOfWeek } from 'date-fns';
+import { addDays, addMinutes, isSameDay, setHours, startOfDay, startOfWeek } from 'date-fns';
 import { ScheduledClass } from '../../core/scheduling/class.models';
 import { WEEK_VIEW_MEDIA_QUERY } from './calendar-breakpoint';
 import { PolishCalendarDateFormatter } from './polish-date-formatter';
@@ -345,6 +345,35 @@ export class ScheduleCalendar {
   }
 
   /**
+   * Whether a move or resize keeps the whole class inside the rendered grid.
+   *
+   * Bound to the library's `validateEventTimesChanged`, which is consulted WHILE the pointer moves:
+   * refusing here means the block never travels past the edge in the first place, rather than
+   * springing back from somewhere it should not have been able to reach. Without it a class could be
+   * dragged above 06:00 or resized past midnight and simply disappear off the grid — still there, at
+   * a time nothing in this view can show.
+   *
+   * An arrow property, not a method: the library stores the reference and calls it unbound.
+   */
+  protected readonly fitsInGrid = (change: CalendarEventTimesChangedEvent): boolean => {
+    const endsAt = change.newEnd;
+
+    if (!endsAt) {
+      return false;
+    }
+
+    // Derived from the day the class would LAND on, so a drag across midnight is measured against the
+    // right day's opening and closing.
+    const day = startOfDay(change.newStart);
+    const opens = setHours(day, DAY_START_HOUR);
+    // DAY_END_HOUR is the last hour drawn, so the grid closes an hour after it starts. Built by
+    // adding minutes rather than by writing hour 24, which no clock has.
+    const closes = addMinutes(setHours(day, DAY_END_HOUR), 60);
+
+    return change.newStart >= opens && endsAt <= closes;
+  };
+
+  /**
    * A class was dropped somewhere new, or one of its edges was pulled.
    *
    * Both gestures arrive here — the library distinguishes them with `type`, and this does not need
@@ -367,6 +396,14 @@ export class ScheduleCalendar {
 
     if (startsAt.getTime() < Date.now()) {
       this.pastRefusal.set(true);
+      return;
+    }
+
+    // Checked again on the drop, not only during the drag: `fitsInGrid` governs where the pointer may
+    // take the block, and this governs what is allowed to be written. A gesture that arrives here out
+    // of bounds is dropped silently — the pointer was already prevented from going there, so there is
+    // nothing to explain.
+    if (!this.fitsInGrid(change)) {
       return;
     }
 

@@ -1,6 +1,7 @@
 import { Component, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
+import { addDays } from 'date-fns';
 import { CalendarEventTimesChangedEventType, CalendarWeekViewComponent } from 'angular-calendar';
 import { ScheduledClass } from '../../core/scheduling/class.models';
 import { CalendarRange, DrawnRange, RescheduledClass, ScheduleCalendar } from './schedule-calendar';
@@ -396,6 +397,46 @@ describe('ScheduleCalendar', () => {
 
     expect(element().querySelectorAll('.cal-resize-handle').length).toBe(0);
     expect(element().querySelector('.cal-draggable')).toBeNull();
+  });
+
+  /** The guard the library consults while the pointer moves. */
+  function allows(newStart: Date, newEnd: Date): boolean {
+    const week = fixture.debugElement.query(By.directive(CalendarWeekViewComponent))
+      .componentInstance as CalendarWeekViewComponent;
+
+    return week.validateEventTimesChanged({
+      type: CalendarEventTimesChangedEventType.Drag,
+      event: week.events[0],
+      newStart,
+      newEnd,
+    });
+  }
+
+  it('will not let a class leave the rendered grid', () => {
+    create();
+    host.readOnly.set(false);
+    click('[aria-label="Następny dzień"]');
+    schedule(10);
+
+    const day = lastRange().from;
+    const on = (hour: number, minute = 0) =>
+      new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour, minute);
+
+    const midnight = addDays(on(0), 1);
+
+    // Inside: the first slot the grid draws, and the last one — which ends exactly at midnight, the
+    // closing edge itself.
+    expect(allows(on(6), on(7))).toBe(true);
+    expect(allows(on(23), midnight)).toBe(true);
+
+    // Out: above the opening, and over midnight. Refusing during the drag is what stops the block
+    // travelling somewhere this view could never show it again.
+    expect(allows(on(5, 30), on(6, 30))).toBe(false);
+    expect(allows(on(23, 30), new Date(midnight.getTime() + 30 * 60_000))).toBe(false);
+
+    // And a gesture that arrives on the drop anyway writes nothing.
+    finishGesture(on(5), on(6));
+    expect(host.rescheduled.length).toBe(0);
   });
 
   it('reports a move as a new start and a new duration', () => {

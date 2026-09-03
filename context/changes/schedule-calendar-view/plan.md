@@ -678,6 +678,13 @@ from before the gesture and says why through `classFailureMessage`. The whole `C
 back — type, trainer and capacity unchanged — because the endpoint replaces the class rather than
 patching it.
 
+Fixed after manual verification: the gesture could take a class off the grid entirely — above 06:00 or
+past midnight — where it stayed scheduled at a time this view can no longer show. The library's
+`validateEventTimesChanged` is now bound, which is consulted WHILE the pointer moves, so the block
+never travels past the edge rather than springing back from somewhere it should not have reached. The
+same bound is re-checked on the drop, silently: the pointer was already prevented, so an out-of-bounds
+arrival has nothing to explain.
+
 #### 3. The create overlay
 
 **File**: `src/app/src/app/features/admin/classes/class-create-overlay.ts` (+ `.html`, `.scss`)
