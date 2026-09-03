@@ -933,3 +933,27 @@ Rollback is a redeploy of the previous artifact, with no schema to reverse.
 - [ ] 4.8 No gesture over an existing class, and none at all in a past week
 - [ ] 4.9 A conflicting slot is refused, the overlay stays open with values intact
 - [ ] 4.10 The same refusal reads identically in the overlay and in `class-form`
+
+### Phase 5: Follow-ups from manual verification
+
+> Not a planned phase. These landed after the first pass over the deployed slice, each from a specific
+> observation; they are recorded here so the checks they need are not carried only in a conversation.
+
+#### Automated
+
+- [x] 5.1 Front-end tests pass: `npm test` from `src/app/` — 989a085
+- [x] 5.2 Lint and format pass: `npm run quality:check` from `src/app/` — 989a085
+- [x] 5.3 Production build succeeds, initial bundle still inside budget — 989a085
+
+#### Manual
+
+- [ ] 5.4 Grid runs 06:00–24:00; hour column and day headers read as Polish, 24-hour
+- [ ] 5.5 Drawing shows one dashed, muted preview block sized to the drag, gone on release
+- [ ] 5.6 A press on a past segment is refused on the gesture, with no overlay
+- [ ] 5.7 A drag stays in the day it started in
+- [ ] 5.8 A class drags to a new time and resizes from both edges, snapping to the half hour
+- [ ] 5.9 The moved class stays put while the write is in flight, and springs back on a refusal
+- [ ] 5.10 No move or resize on a class that has already started, nor anywhere read-only
+- [ ] 5.11 Neither gesture can take a class above 06:00 or past midnight
+- [ ] 5.12 The day view shows the strip and nothing else; the week view shows arrows and `Dziś`
+- [ ] 5.13 Strip cells are one control at 32×40, centred, and the row survives a 320px viewport
