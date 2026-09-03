@@ -878,9 +878,9 @@ Rollback is a redeploy of the previous artifact, with no schema to reverse.
 
 #### Manual
 
-- [ ] 1.5 Date-ranged and omitted-range requests behave as specified
-- [ ] 1.6 `prd-v2.md` amendments read as a coherent document
-- [ ] 1.7 Roadmap S-07 outcome and risk lines describe the slice as planned
+- [x] 1.5 Date-ranged and omitted-range requests behave as specified — e29367c
+- [x] 1.6 `prd-v2.md` amendments read as a coherent document — e29367c
+- [x] 1.7 Roadmap S-07 outcome and risk lines describe the slice as planned — e29367c
 
 ### Phase 2: Calendar core and the member schedule
 
@@ -894,12 +894,12 @@ Rollback is a redeploy of the previous artifact, with no schema to reverse.
 
 #### Manual
 
-- [ ] 2.6 Day view narrow, week view from 48rem, reverting on narrowing
-- [ ] 2.7 Day, week and jump-to-date navigation each refetch, times in the browser's clock
-- [ ] 2.8 Empty day and empty week show the message over the grid, distinct from loading and failure
-- [ ] 2.9 Classes render with name, instructor and free spots; a full class reads as full
-- [ ] 2.10 Day view at first paint on a phone with no flash; single, immediate promotion on a wide screen
-- [ ] 2.11 Navigating to /schedule fetches the calendar chunk; login and register do not
+- [x] 2.6 Day view narrow, week view from 48rem, reverting on narrowing — 4c0b911
+- [x] 2.7 Day, week and jump-to-date navigation each refetch, times in the browser's clock — 4c0b911
+- [x] 2.8 Empty day and empty week show the message over the grid, distinct from loading and failure — 4c0b911
+- [x] 2.9 Classes render with name, instructor and free spots; a full class reads as full — 4c0b911
+- [x] 2.10 Day view at first paint on a phone with no flash; single, immediate promotion on a wide screen — 4c0b911
+- [x] 2.11 Navigating to /schedule fetches the calendar chunk; login and register do not — 4c0b911
 
 ### Phase 3: The admin panel on the same calendar
 
@@ -911,10 +911,10 @@ Rollback is a redeploy of the previous artifact, with no schema to reverse.
 
 #### Manual
 
-- [ ] 3.4 Both screens show the same calendar and navigate identically
-- [ ] 3.5 Edit, duplicate and delete work from the calendar, partial success and inline confirmation intact
-- [ ] 3.6 A past week shows classes with no actions and an explanatory note
-- [ ] 3.7 Duplicate copies land in later weeks and are found by navigating forward
+- [x] 3.4 Both screens show the same calendar and navigate identically — 302cfe0
+- [x] 3.5 Edit, duplicate and delete work from the calendar, partial success and inline confirmation intact — 302cfe0
+- [x] 3.6 A past week shows classes with no actions and an explanatory note — 302cfe0
+- [x] 3.7 Duplicate copies land in later weeks and are found by navigating forward — 302cfe0
 
 ### Phase 4: Creating a class by dragging
 
@@ -927,12 +927,12 @@ Rollback is a redeploy of the previous artifact, with no schema to reverse.
 
 #### Manual
 
-- [ ] 4.5 Dragging empty grid space opens the overlay with start and duration prefilled
-- [ ] 4.6 Type selection prefills capacity and preserves the drawn duration
-- [ ] 4.7 Submitting creates the class and it appears in place
-- [ ] 4.8 No gesture over an existing class, and none at all in a past week
-- [ ] 4.9 A conflicting slot is refused, the overlay stays open with values intact
-- [ ] 4.10 The same refusal reads identically in the overlay and in `class-form`
+- [x] 4.5 Dragging empty grid space opens the overlay with start and duration prefilled — 68e10c3
+- [x] 4.6 Type selection prefills capacity and preserves the drawn duration — 68e10c3
+- [x] 4.7 Submitting creates the class and it appears in place — 68e10c3
+- [x] 4.8 No gesture over an existing class, and none at all in a past week — 68e10c3
+- [x] 4.9 A conflicting slot is refused, the overlay stays open with values intact — 68e10c3
+- [x] 4.10 The same refusal reads identically in the overlay and in `class-form` — 68e10c3
 
 ### Phase 5: Follow-ups from manual verification
 
@@ -947,13 +947,13 @@ Rollback is a redeploy of the previous artifact, with no schema to reverse.
 
 #### Manual
 
-- [ ] 5.4 Grid runs 06:00–24:00; hour column and day headers read as Polish, 24-hour
-- [ ] 5.5 Drawing shows one dashed, muted preview block sized to the drag, gone on release
-- [ ] 5.6 A press on a past segment is refused on the gesture, with no overlay
-- [ ] 5.7 A drag stays in the day it started in
-- [ ] 5.8 A class drags to a new time and resizes from both edges, snapping to the half hour
-- [ ] 5.9 The moved class stays put while the write is in flight, and springs back on a refusal
-- [ ] 5.10 No move or resize on a class that has already started, nor anywhere read-only
-- [ ] 5.11 Neither gesture can take a class above 06:00 or past midnight
-- [ ] 5.12 The day view shows the strip and nothing else; the week view shows arrows and `Dziś`
-- [ ] 5.13 Strip cells are one control at 32×40, centred, and the row survives a 320px viewport
+- [x] 5.4 Grid runs 06:00–24:00; hour column and day headers read as Polish, 24-hour — 989a085
+- [x] 5.5 Drawing shows one dashed, muted preview block sized to the drag, gone on release — 989a085
+- [x] 5.6 A press on a past segment is refused on the gesture, with no overlay — 989a085
+- [x] 5.7 A drag stays in the day it started in — 989a085
+- [x] 5.8 A class drags to a new time and resizes from both edges, snapping to the half hour — 989a085
+- [x] 5.9 The moved class stays put while the write is in flight, and springs back on a refusal — 989a085
+- [x] 5.10 No move or resize on a class that has already started, nor anywhere read-only — 989a085
+- [x] 5.11 Neither gesture can take a class above 06:00 or past midnight — 989a085
+- [x] 5.12 The day view shows the strip and nothing else; the week view shows arrows and `Dziś` — 989a085
+- [x] 5.13 Strip cells are one control at 32×40, centred, and the row survives a 320px viewport — 989a085

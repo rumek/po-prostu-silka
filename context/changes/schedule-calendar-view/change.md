@@ -1,9 +1,9 @@
 ---
 change_id: schedule-calendar-view
 title: Member and admin browse the schedule as a calendar
-status: implementing
+status: implemented
 created: 2026-09-02
-updated: 2026-09-02
+updated: 2026-09-03
 ---
 
 ## Notes
@@ -20,3 +20,9 @@ updated: 2026-09-02
 - **This change deliberately departs from `prd-v2` FR-015 as written.** The library decision
   (`angular-calendar`) replaces the phone day-strip with a day view, and adds drag-to-create, which
   FR-015 through FR-018 do not ask for. Phase 1 amends the PRD rather than leaving it contradicted.
+- Manual verification completed 2026-09-03 against the deployed environment, in two passes. The first
+  returned five defects — a full-day grid, American time and date formats, a drag preview that was
+  specified but never drawn, a create gesture that only learned about the past from the API, and no way
+  to move or resize an existing class. Those became the follow-up commits recorded as Phase 5, which
+  also carried `prd-v2` FR-020 and the FR-015 amendment restoring the weekday strip as navigation. The
+  second pass passed clean.
