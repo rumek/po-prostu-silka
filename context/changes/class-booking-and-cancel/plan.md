@@ -833,9 +833,9 @@ required `SET` options; EF Core's connections do, hand-run raw SQL sessions may 
 
 #### Automated
 
-- [x] 4.1 Frontend unit tests pass
-- [x] 4.2 Lint and format clean
-- [x] 4.3 Frontend builds within budget
+- [x] 4.1 Frontend unit tests pass — 2b8b472
+- [x] 4.2 Lint and format clean — 2b8b472
+- [x] 4.3 Frontend builds within budget — 2b8b472
 
 #### Manual
 
