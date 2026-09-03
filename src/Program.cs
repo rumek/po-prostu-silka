@@ -182,6 +182,13 @@ builder.Services.AddScoped<ITrainerQuery, TrainerQuery>();
 builder.Services.AddScoped<IClassScheduleQuery, ClassScheduleQuery>();
 builder.Services.AddScoped<IClassStore, ClassStore>();
 
+// S-08's bookings (prd.md US-01, FR-008..FR-010, FR-014). Scoped for a reason this slice depends on
+// more than the others: the booking insert and the class's ConcurrencyStamp rotation must reach the
+// SAME DbContext as IUnitOfWork, or they would not commit as one atomic write and the no-overbooking
+// guarantee would be nothing but a comment.
+builder.Services.AddScoped<IBookingStore, BookingStore>();
+builder.Services.AddScoped<IBookingQuery, BookingQuery>();
+
 // S-05's class-type definitions (prd-v2 FR-004..FR-007). Scoped for the same reason as the two
 // above - the store must share the request's DbContext with IUnitOfWork, which is what commits it.
 builder.Services.AddScoped<IClassTypeQuery, ClassTypeQuery>();
@@ -238,6 +245,7 @@ app.MapMemberAdminEndpoints();
 app.MapTrainerEndpoints();
 app.MapClassEndpoints();
 app.MapClassTypeEndpoints();
+app.MapBookingEndpoints();
 
 // Probe endpoints for the ActiveMember and Admin policies, in the "Testing" environment only.
 //

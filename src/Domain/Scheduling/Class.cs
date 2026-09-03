@@ -10,13 +10,14 @@ namespace po_prostu_silka.Domain.Scheduling;
 /// own COPIES of the numbers - see <see cref="Capacity"/>.
 /// </para>
 ///
-/// This is the aggregate S-08 books against, so its shape outlives this slice: <see cref="Capacity"/>
-/// is what the no-overbooking guarantee is checked against, and <see cref="Status"/> is what S-09
-/// transitions. Adding a field here later is cheap; changing the meaning of one is not.
+/// This is the aggregate bookings are made against: <see cref="Capacity"/> is what the no-overbooking
+/// guarantee is checked against, and <see cref="Status"/> is what S-09 transitions. Adding a field
+/// here later is cheap; changing the meaning of one is not.
 ///
-/// No booking count lives here. A denormalized counter would pre-commit S-08's concurrency design -
-/// the load-bearing correctness decision of the milestone - and that is not this slice's to make.
-/// Free spots are projected at read time (see IClassScheduleQuery).
+/// STILL NO BOOKING COUNT HERE, and now by a settled decision rather than a deferred one. S-08 chose
+/// a live count of Active Booking rows over a denormalized counter, so free spots stay projected at
+/// read time (see IClassScheduleQuery) and there is no second source of truth to drift. What S-08 did
+/// add is <see cref="ConcurrencyStamp"/> - the mechanism that makes counting-then-inserting atomic.
 /// </summary>
 public class Class
 {
@@ -59,6 +60,35 @@ public class Class
 
     /// <summary>When the admin created it. Not shown to members; useful for ordering and diagnostics.</summary>
     public DateTimeOffset CreatedAt { get; set; }
+
+    /// <summary>
+    /// THE NO-OVERBOOKING GUARANTEE LIVES ON THIS LINE. Read it before touching any code that changes
+    /// how many spots on this class are taken.
+    ///
+    /// <para>
+    /// Booking is a read-then-write sequence - count the Active bookings, compare against
+    /// <see cref="Capacity"/>, insert a row - and two members doing it at the same instant would both
+    /// pass the count and both insert. This column is configured as a concurrency token, so EF puts it
+    /// in the WHERE clause of every UPDATE against Classes: whoever commits second matches zero rows
+    /// and is told to try again, having written nothing.
+    /// </para>
+    ///
+    /// <para>
+    /// THAT ONLY WORKS IF THE WRITE ROTATES IT. A booking inserts into Bookings and touches nothing
+    /// here, so unless the handler explicitly assigns a new value to this property, EF issues no
+    /// UPDATE against Classes at all, no WHERE clause carries the token, and both writes commit. The
+    /// rotation is not bookkeeping - it IS the mechanism. Cancellation must rotate it too: a cancel
+    /// and a booking racing for the same last spot must not both believe they won.
+    /// </para>
+    ///
+    /// <para>
+    /// A string rather than a SQL rowversion, following the only concurrency-token precedent this
+    /// codebase has - Identity's ConcurrencyStamp, rotated by hand in MemberAdminEndpoints for exactly
+    /// the same reason. A rowversion would not help here anyway: the database only bumps it when the
+    /// row is updated, and the whole hazard is a write path that never updates the row.
+    /// </para>
+    /// </summary>
+    public string ConcurrencyStamp { get; set; } = Guid.NewGuid().ToString();
 
     /// <summary>
     /// Which <see cref="Scheduling.ClassType"/> this occurrence instantiates (prd-v2 FR-008).

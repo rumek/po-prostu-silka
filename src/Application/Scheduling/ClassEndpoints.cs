@@ -716,7 +716,12 @@ public static class ClassEndpoints
     /// Taking them as parameters makes the caller state where each came from.
     /// </para>
     /// </summary>
-    private static ScheduledClass ToDto(
+    /// <remarks>
+    /// INTERNAL rather than private since S-08: BookingEndpoints answers with the class as it now
+    /// stands, and two constructions of the same contract would drift the moment one of them learned
+    /// about free spots and the other did not.
+    /// </remarks>
+    internal static ScheduledClass ToDto(
         Class entity, ClassType classType, ApplicationUser instructor) =>
         new(entity.Id,
             entity.ClassTypeId,

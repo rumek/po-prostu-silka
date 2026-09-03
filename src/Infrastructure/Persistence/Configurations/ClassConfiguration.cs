@@ -25,6 +25,17 @@ public class ClassConfiguration : IEntityTypeConfiguration<Class>
         builder.Property(x => x.Capacity).IsRequired();
         builder.Property(x => x.CreatedAt).IsRequired();
 
+        // The no-overbooking guarantee's mechanism - read Class.ConcurrencyStamp before touching this.
+        //
+        // IsConcurrencyToken is what puts the column in the WHERE clause of every UPDATE against
+        // Classes, so a booking that rotates the stamp fails rather than overwrites when another
+        // request got there first. 36 is a GUID in its dashed string form; the column is never
+        // compared to anything but itself, so the length is a storage decision and nothing more.
+        builder.Property(x => x.ConcurrencyStamp)
+            .IsRequired()
+            .HasMaxLength(36)
+            .IsConcurrencyToken();
+
         // Stored as int. ClassStatus pins explicit values precisely so this mapping is stable.
         // Defaulting to Scheduled means a row inserted without an explicit status is on the
         // schedule, never silently cancelled.

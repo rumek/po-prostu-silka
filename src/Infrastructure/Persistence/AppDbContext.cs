@@ -26,6 +26,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
 
     public DbSet<ClassType> ClassTypes => Set<ClassType>();
 
+    public DbSet<Booking> Bookings => Set<Booking>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         // Must come FIRST: this is what builds the Identity model. Inverting the order with
