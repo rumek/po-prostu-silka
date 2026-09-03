@@ -24,6 +24,7 @@ import { adapterFactory } from 'angular-calendar/date-adapters/date-fns';
 import { addDays, addMinutes, isSameDay, setHours, startOfDay, startOfWeek } from 'date-fns';
 import { ScheduledClass } from '../../core/scheduling/class.models';
 import { WEEK_VIEW_MEDIA_QUERY } from './calendar-breakpoint';
+import { CalendarWeekStrip } from './calendar-week-strip';
 import { PolishCalendarDateFormatter } from './polish-date-formatter';
 
 /** A time range drawn on the grid, ready for the overlay that will turn it into a class. */
@@ -64,17 +65,6 @@ const SEGMENT_MINUTES = 30;
  */
 const DAY_START_HOUR = 6;
 const DAY_END_HOUR = 23;
-
-/**
- * The day strip's labels, Monday first.
- *
- * Written out rather than formatted from the locale on purpose. CLDR's Polish abbreviations are
- * "pon.", "wt.", "śr." — four characters with a full stop, which do not fit seven buttons plus two
- * arrows across a phone, and the narrow forms collapse Monday and Wednesday onto the same letter as
- * Tuesday and Saturday respectively. These are the two-letter forms Polish actually uses on a
- * calendar. The library's own rendering still goes through LOCALE_ID; this is chrome, not data.
- */
-const WEEKDAY_LABELS = ['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'So', 'Nd'];
 
 /** The window the calendar is currently showing, as UTC instants for the API. */
 export interface CalendarRange {
@@ -118,7 +108,7 @@ export interface CalendarRange {
  * at the edges of a week would silently land in the wrong one.
  */
 @Component({
-  imports: [CalendarWeekViewComponent, DatePipe, NgTemplateOutlet],
+  imports: [CalendarWeekStrip, CalendarWeekViewComponent, DatePipe, NgTemplateOutlet],
   // ON THE COMPONENT, NOT IN app.config.ts. Registering the adapter in the application providers
   // pulls angular-calendar into the INITIAL bundle - it did, and the budget caught it: +62 kB over
   // the 500 kB ceiling with the lazy chunks left nearly empty. Declared here, the library ships in
@@ -217,33 +207,6 @@ export class ScheduleCalendar {
       : startOfDay(this.anchor());
 
     return { from, to: addDays(from, this.daysInWeek()) };
-  });
-
-  /**
-   * The seven days of the week the anchor falls in — the day view's navigation.
-   *
-   * A day at a time is the right amount of schedule on a phone, but it is a poor way to MOVE: getting
-   * to Friday meant four presses of an arrow, or the date picker. The strip makes the week the unit
-   * you navigate and the day the unit you read.
-   *
-   * Only rendered in the day view. Above the breakpoint the week is already on screen, and a strip
-   * pointing at the column beside it would be navigation to where you already are.
-   */
-  protected readonly weekDays = computed(() => {
-    const start = startOfWeek(this.anchor(), { weekStartsOn: 1 });
-    const selected = this.anchor().getTime();
-    const today = startOfDay(new Date()).getTime();
-
-    return WEEKDAY_LABELS.map((label, index) => {
-      const date = addDays(start, index);
-
-      return {
-        date,
-        label,
-        isSelected: date.getTime() === selected,
-        isToday: date.getTime() === today,
-      };
-    });
   });
 
   protected readonly events = computed<CalendarEvent<ScheduledClass>[]>(() =>
@@ -530,18 +493,12 @@ export class ScheduleCalendar {
     }
   }
 
-  protected stepDays(days: number): void {
-    this.anchor.update((current) => addDays(current, days));
-  }
-
-  /** One week in either direction, whichever view is showing. */
+  /**
+   * One week in either direction. The WEEK view's only step — below the breakpoint the strip owns
+   * navigation entirely, arrows included.
+   */
   protected stepWeeks(weeks: number): void {
-    this.stepDays(weeks * 7);
-  }
-
-  /** Jump straight to a day in the strip's week. */
-  protected goToDay(date: Date): void {
-    this.anchor.set(startOfDay(date));
+    this.anchor.update((current) => addDays(current, weeks * 7));
   }
 
   protected goToToday(): void {

@@ -116,6 +116,34 @@ describe('ScheduleCalendar', () => {
     return host.ranges[host.ranges.length - 1];
   }
 
+  /** Moves the view to a given local day. The day view has no day arrows — the strip is its navigation. */
+  function goTo(date: Date): void {
+    const pad = (value: number) => String(value).padStart(2, '0');
+    const input = element().querySelector<HTMLInputElement>('.calendar-jump input')!;
+
+    input.value = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+    input.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+  }
+
+  function daysFromNow(days: number): Date {
+    const now = new Date();
+
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate() + days);
+  }
+
+  /**
+   * The seven weekday buttons, without the arrows either side of them.
+   *
+   * They are deliberately the same control — same class, same size — so the position in the strip is
+   * what tells them apart, exactly as it does for the reader.
+   */
+  function stripDays(): HTMLButtonElement[] {
+    return [
+      ...element().querySelectorAll<HTMLButtonElement>('app-calendar-week-strip .strip-button'),
+    ].slice(1, -1);
+  }
+
   // --- the view mode --------------------------------------------------------
 
   it('renders a single day when nothing can measure the viewport', () => {
@@ -162,20 +190,14 @@ describe('ScheduleCalendar', () => {
     expect(from.getSeconds()).toBe(0);
   });
 
-  it('moves by a day and by a week, in both directions', () => {
+  it('moves by a week in both directions', () => {
     create();
 
     const start = lastRange().from.getTime();
-    const day = 24 * 60 * 60 * 1000;
-
-    click('[aria-label="Następny dzień"]');
-    expect(lastRange().from.getTime()).toBe(start + day);
-
-    click('[aria-label="Poprzedni dzień"]');
-    expect(lastRange().from.getTime()).toBe(start);
+    const week = 7 * 24 * 60 * 60 * 1000;
 
     click('[aria-label="Następny tydzień"]');
-    expect(lastRange().from.getTime()).toBe(start + 7 * day);
+    expect(lastRange().from.getTime()).toBe(start + week);
 
     click('[aria-label="Poprzedni tydzień"]');
     expect(lastRange().from.getTime()).toBe(start);
@@ -197,16 +219,23 @@ describe('ScheduleCalendar', () => {
     expect(from.getDate()).toBe(4);
   });
 
-  it('offers day steps only where a day is what you see', () => {
+  it('gives each view exactly one navigation', () => {
     const emit = stubMatchMedia(true);
     create();
 
-    expect(element().querySelector('[aria-label="Następny dzień"]')).toBeNull();
+    // The week view keeps the toolbar: arrows and "Dziś", with no strip.
+    expect(element().querySelector('app-calendar-week-strip')).toBeNull();
+    expect(element().querySelector('.calendar-today')).not.toBeNull();
 
     emit(false);
     fixture.detectChanges();
 
-    expect(element().querySelector('[aria-label="Następny dzień"]')).not.toBeNull();
+    // The day view is the strip and nothing else. Day arrows and "Dziś" are gone: two navigations for
+    // one view is how a toolbar stops being read at all.
+    expect(element().querySelector('app-calendar-week-strip')).not.toBeNull();
+    expect(element().querySelector('.calendar-nav')).toBeNull();
+    expect(element().querySelector('.calendar-today')).toBeNull();
+    expect(element().querySelectorAll('[aria-label="Następny tydzień"]').length).toBe(1);
   });
 
   // --- the hour column ------------------------------------------------------
@@ -250,8 +279,7 @@ describe('ScheduleCalendar', () => {
     create();
     host.readOnly.set(false);
     // Tomorrow, so every segment is ahead of now whatever time the suite runs at.
-    click('[aria-label="Następny dzień"]');
-    fixture.detectChanges();
+    goTo(daysFromNow(1));
 
     press(segments()[0]);
 
@@ -273,8 +301,7 @@ describe('ScheduleCalendar', () => {
   it('refuses a press in the past on the gesture, without opening anything', () => {
     create();
     host.readOnly.set(false);
-    click('[aria-label="Poprzedni dzień"]');
-    fixture.detectChanges();
+    goTo(daysFromNow(-1));
 
     press(segments()[0]);
 
@@ -288,8 +315,7 @@ describe('ScheduleCalendar', () => {
 
   it('draws nothing at all on a read-only calendar', () => {
     create();
-    click('[aria-label="Następny dzień"]');
-    fixture.detectChanges();
+    goTo(daysFromNow(1));
 
     press(segments()[0]);
 
@@ -302,10 +328,6 @@ describe('ScheduleCalendar', () => {
   });
 
   // --- the day strip --------------------------------------------------------
-
-  function stripDays(): HTMLButtonElement[] {
-    return [...element().querySelectorAll<HTMLButtonElement>('.calendar-strip-day')];
-  }
 
   it('navigates the day view by the week it is in', () => {
     create();
@@ -339,20 +361,17 @@ describe('ScheduleCalendar', () => {
     expect(stripDays()[2].classList).toContain('is-selected');
   });
 
-  it('shows the strip only in the day view, and never two sets of week arrows', () => {
-    const emit = stubMatchMedia(true);
+  it('sizes every cell alike, arrows included', () => {
     create();
 
-    // Above the breakpoint the week is already on screen: a strip would point at the column beside it.
-    expect(stripDays().length).toBe(0);
-    expect(element().querySelectorAll('[aria-label="Następny tydzień"]').length).toBe(1);
+    const cells = [
+      ...element().querySelectorAll<HTMLButtonElement>('app-calendar-week-strip .strip-button'),
+    ];
 
-    emit(false);
-    fixture.detectChanges();
-
-    expect(stripDays().length).toBe(7);
-    // The strip carries the week arrows in the day view; .calendar-nav withholds its own pair.
-    expect(element().querySelectorAll('[aria-label="Następny tydzień"]').length).toBe(1);
+    // Seven days between two arrows, all one control: an arrow is not a different kind of thing from
+    // a day, so it is not a different kind of button either.
+    expect(cells.length).toBe(9);
+    expect(cells.every((cell) => cell.classList.contains('strip-button'))).toBe(true);
   });
 
   // --- rendering ------------------------------------------------------------
@@ -429,7 +448,7 @@ describe('ScheduleCalendar', () => {
 
   it('offers resize handles only where the calendar can be edited', () => {
     create();
-    click('[aria-label="Następny dzień"]');
+    goTo(daysFromNow(1));
     schedule(10);
 
     expect(element().querySelectorAll('.cal-resize-handle').length).toBe(0);
@@ -446,7 +465,7 @@ describe('ScheduleCalendar', () => {
     create();
     host.readOnly.set(false);
     // Yesterday: the calendar can show it, but history is not rearrangeable.
-    click('[aria-label="Poprzedni dzień"]');
+    goTo(daysFromNow(-1));
     schedule(10);
 
     expect(element().querySelectorAll('.cal-resize-handle').length).toBe(0);
@@ -469,7 +488,7 @@ describe('ScheduleCalendar', () => {
   it('will not let a class leave the rendered grid', () => {
     create();
     host.readOnly.set(false);
-    click('[aria-label="Następny dzień"]');
+    goTo(daysFromNow(1));
     schedule(10);
 
     const day = lastRange().from;
@@ -496,7 +515,7 @@ describe('ScheduleCalendar', () => {
   it('reports a move as a new start and a new duration', () => {
     create();
     host.readOnly.set(false);
-    click('[aria-label="Następny dzień"]');
+    goTo(daysFromNow(1));
     const row = schedule(10);
 
     const day = lastRange().from;
@@ -514,7 +533,7 @@ describe('ScheduleCalendar', () => {
   it('refuses a move into the past, and reports nothing', () => {
     create();
     host.readOnly.set(false);
-    click('[aria-label="Następny dzień"]');
+    goTo(daysFromNow(1));
     schedule(10);
 
     const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
@@ -529,7 +548,7 @@ describe('ScheduleCalendar', () => {
   it('ignores a resize that collapses the class below one segment', () => {
     create();
     host.readOnly.set(false);
-    click('[aria-label="Następny dzień"]');
+    goTo(daysFromNow(1));
     schedule(10);
 
     const day = lastRange().from;

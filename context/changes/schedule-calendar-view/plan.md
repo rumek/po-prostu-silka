@@ -419,11 +419,21 @@ end; note in the file header why it is neither `core/` (which holds no component
   day at a time is the right amount of schedule on a phone but a poor way to MOVE: reaching Friday
   meant four presses of an arrow or a trip to the date picker. This is the strip prd-v2 FR-015
   originally specified, back as navigation only — the classes stay in the day grid rather than in a
-  list beneath the chips, which is what that amendment actually dropped. `.calendar-nav` withholds its
-  own week arrows wherever the strip is showing; the two would otherwise sit a centimetre apart. The
-  labels are a written-out constant, not CLDR: Polish abbreviations are `pon.`/`wt.` — four characters
-  with a stop, which do not fit nine cells on a phone — and the narrow forms collide (`p` for both
-  Monday and Friday, `s` for both Saturday and Sunday).
+  list beneath the chips, which is what that amendment actually dropped. The labels are a written-out
+  constant, not CLDR: Polish abbreviations are `pon.`/`wt.` — four characters with a stop, which do not
+  fit nine cells on a phone — and the narrow forms collide (`p` for both Monday and Friday, `s` for
+  both Saturday and Sunday).
+
+  It is its own component, `CalendarWeekStrip` — `ScheduleCalendar` was already carrying a toolbar, a
+  grid, a drag gesture and two overlays. The strip owns no state: it is told which day is current and
+  says which day was asked for. Its nine cells are ONE control, arrows included, at a fixed 32×40 with
+  the label centred both ways: an arrow is not a different kind of thing from a day here, so it is not
+  a different kind of button either.
+
+  And the strip REPLACES the day view's toolbar rather than joining it. The day arrows and "Dziś" are
+  gone below the breakpoint; two navigations for one view is how a toolbar stops being read at all.
+  The cost is real and accepted: returning to today from three weeks out is now the date control's
+  job, not a button's.
 
   Also adapted: the `locale` input is bound to the injected `LOCALE_ID`, not to a hardcoded `'pl'`.
   Hardcoding it made the component demand CLDR data only `app.config.ts` registers, which failed with

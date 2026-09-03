@@ -292,7 +292,10 @@ a requirement from the product PRD, that original is named in parentheses.
   > as layout — a row of seven weekday buttons between week arrows, sitting under the date control,
   > with the day it selects rendered in the day view below. What the earlier amendment dropped was the
   > strip *plus list*; what it took with it was the ability to reach Friday in one press instead of
-  > four. The strip appears only below FR-016's width, where the week is not already on screen.
+  > four. The strip appears only below FR-016's width, where the week is not already on screen, and it
+  > REPLACES the day-by-day controls this requirement originally listed rather than joining them — a
+  > view with two navigations has neither read. Returning to today from a distant week is the date
+  > control's job there.
 - **[modified]** FR-016: From the tablet width up (48rem), the whole week is visible at once, as a
   seven-column view; below that width the day view of FR-015 applies. The switch is automatic and
   follows the viewport. Priority: must-have — was: the same day-grouped list at every width

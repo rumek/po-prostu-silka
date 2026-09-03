@@ -18,49 +18,16 @@
       />
     </label>
 
-    <!-- The day view's navigation: the week you are in, with the day you are reading marked. It
-         carries the week arrows, which is why .calendar-nav withholds its own pair here — two sets
-         of « » a centimetre apart is a worse answer than one. -->
+    <!-- The day view's whole navigation — day arrows and "Dziś" are withheld below, because two
+         navigations for one view is how a toolbar stops being read at all. -->
     @if (!weekView()) {
-      <div class="calendar-strip" role="group" aria-label="Dni tygodnia">
-        <button
-          type="button"
-          class="calendar-step"
-          (click)="stepWeeks(-1)"
-          aria-label="Poprzedni tydzień"
-        >
-          &laquo;
-        </button>
-
-        @for (day of weekDays(); track day.date.getTime()) {
-          <button
-            type="button"
-            class="calendar-strip-day"
-            [class.is-selected]="day.isSelected"
-            [class.is-today]="day.isToday"
-            [attr.aria-current]="day.isSelected ? 'date' : null"
-            [attr.aria-label]="day.date | date: 'EEEE, d MMMM y'"
-            (click)="goToDay(day.date)"
-          >
-            {{ day.label }}
-          </button>
-        }
-
-        <button
-          type="button"
-          class="calendar-step"
-          (click)="stepWeeks(1)"
-          aria-label="Następny tydzień"
-        >
-          &raquo;
-        </button>
-      </div>
+      <app-calendar-week-strip [anchor]="anchor()" (anchorChange)="anchor.set($event)" />
     }
   </div>
 
-  <div class="calendar-nav">
-    <!-- Week steps only where the strip is not already offering them. -->
-    @if (weekView()) {
+  <!-- Only the week view has a toolbar left: below the breakpoint the strip above is all of it. -->
+  @if (weekView()) {
+    <div class="calendar-nav">
       <button
         type="button"
         class="calendar-step"
@@ -69,30 +36,9 @@
       >
         &laquo;
       </button>
-    }
 
-    <!-- Day steps only where a day is what you see. In the week view they would move the week by a
-         day and leave it starting on a Wednesday. -->
-    @if (!weekView()) {
-      <button
-        type="button"
-        class="calendar-step"
-        (click)="stepDays(-1)"
-        aria-label="Poprzedni dzień"
-      >
-        &lsaquo;
-      </button>
-    }
+      <button type="button" class="calendar-today" (click)="goToToday()">Dziś</button>
 
-    <button type="button" class="calendar-today" (click)="goToToday()">Dziś</button>
-
-    @if (!weekView()) {
-      <button type="button" class="calendar-step" (click)="stepDays(1)" aria-label="Następny dzień">
-        &rsaquo;
-      </button>
-    }
-
-    @if (weekView()) {
       <button
         type="button"
         class="calendar-step"
@@ -101,8 +47,8 @@
       >
         &raquo;
       </button>
-    }
-  </div>
+    </div>
+  }
 
   <div class="calendar-header-actions">
     <ng-content select="[calendarHeaderActions]" />
