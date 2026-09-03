@@ -57,9 +57,11 @@ function stubMatchMedia(matches: boolean): (matches: boolean) => void {
       [loading]="loading()"
       [loadFailed]="loadFailed()"
       [readOnly]="readOnly()"
+      [selectable]="selectable()"
       (rangeChange)="ranges.push($event)"
       (rangeDrawn)="drawn.push($event)"
       (classRescheduled)="rescheduled.push($event)"
+      (classSelected)="selected.push($event)"
     >
       <button calendarHeaderActions type="button" class="host-header-action">Dodaj</button>
 
@@ -74,9 +76,11 @@ class Host {
   readonly loading = signal(false);
   readonly loadFailed = signal(false);
   readonly readOnly = signal(true);
+  readonly selectable = signal(false);
   readonly ranges: CalendarRange[] = [];
   readonly drawn: DrawnRange[] = [];
   readonly rescheduled: RescheduledClass[] = [];
+  readonly selected: ScheduledClass[] = [];
 }
 
 describe('ScheduleCalendar', () => {
@@ -124,6 +128,16 @@ describe('ScheduleCalendar', () => {
     input.value = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
     input.dispatchEvent(new Event('change'));
     fixture.detectChanges();
+  }
+
+  /** A class on the day the view currently shows, at a given local hour. */
+  function tileAt(hour: number, over: Partial<ScheduledClass> = {}): ScheduledClass {
+    const start = lastRange().from;
+
+    return at(
+      new Date(start.getFullYear(), start.getMonth(), start.getDate(), hour, 0).toString(),
+      over,
+    );
   }
 
   function daysFromNow(days: number): Date {
@@ -653,6 +667,77 @@ describe('ScheduleCalendar', () => {
     create();
 
     expect(element().querySelector('.host-header-action')).not.toBeNull();
+  });
+
+  // --- selection ------------------------------------------------------------
+  //
+  // `selectable` and `readOnly` are separate concepts and these tests exist to keep them separate:
+  // the member schedule is read-only in every sense that word covers AND opens a class on tap, which
+  // one flag cannot express.
+
+  it('emits nothing on a tile that is not selectable', () => {
+    create();
+    host.classes.set([tileAt(10)]);
+    fixture.detectChanges();
+
+    // Not "a click that does nothing" — there is no button at all, so there is nothing to tab to
+    // either. That is the property worth pinning.
+    expect(element().querySelector('.calendar-tile-button')).toBeNull();
+
+    element().querySelector<HTMLElement>('.calendar-tile')!.click();
+    fixture.detectChanges();
+
+    expect(host.selected.length).toBe(0);
+  });
+
+  it('emits the real row when a selectable tile is activated', () => {
+    create();
+    host.selectable.set(true);
+    host.classes.set([tileAt(10, { name: 'Pilates' })]);
+    fixture.detectChanges();
+
+    click('.calendar-tile-button');
+
+    expect(host.selected.length).toBe(1);
+    // The real ScheduledClass, not a reconstruction from what the library kept.
+    expect(host.selected[0].name).toBe('Pilates');
+  });
+
+  it('makes a selectable tile a real button, so the keyboard reaches it', () => {
+    create();
+    host.selectable.set(true);
+    host.classes.set([tileAt(10)]);
+    fixture.detectChanges();
+
+    const tile = element().querySelector<HTMLButtonElement>('.calendar-tile-button')!;
+
+    // A <button> is what makes Enter, Space and the tab order work without this component
+    // reimplementing any of them. Asserting the tag rather than a keydown handler is the point.
+    expect(tile.tagName).toBe('BUTTON');
+    expect(tile.type).toBe('button');
+
+    // Keyboard activation goes through the same path as a pointer, because the browser makes it.
+    tile.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    fixture.detectChanges();
+
+    expect(host.selected.length).toBe(1);
+  });
+
+  it('still refuses drag, resize, draw and actions on a selectable calendar', () => {
+    create();
+    host.selectable.set(true);
+    host.classes.set([tileAt(10)]);
+    fixture.detectChanges();
+
+    // The whole reason selection got its own input. readOnly is untouched here and must still gate
+    // all four of the things it has always gated.
+    const week = fixture.debugElement.query(By.directive(CalendarWeekViewComponent))
+      .componentInstance as CalendarWeekViewComponent;
+
+    expect(week.events[0].draggable).toBe(false);
+    expect(week.events[0].resizable).toEqual({ beforeStart: false, afterEnd: false });
+    expect(element().querySelector('.host-row-action')).toBeNull();
+    expect(element().querySelector('.calendar-segment-drawable')).toBeNull();
   });
 
   it('renders per-class actions only when the screen is not read-only', () => {

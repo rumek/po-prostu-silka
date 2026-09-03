@@ -40,6 +40,12 @@ const MESSAGES: Record<ClassFailure['reason'], string> = {
   // stale and "pick someone else" is the whole of the useful advice.
   unknown_instructor: 'Wybierz prowadzącego z listy aktywnych trenerów.',
   instructor_not_trainer: 'Wybierz prowadzącego z listy aktywnych trenerów.',
+  // S-08. Each names the booking that blocks the action, because "cannot" without "why" reads as a
+  // bug — and in all three cases there is something the admin can actually do about it.
+  has_bookings: 'Na te zajęcia ktoś się już zapisał, więc nie można ich usunąć.',
+  capacity_below_bookings:
+    'Liczba miejsc nie może być mniejsza niż liczba zapisanych osób. Zwolnij miejsce albo zostaw większą liczbę.',
+  conflict: 'Zapisy na te zajęcia właśnie się zmieniły. Odśwież stronę i spróbuj ponownie.',
 };
 
 /** The fallback for a refusal with no reason, or one this build does not know. */

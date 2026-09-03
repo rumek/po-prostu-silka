@@ -799,9 +799,9 @@ required `SET` options; EF Core's connections do, hand-run raw SQL sessions may 
 
 #### Automated
 
-- [x] 2.1 Solution builds warning-free
-- [x] 2.2 All tests pass
-- [x] 2.3 The member schedule for a week issues one SQL statement
+- [x] 2.1 Solution builds warning-free — 9f03111
+- [x] 2.2 All tests pass — 9f03111
+- [x] 2.3 The member schedule for a week issues one SQL statement — 9f03111
 
 #### Manual
 
@@ -814,10 +814,10 @@ required `SET` options; EF Core's connections do, hand-run raw SQL sessions may 
 
 #### Automated
 
-- [ ] 3.1 Frontend unit tests pass
-- [ ] 3.2 Lint and format clean
-- [ ] 3.3 Frontend builds within budget
-- [ ] 3.4 Backend tests still pass
+- [x] 3.1 Frontend unit tests pass
+- [x] 3.2 Lint and format clean
+- [x] 3.3 Frontend builds within budget
+- [x] 3.4 Backend tests still pass
 
 #### Manual
 

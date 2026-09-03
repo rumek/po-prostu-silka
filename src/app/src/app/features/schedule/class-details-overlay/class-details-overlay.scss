@@ -1,0 +1,99 @@
+// Layout only — .card/.button/.alert/.hint come from src/styles.scss.
+//
+// Deliberately the same structure as features/admin/classes/class-create-overlay.scss: the two
+// overlays sit over the same calendar and must not read as two different mechanisms.
+
+:host {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+}
+
+.overlay-backdrop {
+  position: absolute;
+  inset: 0;
+  // A button reset: it exists for the click target and the keyboard, not for the chrome.
+  border: 0;
+  padding: 0;
+  background: color-mix(in srgb, var(--ink) 35%, transparent);
+  cursor: pointer;
+}
+
+.overlay-panel {
+  position: relative;
+  width: 100%;
+  max-width: 26rem;
+  max-height: 100%;
+  overflow-y: auto;
+  padding: var(--space-5);
+}
+
+.overlay-title {
+  margin: 0 0 var(--space-2);
+  font-size: 1.125rem;
+  overflow-wrap: anywhere;
+}
+
+.overlay-when {
+  margin: 0 0 var(--space-3);
+  color: var(--muted);
+  &::first-letter {
+    text-transform: uppercase;
+  }
+}
+
+.overlay-description {
+  margin: 0 0 var(--space-4);
+  overflow-wrap: anywhere;
+}
+
+.overlay-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin: 0 0 var(--space-4);
+
+  dt {
+    color: var(--muted);
+    font-size: 0.8125rem;
+  }
+
+  dd {
+    margin: 0;
+    font-weight: 600;
+  }
+}
+
+.overlay-full {
+  color: var(--danger);
+}
+
+.overlay-booked {
+  // Takes the whole row so the cancel button lands beneath it rather than beside it — the sentence
+  // is context for the action, not a label on it.
+  flex: 1 0 100%;
+  margin: 0;
+  color: var(--muted);
+}
+
+.overlay-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+.link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}

@@ -1,0 +1,81 @@
+<!-- A button, not a styled div: it carries the click-outside-to-close affordance but is focusable and
+     answers the keyboard. Escape is bound on the host so it works wherever focus happens to be. -->
+<button
+  type="button"
+  class="overlay-backdrop"
+  aria-label="Zamknij szczegóły zajęć"
+  (click)="close()"
+></button>
+
+<div class="card overlay-panel" role="dialog" aria-modal="true" aria-labelledby="details-title">
+  <h2 id="details-title" class="overlay-title">{{ row().name }}</h2>
+
+  <p class="overlay-when">
+    {{ row().startsAt | date: 'EEEE, d MMMM' }}, {{ row().startsAt | date: 'HH:mm' }}–{{
+      endsAt() | date: 'HH:mm'
+    }}
+  </p>
+
+  <!-- The class type's description, shown here for the first time anywhere in the app (S-05 defined
+       it and gave it nowhere to live). Omitted entirely when absent rather than left as an empty
+       paragraph, which would open a gap the reader has to interpret. -->
+  @if (row().description) {
+    <p class="overlay-description">{{ row().description }}</p>
+  }
+
+  <dl class="overlay-facts">
+    <div>
+      <dt>Prowadzący</dt>
+      <dd>{{ row().instructor }}</dd>
+    </div>
+    <div>
+      <dt>Wolne miejsca</dt>
+      <dd>
+        @if (full()) {
+          <span class="overlay-full">Brak miejsc</span>
+        } @else {
+          {{ row().freeSpots }} / {{ row().capacity }}
+        }
+      </dd>
+    </div>
+  </dl>
+
+  @if (error()) {
+    <p class="alert" role="alert">{{ error() }}</p>
+  }
+
+  <!-- A withheld action needs a reason, or it reads as broken rather than deliberate — the same rule
+       the admin panel applies to a past week. Only shown when there is genuinely nothing to offer:
+       a booked member keeps their Cancel button even after the class has started. -->
+  @if (!canBook() && !canCancel()) {
+    <p class="hint" role="status">
+      @if (started()) {
+        Te zajęcia już się rozpoczęły — zapisy są zamknięte.
+      } @else {
+        Brak wolnych miejsc. Zajrzyj później — ktoś może zrezygnować.
+      }
+    </p>
+  }
+
+  <div class="overlay-actions">
+    @if (canBook()) {
+      <button type="button" class="button" [disabled]="busy()" (click)="book.emit()">
+        {{ busy() ? 'Zapisywanie…' : 'Zapisz się' }}
+      </button>
+    }
+
+    @if (canCancel()) {
+      <p class="overlay-booked" role="status">Jesteś zapisany na te zajęcia.</p>
+      <button
+        type="button"
+        class="button button--secondary"
+        [disabled]="busy()"
+        (click)="cancelBooking.emit()"
+      >
+        {{ busy() ? 'Anulowanie…' : 'Anuluj zapis' }}
+      </button>
+    }
+
+    <button type="button" class="link-button" (click)="close()">Zamknij</button>
+  </div>
+</div>

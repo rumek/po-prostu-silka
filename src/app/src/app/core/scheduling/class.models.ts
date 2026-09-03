@@ -40,9 +40,9 @@ export interface ScheduledClass {
   capacity: number;
 
   /**
-   * Read this, never assume it equals capacity. It does today only because Booking does not exist
-   * until S-08 — that slice changes one projection expression on the server and this field starts
-   * differing without any change here.
+   * How many spots are left. REAL since S-08 — it was equal to capacity only while nothing could be
+   * booked. Read it, never derive it: the server counts active bookings, and it is deliberately not
+   * clamped at zero, so a negative value would mean a broken invariant rather than a full class.
    */
   freeSpots: number;
 
@@ -92,9 +92,14 @@ export interface DuplicateResult {
 /**
  * Mirrors ClassFailure. Every reason the API can refuse a class write.
  *
- * `time_conflict` is the only 409 — it is a clash with existing state rather than bad input, and the
- * form maps it onto the start-time field rather than showing a banner. It replaced `room_conflict`
- * when the overlap rule widened from one room to the whole club (prd-v2 FR-012).
+ * Four are 409s — a clash with existing state rather than bad input. `time_conflict` is the one the
+ * form maps onto the start-time field rather than showing a banner; it replaced `room_conflict` when
+ * the overlap rule widened from one room to the whole club (prd-v2 FR-012).
+ *
+ * S-08 ADDED THREE MORE, all 409s, and all consequences of bookings existing: `has_bookings` refuses
+ * a delete once anyone has ever booked the class, `capacity_below_bookings` refuses an edit that
+ * would shrink it below the number already signed up, and `conflict` means a booking committed
+ * between the server's check and its write.
  */
 export interface ClassFailure {
   reason:
@@ -109,7 +114,10 @@ export interface ClassFailure {
     | 'inactive_class_type'
     | 'class_type_immutable'
     | 'unknown_instructor'
-    | 'instructor_not_trainer';
+    | 'instructor_not_trainer'
+    | 'has_bookings'
+    | 'capacity_below_bookings'
+    | 'conflict';
 }
 
 /**

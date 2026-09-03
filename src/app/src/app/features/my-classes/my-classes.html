@@ -1,0 +1,52 @@
+<h1>Moje zajęcia</h1>
+<p class="hint">Zajęcia, na które jesteś zapisany. Zapis możesz anulować w dowolnym momencie.</p>
+
+<!-- The loading / error / empty / content tri-state, in the order members.html established. Each
+     branch is exclusive: a list that showed an empty state while still loading would tell the member
+     they have no classes before it knows. -->
+@if (loading()) {
+  <p class="notice" role="status">Wczytywanie…</p>
+} @else if (loadFailed()) {
+  <p class="alert" role="alert">
+    Nie udało się wczytać zapisów.
+    <button type="button" class="link-button" (click)="load()">Spróbuj ponownie</button>
+  </p>
+} @else if (rows().length === 0) {
+  <!-- An empty state that leads somewhere. "Nothing here" with no next step is the one version of
+       this screen a new member will always see first. -->
+  <p class="notice" role="status">
+    Nie masz jeszcze żadnych zapisów.
+    <a routerLink="/schedule">Zobacz grafik zajęć</a>
+  </p>
+} @else {
+  <ul class="my-classes-list">
+    @for (row of rows(); track row.bookingId) {
+      <li class="card my-classes-row">
+        <div class="my-classes-details">
+          <p class="my-classes-when">
+            {{ row.startsAt | date: 'EEEE, d MMMM' }}, {{ row.startsAt | date: 'HH:mm' }}–{{
+              endsAt(row) | date: 'HH:mm'
+            }}
+          </p>
+          <p class="my-classes-name">{{ row.name }}</p>
+          <p class="my-classes-meta">{{ row.instructor }}</p>
+        </div>
+
+        <div class="my-classes-actions">
+          <button
+            type="button"
+            class="button button--secondary"
+            [disabled]="isBusy(row.classId)"
+            (click)="cancel(row)"
+          >
+            {{ isBusy(row.classId) ? 'Anulowanie…' : 'Anuluj zapis' }}
+          </button>
+
+          @if (failedId() === row.bookingId) {
+            <p class="field-error" role="alert">{{ failure() }}</p>
+          }
+        </div>
+      </li>
+    }
+  </ul>
+}

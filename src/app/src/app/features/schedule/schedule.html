@@ -1,13 +1,19 @@
 <h1>Grafik zajęć</h1>
-<p class="hint">Zapisy pojawią się wkrótce.</p>
+<p class="hint">Wybierz zajęcia, aby zobaczyć szczegóły i się zapisać.</p>
 
 <!-- Loading, failure and the empty state all live inside the calendar: it keeps the grid mounted
-     through all three, so navigating between weeks never makes the page jump. -->
+     through all three, so navigating between weeks never makes the page jump.
+
+     `selectable`, not `readOnly`: the member schedule stays read-only in every sense that word
+     covers — no drag, no resize, no draw, no actions — and selection is a separate concept with a
+     separate input. See the calendar component. -->
 <app-schedule-calendar
   [classes]="rows()"
   [loading]="loading()"
   [loadFailed]="loadFailed()"
+  [selectable]="true"
   (rangeChange)="load($event)"
+  (classSelected)="openDetails($event)"
 />
 
 @if (loadFailed()) {
@@ -16,4 +22,16 @@
   <p class="alert" role="alert">
     <button type="button" class="link-button" (click)="reload()">Spróbuj ponownie</button>
   </p>
+}
+
+@if (selected(); as row) {
+  <app-class-details-overlay
+    [row]="row"
+    [booked]="isBooked(row.id)"
+    [busy]="acting()"
+    [error]="actionError()"
+    (book)="book()"
+    (cancelBooking)="cancel()"
+    (closed)="closeDetails()"
+  />
 }

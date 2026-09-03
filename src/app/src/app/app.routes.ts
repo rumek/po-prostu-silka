@@ -37,6 +37,13 @@ export const routes: Routes = [
     loadComponent: () => import('./features/schedule/schedule').then((m) => m.Schedule),
     canActivate: [authGuard, activeMemberGuard],
   },
+  // LAZY TOO, but for the opposite reason: /my-classes must not pull the calendar in, and loading it
+  // eagerly beside routes that do is how it eventually would. It is a plain list by design (FR-010).
+  {
+    path: 'my-classes',
+    loadComponent: () => import('./features/my-classes/my-classes').then((m) => m.MyClasses),
+    canActivate: [authGuard, activeMemberGuard],
+  },
   {
     path: 'admin/classes',
     loadComponent: () => import('./features/admin/classes/classes').then((m) => m.Classes),

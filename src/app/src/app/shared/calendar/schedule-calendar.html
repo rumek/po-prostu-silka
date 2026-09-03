@@ -141,28 +141,56 @@
   </div>
 </ng-template>
 
-<ng-template #tile let-weekEvent="weekEvent">
-  <div class="calendar-tile">
-    <p class="calendar-tile-time">
-      {{ weekEvent.event.start | date: 'HH:mm' }}–{{ weekEvent.event.end | date: 'HH:mm' }}
-    </p>
-    <p class="calendar-tile-name">{{ weekEvent.event.meta.name }}</p>
-    <p class="calendar-tile-meta">{{ weekEvent.event.meta.instructor }}</p>
-    <p class="calendar-tile-spots">
-      @if (weekEvent.event.meta.freeSpots > 0) {
-        {{ weekEvent.event.meta.freeSpots }} / {{ weekEvent.event.meta.capacity }} wolnych
-      } @else {
-        <span class="calendar-tile-full">Brak miejsc</span>
-      }
-    </p>
+<!-- A real <button> when the tile opens something, a plain <div> when it does not — rather than one
+     element with a click handler and a role. The button is what makes Enter, Space and the tab order
+     work without this component reimplementing any of them, and rendering the two shapes separately
+     is what stops a non-selectable calendar (the admin's) from being focusable at all.
 
-    @if (!readOnly() && classActions()) {
-      <div class="calendar-tile-actions">
-        <ng-container
-          [ngTemplateOutlet]="classActions()!"
-          [ngTemplateOutletContext]="{ $implicit: weekEvent.event.meta }"
-        />
-      </div>
+     The admin's tile keeps its projected actions, which are buttons: nesting those inside a button
+     would be invalid HTML, and cannot happen — `selectable` is false on that screen, and the actions
+     are gated on `readOnly` being false. -->
+<ng-template #tile let-weekEvent="weekEvent">
+  @if (selectable()) {
+    <button
+      type="button"
+      class="calendar-tile calendar-tile-button"
+      (click)="classSelected.emit(weekEvent.event.meta)"
+    >
+      <ng-container
+        [ngTemplateOutlet]="tileBody"
+        [ngTemplateOutletContext]="{ weekEvent: weekEvent }"
+      />
+    </button>
+  } @else {
+    <div class="calendar-tile">
+      <ng-container
+        [ngTemplateOutlet]="tileBody"
+        [ngTemplateOutletContext]="{ weekEvent: weekEvent }"
+      />
+
+      @if (!readOnly() && classActions()) {
+        <div class="calendar-tile-actions">
+          <ng-container
+            [ngTemplateOutlet]="classActions()!"
+            [ngTemplateOutletContext]="{ $implicit: weekEvent.event.meta }"
+          />
+        </div>
+      }
+    </div>
+  }
+</ng-template>
+
+<ng-template #tileBody let-weekEvent="weekEvent">
+  <p class="calendar-tile-time">
+    {{ weekEvent.event.start | date: 'HH:mm' }}–{{ weekEvent.event.end | date: 'HH:mm' }}
+  </p>
+  <p class="calendar-tile-name">{{ weekEvent.event.meta.name }}</p>
+  <p class="calendar-tile-meta">{{ weekEvent.event.meta.instructor }}</p>
+  <p class="calendar-tile-spots">
+    @if (weekEvent.event.meta.freeSpots > 0) {
+      {{ weekEvent.event.meta.freeSpots }} / {{ weekEvent.event.meta.capacity }} wolnych
+    } @else {
+      <span class="calendar-tile-full">Brak miejsc</span>
     }
-  </div>
+  </p>
 </ng-template>

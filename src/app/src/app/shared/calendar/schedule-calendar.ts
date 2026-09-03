@@ -154,6 +154,20 @@ export class ScheduleCalendar {
    */
   readonly readOnly = input(true);
 
+  /**
+   * Whether a tile opens something when activated.
+   *
+   * A SEPARATE CONCEPT FROM {@link readOnly}, and separately named on purpose. `readOnly` gates
+   * GESTURES — drag, resize, draw — and the projected action template; selection is neither. The
+   * member schedule is read-only in every one of those senses and still has to open a class, so
+   * folding the two together would mean either giving the member drag handles or giving up the
+   * detail overlay.
+   *
+   * Defaults to false for the same reason `readOnly` defaults to true: the surface that must never
+   * grow behaviour by accident is the one that gets the inert default.
+   */
+  readonly selectable = input(false);
+
   /** The visible window changed — fetch for it. Emitted on init too, which is the first load. */
   readonly rangeChange = output<CalendarRange>();
 
@@ -178,6 +192,16 @@ export class ScheduleCalendar {
    * draggable or resizable, so there is no gesture to emit.
    */
   readonly classRescheduled = output<RescheduledClass>();
+
+  /**
+   * A tile was activated — by pointer or by keyboard (prd.md US-01). Carries the real row, not the
+   * library's wrapper.
+   *
+   * Only ever emitted while {@link selectable}, which the template enforces structurally: the tile
+   * is rendered as a `<button>` in that case and as a plain `<div>` otherwise, so a non-selectable
+   * calendar has nothing to activate rather than a handler that declines.
+   */
+  readonly classSelected = output<ScheduledClass>();
 
   /**
    * Per-class actions, projected by the screen that has any. Receives the `ScheduledClass` as

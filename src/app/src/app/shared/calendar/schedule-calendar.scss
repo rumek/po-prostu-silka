@@ -178,6 +178,22 @@
   }
 }
 
+// The selectable variant is a <button>, so it needs the button reset the tile never had — width,
+// text alignment and the UA font all come back wrong otherwise. Everything visual stays on
+// .calendar-tile, which both shapes carry.
+.calendar-tile-button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--section-cool);
+  }
+}
+
 .calendar-tile-time {
   font-variant-numeric: tabular-nums;
   font-weight: 600;

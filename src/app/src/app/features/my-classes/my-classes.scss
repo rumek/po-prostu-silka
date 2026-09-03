@@ -1,0 +1,64 @@
+// Layout only — .card/.button/.button--secondary/.alert/.notice/.field-error/.hint come from
+// src/styles.scss.
+
+.my-classes-list {
+  display: grid;
+  gap: var(--space-3);
+  margin: var(--space-4) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+// Stacked on a phone, side by side once there is room — the action belongs beside the class it acts
+// on wherever it fits, and beneath it where it does not.
+.my-classes-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.my-classes-details {
+  // Takes the remaining width so a long class name wraps rather than pushing the action off the row.
+  flex: 1 1 14rem;
+
+  p {
+    margin: 0;
+  }
+}
+
+.my-classes-when {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  &::first-letter {
+    text-transform: uppercase;
+  }
+}
+
+.my-classes-name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.my-classes-meta {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.my-classes-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
