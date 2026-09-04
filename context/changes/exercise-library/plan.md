@@ -690,9 +690,9 @@ the standard one: migrations run on deploy, and the API tolerates the table bein
 
 #### Automated
 
-- [x] 4.1 Client tests pass (`npm test`)
-- [x] 4.2 Formatting and lint pass (`npm run quality:check`)
-- [x] 4.3 Full server suite still green (`dotnet test`)
+- [x] 4.1 Client tests pass (`npm test`) — 0b15c0f
+- [x] 4.2 Formatting and lint pass (`npm run quality:check`) — 0b15c0f
+- [x] 4.3 Full server suite still green (`dotnet test`) — 0b15c0f
 
 #### Manual
 
