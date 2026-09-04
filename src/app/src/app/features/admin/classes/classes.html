@@ -50,14 +50,29 @@
     >
       Zapisani
     </button>
-    <button
-      type="button"
-      class="link-button"
-      [disabled]="isBusy(row.id)"
-      (click)="confirmDelete(row)"
-    >
-      Usuń
-    </button>
+    <!-- ONE button, not two. A class somebody is signed up for is cancelled, never deleted (FR-013);
+         one nobody booked is deleted, because cancelling it would send zero messages and hide it
+         from the schedule for nothing. A fifth button is what would make this tile wrap on a
+         phone. -->
+    @if (canCancel(row)) {
+      <button
+        type="button"
+        class="link-button"
+        [disabled]="isBusy(row.id)"
+        (click)="confirmCancel(row)"
+      >
+        Odwołaj
+      </button>
+    } @else {
+      <button
+        type="button"
+        class="link-button"
+        [disabled]="isBusy(row.id)"
+        (click)="confirmDelete(row)"
+      >
+        Usuń
+      </button>
+    }
 
     @if (failedId() === row.id) {
       <p class="field-error" role="alert">Nie udało się. Spróbuj ponownie.</p>
@@ -103,6 +118,40 @@
     </button>
     <button type="button" class="link-button" (click)="cancelDelete()">Anuluj</button>
   </div>
+}
+
+<!-- IRREVERSIBLE, and unlike the delete beside it, it also sends mail the moment it succeeds. So it
+     says out loud what it is about to do and to how many people, rather than asking "na pewno?" -->
+@if (confirmingCancel(); as row) {
+  <div class="card classes-panel">
+    <p class="classes-panel-subject">
+      Odwołać „{{ row.name }}” z {{ row.startsAt | date: 'd MMMM, HH:mm' }}?
+      @if (bookedCount(row) > 0) {
+        <span class="classes-panel-detail">
+          Powiadomimy {{ bookedCount(row) }} zapisanych osób e-mailem i powiadomieniem. Tej operacji
+          nie można cofnąć.
+        </span>
+      } @else {
+        <span class="classes-panel-detail">Tej operacji nie można cofnąć.</span>
+      }
+    </p>
+
+    <button type="button" class="button" [disabled]="isBusy(row.id)" (click)="cancel(row)">
+      {{ isBusy(row.id) ? 'Odwoływanie…' : 'Tak, odwołaj' }}
+    </button>
+    <button type="button" class="link-button" (click)="closeCancel()">Wróć</button>
+  </div>
+}
+
+<!-- The way out of the has_bookings refusal. The tile could not know: it sees active bookings, the
+     server counts every booking that ever existed. -->
+@if (deleteBlockedBy(); as row) {
+  <p class="notice classes-blocked" role="status">
+    Zamiast usuwać, możesz odwołać te zajęcia — zapisani dowiedzą się o tym.
+    <button type="button" class="link-button" (click)="cancelInstead()">
+      Odwołaj zamiast tego
+    </button>
+  </p>
 }
 
 @if (loadFailed()) {

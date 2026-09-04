@@ -74,6 +74,19 @@ export class Classes {
   /** Which class is asking to confirm a delete. */
   protected readonly confirmingDelete = signal<ScheduledClass | null>(null);
 
+  /** Which class is asking to confirm a CANCELLATION (S-09). A different action, so a different panel. */
+  protected readonly confirmingCancel = signal<ScheduledClass | null>(null);
+
+  /**
+   * Whether the delete refusal on screen is the one cancelling can resolve.
+   *
+   * The tile cannot tell: it sees ACTIVE bookings only, while the server's `has_bookings` guard
+   * refuses a delete once a class has EVER been booked, cancelled bookings included. So a class
+   * everybody has since released offers "Usuń", gets refused, and would otherwise dead-end. This
+   * flag turns that refusal into the one action that does work.
+   */
+  protected readonly deleteBlockedBy = signal<ScheduledClass | null>(null);
+
   /**
    * Which class has its sign-up list open (prd.md FR-014).
    *
@@ -101,6 +114,8 @@ export class Classes {
     // A window change invalidates any open panel: its class may not even be on screen any more.
     this.duplicating.set(null);
     this.confirmingDelete.set(null);
+    this.confirmingCancel.set(null);
+    this.deleteBlockedBy.set(null);
     this.viewingBookings.set(null);
     this.drawn.set(null);
 
@@ -142,6 +157,7 @@ export class Classes {
     this.failedId.set(null);
     this.duplicating.set(null);
     this.confirmingDelete.set(null);
+    this.confirmingCancel.set(null);
     this.drawn.set(range);
   }
 
@@ -217,6 +233,7 @@ export class Classes {
     this.notice.set(null);
     this.failedId.set(null);
     this.confirmingDelete.set(null);
+    this.confirmingCancel.set(null);
     this.viewingBookings.set(null);
     this.duplicating.set(this.duplicating()?.id === row.id ? null : row);
   }
@@ -227,6 +244,7 @@ export class Classes {
     this.failedId.set(null);
     this.duplicating.set(null);
     this.confirmingDelete.set(null);
+    this.confirmingCancel.set(null);
     this.viewingBookings.set(row);
   }
 
@@ -302,6 +320,7 @@ export class Classes {
     this.notice.set(null);
     this.failedId.set(null);
     this.duplicating.set(null);
+    this.confirmingCancel.set(null);
     this.viewingBookings.set(null);
     this.confirmingDelete.set(row);
   }
@@ -331,8 +350,110 @@ export class Classes {
 
       this.notice.set(classFailureMessage(reason));
       this.failedId.set(row.id);
+
+      // The dead end S-09 closes. The tile offered "Usuń" because every booking on this class has
+      // since been released; the server refuses anyway, because it counts bookings that ever
+      // existed. Cancelling is the action the admin actually wanted, and it is now one click away
+      // instead of unreachable.
+      if (reason === 'has_bookings' && row.status === 'Scheduled') {
+        this.deleteBlockedBy.set(row);
+      }
     } finally {
       this.setBusy(row.id, false);
+    }
+  }
+
+  /**
+   * Which of the two destructive actions this class offers (S-09; prd.md FR-013).
+   *
+   * ONE BUTTON, NOT TWO. The tile already carries four actions and is tight on a phone; a fifth
+   * would be the one that pushes the row to wrap. The two are mutually exclusive anyway — a class
+   * somebody is signed up for cannot be deleted, and cancelling one nobody booked would send zero
+   * messages and hide it from the schedule for no reason.
+   *
+   * A cancelled class offers neither: cancelling it again is refused with `already_cancelled`, so
+   * it falls through to "Usuń", which is honest — the record can still be removed once its bookings
+   * are gone, and the server says so when they are not.
+   */
+  protected canCancel(row: ScheduledClass): boolean {
+    return row.status === 'Scheduled' && row.freeSpots < row.capacity;
+  }
+
+  /** How many people the cancellation will email and push. Derived — the wire carries free spots. */
+  protected bookedCount(row: ScheduledClass): number {
+    return row.capacity - row.freeSpots;
+  }
+
+  protected confirmCancel(row: ScheduledClass): void {
+    this.notice.set(null);
+    this.failedId.set(null);
+    this.deleteBlockedBy.set(null);
+    this.duplicating.set(null);
+    this.confirmingDelete.set(null);
+    this.viewingBookings.set(null);
+    this.confirmingCancel.set(row);
+  }
+
+  protected closeCancel(): void {
+    this.confirmingCancel.set(null);
+  }
+
+  /**
+   * The transition itself.
+   *
+   * NOT a local status patch: the response is the class as the server now holds it, and taking it
+   * whole is what keeps `freeSpots` honest if a booking committed between the click and the write.
+   * Fenced like every other write here — a week change while this is in flight must not paint a row
+   * onto a window it does not belong to.
+   */
+  protected async cancel(row: ScheduledClass): Promise<void> {
+    this.failedId.set(null);
+    this.notice.set(null);
+    this.deleteBlockedBy.set(null);
+    this.setBusy(row.id, true);
+
+    const generation = this.generation;
+    const told = this.bookedCount(row);
+
+    try {
+      const updated = await this.classes.cancel(row.id);
+
+      if (generation !== this.generation) {
+        return;
+      }
+
+      this.confirmingCancel.set(null);
+      this.rows.update((rows) => rows.map((r) => (r.id === updated.id ? updated : r)));
+
+      // Says what actually happened, like the duplicate outcome does. The messages are the point of
+      // the action, and nothing else on this screen will ever show that they went out.
+      this.notice.set(
+        told === 0
+          ? `Odwołano „${row.name}”.`
+          : `Odwołano „${row.name}”. Powiadomiliśmy ${told} ${this.peopleWord(told)}.`,
+      );
+    } catch (failure) {
+      if (generation !== this.generation) {
+        return;
+      }
+
+      // class_started and already_cancelled both land here, and both read through the shared table.
+      const reason = ((failure as HttpErrorResponse)?.error as { reason?: string } | undefined)
+        ?.reason;
+
+      this.notice.set(classFailureMessage(reason));
+      this.failedId.set(row.id);
+    } finally {
+      this.setBusy(row.id, false);
+    }
+  }
+
+  /** The one action that resolves a `has_bookings` refusal — see `deleteBlockedBy`. */
+  protected cancelInstead(): void {
+    const row = this.deleteBlockedBy();
+
+    if (row) {
+      this.confirmCancel(row);
     }
   }
 
@@ -351,6 +472,19 @@ export class Classes {
     const isFew = last >= 2 && last <= 4 && !(lastTwo >= 12 && lastTwo <= 14);
 
     return isFew ? 'kopie' : 'kopii';
+  }
+
+  /** Polish plural for "osoba" in the accusative the notice needs — 1 osobę, 2–4 osoby, else osób. */
+  private peopleWord(count: number): string {
+    if (count === 1) {
+      return 'osobę';
+    }
+
+    const lastTwo = count % 100;
+    const last = count % 10;
+    const isFew = last >= 2 && last <= 4 && !(lastTwo >= 12 && lastTwo <= 14);
+
+    return isFew ? 'osoby' : 'osób';
   }
 
   private setBusy(id: string, value: boolean): void {

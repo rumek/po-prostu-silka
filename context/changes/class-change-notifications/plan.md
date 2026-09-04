@@ -519,6 +519,13 @@ shows "Usuń" and is refused. Rather than widening the wire contract with a "has
 field, the existing `has_bookings` refusal message gains one action: "Odwołaj zamiast tego", which
 opens the cancel confirmation. The dead end becomes one click, and the tile keeps four buttons.
 
+**Adapted during implementation.** The tile rule needed a second clause: `row.status === 'Scheduled'`
+alongside `row.freeSpots < row.capacity`. Without it a class already cancelled keeps offering
+"Odwołaj", and every click is refused with `already_cancelled` — a button whose only outcome is an
+error message. A cancelled class falls through to "Usuń", which is honest: its record can still be
+removed once its bookings are gone, and the server says so when they are not. The same guard gates
+the `has_bookings` escape hatch, so the refusal never routes an admin from one dead end into another.
+
 #### 3. The confirmation panel
 
 **File**: `src/app/src/app/features/admin/classes/classes.html` / `classes.ts` / `classes.scss`
@@ -530,6 +537,14 @@ and its date and stating both how many members will be notified (derivable as
 `row.capacity - row.freeSpots`) and that the action cannot be undone. On success the calendar
 refreshes and the notice line reports what happened. `class_started` and `already_cancelled` render
 through the extended failure map from Phase 1.
+
+**Adapted during implementation.** "On success the calendar refreshes" is a ROW REPLACEMENT, not a
+refetch. `POST /cancel` answers with the class as the server now holds it, so the response replaces
+that one row: it carries the new status and a `freeSpots` that accounts for any booking which
+committed between the click and the write. A refetch would cost a round trip to learn what the
+response already said, and would repaint every other tile on the way. The write is fenced by the
+same generation counter as `reschedule` and `duplicate` — a week change in flight must not paint a
+row onto a window it does not belong to.
 
 #### 4. Tests
 
@@ -679,11 +694,11 @@ column and the enum value predate this slice.
 
 #### Automated
 
-- [x] 3.1 Backend builds warning-free and all tests pass
-- [x] 3.2 The push payload test asserts a `notification` object with a non-empty `title`
-- [x] 3.3 Frontend unit tests pass
-- [x] 3.4 Lint and format clean
-- [x] 3.5 Frontend builds within budget
+- [x] 3.1 Backend builds warning-free and all tests pass — 97d3a4b
+- [x] 3.2 The push payload test asserts a `notification` object with a non-empty `title` — 97d3a4b
+- [x] 3.3 Frontend unit tests pass — 97d3a4b
+- [x] 3.4 Lint and format clean — 97d3a4b
+- [x] 3.5 Frontend builds within budget — 97d3a4b
 
 #### Manual
 
@@ -697,10 +712,10 @@ column and the enum value predate this slice.
 
 #### Automated
 
-- [ ] 4.1 Frontend unit tests pass
-- [ ] 4.2 Lint and format clean
-- [ ] 4.3 Frontend builds within budget
-- [ ] 4.4 Backend tests still pass
+- [x] 4.1 Frontend unit tests pass
+- [x] 4.2 Lint and format clean
+- [x] 4.3 Frontend builds within budget
+- [x] 4.4 Backend tests still pass
 
 #### Manual
 

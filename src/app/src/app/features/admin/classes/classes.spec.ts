@@ -36,6 +36,9 @@ const JOGA: ScheduledClass = {
   status: 'Scheduled',
 };
 
+/** Somebody is signed up. The only difference that decides which action the tile offers. */
+const BOOKED: ScheduledClass = { ...JOGA, id: 'c3', name: 'Crossfit', freeSpots: 17 };
+
 const PILATES: ScheduledClass = {
   ...JOGA,
   id: 'c2',
@@ -482,6 +485,134 @@ describe('Classes', () => {
 
     // The new action is projected through the same template as the other three, so it is gated by
     // readOnly along with them — this pins that it stayed that way.
+    expect(element().querySelector('.calendar-tile-actions')).toBeNull();
+  });
+  // --- S-09: cancelling, which is not deleting -------------------------------
+
+  it('offers Odwołaj on a booked class and Usuń on an empty one', async () => {
+    await createWith([JOGA, BOOKED]);
+
+    // Exactly one of the two, per tile. A fifth button is what makes this row wrap on a phone.
+    expect(actionIn(tileFor('Crossfit'), 'Odwołaj')).not.toBeUndefined();
+    expect(actionIn(tileFor('Crossfit'), 'Usuń')).toBeUndefined();
+
+    expect(actionIn(tileFor('Joga'), 'Usuń')).not.toBeUndefined();
+    expect(actionIn(tileFor('Joga'), 'Odwołaj')).toBeUndefined();
+  });
+
+  it('offers Usuń on a class already cancelled', async () => {
+    await createWith([{ ...BOOKED, status: 'Cancelled' }]);
+
+    // Cancelling it again is refused with already_cancelled, so offering it would be a dead end.
+    expect(actionIn(tileFor('Crossfit'), 'Odwołaj')).toBeUndefined();
+    expect(actionIn(tileFor('Crossfit'), 'Usuń')).not.toBeUndefined();
+  });
+
+  it('states how many people the cancellation will notify, and that it cannot be undone', async () => {
+    await createWith([BOOKED]);
+
+    actionIn(tileFor('Crossfit'), 'Odwołaj').click();
+    fixture.detectChanges();
+
+    expect(html()).toContain('Odwołać „Crossfit”');
+    // 20 - 17. An admin about to email three people should be told it is three.
+    expect(html()).toContain('Powiadomimy 3');
+    expect(html()).toContain('nie można cofnąć');
+
+    // Nothing has been sent yet - the panel is the question, not the answer.
+    controller.expectNone('/api/admin/classes/c3/cancel');
+  });
+
+  it('cancels the class, keeps it on the calendar, and says who was told', async () => {
+    await createWith([BOOKED]);
+
+    actionIn(tileFor('Crossfit'), 'Odwołaj').click();
+    fixture.detectChanges();
+
+    panelButton('Tak, odwołaj').click();
+    await settle();
+
+    controller.expectOne('/api/admin/classes/c3/cancel').flush({ ...BOOKED, status: 'Cancelled' });
+    await settle();
+
+    // NOT removed, unlike a delete. The transition is the whole point: the admin keeps the record.
+    expect(tiles().length).toBe(1);
+    expect(html()).toContain('Odwołano „Crossfit”');
+    expect(html()).toContain('3 osoby');
+
+    // And the tile stops offering to cancel what is already cancelled.
+    expect(actionIn(tileFor('Crossfit'), 'Odwołaj')).toBeUndefined();
+  });
+
+  it('names class_started rather than saying only that it failed', async () => {
+    await createWith([BOOKED]);
+
+    actionIn(tileFor('Crossfit'), 'Odwołaj').click();
+    fixture.detectChanges();
+
+    panelButton('Tak, odwołaj').click();
+    await settle();
+
+    controller
+      .expectOne('/api/admin/classes/c3/cancel')
+      .flush({ reason: 'class_started' }, { status: 409, statusText: 'Conflict' });
+    await settle();
+
+    expect(tiles().length).toBe(1);
+    expect(html()).toContain('już się rozpoczęły');
+  });
+
+  /**
+   * The dead end this slice closes. The tile sees ACTIVE bookings; the server refuses a delete once
+   * a class has EVER been booked. A class everybody has since released therefore offers "Usuń" and
+   * is refused — and without this route there is nothing left to click.
+   */
+  it('offers the cancel route out of a has_bookings refusal, and it works', async () => {
+    await createWith([JOGA]);
+
+    actionIn(tileFor('Joga'), 'Usuń').click();
+    fixture.detectChanges();
+
+    panelButton('Tak, usuń').click();
+    await settle();
+
+    controller
+      .expectOne('/api/admin/classes/c1')
+      .flush({ reason: 'has_bookings' }, { status: 409, statusText: 'Conflict' });
+    await settle();
+
+    const escape = Array.from(element().querySelectorAll<HTMLButtonElement>('button')).find((b) =>
+      (b.textContent ?? '').includes('Odwołaj zamiast tego'),
+    )!;
+    expect(escape).not.toBeUndefined();
+
+    escape.click();
+    fixture.detectChanges();
+
+    expect(html()).toContain('Odwołać „Joga”');
+
+    panelButton('Tak, odwołaj').click();
+    await settle();
+
+    controller.expectOne('/api/admin/classes/c1/cancel').flush({ ...JOGA, status: 'Cancelled' });
+    await settle();
+
+    expect(html()).toContain('Odwołano „Joga”');
+  });
+
+  it('withholds Odwołaj in a week that has already passed', async () => {
+    await createWith([BOOKED]);
+
+    expect(actionIn(tileFor('Crossfit'), 'Odwołaj')).not.toBeUndefined();
+
+    element().querySelector<HTMLButtonElement>('[aria-label="Poprzedni tydzień"]')!.click();
+    fixture.detectChanges();
+
+    const past = await vi.waitFor(() => adminRequests()[0]);
+    past.flush([{ ...BOOKED, startsAt: new Date(Date.now() - 7 * 86_400_000).toISOString() }]);
+    await settle();
+
+    // Projected through the same template as the other actions, so readOnly withholds it too.
     expect(element().querySelector('.calendar-tile-actions')).toBeNull();
   });
 });

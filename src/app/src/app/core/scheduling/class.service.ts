@@ -80,6 +80,20 @@ export class ClassService {
     await firstValueFrom(this.http.delete<void>(`/api/admin/classes/${encodeURIComponent(id)}`));
   }
 
+  /**
+   * Cancels a class (FR-013, S-09). NOT a delete: the class stays on the admin's calendar as
+   * `Cancelled`, its booking rows stay `Active`, and every member holding one is emailed and pushed
+   * in the same transaction that flipped the status.
+   *
+   * Returns the updated class so the caller can replace its own row rather than refetch — the only
+   * field that moved is `status`, and the tile has to stop offering to cancel it again.
+   */
+  cancel(id: string): Promise<ScheduledClass> {
+    return firstValueFrom(
+      this.http.post<ScheduledClass>(`/api/admin/classes/${encodeURIComponent(id)}/cancel`, {}),
+    );
+  }
+
   duplicate(id: string, weeks: number): Promise<DuplicateResult> {
     return firstValueFrom(
       this.http.post<DuplicateResult>(`/api/admin/classes/${encodeURIComponent(id)}/duplicate`, {

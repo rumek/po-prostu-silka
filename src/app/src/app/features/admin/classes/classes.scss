@@ -69,3 +69,20 @@
     cursor: default;
   }
 }
+
+// The cancel panel says more than "na pewno?" — it names how many people are about to be emailed —
+// so its subject line carries a second, quieter sentence beneath the question.
+.classes-panel-detail {
+  display: block;
+  margin-top: var(--space-1);
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+
+.classes-blocked {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
