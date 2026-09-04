@@ -8,6 +8,7 @@ import { ClassTypes } from './features/admin/class-types/class-types';
 import { ClassTypeForm } from './features/admin/class-types/class-type-form';
 import { Exercises } from './features/admin/exercises/exercises';
 import { ExerciseForm } from './features/admin/exercises/exercise-form';
+import { ExerciseDetail } from './features/admin/exercises/exercise-detail';
 import { Members } from './features/admin/members/members';
 import { Login } from './features/auth/login/login';
 import { Pending } from './features/auth/pending/pending';
@@ -69,5 +70,6 @@ export const routes: Routes = [
     component: ExerciseForm,
     canActivate: [authGuard, adminGuard],
   },
+  { path: 'admin/exercises/:id', component: ExerciseDetail, canActivate: [authGuard, adminGuard] },
   { path: '**', redirectTo: '' },
 ];

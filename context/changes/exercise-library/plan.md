@@ -673,9 +673,9 @@ the standard one: migrations run on deploy, and the API tolerates the table bein
 
 #### Automated
 
-- [x] 3.1 Client tests pass (`npm test` from `src/app/`)
-- [x] 3.2 Formatting and lint pass (`npm run quality:check`)
-- [x] 3.3 Server tests still pass (`dotnet test`)
+- [x] 3.1 Client tests pass (`npm test` from `src/app/`) — a36378e
+- [x] 3.2 Formatting and lint pass (`npm run quality:check`) — a36378e
+- [x] 3.3 Server tests still pass (`dotnet test`) — a36378e
 
 #### Manual
 
@@ -690,9 +690,9 @@ the standard one: migrations run on deploy, and the API tolerates the table bein
 
 #### Automated
 
-- [ ] 4.1 Client tests pass (`npm test`)
-- [ ] 4.2 Formatting and lint pass (`npm run quality:check`)
-- [ ] 4.3 Full server suite still green (`dotnet test`)
+- [x] 4.1 Client tests pass (`npm test`)
+- [x] 4.2 Formatting and lint pass (`npm run quality:check`)
+- [x] 4.3 Full server suite still green (`dotnet test`)
 
 #### Manual
 

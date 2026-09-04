@@ -223,11 +223,12 @@ describe('Exercises', () => {
     expect(html()).toContain('jest teraz zajęta');
   });
 
-  it('links each row to its edit screen', async () => {
+  /** The row opens the exercise for reading; editing is one step further in, from the detail screen. */
+  it('links each row to its detail screen', async () => {
     await createWith([PRZYSIAD]);
 
     const link = rows()[0].querySelector('a')!;
 
-    expect(link.getAttribute('href')).toBe('/admin/exercises/e1/edit');
+    expect(link.getAttribute('href')).toBe('/admin/exercises/e1');
   });
 });
