@@ -286,7 +286,7 @@ notification commit; a later change should run `quality:fix` over them on its ow
 
 - `GET /health` reports a healthy database connection and a healthy outbox
 - Cancelling a booked class from an API client flips its status and leaves every booking row `Active`
-- The cancelled class disappears from the member schedule and remains on the admin calendar
+- The cancelled class disappears from the member schedule and from the admin calendar
 - With ACS configured, a real email arrives at a booked member's address within a minute, naming the
   class, its date and its club-local time
 
@@ -678,7 +678,7 @@ column and the enum value predate this slice.
 
 - [ ] 1.9 `GET /health` reports a healthy database connection and a healthy outbox
 - [ ] 1.10 Cancelling a booked class flips its status and leaves every booking row `Active`
-- [ ] 1.11 The cancelled class disappears from the member schedule and remains on the admin calendar
+- [ ] 1.11 The cancelled class disappears from the member schedule and from the admin calendar
 - [ ] 1.12 A real email arrives within a minute with the class, its date and its club-local time
 - [ ] 1.13 The observed end-to-end delivery time for a full class is recorded in this plan
 
