@@ -497,3 +497,4 @@ publish-profile.xml
 /.claude/.10x-cli-manifest.json
 /.claude/.10x-cli-manifest.json
 /.claude/.10x*
+/.claude/prompts/mvp-check.md
