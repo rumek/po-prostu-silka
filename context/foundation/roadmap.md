@@ -55,7 +55,7 @@ Mid-milestone, a second decision landed: a class stops being retyped text and be
 | S-07 | schedule-calendar-view           | browse the schedule as a day on a phone, a full week from tablet width   | S-06                   | v2 US-02, v2 FR-015, v2 FR-016, v2 FR-017, v2 FR-018, v2 FR-019, v2 FR-020, v1 FR-007 | done        |
 | S-08 | class-booking-and-cancel         | book a spot, cancel it, see upcoming classes; admin sees bookings        | S-07                   | v1 US-01, v1 FR-008, v1 FR-009, v1 FR-010, v1 FR-014, v2 FR-014 | done        |
 | S-09 | class-change-notifications       | booked member gets email + push on class cancel/change                   | F-03, S-08             | v1 US-02, v1 FR-013, v1 FR-021, v2 FR-014                       | done        |
-| S-10 | exercise-library                 | admin manages exercises with instructions and videos                     | S-01                   | v1 FR-018, v1 FR-019                                            | in-progress |
+| S-10 | exercise-library                 | admin manages exercises with instructions and videos                     | S-01                   | v1 FR-018, v1 FR-019                                            | done        |
 | S-11 | training-plans                   | admin builds and assigns a plan; member follows it with exercise details | S-01, S-10             | v1 FR-015, v1 FR-016, v1 FR-017, v1 FR-020                      | blocked     |
 | S-12 | member-and-admin-dashboards      | member and admin land on their at-a-glance home screens                  | S-01, S-07, S-08, S-11 | v1 FR-023, v1 FR-024                                            | proposed    |
 | S-13 | member-profile-edit              | member edits display name and changes password                           | F-02, S-01             | v1 FR-006                                                       | ready       |
@@ -252,7 +252,7 @@ What's already in place in the codebase as of `2026-09-02` (auto-researched + us
 - **Unknowns:**
   - Who enters the initial exercise content, and when? — Owner: user. Block: no. (Content-ops, not a build blocker — but plans stay useless until dozens of exercises exist.)
 - **Risk:** low-risk admin work in an independent bounded context — the head of the training stream, buildable by a separate agent run alongside the entire scheduling chain. With the scheduling chain now four slices longer, this is the most valuable parallel lane in the milestone.
-- **Status:** in-progress
+- **Status:** done
 
 ### S-11: Admin assigns a training plan; member follows it
 
@@ -363,3 +363,4 @@ Resolved since the previous roadmap: the sender-domain question that gated F-03 
 - **S-07: user opens the schedule on a phone and sees one day at a time — the current date, a weekday strip that navigates the week it belongs to, a control to jump to a chosen date, and that day's classes with their times on a 06:00–24:00 grid; from 48rem up the whole week is visible at once; the admin panel uses the same calendar with admin actions on top, can look at past weeks read-only, can create a class by dragging across empty time, and can move or resize an existing one on the grid; a day or week with no classes says so.** — Archived 2026-09-03 → `context/archive/2026-09-02-schedule-calendar-view/`. Lesson: —.
 - **S-08: user can book a spot in a class with free capacity (free-spot count drops by one, the class appears in their upcoming list), cancel the booking (spot released, cancelled booking kept in history), and view all upcoming classes; the admin can view a class's booking list. A class never accepts more bookings than it has spots, even under simultaneous requests.** — Archived 2026-09-04 → `context/archive/2026-09-03-class-booking-and-cancel/`. Lesson: —.
 - **S-09: user (admin) cancels a class → it moves to a visible `cancelled` state (not deleted; bookings and history preserved) → every booked member receives an email and a push notification within minutes, and the class disappears from their upcoming bookings; editing a booked class triggers the same delivery.** — Archived 2026-09-04 → `context/archive/2026-09-04-class-change-notifications/`. Lesson: —.
+- **S-10: user (admin) can create and edit exercises — description, muscle group, difficulty, equipment, and preparation / starting-position / execution instructions, all optional — and attach an instructional video to an exercise.** — Archived 2026-09-04 → `context/archive/2026-09-04-exercise-library/`. Lesson: —.
