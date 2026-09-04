@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using po_prostu_silka.Domain;
 using po_prostu_silka.Domain.Notifications;
 using po_prostu_silka.Domain.Scheduling;
+using po_prostu_silka.Domain.Training;
 
 namespace po_prostu_silka.Infrastructure.Persistence;
 
@@ -27,6 +28,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<ClassType> ClassTypes => Set<ClassType>();
 
     public DbSet<Booking> Bookings => Set<Booking>();
+
+    public DbSet<Exercise> Exercises => Set<Exercise>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

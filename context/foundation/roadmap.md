@@ -55,7 +55,7 @@ Mid-milestone, a second decision landed: a class stops being retyped text and be
 | S-07 | schedule-calendar-view           | browse the schedule as a day on a phone, a full week from tablet width   | S-06                   | v2 US-02, v2 FR-015, v2 FR-016, v2 FR-017, v2 FR-018, v2 FR-019, v2 FR-020, v1 FR-007 | done        |
 | S-08 | class-booking-and-cancel         | book a spot, cancel it, see upcoming classes; admin sees bookings        | S-07                   | v1 US-01, v1 FR-008, v1 FR-009, v1 FR-010, v1 FR-014, v2 FR-014 | done        |
 | S-09 | class-change-notifications       | booked member gets email + push on class cancel/change                   | F-03, S-08             | v1 US-02, v1 FR-013, v1 FR-021, v2 FR-014                       | done        |
-| S-10 | exercise-library                 | admin manages exercises with instructions and videos                     | S-01                   | v1 FR-018, v1 FR-019                                            | ready       |
+| S-10 | exercise-library                 | admin manages exercises with instructions and videos                     | S-01                   | v1 FR-018, v1 FR-019                                            | in-progress |
 | S-11 | training-plans                   | admin builds and assigns a plan; member follows it with exercise details | S-01, S-10             | v1 FR-015, v1 FR-016, v1 FR-017, v1 FR-020                      | blocked     |
 | S-12 | member-and-admin-dashboards      | member and admin land on their at-a-glance home screens                  | S-01, S-07, S-08, S-11 | v1 FR-023, v1 FR-024                                            | proposed    |
 | S-13 | member-profile-edit              | member edits display name and changes password                           | F-02, S-01             | v1 FR-006                                                       | ready       |
@@ -252,7 +252,7 @@ What's already in place in the codebase as of `2026-09-02` (auto-researched + us
 - **Unknowns:**
   - Who enters the initial exercise content, and when? — Owner: user. Block: no. (Content-ops, not a build blocker — but plans stay useless until dozens of exercises exist.)
 - **Risk:** low-risk admin work in an independent bounded context — the head of the training stream, buildable by a separate agent run alongside the entire scheduling chain. With the scheduling chain now four slices longer, this is the most valuable parallel lane in the milestone.
-- **Status:** ready
+- **Status:** in-progress
 
 ### S-11: Admin assigns a training plan; member follows it
 
