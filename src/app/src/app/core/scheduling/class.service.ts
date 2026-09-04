@@ -85,8 +85,13 @@ export class ClassService {
    * `Cancelled`, its booking rows stay `Active`, and every member holding one is emailed and pushed
    * in the same transaction that flipped the status.
    *
-   * Returns the updated class so the caller can replace its own row rather than refetch — the only
-   * field that moved is `status`, and the tile has to stop offering to cancel it again.
+   * The class also leaves the ADMIN's calendar, which is the difference from a delete only in the
+   * database: the row and its bookings stay, so who was signed up remains on record and reachable
+   * through `getById` and the sign-up list.
+   *
+   * Returns the updated class because the endpoint answers with it. The admin screen drops its row
+   * rather than replacing it — a cancelled class is no longer in that window — but the shape stays
+   * on the contract for a caller that needs the new status.
    */
   cancel(id: string): Promise<ScheduledClass> {
     return firstValueFrom(

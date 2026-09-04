@@ -775,12 +775,20 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
     }
 
     /// <summary>
-    /// The two paths filter status differently and must keep doing so once a window is supplied: the
-    /// member never sees a cancelled class, the admin always does.
+    /// Neither path shows a cancelled class, and supplying a window does not change that.
     ///
     /// <para>
-    /// The cancelled state is written straight to the database because no endpoint produces it — the
-    /// transition and its notifications land whole in S-09. This seeds the state S-09 will create.
+    /// The admin's list USED to show them — the class stayed under management after S-09 flipped it.
+    /// It no longer does: a cancelled class is finished, and its tile would leave an hour that looks
+    /// occupied while the overlap rule already treats it as free (ClassStore conflicts only when
+    /// BOTH classes are Scheduled). The record survives; it is reachable by id and its sign-up list
+    /// still names who was on it — see ClassCancellationTests.
+    /// </para>
+    ///
+    /// <para>
+    /// The cancelled state is written straight to the database here rather than through the endpoint
+    /// so this file stays about ranges: S-09's transition and its notifications are pinned whole in
+    /// ClassCancellationTests.
     /// </para>
     /// </summary>
     [Fact]
@@ -802,7 +810,12 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
         var window = Range(slot.AddDays(-1), slot.AddDays(1));
 
         var adminList = (await admin.GetFromJsonAsync<List<ClassBody>>(Endpoint + window))!;
-        Assert.Contains(adminList, c => c.Id == cancelled.Id);
+        Assert.DoesNotContain(adminList, c => c.Id == cancelled.Id);
+
+        // Off the calendar, not out of the database — the difference between a cancellation and a
+        // delete, asserted here too because this is the query that changed.
+        var byId = await admin.GetFromJsonAsync<ClassBody>($"{Endpoint}/{cancelled.Id}");
+        Assert.NotNull(byId);
 
         var member = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveMemberEmail);
         var schedule = (await member.GetFromJsonAsync<List<ClassBody>>("/api/classes" + window))!;

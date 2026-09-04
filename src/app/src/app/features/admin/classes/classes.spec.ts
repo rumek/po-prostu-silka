@@ -500,6 +500,8 @@ describe('Classes', () => {
     expect(actionIn(tileFor('Joga'), 'Odwołaj')).toBeUndefined();
   });
 
+  // A guard, not a case this screen reaches any more: the admin list no longer returns cancelled
+  // classes. It stays pinned because the dead button it prevents only reappears if that changes.
   it('offers Usuń on a class already cancelled', async () => {
     await createWith([{ ...BOOKED, status: 'Cancelled' }]);
 
@@ -523,8 +525,8 @@ describe('Classes', () => {
     controller.expectNone('/api/admin/classes/c3/cancel');
   });
 
-  it('cancels the class, keeps it on the calendar, and says who was told', async () => {
-    await createWith([BOOKED]);
+  it('takes the class off the calendar and says how many people were told', async () => {
+    await createWith([BOOKED, PILATES]);
 
     actionIn(tileFor('Crossfit'), 'Odwołaj').click();
     fixture.detectChanges();
@@ -535,13 +537,18 @@ describe('Classes', () => {
     controller.expectOne('/api/admin/classes/c3/cancel').flush({ ...BOOKED, status: 'Cancelled' });
     await settle();
 
-    // NOT removed, unlike a delete. The transition is the whole point: the admin keeps the record.
+    // The tile goes: the messages have gone out, the hour is free again for the overlap rule, and a
+    // block still sitting there is a slot that looks taken and is not. The RECORD survives in the
+    // database - that half of "not a delete" is the server's, not this screen's.
+    // Asserted on TILES, not on the page text: the notice below names the class it just cancelled,
+    // which is the point of the notice.
     expect(tiles().length).toBe(1);
+    expect(tileFor('Crossfit')).toBeUndefined();
+    expect(tileFor('Pilates')).not.toBeUndefined();
+
+    // Saying so is the only place the admin learns the messages went out.
     expect(html()).toContain('Odwołano „Crossfit”');
     expect(html()).toContain('3 osoby');
-
-    // And the tile stops offering to cancel what is already cancelled.
-    expect(actionIn(tileFor('Crossfit'), 'Odwołaj')).toBeUndefined();
   });
 
   it('names class_started rather than saying only that it failed', async () => {
@@ -598,6 +605,7 @@ describe('Classes', () => {
     await settle();
 
     expect(html()).toContain('Odwołano „Joga”');
+    expect(tiles().length).toBe(0);
   });
 
   it('withholds Odwołaj in a week that has already passed', async () => {

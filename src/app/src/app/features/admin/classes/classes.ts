@@ -371,9 +371,10 @@ export class Classes {
    * somebody is signed up for cannot be deleted, and cancelling one nobody booked would send zero
    * messages and hide it from the schedule for no reason.
    *
-   * A cancelled class offers neither: cancelling it again is refused with `already_cancelled`, so
-   * it falls through to "Usuń", which is honest — the record can still be removed once its bookings
-   * are gone, and the server says so when they are not.
+   * The `status` clause is a GUARD, not a case this screen reaches: the admin list no longer
+   * returns cancelled classes at all. It stays because the check is one comparison and the
+   * alternative — a tile offering an action the server answers with `already_cancelled` — is the
+   * kind of dead button that only appears once the list starts returning them again.
    */
   protected canCancel(row: ScheduledClass): boolean {
     return row.status === 'Scheduled' && row.freeSpots < row.capacity;
@@ -401,10 +402,15 @@ export class Classes {
   /**
    * The transition itself.
    *
-   * NOT a local status patch: the response is the class as the server now holds it, and taking it
-   * whole is what keeps `freeSpots` honest if a booking committed between the click and the write.
-   * Fenced like every other write here — a week change while this is in flight must not paint a row
-   * onto a window it does not belong to.
+   * THE TILE GOES, THE RECORD STAYS. A cancelled class leaves the admin's calendar the same way it
+   * leaves the member's — the messages have gone out, the hour is free again for the overlap rule,
+   * and a tile that still sits there is a slot that looks taken and is not. The class and its
+   * bookings survive in the database, so who was signed up remains on record; it is the CALENDAR
+   * the cancellation leaves, not the history. Dropping the row locally is therefore the honest
+   * picture, and it matches what a refetch of this window would now return.
+   *
+   * Fenced like every other write here — a week change while this is in flight must not edit the
+   * rows of a window this response does not belong to.
    */
   protected async cancel(row: ScheduledClass): Promise<void> {
     this.failedId.set(null);
@@ -416,14 +422,14 @@ export class Classes {
     const told = this.bookedCount(row);
 
     try {
-      const updated = await this.classes.cancel(row.id);
+      await this.classes.cancel(row.id);
 
       if (generation !== this.generation) {
         return;
       }
 
       this.confirmingCancel.set(null);
-      this.rows.update((rows) => rows.map((r) => (r.id === updated.id ? updated : r)));
+      this.rows.update((rows) => rows.filter((r) => r.id !== row.id));
 
       // Says what actually happened, like the duplicate outcome does. The messages are the point of
       // the action, and nothing else on this screen will ever show that they went out.

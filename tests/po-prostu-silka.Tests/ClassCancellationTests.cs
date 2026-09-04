@@ -311,7 +311,7 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
     }
 
     [Fact]
-    public async Task A_cancelled_class_leaves_the_member_schedule_and_stays_on_the_admin_list()
+    public async Task A_cancelled_class_leaves_both_calendars_but_not_the_database()
     {
         var (admin, type, trainerId) = await ArrangeAsync();
         var startsAt = NextSlot();
@@ -328,10 +328,20 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
         var memberSees = await member.GetFromJsonAsync<List<ClassBody>>($"/api/classes/{window}");
         Assert.DoesNotContain(memberSees!, c => c.Id == scheduled.Id);
 
-        // The admin query deliberately does NOT filter on status — a cancelled class the admin cannot
-        // see is one they cannot explain to the member who asks.
+        // AND THE ADMIN'S. A cancelled class is done - the members were told - and its tile would
+        // leave an hour that looks occupied and is not. The overlap rule already ignores it
+        // (ClassStore: two classes conflict only when BOTH are Scheduled), so before this the admin
+        // saw a block sitting in a slot they were free to reuse.
         var adminSees = await admin.GetFromJsonAsync<List<ClassBody>>($"{Endpoint}/{window}");
-        Assert.Contains(adminSees!, c => c.Id == scheduled.Id && c.Status == nameof(ClassStatus.Cancelled));
+        Assert.DoesNotContain(adminSees!, c => c.Id == scheduled.Id);
+
+        // GONE FROM THE CALENDAR, NOT FROM THE RECORD. The class is still fetchable by id and its
+        // sign-up list still names who was on it - that is the difference between this and a delete,
+        // and it is the whole reason the transition exists.
+        var byId = await admin.GetFromJsonAsync<ClassBody>($"{Endpoint}/{scheduled.Id}");
+        Assert.Equal(nameof(ClassStatus.Cancelled), byId!.Status);
+
+        Assert.Single(await BookingsForAsync(scheduled.Id));
     }
 
     private static string Iso(DateTimeOffset instant) =>

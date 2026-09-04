@@ -23,10 +23,17 @@ public class ClassScheduleQuery(AppDbContext db) : IClassScheduleQuery
 
     public Task<IReadOnlyList<ScheduledClass>> GetUpcomingForAdminAsync(
         DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken) =>
-        // Still NO STATUS FILTER: the admin manages what they scheduled, including anything S-09 later
-        // cancels. That, and not the window, is the whole difference from the member's query.
+        // SAME STATUS FILTER as the member's query since S-09. A cancelled class is done: the
+        // members were told, and leaving its tile on the admin's calendar leaves a slot that looks
+        // occupied and is not - so the admin cannot reuse the hour without first working out that
+        // the block in the way is dead. The row and its bookings survive, so who was signed up is
+        // still on record and still readable through GET {id}/bookings; it is the CALENDAR the
+        // cancellation leaves, not the database.
+        //
+        // The window is now the only difference between the two queries.
         ProjectAsync(
-            db.Classes.Where(c => c.StartsAt >= from && c.StartsAt < to),
+            db.Classes.Where(c =>
+                c.Status == ClassStatus.Scheduled && c.StartsAt >= from && c.StartsAt < to),
             cancellationToken);
 
     private async Task<IReadOnlyList<ScheduledClass>> ProjectAsync(

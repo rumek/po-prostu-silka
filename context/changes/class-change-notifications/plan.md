@@ -57,7 +57,17 @@ Two defects surfaced during research that the roadmap item does not mention:
 An admin opens the class calendar, and a class somebody has signed up for offers "Odwołaj" where an
 unbooked one offers "Usuń". Confirming names the class and states how many people will be told and
 that the action cannot be undone. On confirm the class moves to `Cancelled`: it leaves the member
-schedule and leaves "Moje zajęcia", stays visible to the admin, and keeps every booking row intact.
+schedule and leaves "Moje zajęcia", leaves the admin's calendar too, and keeps every booking row
+intact.
+
+**Changed after implementation, at the product owner's direction.** The slice was planned with the
+cancelled class STAYING on the admin's calendar, marked as cancelled. It does not: it leaves both
+calendars. The reason is the one the overlap rule already encodes — `ClassStore` treats two classes
+as conflicting only when both are `Scheduled`, so the hour is free again the moment the status
+flips, and a tile still sitting in it shows the admin a slot that looks occupied and is not. The
+distinction from a delete is kept where it matters: the class row and every booking on it survive,
+the class is still fetchable by id, and `GET {id}/bookings` still names who was signed up. It is the
+CALENDAR the cancellation leaves, not the record.
 Within a minute each booked member has an email naming the class, its date and its time, and — on any
 device that granted permission — a push notification that actually appears on the lock screen and
 opens the app when tapped. Editing a booked class's start time, duration or trainer sends the same
@@ -567,7 +577,7 @@ week offers neither. The `has_bookings` refusal offers the route into cancelling
 
 - A booked class shows "Odwołaj"; an unbooked one shows "Usuń"
 - The confirmation names the class, its date, and the number of members who will be told
-- Cancelling refreshes the calendar; the class stays visible to the admin marked as cancelled
+- Cancelling takes the class off the admin's calendar, and the notice says how many were told
 - Deleting a class whose bookings were all cancelled is refused and offers the cancel route, which works
 - A past week still hides both actions
 - The whole flow is usable on a phone in the day view
@@ -712,16 +722,16 @@ column and the enum value predate this slice.
 
 #### Automated
 
-- [x] 4.1 Frontend unit tests pass
-- [x] 4.2 Lint and format clean
-- [x] 4.3 Frontend builds within budget
-- [x] 4.4 Backend tests still pass
+- [x] 4.1 Frontend unit tests pass — 54ff7a5
+- [x] 4.2 Lint and format clean — 54ff7a5
+- [x] 4.3 Frontend builds within budget — 54ff7a5
+- [x] 4.4 Backend tests still pass — 54ff7a5
 
 #### Manual
 
 - [ ] 4.5 A booked class shows "Odwołaj"; an unbooked one shows "Usuń"
 - [ ] 4.6 The confirmation names the class, its date, and the number of members to be told
-- [ ] 4.7 Cancelling refreshes the calendar; the class stays visible to the admin as cancelled
+- [ ] 4.7 Cancelling takes the class off the admin's calendar; the notice says how many were told
 - [ ] 4.8 A delete refused with `has_bookings` offers the cancel route, which works
 - [ ] 4.9 A past week hides both actions
 - [ ] 4.10 The flow is usable on a phone in the day view
