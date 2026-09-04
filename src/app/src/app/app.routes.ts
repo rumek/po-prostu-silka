@@ -6,6 +6,8 @@ import { Approvals } from './features/admin/approvals/approvals';
 import { ClassForm } from './features/admin/classes/class-form';
 import { ClassTypes } from './features/admin/class-types/class-types';
 import { ClassTypeForm } from './features/admin/class-types/class-type-form';
+import { Exercises } from './features/admin/exercises/exercises';
+import { ExerciseForm } from './features/admin/exercises/exercise-form';
 import { Members } from './features/admin/members/members';
 import { Login } from './features/auth/login/login';
 import { Pending } from './features/auth/pending/pending';
@@ -56,5 +58,16 @@ export const routes: Routes = [
   // 'new' MUST precede ':id' here too, or the literal segment is swallowed by the parameter.
   { path: 'admin/class-types/new', component: ClassTypeForm, canActivate: [authGuard, adminGuard] },
   { path: 'admin/class-types/:id', component: ClassTypeForm, canActivate: [authGuard, adminGuard] },
+  // S-10's exercise library. Eager like the class-type screens: no heavy dependency justifies a
+  // lazy chunk, and the two lazy routes above exist only to keep angular-calendar out of the
+  // initial bundle.
+  { path: 'admin/exercises', component: Exercises, canActivate: [authGuard, adminGuard] },
+  // 'new' MUST precede ':id' here too, or the literal segment is swallowed by the parameter.
+  { path: 'admin/exercises/new', component: ExerciseForm, canActivate: [authGuard, adminGuard] },
+  {
+    path: 'admin/exercises/:id/edit',
+    component: ExerciseForm,
+    canActivate: [authGuard, adminGuard],
+  },
   { path: '**', redirectTo: '' },
 ];

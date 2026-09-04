@@ -1,0 +1,62 @@
+// Layout only — .panel/.field/.field-error/.button/.alert/.notice come from src/styles.scss, and
+// the textarea rules mirror class-type-form.scss (styles.scss styles .field input, not textarea).
+
+.field textarea {
+  padding: var(--space-3);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: #fff;
+  color: inherit;
+  font-family: inherit;
+  // 16px minimum, or iOS Safari zooms the viewport on focus — same rule as .field input.
+  font-size: 1rem;
+  // Vertical only: horizontal resize would let the control escape the .panel column.
+  resize: vertical;
+}
+
+.field textarea[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+
+.field-hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+// Two short fields side by side from tablet width up. This form is long — nine controls — and
+// pairing the two one-line taxonomy fields keeps the prose blocks closer together.
+.exercise-form-pair {
+  display: grid;
+  gap: var(--space-4);
+}
+
+@media (min-width: 40rem) {
+  .exercise-form-pair {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.exercise-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4);
+  margin-top: var(--space-5);
+}
+
+.link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+@media (max-width: 30rem) {
+  .exercise-form-actions .button {
+    width: 100%;
+  }
+}

@@ -1,0 +1,157 @@
+// Layout only — .card/.button/.button--secondary/.alert/.notice/.field-error/.hint/.badge come from
+// src/styles.scss and follow the class-types screen's conventions.
+
+.exercises-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.exercises-header h1 {
+  margin: 0;
+}
+
+.exercises-controls {
+  margin-bottom: var(--space-4);
+}
+
+.exercises-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  cursor: pointer;
+}
+
+.exercises {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.exercises-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-5);
+}
+
+// The app's first image. The box is sized and given its aspect ratio here, NOT by the image: a
+// thumbnail that arrives late (or never) must occupy exactly the same space as one that loaded, or
+// the list jumps under the cursor as YouTube's CDN responds row by row.
+.exercises-thumbnail {
+  flex: 0 0 auto;
+  width: 8rem;
+  aspect-ratio: 16 / 9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  background: var(--surface-muted, #f1f5f9);
+}
+
+.exercises-thumbnail img {
+  width: 100%;
+  height: 100%;
+  // The thumbnail is 16:9 already; cover guards against YouTube ever changing that.
+  object-fit: cover;
+  display: block;
+}
+
+// Stands in for a missing or broken thumbnail, so "no video" reads as a deliberate state rather
+// than as a failed image.
+.exercises-thumbnail-empty {
+  color: var(--muted);
+  font-size: 1.5rem;
+}
+
+.exercises-identity {
+  min-width: 0;
+  flex: 1 1 14rem;
+}
+
+.exercises-name {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.exercises-meta {
+  margin: var(--space-1) 0 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+
+.exercises-description {
+  margin: var(--space-1) 0 0;
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+  // Two lines is enough to tell entries apart; the detail screen is where prose is read.
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+// Retired, not broken — muted like the class-types badge. A deactivated exercise is a deliberate
+// state, not a problem to fix. The .badge base rule this sits on is global (src/styles.scss).
+.badge-inactive {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.exercises-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+.empty {
+  margin: 0;
+  color: var(--muted);
+}
+
+.link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+@media (max-width: 30rem) {
+  .exercises-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  // Full width at phone size: a 8rem box beside nothing looks like a mistake, and the thumbnail is
+  // the fastest way to recognise an exercise.
+  .exercises-thumbnail {
+    width: 100%;
+  }
+
+  .exercises-actions {
+    margin-left: 0;
+  }
+
+  .exercises-actions .button {
+    flex: 1 1 auto;
+    text-align: center;
+  }
+}

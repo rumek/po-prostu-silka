@@ -659,9 +659,9 @@ the standard one: migrations run on deploy, and the API tolerates the table bein
 
 #### Automated
 
-- [x] 2.1 Solution builds warning-free
-- [x] 2.2 All tests pass, including `ExerciseEndpointTests`
-- [x] 2.3 `EveryRoute` theory covers all six routes for anonymous and non-admin callers
+- [x] 2.1 Solution builds warning-free — ccade3a
+- [x] 2.2 All tests pass, including `ExerciseEndpointTests` — ccade3a
+- [x] 2.3 `EveryRoute` theory covers all six routes for anonymous and non-admin callers — ccade3a
 
 #### Manual
 
@@ -673,9 +673,9 @@ the standard one: migrations run on deploy, and the API tolerates the table bein
 
 #### Automated
 
-- [ ] 3.1 Client tests pass (`npm test` from `src/app/`)
-- [ ] 3.2 Formatting and lint pass (`npm run quality:check`)
-- [ ] 3.3 Server tests still pass (`dotnet test`)
+- [x] 3.1 Client tests pass (`npm test` from `src/app/`)
+- [x] 3.2 Formatting and lint pass (`npm run quality:check`)
+- [x] 3.3 Server tests still pass (`dotnet test`)
 
 #### Manual
 

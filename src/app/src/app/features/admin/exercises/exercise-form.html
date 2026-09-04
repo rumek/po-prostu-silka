@@ -1,0 +1,193 @@
+<h1>{{ editingId() ? 'Edytuj ćwiczenie' : 'Nowe ćwiczenie' }}</h1>
+
+@if (loading()) {
+  <p class="notice" role="status">Wczytywanie…</p>
+} @else if (loadFailed()) {
+  <p class="alert" role="alert">
+    Nie udało się wczytać tego ćwiczenia.
+    <a class="link-button" routerLink="/admin/exercises">Wróć do listy</a>
+  </p>
+} @else {
+  @if (error()) {
+    <p class="alert" role="alert">{{ error() }}</p>
+  }
+
+  <form class="panel" [formGroup]="form" (ngSubmit)="submit()">
+    <div class="field">
+      <label for="name">Nazwa</label>
+      <input
+        id="name"
+        type="text"
+        [attr.maxlength]="maxName"
+        formControlName="name"
+        [attr.aria-invalid]="form.controls.name.touched && form.controls.name.invalid"
+      />
+      <p class="field-hint">
+        Jedyne wymagane pole. Dwa aktywne ćwiczenia nie mogą nazywać się tak samo.
+      </p>
+      @if (form.controls.name.touched && form.controls.name.invalid) {
+        @if (form.controls.name.hasError('nameTaken')) {
+          <p class="field-error">
+            Aktywne ćwiczenie o tej nazwie już istnieje. Wybierz inną nazwę albo dezaktywuj tamto.
+          </p>
+        } @else if (form.controls.name.hasError('maxlength')) {
+          <p class="field-error">Nazwa może mieć najwyżej {{ maxName }} znaków.</p>
+        } @else {
+          <p class="field-error">Podaj nazwę ćwiczenia.</p>
+        }
+      }
+    </div>
+
+    <div class="field">
+      <label for="description">Opis (opcjonalnie)</label>
+      <textarea
+        id="description"
+        rows="3"
+        [attr.maxlength]="maxDescription"
+        formControlName="description"
+        [attr.aria-invalid]="form.controls.description.touched && form.controls.description.invalid"
+      ></textarea>
+      @if (form.controls.description.touched && form.controls.description.invalid) {
+        <p class="field-error">Opis może mieć najwyżej {{ maxDescription }} znaków.</p>
+      }
+    </div>
+
+    <div class="exercise-form-pair">
+      <div class="field">
+        <label for="muscleGroup">Grupa mięśniowa (opcjonalnie)</label>
+        <!-- Free text with suggestions: the list is what the library already uses, so the admin
+             clicks an existing value instead of retyping it slightly differently. Typing something
+             new is still allowed - a datalist suggests, it does not constrain. -->
+        <input
+          id="muscleGroup"
+          type="text"
+          list="muscleGroupOptions"
+          [attr.maxlength]="maxMuscleGroup"
+          formControlName="muscleGroup"
+          [attr.aria-invalid]="
+            form.controls.muscleGroup.touched && form.controls.muscleGroup.invalid
+          "
+        />
+        <datalist id="muscleGroupOptions">
+          @for (option of muscleGroups(); track option) {
+            <option [value]="option"></option>
+          }
+        </datalist>
+        @if (form.controls.muscleGroup.touched && form.controls.muscleGroup.invalid) {
+          <p class="field-error">Grupa mięśniowa może mieć najwyżej {{ maxMuscleGroup }} znaków.</p>
+        }
+      </div>
+
+      <div class="field">
+        <label for="difficulty">Trudność (opcjonalnie)</label>
+        <input
+          id="difficulty"
+          type="text"
+          list="difficultyOptions"
+          [attr.maxlength]="maxDifficulty"
+          formControlName="difficulty"
+          [attr.aria-invalid]="form.controls.difficulty.touched && form.controls.difficulty.invalid"
+        />
+        <datalist id="difficultyOptions">
+          @for (option of difficulties(); track option) {
+            <option [value]="option"></option>
+          }
+        </datalist>
+        @if (form.controls.difficulty.touched && form.controls.difficulty.invalid) {
+          <p class="field-error">Trudność może mieć najwyżej {{ maxDifficulty }} znaków.</p>
+        }
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="equipment">Sprzęt (opcjonalnie)</label>
+      <input
+        id="equipment"
+        type="text"
+        [attr.maxlength]="maxEquipment"
+        formControlName="equipment"
+        [attr.aria-invalid]="form.controls.equipment.touched && form.controls.equipment.invalid"
+      />
+      @if (form.controls.equipment.touched && form.controls.equipment.invalid) {
+        <p class="field-error">Sprzęt może mieć najwyżej {{ maxEquipment }} znaków.</p>
+      }
+    </div>
+
+    <div class="field">
+      <label for="preparation">Przygotowanie (opcjonalnie)</label>
+      <textarea
+        id="preparation"
+        rows="3"
+        [attr.maxlength]="maxPreparation"
+        formControlName="preparation"
+        [attr.aria-invalid]="form.controls.preparation.touched && form.controls.preparation.invalid"
+      ></textarea>
+      @if (form.controls.preparation.touched && form.controls.preparation.invalid) {
+        <p class="field-error">Przygotowanie może mieć najwyżej {{ maxPreparation }} znaków.</p>
+      }
+    </div>
+
+    <div class="field">
+      <label for="startingPosition">Pozycja startowa (opcjonalnie)</label>
+      <textarea
+        id="startingPosition"
+        rows="3"
+        [attr.maxlength]="maxStartingPosition"
+        formControlName="startingPosition"
+        [attr.aria-invalid]="
+          form.controls.startingPosition.touched && form.controls.startingPosition.invalid
+        "
+      ></textarea>
+      @if (form.controls.startingPosition.touched && form.controls.startingPosition.invalid) {
+        <p class="field-error">
+          Pozycja startowa może mieć najwyżej {{ maxStartingPosition }} znaków.
+        </p>
+      }
+    </div>
+
+    <div class="field">
+      <label for="execution">Wykonanie (opcjonalnie)</label>
+      <textarea
+        id="execution"
+        rows="5"
+        [attr.maxlength]="maxExecution"
+        formControlName="execution"
+        [attr.aria-invalid]="form.controls.execution.touched && form.controls.execution.invalid"
+      ></textarea>
+      <p class="field-hint">
+        To jest tekst, który członek czyta między seriami — pisz krótkimi zdaniami.
+      </p>
+      @if (form.controls.execution.touched && form.controls.execution.invalid) {
+        <p class="field-error">Wykonanie może mieć najwyżej {{ maxExecution }} znaków.</p>
+      }
+    </div>
+
+    <div class="field">
+      <label for="videoUrl">Film na YouTube (opcjonalnie)</label>
+      <input
+        id="videoUrl"
+        type="text"
+        inputmode="url"
+        formControlName="videoUrl"
+        [attr.aria-invalid]="form.controls.videoUrl.touched && form.controls.videoUrl.invalid"
+      />
+      <p class="field-hint">
+        Wklej link w dowolnej postaci — z paska adresu, z przycisku „Udostępnij”, ze Shortsów.
+        Zapisujemy sam identyfikator filmu, więc po zapisaniu zobaczysz tu link w jednolitej formie.
+      </p>
+      @if (form.controls.videoUrl.touched && form.controls.videoUrl.invalid) {
+        <p class="field-error">
+          To nie wygląda na link do filmu na YouTube. Sprawdź, czy nie jest to link do playlisty
+          albo do kanału.
+        </p>
+      }
+    </div>
+
+    <div class="exercise-form-actions">
+      <button type="submit" class="button" [disabled]="submitting()">
+        {{ submitting() ? 'Zapisywanie…' : 'Zapisz' }}
+      </button>
+      <a class="link-button" routerLink="/admin/exercises">Anuluj</a>
+    </div>
+  </form>
+}

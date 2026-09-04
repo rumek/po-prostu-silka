@@ -1,0 +1,100 @@
+<div class="exercises-header">
+  <h1>Ćwiczenia</h1>
+  <a class="button" routerLink="/admin/exercises/new">Dodaj ćwiczenie</a>
+</div>
+<p class="hint">
+  Biblioteka ćwiczeń, z której będą składane plany treningowe. Wystarczy sama nazwa — opis,
+  instrukcje i film możesz uzupełnić później. Ćwiczeń się nie usuwa: dezaktywacja zwalnia nazwę i
+  znika z listy, a wszystko, co się do ćwiczenia odwołuje, zostaje nietknięte.
+</p>
+
+<div class="exercises-controls">
+  <label class="exercises-toggle">
+    <input type="checkbox" [checked]="showInactive()" (change)="toggleInactive()" />
+    Pokaż nieaktywne
+  </label>
+</div>
+
+@if (notice()) {
+  <p class="notice" role="status">{{ notice() }}</p>
+}
+
+@if (loading()) {
+  <p class="notice" role="status">Wczytywanie…</p>
+} @else if (loadFailed()) {
+  <p class="alert" role="alert">
+    Nie udało się wczytać ćwiczeń.
+    <button type="button" class="link-button" (click)="load()">Spróbuj ponownie</button>
+  </p>
+} @else if (rows().length === 0) {
+  <div class="card">
+    <p class="empty">Nie dodano jeszcze żadnego ćwiczenia.</p>
+  </div>
+} @else if (hiddenByFilter()) {
+  <div class="card">
+    <p class="empty">
+      Wszystkie ćwiczenia są nieaktywne. Zaznacz „Pokaż nieaktywne”, żeby je zobaczyć.
+    </p>
+  </div>
+} @else {
+  <ul class="exercises">
+    @for (row of visible(); track row.id) {
+      <li class="card exercises-row">
+        <!-- Fixed 16:9 box whether or not an image lands in it: a thumbnail that arrives late must
+             not reflow the whole list under the admin's cursor. -->
+        <div class="exercises-thumbnail">
+          @if (thumbnail(row); as src) {
+            <img [src]="src" alt="" loading="lazy" (error)="onThumbnailError(row)" />
+          } @else {
+            <span class="exercises-thumbnail-empty" aria-hidden="true">▶</span>
+          }
+        </div>
+
+        <div class="exercises-identity">
+          <p class="exercises-name">
+            {{ row.name }}
+            @if (!row.isActive) {
+              <span class="badge badge-inactive">Nieaktywne</span>
+            }
+          </p>
+          @if (row.muscleGroup) {
+            <p class="exercises-meta">{{ row.muscleGroup }}</p>
+          }
+          @if (row.description) {
+            <p class="exercises-description">{{ row.description }}</p>
+          }
+        </div>
+
+        <div class="exercises-actions">
+          <a class="button button--secondary" [routerLink]="['/admin/exercises', row.id, 'edit']">
+            Edytuj
+          </a>
+
+          @if (row.isActive) {
+            <button
+              type="button"
+              class="button button--secondary"
+              [disabled]="isBusy(row.id)"
+              (click)="deactivate(row)"
+            >
+              {{ isBusy(row.id) ? 'Dezaktywowanie…' : 'Dezaktywuj' }}
+            </button>
+          } @else {
+            <button
+              type="button"
+              class="button button--secondary"
+              [disabled]="isBusy(row.id)"
+              (click)="activate(row)"
+            >
+              {{ isBusy(row.id) ? 'Aktywowanie…' : 'Aktywuj' }}
+            </button>
+          }
+        </div>
+
+        @if (failedId() === row.id) {
+          <p class="field-error" role="alert">Nie udało się. Spróbuj ponownie.</p>
+        }
+      </li>
+    }
+  </ul>
+}
