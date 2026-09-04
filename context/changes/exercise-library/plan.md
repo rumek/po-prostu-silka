@@ -670,9 +670,9 @@ the standard one: migrations run on deploy, and the API tolerates the table bein
 
 #### Manual
 
-- [ ] 1.5 `IX_Exercises_Name_Active` exists with the `[IsActive] = 1` filter
-- [ ] 1.6 Duplicate active names rejected by the database; accepted once one row is deactivated
-- [ ] 1.7 `GET /health` healthy after the migration
+- [x] 1.5 `IX_Exercises_Name_Active` exists with the `[IsActive] = 1` filter
+- [x] 1.6 Duplicate active names rejected by the database; accepted once one row is deactivated
+- [x] 1.7 `GET /health` healthy after the migration
 
 ### Phase 2: The admin API
 
@@ -684,9 +684,9 @@ the standard one: migrations run on deploy, and the API tolerates the table bein
 
 #### Manual
 
-- [ ] 2.4 Create, edit, deactivate and reactivate work through the API as an admin
-- [ ] 2.5 `youtu.be/<id>?t=42` and `watch?list=…&v=<id>` persist the same `videoId`
-- [ ] 2.6 A non-YouTube URL returns `400 invalid_video_url`, not a 500
+- [x] 2.4 Create, edit, deactivate and reactivate work through the API as an admin
+- [x] 2.5 `youtu.be/<id>?t=42` and `watch?list=…&v=<id>` persist the same `videoId`
+- [x] 2.6 A non-YouTube URL returns `400 invalid_video_url`, not a 500
 
 ### Phase 3: The list and the form
 
@@ -698,12 +698,12 @@ the standard one: migrations run on deploy, and the API tolerates the table bein
 
 #### Manual
 
-- [ ] 3.4 Create with a name only, then edit to add every field including a video
-- [ ] 3.5 Thumbnails and placeholders render with no layout shift
-- [ ] 3.6 Muscle-group suggestions appear and a new value is still accepted
-- [ ] 3.7 A broken video link shows on the video field, not as a banner
-- [ ] 3.8 Deactivate hides the row until the toggle is on; reactivate restores it
-- [ ] 3.9 Usable at phone width
+- [x] 3.4 Create with a name only, then edit to add every field including a video
+- [x] 3.5 Thumbnails and placeholders render with no layout shift
+- [x] 3.6 Muscle-group suggestions appear and a new value is still accepted
+- [x] 3.7 A broken video link shows on the video field, not as a banner
+- [x] 3.8 Deactivate hides the row until the toggle is on; reactivate restores it
+- [x] 3.9 Usable at phone width
 
 ### Phase 4: The detail screen with an embedded player
 
@@ -715,10 +715,10 @@ the standard one: migrations run on deploy, and the API tolerates the table bein
 
 #### Manual
 
-- [ ] 4.4 Every populated field shows; no empty headings
-- [ ] 4.5 The video plays inline, including fullscreen
-- [ ] 4.6 No player and no empty frame when there is no video
-- [ ] 4.7 An unknown id shows the not-found state
-- [ ] 4.8 "Edytuj" opens the pre-filled form; saving returns to the list
-- [ ] 4.9 Readable at phone width, player scales to the column
-- [ ] 4.10 A non-admin is bounced by the guard and refused by the API independently
+- [x] 4.4 Every populated field shows; no empty headings
+- [x] 4.5 The video plays inline, including fullscreen
+- [x] 4.6 No player and no empty frame when there is no video
+- [x] 4.7 An unknown id shows the not-found state
+- [x] 4.8 "Edytuj" opens the pre-filled form; saving returns to the list
+- [x] 4.9 Readable at phone width, player scales to the column
+- [x] 4.10 A non-admin is bounced by the guard and refused by the API independently
