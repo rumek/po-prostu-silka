@@ -448,9 +448,15 @@ navigates to `/admin/exercises`.
 
 **Intent**: Register the four screens behind the admin guard.
 
-**Contract**: Eagerly imported components (no heavy dependency justifies lazy loading here), in this
-order: `admin/exercises`, `admin/exercises/new`, `admin/exercises/:id/edit`; each
-`canActivate: [authGuard, adminGuard]`. `admin/exercises/:id` is **not** registered in this phase —
+**Contract**: Components loaded with `loadComponent`, in this order: `admin/exercises`,
+`admin/exercises/new`, `admin/exercises/:id/edit`; each `canActivate: [authGuard, adminGuard]`.
+
+**Adapted during implementation.** The plan specified *eagerly* imported components, reasoning that
+no heavy dependency justified a lazy chunk. Measured, the three screens add ~28 kB to the initial
+bundle, taking it from 475.01 kB to 502.88 kB — past the 500 kB `maximumWarning` budget in
+`angular.json`, so `npm run build` began emitting a bundle-budget warning. Lazy loading keeps the
+build clean at no cost an admin would notice, and the reasoning is recorded in `app.routes.ts` next
+to the routes. `admin/exercises/:id` is **not** registered in this phase —
 it lands with the detail component in Phase 4, so no route ever points at a component that does not
 exist. Consequently the list's row link targets `/admin/exercises/:id/edit` in this phase and is
 repointed at `/admin/exercises/:id` in Phase 4; that one-line change is part of Phase 4's work.
@@ -531,8 +537,9 @@ same 16:9 box the list uses. No video renders no iframe at all — not an empty 
 
 **Intent**: Point `/admin/exercises/:id` at the detail component and send the list there.
 
-**Contract**: `{ path: 'admin/exercises/:id', component: ExerciseDetail, canActivate: [authGuard, adminGuard] }`,
-listed after `new` and after `:id/edit`. In the same change, repoint the list row's `routerLink`
+**Contract**: `{ path: 'admin/exercises/:id', loadComponent: () => import(...).then((m) => m.ExerciseDetail), canActivate: [authGuard, adminGuard] }`,
+listed after `new` and after `:id/edit`. **Adapted during implementation** — lazy rather than eager,
+for the bundle-budget reason recorded under Phase 3's routes change. In the same change, repoint the list row's `routerLink`
 from `/admin/exercises/:id/edit` to `/admin/exercises/:id` and update the list spec's assertion.
 
 #### 3. Spec
