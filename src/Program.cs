@@ -1,4 +1,4 @@
-using Azure.Communication.Email;
+﻿using Azure.Communication.Email;
 using Lib.Net.Http.WebPush;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
@@ -10,10 +10,12 @@ using po_prostu_silka.Infrastructure.Notifications;
 using po_prostu_silka.Application.Auth;
 using po_prostu_silka.Application.Members;
 using po_prostu_silka.Application.Scheduling;
+using po_prostu_silka.Application.Training;
 using po_prostu_silka.Application.Persistence;
 using po_prostu_silka.Domain;
 using po_prostu_silka.Infrastructure.Members;
 using po_prostu_silka.Infrastructure.Scheduling;
+using po_prostu_silka.Infrastructure.Training;
 using po_prostu_silka.Infrastructure.Authorization;
 using po_prostu_silka.Infrastructure.Identity;
 using po_prostu_silka.Infrastructure.Persistence;
@@ -199,6 +201,11 @@ builder.Services.AddScoped<IBookingQuery, BookingQuery>();
 builder.Services.AddScoped<IClassTypeQuery, ClassTypeQuery>();
 builder.Services.AddScoped<IClassTypeStore, ClassTypeStore>();
 
+// S-10's exercise library (prd.md FR-018, FR-019). Scoped for the same reason as the sets above -
+// the store must share the request's DbContext with IUnitOfWork, which is what commits it.
+builder.Services.AddScoped<IExerciseQuery, ExerciseQuery>();
+builder.Services.AddScoped<IExerciseStore, ExerciseStore>();
+
 builder.Services.AddHostedService<OutboxDeliveryWorker>();
 
 var app = builder.Build();
@@ -250,6 +257,7 @@ app.MapMemberAdminEndpoints();
 app.MapTrainerEndpoints();
 app.MapClassEndpoints();
 app.MapClassTypeEndpoints();
+app.MapExerciseEndpoints();
 app.MapBookingEndpoints();
 
 // Probe endpoints for the ActiveMember and Admin policies, in the "Testing" environment only.

@@ -644,10 +644,10 @@ the standard one: migrations run on deploy, and the API tolerates the table bein
 
 #### Automated
 
-- [x] 1.1 Solution builds warning-free (`dotnet build` from `src/`)
-- [x] 1.2 Parser tests pass (`dotnet test` from the repo root)
-- [x] 1.3 Migration is reversible (`dotnet ef migrations script <previous> AddExercises`)
-- [x] 1.4 Migration applies to a clean local database
+- [x] 1.1 Solution builds warning-free (`dotnet build` from `src/`) — af62c5f
+- [x] 1.2 Parser tests pass (`dotnet test` from the repo root) — af62c5f
+- [x] 1.3 Migration is reversible (`dotnet ef migrations script <previous> AddExercises`) — af62c5f
+- [x] 1.4 Migration applies to a clean local database — af62c5f
 
 #### Manual
 
@@ -659,9 +659,9 @@ the standard one: migrations run on deploy, and the API tolerates the table bein
 
 #### Automated
 
-- [ ] 2.1 Solution builds warning-free
-- [ ] 2.2 All tests pass, including `ExerciseEndpointTests`
-- [ ] 2.3 `EveryRoute` theory covers all six routes for anonymous and non-admin callers
+- [x] 2.1 Solution builds warning-free
+- [x] 2.2 All tests pass, including `ExerciseEndpointTests`
+- [x] 2.3 `EveryRoute` theory covers all six routes for anonymous and non-admin callers
 
 #### Manual
 
