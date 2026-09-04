@@ -81,13 +81,12 @@ export class ClassService {
   }
 
   /**
-   * Cancels a class (FR-013, S-09). NOT a delete: the class stays on the admin's calendar as
-   * `Cancelled`, its booking rows stay `Active`, and every member holding one is emailed and pushed
-   * in the same transaction that flipped the status.
+   * Cancels a class (FR-013, S-09). Its booking rows stay `Active`, and every member holding one is
+   * emailed and pushed in the same transaction that flipped the status.
    *
-   * The class also leaves the ADMIN's calendar, which is the difference from a delete only in the
-   * database: the row and its bookings stay, so who was signed up remains on record and reachable
-   * through `getById` and the sign-up list.
+   * The class leaves the member's screens AND the admin's calendar, so the difference from a delete
+   * is in the database rather than on screen: the row and its bookings stay, so who was signed up
+   * remains on record and reachable through `getById` and the sign-up list.
    *
    * Returns the updated class because the endpoint answers with it. The admin screen drops its row
    * rather than replacing it — a cancelled class is no longer in that window — but the shape stays

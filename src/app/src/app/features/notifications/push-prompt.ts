@@ -47,7 +47,13 @@ export class PushPrompt {
 
   protected readonly visible = computed(
     () =>
-      this.push.isSupported() && !this.push.isSubscribed() && !this.dismissed() && !this.failed(),
+      this.push.isSupported() &&
+      // Reading the browser's existing registration is asynchronous. Without this gate the banner
+      // flashes for one frame at a member who is already subscribed.
+      this.push.isReady() &&
+      !this.push.isSubscribed() &&
+      !this.dismissed() &&
+      !this.failed(),
   );
 
   protected async enable(): Promise<void> {

@@ -222,6 +222,18 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
     }
 
     /// <summary>Every outbox row whose subject names this class type — this test's own rows.</summary>
+    /// <summary>
+    /// The club-local hour of an instant, derived here rather than by calling
+    /// <c>MessageTime.ToClubWallClock</c>. Computing an expectation with the function under test asserts
+    /// nothing — a wrong zone or a wrong culture would pass. These slots move by a `_slot` multiple
+    /// of 60 days and so can land on either side of a DST transition, which is why this restates the
+    /// conversion instead of pinning a literal string; the literals live in <c>ClubTimeTests</c>.
+    /// </summary>
+    private static string ClubWallClockOf(DateTimeOffset instant) =>
+        TimeZoneInfo
+            .ConvertTime(instant, TimeZoneInfo.FindSystemTimeZoneById("Europe/Warsaw"))
+            .ToString("HH:mm");
+
     private async Task<List<OutboxMessage>> MessagesAboutAsync(string typeName)
     {
         await using var db = NewContext();
@@ -486,12 +498,67 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
 
         Assert.Contains(type.Name, message.Subject);
         Assert.Contains(type.Name, message.Body);
-        Assert.Contains(ClubTime.ToClubWallClock(startsAt), message.Body);
+        Assert.Contains(ClubWallClockOf(startsAt), message.Body);
         Assert.Contains($"Test {ApplicationRoles.Trainer}", message.Body);
 
         // Rendered at ENQUEUE time and frozen into the row, so a retry hours later says what the
         // first attempt said.
         Assert.False(string.IsNullOrWhiteSpace(message.Body));
+    }
+
+    /// <summary>
+    /// ClassType.Name is allowed the full 200 characters and OutboxMessage.Subject is nvarchar(200),
+    /// so a prefixed subject overflows the column. This is a CANCELLATION test, not a formatting one:
+    /// SQL Server refuses the insert, the truncation error surfaces as a DbUpdateException which
+    /// TrySaveChangesAsync does not catch, and because the enqueue shares its unit of work with the
+    /// status flip, the cancellation itself would never commit.
+    /// </summary>
+    [Fact]
+    public async Task A_class_type_name_at_the_column_limit_still_lets_the_cancellation_commit()
+    {
+        var admin = await AdminAsync();
+        var trainerId = await CreateTrainerAsync(admin);
+
+        // Exactly the 200 the column allows, unique so it cannot collide with another test's type.
+        var longName = $"{Guid.NewGuid():N}{new string('A', 168)}";
+
+        var typeResponse = await admin.PostAsJsonAsync(TypesEndpoint, new
+        {
+            name = longName,
+            description = (string?)"Opis zajęć",
+            defaultDurationMinutes = 60,
+            defaultCapacity = 12,
+        });
+
+        Assert.Equal(HttpStatusCode.OK, typeResponse.StatusCode);
+        var type = (await typeResponse.Content.ReadFromJsonAsync<ClassTypeBody>())!;
+
+        var scheduled = await PostClassAsync(admin, type.Id, trainerId, NextSlot());
+
+        var (member, _, _) = await NewMemberAsync();
+        await BookAsync(member, scheduled.Id);
+
+        var response = await admin.PostAsync(CancelOf(scheduled.Id), content: null);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(ClassStatus.Cancelled, await StatusOfAsync(scheduled.Id));
+
+        // The name is truncated in the subject, so look the row up by the part that survives.
+        var prefix = longName[..32];
+
+        await using var db = NewContext();
+        var message = await db.OutboxMessages.AsNoTracking()
+            .SingleAsync(m => m.Subject.Contains(prefix));
+
+        Assert.True(
+            message.Subject.Length <= 200,
+            $"Subject is {message.Subject.Length} characters; the column holds 200.");
+
+        // Truncation trims the NAME, never the prefix — that is what a member scans a mailbox for.
+        Assert.StartsWith("Odwołane zajęcia: ", message.Subject);
+
+        // The body is nvarchar(max), so it keeps the whole name.
+        Assert.Contains(longName, message.Body);
     }
 
     // --- S-09 phase 2: the edit trigger ---------------------------------------
@@ -533,8 +600,8 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
         // tracked entity after the mutation would say.
         Assert.All(messages, m =>
         {
-            Assert.Contains(ClubTime.ToClubWallClock(startsAt), m.Body);
-            Assert.Contains(ClubTime.ToClubWallClock(moved), m.Body);
+            Assert.Contains(ClubWallClockOf(startsAt), m.Body);
+            Assert.Contains(ClubWallClockOf(moved), m.Body);
         });
     }
 

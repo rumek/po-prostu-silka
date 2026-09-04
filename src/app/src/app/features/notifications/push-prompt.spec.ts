@@ -23,6 +23,7 @@ describe('PushPrompt', () => {
   function undecided(subscribe = vi.fn().mockResolvedValue(true)): Partial<PushService> {
     return {
       isSupported: signal(true),
+      isReady: signal(true),
       isSubscribed: signal(false),
       subscribe,
     } as unknown as Partial<PushService>;
@@ -66,6 +67,7 @@ describe('PushPrompt', () => {
   it('renders nothing when push is unsupported', async () => {
     configure({
       isSupported: signal(false),
+      isReady: signal(true),
       isSubscribed: signal(false),
       subscribe: vi.fn(),
     } as unknown as Partial<PushService>);
@@ -75,9 +77,35 @@ describe('PushPrompt', () => {
     expect(prompt(fixture)).toBeNull();
   });
 
+  // Reading the browser's existing registration is asynchronous. Showing the banner in the meantime
+  // would flash the offer at every already-subscribed member on every page load — the nag the
+  // dismissal cooldown exists to prevent, arriving through the front door.
+  it('waits for the existing registration to be read before asking', async () => {
+    const ready = signal(false);
+    const subscribed = signal(false);
+
+    configure({
+      isSupported: signal(true),
+      isReady: ready,
+      isSubscribed: subscribed,
+      subscribe: vi.fn(),
+    } as unknown as Partial<PushService>);
+
+    const fixture = await render();
+    expect(prompt(fixture)).toBeNull();
+
+    // The read comes back: this member is already subscribed, so the banner never appears.
+    subscribed.set(true);
+    ready.set(true);
+    await fixture.whenStable();
+
+    expect(prompt(fixture)).toBeNull();
+  });
+
   it('renders nothing to a member who already subscribed', async () => {
     configure({
       isSupported: signal(true),
+      isReady: signal(true),
       isSubscribed: signal(true),
       subscribe: vi.fn(),
     } as unknown as Partial<PushService>);

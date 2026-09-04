@@ -74,16 +74,19 @@ public class ClassChangeNotification(
     IOutboxEnqueuer enqueuer,
     IPushSubscriptionStore subscriptions) : IClassChangeNotification
 {
+    /// <summary>Mirrors <c>OutboxMessageConfiguration</c>'s <c>HasMaxLength(200)</c> on Subject.</summary>
+    private const int MaxSubjectLength = 200;
+
     public Task NotifyCancelledAsync(
         ClassDescription description,
         IReadOnlyList<ClassBooking> recipients,
         CancellationToken cancellationToken)
     {
-        var subject = $"Odwołane zajęcia: {description.Name}";
+        var subject = Subject("Odwołane zajęcia: ", description.Name);
 
         var body =
             $"Zajęcia {description.Name} zostały odwołane.\n\n" +
-            $"Termin: {ClubTime.ToClubWallClock(description.StartsAt)}\n" +
+            $"Termin: {MessageTime.ToClubWallClock(description.StartsAt)}\n" +
             $"Prowadzący: {description.Instructor}\n\n" +
             "Twoja rezerwacja została anulowana. Zapraszamy na inne zajęcia w aplikacji.";
 
@@ -96,7 +99,7 @@ public class ClassChangeNotification(
         IReadOnlyList<ClassBooking> recipients,
         CancellationToken cancellationToken)
     {
-        var subject = $"Zmiana w zajęciach: {current.Name}";
+        var subject = Subject("Zmiana w zajęciach: ", current.Name);
 
         // Only the fields that actually moved. A message listing three lines where one changed makes
         // the reader hunt for the difference, which is the opposite of what a notification is for.
@@ -105,8 +108,8 @@ public class ClassChangeNotification(
         if (previous.StartsAt != current.StartsAt)
         {
             changes.Add(
-                $"Termin: {ClubTime.ToClubWallClock(previous.StartsAt)} " +
-                $"-> {ClubTime.ToClubWallClock(current.StartsAt)}");
+                $"Termin: {MessageTime.ToClubWallClock(previous.StartsAt)} " +
+                $"-> {MessageTime.ToClubWallClock(current.StartsAt)}");
         }
 
         if (previous.DurationMinutes != current.DurationMinutes)
@@ -123,10 +126,27 @@ public class ClassChangeNotification(
         var body =
             $"Zmieniły się szczegóły zajęć {current.Name}.\n\n" +
             string.Join("\n", changes) +
-            $"\n\nAktualny termin: {ClubTime.ToClubWallClock(current.StartsAt)}\n\n" +
+            $"\n\nAktualny termin: {MessageTime.ToClubWallClock(current.StartsAt)}\n\n" +
             "Jeśli nowy termin Ci nie odpowiada, możesz anulować rezerwację w aplikacji.";
 
         return FanOutAsync(subject, body, recipients, cancellationToken);
+    }
+
+    /// <summary>
+    /// The outbox <c>Subject</c> column is nvarchar(200) and <c>ClassType.Name</c> is itself allowed
+    /// the full 200 characters, so a prefixed subject can overflow it. That is not a cosmetic
+    /// failure: SQL Server refuses the insert, the truncation error surfaces as a
+    /// <c>DbUpdateException</c> which <c>TrySaveChangesAsync</c> does not catch, and because the
+    /// enqueue shares its unit of work with the status flip, the cancellation itself would never
+    /// commit. Trim the name, never the prefix — the prefix is what a member scans a mailbox for.
+    /// </summary>
+    private static string Subject(string prefix, string name)
+    {
+        var subject = prefix + name;
+
+        return subject.Length <= MaxSubjectLength
+            ? subject
+            : string.Concat(subject.AsSpan(0, MaxSubjectLength - 1), "…");
     }
 
     /// <summary>

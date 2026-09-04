@@ -24,7 +24,8 @@ Every piece this slice needs already exists and is deliberately unused.
 - **`ClassStatus.Cancelled` is defined and never written.** `src/Domain/Scheduling/ClassStatus.cs`
   documents that S-03 defines the state and this slice adds the transition. The member schedule query
   already filters it out (`src/Infrastructure/Scheduling/ClassScheduleQuery.cs:17`); the admin query
-  deliberately does not (`:24`). Neither needs changing.
+  deliberately does not (`:24`). **Adapted during implementation.** The admin query does now — see
+  Phase 2 §2b.
 - **There is no cancel endpoint.** `ClassEndpoints` maps create, update, delete and duplicate.
   `DeleteAsync` (`:584`) refuses with `has_bookings` once the class has ever been booked, and its doc
   comment states outright that taking a booked class off the schedule is a CANCELLATION owed to this
@@ -339,7 +340,30 @@ the plan meant it to go; only the name in this contract was wrong. `IBookingQuer
 widened to say the same thing, since the interface is what a future caller reads first.
 
 The member schedule needs no change: `ClassScheduleQuery.GetScheduleAsync` already filters on
-`Scheduled`, and the admin query already deliberately does not.
+`Scheduled`. The admin query was planned to need no change either; it did — see §2b.
+
+#### 2b. The admin calendar drops cancelled classes too
+
+**File**: `src/Infrastructure/Scheduling/ClassScheduleQuery.cs`
+
+**Adapted during implementation.** This contract did not exist when the phase was planned, and the
+change did not land with the phase — it is commit `bc4edfd`, after Phase 4, at the product owner's
+direction. It is recorded here rather than as a fifth phase because it belongs to the read-path
+question §2 opens, and because the plan is what the next reader treats as ground truth.
+
+**Contract**: Add `c.Status == ClassStatus.Scheduled` to `GetUpcomingForAdminAsync`.
+
+**Intent**: The plan assumed a cancelled class should stay on the admin's calendar, marked as
+cancelled, so the distinction from a delete would be visible. That is wrong for the reason the
+overlap rule already encodes — `ClassStore.HasTimeConflictAsync` treats two classes as conflicting
+only when both are `Scheduled`, so the hour is free again the moment the status flips, and a tile
+still sitting in it shows the admin a slot that looks occupied and is not. The distinction from a
+delete is kept where it matters: the class row and every booking survive, the class is still
+fetchable by id, and `GET {id}/bookings` still names who was signed up. It is the CALENDAR the
+cancellation leaves, not the record.
+
+**Consequence for §1**: `ClassEndpointTests` no longer asserts the cancelled class is present in the
+admin listing; it asserts the opposite (`:813`).
 
 #### 3. Tests
 
@@ -548,13 +572,16 @@ and its date and stating both how many members will be notified (derivable as
 refreshes and the notice line reports what happened. `class_started` and `already_cancelled` render
 through the extended failure map from Phase 1.
 
-**Adapted during implementation.** "On success the calendar refreshes" is a ROW REPLACEMENT, not a
-refetch. `POST /cancel` answers with the class as the server now holds it, so the response replaces
-that one row: it carries the new status and a `freeSpots` that accounts for any booking which
-committed between the click and the write. A refetch would cost a round trip to learn what the
-response already said, and would repaint every other tile on the way. The write is fenced by the
-same generation counter as `reschedule` and `duplicate` — a week change in flight must not paint a
-row onto a window it does not belong to.
+**Adapted during implementation.** "On success the calendar refreshes" is a ROW REMOVAL, not a
+refetch and not a replacement. Once Phase 2 §2b took cancelled classes off the admin calendar
+entirely, there is no tile left to repaint: the handler discards the cancel response and filters the
+row out of `rows()` (`classes.ts:428-431`). A refetch would cost a round trip to learn what the
+client already knows, and would repaint every other tile on the way. The write is fenced by the same
+generation counter as `reschedule` and `duplicate` — a week change in flight must not paint a row
+onto a window it does not belong to.
+
+The endpoint still answers with the updated class, and the notice line still reports how many members
+were told; nothing in the SPA reads the response's `freeSpots`.
 
 #### 4. Tests
 
@@ -616,8 +643,9 @@ is what makes the concurrency assertions meaningful.
 3. Confirm both members receive an email within a minute naming the class, its date and its
    club-local time; confirm the subscribed device displays a notification and that tapping it opens
    the bookings screen.
-4. Confirm the class is gone from both members' "Moje zajęcia" and from the member schedule, still
-   present on the admin calendar, and that both booking rows are still `Active` in the database.
+4. Confirm the class is gone from both members' "Moje zajęcia", from the member schedule and from
+   the admin calendar (see Phase 2 §2b), and that both booking rows are still `Active` in the
+   database.
 5. Move another booked class an hour later; confirm the email states the old time and the new one.
 6. Change only that class's capacity; confirm nothing is sent.
 7. Attempt to cancel a class in the past; confirm the refusal message.
@@ -676,11 +704,16 @@ column and the enum value predate this slice.
 
 #### Manual
 
-- [ ] 1.9 `GET /health` reports a healthy database connection and a healthy outbox
-- [ ] 1.10 Cancelling a booked class flips its status and leaves every booking row `Active`
-- [ ] 1.11 The cancelled class disappears from the member schedule and from the admin calendar
-- [ ] 1.12 A real email arrives within a minute with the class, its date and its club-local time
+- [x] 1.9 `GET /health` reports a healthy database connection and a healthy outbox
+- [x] 1.10 Cancelling a booked class flips its status and leaves every booking row `Active`
+- [x] 1.11 The cancelled class disappears from the member schedule and from the admin calendar
+- [x] 1.12 A real email arrives within a minute with the class, its date and its club-local time
 - [ ] 1.13 The observed end-to-end delivery time for a full class is recorded in this plan
+
+> Still open. Every other manual criterion was walked and passed; this one is a MEASUREMENT and
+> was not taken. It is the input to the deferred `OutboxOptions` decision (Performance
+> Considerations) and to review finding F8's N+1 ceiling, so it stays unchecked rather than
+> being closed on the strength of the messages having arrived.
 
 ### Phase 2: Change notifications, and cancelled classes leaving the member's screens
 
@@ -695,10 +728,10 @@ column and the enum value predate this slice.
 
 #### Manual
 
-- [ ] 2.7 Moving a booked class an hour later emails both the old and the new time
-- [ ] 2.8 Reassigning the trainer emails both trainers
-- [ ] 2.9 After cancelling, the class is gone from "Moje zajęcia"
-- [ ] 2.10 A member with two bookings loses only the cancelled one
+- [x] 2.7 Moving a booked class an hour later emails both the old and the new time
+- [x] 2.8 Reassigning the trainer emails both trainers
+- [x] 2.9 After cancelling, the class is gone from "Moje zajęcia"
+- [x] 2.10 A member with two bookings loses only the cancelled one
 
 ### Phase 3: Push that actually appears
 
@@ -712,11 +745,11 @@ column and the enum value predate this slice.
 
 #### Manual
 
-- [ ] 3.6 The prompt appears once; "Nie teraz" hides it for the session
-- [ ] 3.7 "Włącz" triggers the browser prompt and creates a `PushSubscriptions` row
-- [ ] 3.8 Cancelling a booked class produces a visible notification on the subscribed device
-- [ ] 3.9 Tapping the notification opens the app on the member's bookings screen
-- [ ] 3.10 A browser without push support shows no prompt and no error, and the email still arrives
+- [x] 3.6 The prompt appears once; "Nie teraz" hides it for the session
+- [x] 3.7 "Włącz" triggers the browser prompt and creates a `PushSubscriptions` row
+- [x] 3.8 Cancelling a booked class produces a visible notification on the subscribed device
+- [x] 3.9 Tapping the notification opens the app on the member's bookings screen
+- [x] 3.10 A browser without push support shows no prompt and no error, and the email still arrives
 
 ### Phase 4: The admin's cancel action
 
@@ -724,14 +757,18 @@ column and the enum value predate this slice.
 
 - [x] 4.1 Frontend unit tests pass — 54ff7a5
 - [x] 4.2 Lint and format clean — 54ff7a5
+
+> `npm run quality:check` was in fact failing on `features/schedule/schedule.ts` and `schedule.spec.ts`
+> throughout this slice — Prettier breakage inherited from `df2b8d1`, not introduced here. Found by
+> the implementation review (F7) and fixed with `quality:fix`; the criterion now holds as written.
 - [x] 4.3 Frontend builds within budget — 54ff7a5
 - [x] 4.4 Backend tests still pass — 54ff7a5
 
 #### Manual
 
-- [ ] 4.5 A booked class shows "Odwołaj"; an unbooked one shows "Usuń"
-- [ ] 4.6 The confirmation names the class, its date, and the number of members to be told
-- [ ] 4.7 Cancelling takes the class off the admin's calendar; the notice says how many were told
-- [ ] 4.8 A delete refused with `has_bookings` offers the cancel route, which works
-- [ ] 4.9 A past week hides both actions
-- [ ] 4.10 The flow is usable on a phone in the day view
+- [x] 4.5 A booked class shows "Odwołaj"; an unbooked one shows "Usuń"
+- [x] 4.6 The confirmation names the class, its date, and the number of members to be told
+- [x] 4.7 Cancelling takes the class off the admin's calendar; the notice says how many were told
+- [x] 4.8 A delete refused with `has_bookings` offers the cancel route, which works
+- [x] 4.9 A past week hides both actions
+- [x] 4.10 The flow is usable on a phone in the day view

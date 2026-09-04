@@ -26,8 +26,33 @@ export class PushService {
 
   private readonly subscribed = signal(false);
   private readonly unavailableReason = signal<string | null>(null);
+  private readonly checked = signal(false);
 
   readonly isSubscribed = this.subscribed.asReadonly();
+
+  /**
+   * False until the browser's EXISTING registration has been read. A caller that offers to enable
+   * push must wait for this, or it flashes the offer at a member who subscribed months ago.
+   */
+  readonly isReady = this.checked.asReadonly();
+
+  constructor() {
+    // `subscribed` tracks this SESSION's subscribe() calls, but the browser's registration outlives
+    // the session — without seeding it here, a member who enabled push last week is asked again on
+    // every visit. Guarded on isEnabled because SwPush.subscription never emits when the service
+    // worker is off (it is off in dev builds), which would leave this pending forever.
+    if (!this.swPush.isEnabled) {
+      this.checked.set(true);
+      return;
+    }
+
+    firstValueFrom(this.swPush.subscription)
+      .then((subscription) => this.subscribed.set(subscription !== null))
+      .catch(() => {
+        // Nothing registered, or the browser refused to say. `false` is already the right answer.
+      })
+      .finally(() => this.checked.set(true));
+  }
 
   /** Null when push is usable; a short reason string when it is not. For a later slice to render. */
   readonly unavailable = this.unavailableReason.asReadonly();
