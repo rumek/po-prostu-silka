@@ -314,7 +314,7 @@ display name for the message comes from the account `ValidateInstructorAsync` al
 
 #### 2. Cancelled classes leave the member's bookings list
 
-**File**: `src/Infrastructure/Scheduling/BookingQuery.cs` — `GetMineAsync`
+**File**: `src/Infrastructure/Scheduling/BookingQuery.cs` — `GetUpcomingForMemberAsync`
 
 **Intent**: Stop returning bookings whose class has been cancelled.
 
@@ -323,14 +323,26 @@ itself stays `Active`; visibility is a property of the class. Record in the meth
 filter is the reason bookings are not cascaded — it is the single point where the chosen model can be
 silently broken by a future query that forgets it.
 
+**Adapted during implementation.** The method is `GetUpcomingForMemberAsync`, not `GetMineAsync` —
+`GetMineAsync` is the ENDPOINT handler in `BookingEndpoints.cs` that calls it. The filter went where
+the plan meant it to go; only the name in this contract was wrong. `IBookingQuery`'s XML comment was
+widened to say the same thing, since the interface is what a future caller reads first.
+
 The member schedule needs no change: `ClassScheduleQuery.GetScheduleAsync` already filters on
 `Scheduled`, and the admin query already deliberately does not.
 
 #### 3. Tests
 
-**File**: `tests/po-prostu-silka.Tests/ClassEndpointTests.cs`, `BookingEndpointTests.cs`
+**File**: `tests/po-prostu-silka.Tests/ClassCancellationTests.cs`
 
 **Intent**: Pin the product rule that lives only in a comparison, and the read-path filter.
+
+**Adapted during implementation.** Both sets landed in `ClassCancellationTests.cs` rather than being
+split across `ClassEndpointTests.cs` and `BookingEndpointTests.cs`. The trigger and the read-path
+filter are two halves of one rule — bookings are not cascaded, so the class's status is what governs
+visibility — and the read-path test needs the cancel endpoint plus this file's slot allocator and
+outbox helpers to say anything. Splitting them would have duplicated that arrangement into a file
+whose 2032 slots would then collide with these.
 
 **Contract**: Four cases on the trigger — start time, duration and instructor each notify; capacity
 alone and an unchanged PUT do not. Two on the read path — a cancelled class drops out of
@@ -610,14 +622,14 @@ column and the enum value predate this slice.
 
 #### Automated
 
-- [x] 1.1 Solution builds warning-free
-- [x] 1.2 All tests pass
-- [x] 1.3 Cancelling a class with N booked members enqueues exactly N email rows plus the matching push rows
-- [x] 1.4 The status flip and the outbox rows land in one save
-- [x] 1.5 The concurrency test fails when the `ConcurrencyStamp` rotation is removed
-- [x] 1.6 Cancelling a past class is refused with `class_started`; a second cancel with `already_cancelled`
-- [x] 1.7 No EF Core reference in `Domain` or `Application`
-- [x] 1.8 Frontend lint and format clean
+- [x] 1.1 Solution builds warning-free — 76dd473
+- [x] 1.2 All tests pass — 76dd473
+- [x] 1.3 Cancelling a class with N booked members enqueues exactly N email rows plus the matching push rows — 76dd473
+- [x] 1.4 The status flip and the outbox rows land in one save — 76dd473
+- [x] 1.5 The concurrency test fails when the `ConcurrencyStamp` rotation is removed — 76dd473
+- [x] 1.6 Cancelling a past class is refused with `class_started`; a second cancel with `already_cancelled` — 76dd473
+- [x] 1.7 No EF Core reference in `Domain` or `Application` — 76dd473
+- [x] 1.8 Frontend lint and format clean — 76dd473
 
 #### Manual
 
@@ -631,12 +643,12 @@ column and the enum value predate this slice.
 
 #### Automated
 
-- [ ] 2.1 Solution builds warning-free
-- [ ] 2.2 All tests pass
-- [ ] 2.3 Editing start time, duration or instructor enqueues one message per booked member
-- [ ] 2.4 Editing only capacity, or an unchanged PUT, enqueues nothing
-- [ ] 2.5 A cancelled class is absent from `GET /api/bookings/mine`, its booking rows still `Active`
-- [ ] 2.6 The member schedule still excludes cancelled classes
+- [x] 2.1 Solution builds warning-free
+- [x] 2.2 All tests pass
+- [x] 2.3 Editing start time, duration or instructor enqueues one message per booked member
+- [x] 2.4 Editing only capacity, or an unchanged PUT, enqueues nothing
+- [x] 2.5 A cancelled class is absent from `GET /api/bookings/mine`, its booking rows still `Active`
+- [x] 2.6 The member schedule still excludes cancelled classes
 
 #### Manual
 

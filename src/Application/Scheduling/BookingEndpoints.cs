@@ -537,8 +537,14 @@ public interface IBookingStore
 public interface IBookingQuery
 {
     /// <summary>
-    /// The member's active bookings on classes starting at or after <paramref name="from"/>, ordered
-    /// by the class's start.
+    /// The member's active bookings on SCHEDULED classes starting at or after
+    /// <paramref name="from"/>, ordered by the class's start.
+    ///
+    /// <para>
+    /// BOTH STATUSES MATTER SINCE S-09. A cancelled class keeps its bookings Active on purpose, so
+    /// the class's own status is the only thing that takes it off this list — see the implementation
+    /// for why that predicate is load-bearing rather than defensive.
+    /// </para>
     /// </summary>
     Task<IReadOnlyList<MyBooking>> GetUpcomingForMemberAsync(
         string memberUserId, DateTimeOffset from, CancellationToken cancellationToken);

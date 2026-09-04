@@ -9,8 +9,8 @@ using po_prostu_silka.Infrastructure.Persistence;
 namespace po_prostu_silka.Tests;
 
 /// <summary>
-/// Cancellation as a state transition, and the messages it owes (S-09 phase 1; prd.md FR-013,
-/// US-02, FR-021).
+/// Cancellation as a state transition, and the messages it owes (S-09; prd.md FR-013, US-02,
+/// FR-021) — plus the second trigger, an EDIT to a class people are booked on.
 ///
 /// <para>
 /// WHY THIS FILE EXISTS: <see cref="A_cancel_racing_a_booking_never_leaves_a_member_untold"/>. Every
@@ -47,6 +47,12 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
 
     /// <summary>Mirrors MemberSummary — only what these tests read from it.</summary>
     private sealed record MemberBody(string Id, string Email);
+
+    /// <summary>Mirrors MyBooking - only what these tests read from it.</summary>
+    private sealed record MyBookingBody(Guid BookingId, Guid ClassId, string Name, DateTimeOffset StartsAt);
+
+    /// <summary>Mirrors ClassBooking - only what these tests read from it.</summary>
+    private sealed record ClassBookingBody(Guid BookingId, string MemberUserId, string DisplayName);
 
     /// <summary>Mirrors ClassFailure.</summary>
     private sealed record FailureBody(string Reason);
@@ -88,10 +94,18 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
         return (await response.Content.ReadFromJsonAsync<ClassTypeBody>())!;
     }
 
-    private async Task<string> CreateTrainerAsync(HttpClient admin)
+    private Task<string> CreateTrainerAsync(HttpClient admin) =>
+        CreateNamedTrainerAsync(admin, displayName: null);
+
+    /// <summary>
+    /// A trainer with a chosen display name, so a test asserting that a message carries the RIGHT
+    /// name means something - every trainer is otherwise called "Test Trainer".
+    /// </summary>
+    private async Task<string> CreateNamedTrainerAsync(HttpClient admin, string? displayName)
     {
         var email = $"trainer-{Guid.NewGuid():N}@test.local";
-        await fixture.CreateUserAsync(email, AccountStatus.Active, ApplicationRoles.Trainer);
+        await fixture.CreateUserAsync(
+            email, AccountStatus.Active, ApplicationRoles.Trainer, displayName);
 
         var members = await admin.GetFromJsonAsync<List<MemberBody>>("/api/admin/members");
 
@@ -120,6 +134,27 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         return (await response.Content.ReadFromJsonAsync<ClassBody>())!;
     }
+
+    /// <summary>
+    /// Submits a full edit. Every field is sent on every call — an edit REPLACES the occurrence, so
+    /// omitting a field is not "leave it alone", it is "clear it".
+    /// </summary>
+    private static Task<HttpResponseMessage> PutClassAsync(
+        HttpClient admin,
+        Guid classId,
+        Guid typeId,
+        string trainerId,
+        DateTimeOffset startsAt,
+        int duration = 60,
+        int capacity = 12) =>
+        admin.PutAsJsonAsync($"{Endpoint}/{classId}", new
+        {
+            classTypeId = typeId,
+            startsAt,
+            instructorUserId = trainerId,
+            durationMinutes = duration,
+            capacity,
+        });
 
     /// <summary>
     /// A brand-new active member, signed in, with <paramref name="deviceCount"/> push subscriptions
@@ -447,6 +482,217 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
         // Rendered at ENQUEUE time and frozen into the row, so a retry hours later says what the
         // first attempt said.
         Assert.False(string.IsNullOrWhiteSpace(message.Body));
+    }
+
+    // --- S-09 phase 2: the edit trigger ---------------------------------------
+    //
+    // A pure PRODUCT RULE, and one that lives nowhere but a three-field comparison. Nothing in the
+    // type system says capacity is silent while duration is not, so these tests are the only
+    // statement of it.
+
+    /// <summary>
+    /// Each of the three member-visible fields, moved on its own. All three notify, and the message
+    /// names the old value beside the new one - a message saying only "something changed" would send
+    /// the member back to the app to find out what.
+    /// </summary>
+    [Fact]
+    public async Task Moving_the_start_time_notifies_every_booked_member()
+    {
+        var (admin, type, trainerId) = await ArrangeAsync();
+        var startsAt = NextSlot();
+        var scheduled = await PostClassAsync(admin, type.Id, trainerId, startsAt);
+
+        var (first, _, _) = await NewMemberAsync();
+        var (second, _, _) = await NewMemberAsync(deviceCount: 1);
+        await BookAsync(first, scheduled.Id);
+        await BookAsync(second, scheduled.Id);
+
+        var moved = startsAt.AddHours(2);
+
+        Assert.Equal(
+            HttpStatusCode.OK,
+            (await PutClassAsync(admin, scheduled.Id, type.Id, trainerId, moved)).StatusCode);
+
+        var messages = await MessagesAboutAsync(type.Name);
+
+        // Two members, one of them with a phone: two emails and one push.
+        Assert.Equal(2, messages.Count(m => m.Channel == NotificationChannel.Email));
+        Assert.Single(messages, m => m.Channel == NotificationChannel.Push);
+
+        // BOTH TIMES, in the club's wall clock. "18:00 -> 18:00" is what a message built from the
+        // tracked entity after the mutation would say.
+        Assert.All(messages, m =>
+        {
+            Assert.Contains(ClubTime.ToClubWallClock(startsAt), m.Body);
+            Assert.Contains(ClubTime.ToClubWallClock(moved), m.Body);
+        });
+    }
+
+    [Fact]
+    public async Task Changing_the_duration_notifies_every_booked_member()
+    {
+        var (admin, type, trainerId) = await ArrangeAsync();
+        var startsAt = NextSlot();
+        var scheduled = await PostClassAsync(admin, type.Id, trainerId, startsAt);
+
+        var (member, _, _) = await NewMemberAsync();
+        await BookAsync(member, scheduled.Id);
+
+        Assert.Equal(
+            HttpStatusCode.OK,
+            (await PutClassAsync(admin, scheduled.Id, type.Id, trainerId, startsAt, duration: 90))
+                .StatusCode);
+
+        var message = Assert.Single(await MessagesAboutAsync(type.Name));
+
+        Assert.Contains("60 min", message.Body);
+        Assert.Contains("90 min", message.Body);
+    }
+
+    [Fact]
+    public async Task Reassigning_the_trainer_notifies_and_names_both_of_them()
+    {
+        var admin = await AdminAsync();
+        var type = await CreateTypeAsync(admin);
+
+        // Named accounts, not two "Test Trainer"s: asserting that the message carries the RIGHT
+        // display name is meaningless while both trainers are called the same thing.
+        var leaving = await CreateNamedTrainerAsync(admin, "Anna Kowalska");
+        var arriving = await CreateNamedTrainerAsync(admin, "Piotr Nowak");
+
+        var startsAt = NextSlot();
+        var scheduled = await PostClassAsync(admin, type.Id, leaving, startsAt);
+
+        var (member, _, _) = await NewMemberAsync();
+        await BookAsync(member, scheduled.Id);
+
+        Assert.Equal(
+            HttpStatusCode.OK,
+            (await PutClassAsync(admin, scheduled.Id, type.Id, arriving, startsAt)).StatusCode);
+
+        var message = Assert.Single(await MessagesAboutAsync(type.Name));
+
+        // The OLD name comes from the tracked entity's navigation and the NEW one from the account
+        // the edit validated. Reading both off the entity would print the leaving trainer twice.
+        Assert.Contains("Anna Kowalska", message.Body);
+        Assert.Contains("Piotr Nowak", message.Body);
+    }
+
+    /// <summary>
+    /// The silent half of the rule, and the half that keeps the loud half worth reading. Capacity is
+    /// administrative - it moves for reasons that have nothing to do with the people already in - and
+    /// a PUT that changes nothing changes nothing.
+    /// </summary>
+    [Fact]
+    public async Task Editing_only_the_capacity_or_nothing_at_all_notifies_nobody()
+    {
+        var (admin, type, trainerId) = await ArrangeAsync();
+        var startsAt = NextSlot();
+        var scheduled = await PostClassAsync(admin, type.Id, trainerId, startsAt, capacity: 12);
+
+        var (member, _, _) = await NewMemberAsync(deviceCount: 1);
+        await BookAsync(member, scheduled.Id);
+
+        // Capacity 12 -> 20, everything else identical.
+        Assert.Equal(
+            HttpStatusCode.OK,
+            (await PutClassAsync(admin, scheduled.Id, type.Id, trainerId, startsAt, capacity: 20))
+                .StatusCode);
+
+        Assert.Empty(await MessagesAboutAsync(type.Name));
+
+        // And a PUT that moves nothing at all - the shape a form submitted without an edit produces.
+        Assert.Equal(
+            HttpStatusCode.OK,
+            (await PutClassAsync(admin, scheduled.Id, type.Id, trainerId, startsAt, capacity: 20))
+                .StatusCode);
+
+        Assert.Empty(await MessagesAboutAsync(type.Name));
+    }
+
+    /// <summary>
+    /// Editing a CANCELLED class notifies nobody. Its members have already been told it is not
+    /// happening; correcting its record afterwards is bookkeeping, and there is no live appointment
+    /// left to update.
+    /// </summary>
+    [Fact]
+    public async Task Editing_a_cancelled_class_notifies_nobody()
+    {
+        var (admin, type, trainerId) = await ArrangeAsync();
+        var startsAt = NextSlot();
+        var scheduled = await PostClassAsync(admin, type.Id, trainerId, startsAt);
+
+        var (member, _, _) = await NewMemberAsync();
+        await BookAsync(member, scheduled.Id);
+
+        Assert.Equal(
+            HttpStatusCode.OK, (await admin.PostAsync(CancelOf(scheduled.Id), content: null)).StatusCode);
+
+        // One message so far: the cancellation.
+        Assert.Single(await MessagesAboutAsync(type.Name));
+
+        Assert.Equal(
+            HttpStatusCode.OK,
+            (await PutClassAsync(admin, scheduled.Id, type.Id, trainerId, startsAt.AddHours(3)))
+                .StatusCode);
+
+        // Still one. The edit landed on the record and sent nothing.
+        Assert.Single(await MessagesAboutAsync(type.Name));
+    }
+
+    [Fact]
+    public async Task Editing_a_class_nobody_booked_notifies_nobody()
+    {
+        var (admin, type, trainerId) = await ArrangeAsync();
+        var startsAt = NextSlot();
+        var scheduled = await PostClassAsync(admin, type.Id, trainerId, startsAt);
+
+        Assert.Equal(
+            HttpStatusCode.OK,
+            (await PutClassAsync(admin, scheduled.Id, type.Id, trainerId, startsAt.AddHours(1)))
+                .StatusCode);
+
+        Assert.Empty(await MessagesAboutAsync(type.Name));
+    }
+
+    // --- S-09 phase 2: the read path ------------------------------------------
+
+    /// <summary>
+    /// A cancelled class leaves "Moje zajecia" while its booking row stays Active - the two halves
+    /// of the model, asserted together because either alone is the wrong shape.
+    /// </summary>
+    [Fact]
+    public async Task A_cancelled_class_leaves_my_bookings_but_the_row_stays_active()
+    {
+        var (admin, type, trainerId) = await ArrangeAsync();
+        var cancelled = await PostClassAsync(admin, type.Id, trainerId, NextSlot());
+        var surviving = await PostClassAsync(admin, type.Id, trainerId, NextSlot());
+
+        var (member, _, _) = await NewMemberAsync();
+        await BookAsync(member, cancelled.Id);
+        await BookAsync(member, surviving.Id);
+
+        Assert.Equal(
+            2, (await member.GetFromJsonAsync<List<MyBookingBody>>("/api/bookings/mine"))!.Count);
+
+        Assert.Equal(
+            HttpStatusCode.OK, (await admin.PostAsync(CancelOf(cancelled.Id), content: null)).StatusCode);
+
+        var mine = await member.GetFromJsonAsync<List<MyBookingBody>>("/api/bookings/mine");
+
+        // ONLY the cancelled one is gone. A member with two bookings does not lose both.
+        var remaining = Assert.Single(mine!);
+        Assert.Equal(surviving.Id, remaining.ClassId);
+
+        // The row itself is untouched: this is the class's state, not the member's decision, and the
+        // admin's "Zapisani" list must still show who was signed up.
+        var row = Assert.Single(await BookingsForAsync(cancelled.Id));
+        Assert.Equal(BookingStatus.Active, row.Status);
+        Assert.Null(row.CancelledAt);
+
+        var stillListed = await admin.GetFromJsonAsync<List<ClassBookingBody>>(
+            $"{Endpoint}/{cancelled.Id}/bookings");
+        Assert.Single(stillListed!);
     }
 
     // --- atomicity and the race ------------------------------------------------

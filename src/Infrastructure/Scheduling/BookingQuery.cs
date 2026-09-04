@@ -21,11 +21,21 @@ public class BookingQuery(AppDbContext db) : IBookingQuery
         // ClassType / Instructor) because a booking stores none of them - the same resolution the
         // schedule performs, and the same reason: a typo corrected on a class type is corrected here.
         //
+        // TWO STATUSES ARE CHECKED, AND THAT IS THE MODEL S-09 CHOSE, NOT AN EXTRA SAFETY NET.
+        // Cancelling a class deliberately leaves every Booking row Active — cascading would record
+        // that the MEMBER cancelled, which is false and rewrites the club's own history — so the
+        // class's own status is the ONLY thing keeping a cancelled class out of "Moje zajęcia".
+        // This predicate is therefore the single point where that model can be silently broken: a
+        // future query that copies this one and forgets `b.Class.Status` puts cancelled classes back
+        // in front of members who were emailed that they are not happening. See
+        // ClassEndpoints.CancelAsync.
+        //
         // Seeks IX_Bookings_Member_Status for the member's rows, then joins.
         await db.Bookings
             .AsNoTracking()
             .Where(b => b.MemberUserId == memberUserId
                         && b.Status == BookingStatus.Active
+                        && b.Class.Status == ClassStatus.Scheduled
                         && b.Class.StartsAt >= from)
             .OrderBy(b => b.Class.StartsAt)
             .Select(b => new MyBooking(

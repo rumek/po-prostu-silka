@@ -474,6 +474,8 @@ public static class ClassEndpoints
         ClassRequest request,
         IClassStore store,
         IBookingStore bookings,
+        IBookingQuery bookingQuery,
+        IClassChangeNotification notification,
         UserManager<ApplicationUser> userManager,
         IUnitOfWork unitOfWork,
         CancellationToken cancellationToken)
@@ -483,6 +485,21 @@ public static class ClassEndpoints
         {
             return Results.NotFound();
         }
+
+        // CAPTURED BEFORE ANYTHING IS MUTATED, and that is the whole reason these three locals exist
+        // rather than being read where they are used. FindAsync returns a TRACKED entity, so after
+        // the assignment block below `existing.StartsAt` IS the request's value — a message built
+        // from it would render "18:00 -> 18:00" and tell the member nothing. The instructor's NAME
+        // cannot be captured the same way (the navigation is the previous account's, which is
+        // exactly what this needs) so it is read here too, before ValidateInstructorAsync resolves
+        // the new one.
+        var previous = new ClassDescription(
+            existing.ClassType.Name,
+            existing.StartsAt,
+            existing.DurationMinutes,
+            existing.Instructor.DisplayName);
+
+        var previousInstructorUserId = existing.InstructorUserId;
 
         var invalid = Validate(request);
         if (invalid is not null)
@@ -551,6 +568,41 @@ public static class ClassEndpoints
         // validated against from moving underneath a booking already in flight. Every writer that
         // changes how many spots are TAKEN rotates - so must the one that changes how many EXIST.
         existing.ConcurrencyStamp = Guid.NewGuid().ToString();
+
+        // S-09: THE SECOND TRIGGER. A member is told when the class they signed up for MOVES, on the
+        // same terms as when it is cancelled — enqueued here, before the save, so the edit and its
+        // messages are one unit of work exactly as CancelAsync's are.
+        //
+        // THREE FIELDS, NOT FOUR. Start time, duration and instructor are precisely what a member
+        // sees in "Moje zajęcia", so a change to any of them changes the appointment they are
+        // holding. Capacity is administrative: it moves for reasons that have nothing to do with the
+        // people already in, and mailing them about it would be noise that erodes trust in the
+        // messages that do matter. A PUT that changes nothing is likewise silent.
+        //
+        // The instructor is compared on the ID, not the display name — the id is what the admin
+        // changed, and two trainers may share a name. The NAME for the message comes from the
+        // account ValidateInstructorAsync already resolved, never from existing.Instructor, which
+        // still points at the previous account.
+        var current = new ClassDescription(
+            existing.ClassType.Name,
+            request.StartsAt,
+            request.DurationMinutes,
+            instructor!.DisplayName);
+
+        var moved = previous.StartsAt != current.StartsAt
+                    || previous.DurationMinutes != current.DurationMinutes
+                    || previousInstructorUserId != request.InstructorUserId;
+
+        // A CANCELLED class notifies nothing. Its members were already told it is not happening;
+        // correcting its record afterwards is bookkeeping, and there is no live appointment to
+        // update. bookedCount is the guard's own count from above — zero means no recipient list to
+        // fetch, so the query is skipped entirely rather than asked for an empty answer.
+        if (moved && bookedCount > 0 && existing.Status == ClassStatus.Scheduled)
+        {
+            var recipients = await bookingQuery.GetForClassAsync(id, cancellationToken);
+
+            await notification.NotifyChangedAsync(previous, current, recipients, cancellationToken);
+        }
 
         // TrySaveChangesAsync since S-08, and the reason is new: Class now CARRIES a concurrency
         // token, so this UPDATE's WHERE clause includes it and a booking that committed between the
