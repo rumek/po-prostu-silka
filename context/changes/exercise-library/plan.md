@@ -173,7 +173,13 @@ database. It is the single place that knows what a YouTube link looks like.
 an empty `videoId` for anything it does not recognise. Accepted shapes, with or without scheme,
 `www.`/`m.` host prefix, and with arbitrary extra query parameters: a bare id,
 `youtube.com/watch?v=<id>`, `youtu.be/<id>`, `youtube.com/embed/<id>`, `youtube.com/shorts/<id>`,
-`youtube.com/live/<id>`. A valid id matches `^[A-Za-z0-9_-]{11}$`. Also expose
+`youtube.com/live/<id>`. A valid id matches `^[A-Za-z0-9_-]{11}$`.
+
+**Adapted during implementation.** The accepted set is a superset of the shapes listed above: it also
+takes `music.youtube.com`, `youtube-nocookie.com` and the legacy `youtube.com/v/<id>` form. Each has
+its own case in `YouTubeVideoIdTests`. A shape the parser fails to recognise is a refusal the admin
+must work around by hand, so erring wide costs nothing here — the extracted candidate still has to
+satisfy the 11-character pattern before it is accepted. Also expose
 `public static string ToWatchUrl(string videoId)` returning
 `https://www.youtube.com/watch?v=<id>` — the form needs a canonical URL to display when editing.
 
@@ -529,7 +535,13 @@ Video: when `videoId` is present and `isVideoId()` confirms its shape, render an
 computed once per id rather than in a template expression (a getter re-invoked on every change
 detection cycle would re-trust on every tick). Attributes: `title` naming the exercise,
 `loading="lazy"`, `allowfullscreen`, `referrerpolicy="strict-origin-when-cross-origin"`, inside the
-same 16:9 box the list uses. No video renders no iframe at all — not an empty frame.
+same 16:9 box the list uses.
+
+**Adapted during implementation.** The iframe also carries
+`allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"` — the
+permissions YouTube's own embed snippet sets, without which fullscreen and picture-in-picture behave
+inconsistently across browsers. Additive only; it grants the frame nothing the page itself does not
+already have. No video renders no iframe at all — not an empty frame.
 
 #### 2. Route
 

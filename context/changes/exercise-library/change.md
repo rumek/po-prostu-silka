@@ -1,7 +1,7 @@
 ---
 change_id: exercise-library
 title: Admin-only exercise library with list, detail and create screens
-status: implementing
+status: impl_reviewed
 created: 2026-09-04
 updated: 2026-09-04
 archived_at: null

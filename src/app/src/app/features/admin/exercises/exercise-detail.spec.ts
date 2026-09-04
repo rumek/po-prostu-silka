@@ -126,6 +126,26 @@ describe('ExerciseDetail', () => {
     expect(iframe()).toBeNull();
   });
 
+  /**
+   * THE GUARD IN FRONT OF THE APP'S ONLY bypassSecurityTrustResourceUrl CALL.
+   *
+   * The server already guarantees a stored videoId matches ^[A-Za-z0-9_-]{11}$, so these bodies
+   * cannot occur in practice — which is exactly why the re-check is easy to delete as redundant
+   * during a later refactor. This pins it: whatever arrives in the response, a value that is not an
+   * id renders no iframe rather than being trusted.
+   */
+  it.each([
+    ['javascript:alert(1)'],
+    ['https://evil.example/x'],
+    ['dQw4w9-gX_QQ'],
+    ['dQw4w9-gX_'],
+    ['dQw4w9 gX_Q'],
+  ])('refuses to embed a videoId that is not an id: %s', async (videoId) => {
+    await createWith({ ...FULL, videoId });
+
+    expect(iframe()).toBeNull();
+  });
+
   /** A 404 is its own state: retrying the same id cannot help, so it offers the way back instead. */
   it('shows a not-found state for an unknown id', async () => {
     await createWith(null, { status: 404, statusText: 'Not Found' });

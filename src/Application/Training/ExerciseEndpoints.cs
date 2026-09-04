@@ -118,6 +118,13 @@ public static class ExerciseEndpoints
 
     private const int MaxExecutionLength = 4000;
 
+    /// <summary>
+    /// The one bound here that mirrors no column, because <c>VideoUrl</c> is never stored - only the
+    /// id it parses to is. 2048 is the conventional URL ceiling; a real YouTube link is under 100
+    /// characters, so this refuses only input that could not have parsed anyway.
+    /// </summary>
+    private const int MaxVideoUrlLength = 2048;
+
     public static IEndpointRouteBuilder MapExerciseEndpoints(this IEndpointRouteBuilder app)
     {
         var admin = app.MapGroup("/api/admin/exercises")
@@ -195,7 +202,11 @@ public static class ExerciseEndpoints
         Apply(created, request);
 
         store.Add(created);
-        await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        if (await unitOfWork.TrySaveAsync(cancellationToken) != SaveOutcome.Saved)
+        {
+            return NameTaken(unitOfWork);
+        }
 
         return Results.Ok(ToDto(created));
     }
@@ -235,12 +246,15 @@ public static class ExerciseEndpoints
         existing.Name = name;
         Apply(existing, request);
 
-        // No concurrency token on Exercise, and SaveChangesAsync rather than TrySaveChangesAsync -
-        // the same deliberate departure ClassType records: exactly one admin account is ever seeded
-        // (AdminSeeder), so there is no second writer to lose a race against. A second admin makes
-        // this last-write-wins, at which point Exercise needs a ConcurrencyStamp and these handlers
-        // need the 409.
-        await unitOfWork.SaveChangesAsync(cancellationToken);
+        // No concurrency token on Exercise: with exactly one admin account ever seeded (AdminSeeder)
+        // there is no second writer, so two edits of the same row cannot race. A second admin makes
+        // this last-write-wins, at which point Exercise needs a ConcurrencyStamp.
+        //
+        // The NAME collision is a different matter and is handled - see NameTaken.
+        if (await unitOfWork.TrySaveAsync(cancellationToken) != SaveOutcome.Saved)
+        {
+            return NameTaken(unitOfWork);
+        }
 
         return Results.Ok(ToDto(existing));
     }
@@ -298,9 +312,41 @@ public static class ExerciseEndpoints
         }
 
         existing.IsActive = true;
-        await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        if (await unitOfWork.TrySaveAsync(cancellationToken) != SaveOutcome.Saved)
+        {
+            return NameTaken(unitOfWork);
+        }
 
         return Results.Ok(ToDto(existing));
+    }
+
+    /// <summary>
+    /// The refusal for a name collision that the pre-check missed.
+    ///
+    /// <para>
+    /// THE PRE-CHECK NARROWS THE WINDOW; THIS CLOSES IT. Two concurrent writes can both pass
+    /// <c>IsNameTakenAsync</c>, and only one of them can satisfy IX_Exercises_Name_Active. With the
+    /// plain <see cref="IUnitOfWork.SaveChangesAsync"/> the loser raises an unhandled
+    /// DbUpdateException - a 500 for what the admin should see as the same clean 409 the ordinary
+    /// path returns. <see cref="SaveOutcome.UniqueViolation"/> exists precisely for this shape, and
+    /// its doc comment records that three earlier implementation reviews found this hole and deferred
+    /// it because catching it needed EF Core types in Application. It does not any more.
+    /// </para>
+    ///
+    /// <para>
+    /// Any non-Saved outcome lands here, and that is correct rather than sloppy: Exercise carries no
+    /// concurrency token and no row is ever deleted, so <see cref="SaveOutcome.ConcurrencyConflict"/>
+    /// is unreachable and the name collision is the only way a commit can fail without throwing.
+    /// Discarding matters because nothing was written either way - leaving the rejected insert in the
+    /// tracked graph would poison any later save on the same request.
+    /// </para>
+    /// </summary>
+    private static IResult NameTaken(IUnitOfWork unitOfWork)
+    {
+        unitOfWork.DiscardChanges();
+
+        return Results.Json(new ExerciseFailure("name_taken"), statusCode: 409);
     }
 
     /// <summary>
@@ -340,9 +386,16 @@ public static class ExerciseEndpoints
             return tooLong;
         }
 
-        // Blank is "no video", not a bad link. Anything else must parse.
+        // Blank is "no video", not a bad link. Anything else must be of a sane size AND must parse.
+        //
+        // The length check comes FIRST and is the one guard here whose bound does not mirror a
+        // column: VideoUrl is never stored - only the 11-character id it parses to is - so without
+        // it an arbitrarily long paste would reach Uri.TryCreate and the regex on every request.
+        // The ceiling is the conventional URL limit, orders of magnitude above any real YouTube
+        // link, so it can only ever refuse something that was never going to parse anyway.
         if (!string.IsNullOrWhiteSpace(request.VideoUrl)
-            && !YouTubeVideoId.TryParse(request.VideoUrl, out _))
+            && (request.VideoUrl.Trim().Length > MaxVideoUrlLength
+                || !YouTubeVideoId.TryParse(request.VideoUrl, out _)))
         {
             return Results.Json(new ExerciseFailure("invalid_video_url"), statusCode: 400);
         }

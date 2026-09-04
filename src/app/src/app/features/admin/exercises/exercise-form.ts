@@ -27,6 +27,13 @@ const MAX_STARTING_POSITION = 2000;
 const MAX_EXECUTION = 4000;
 
 /**
+ * Mirrors MaxVideoUrlLength in ExerciseEndpoints. The one bound here that guards no column - the
+ * server stores the parsed id, not the pasted link - so it exists only to stop an absurd paste
+ * reaching the parser.
+ */
+const MAX_VIDEO_URL = 2048;
+
+/**
  * Create and edit an exercise (prd.md FR-018, FR-019), in one component distinguished by the route
  * parameter — the same shape as ClassTypeForm.
  *
@@ -62,6 +69,7 @@ export class ExerciseForm implements OnInit {
   protected readonly maxPreparation = MAX_PREPARATION;
   protected readonly maxStartingPosition = MAX_STARTING_POSITION;
   protected readonly maxExecution = MAX_EXECUTION;
+  protected readonly maxVideoUrl = MAX_VIDEO_URL;
 
   protected readonly form = inject(FormBuilder).nonNullable.group({
     name: ['', [Validators.required, Validators.maxLength(MAX_NAME)]],
@@ -74,8 +82,9 @@ export class ExerciseForm implements OnInit {
     startingPosition: ['', [Validators.maxLength(MAX_STARTING_POSITION)]],
     execution: ['', [Validators.maxLength(MAX_EXECUTION)]],
     // No pattern validator: the server owns what a YouTube link is, and a second definition here
-    // would eventually refuse a shape the server accepts.
-    videoUrl: [''],
+    // would eventually refuse a shape the server accepts. The length ceiling is not a second
+    // definition - it only mirrors the server's own guard against an absurd paste.
+    videoUrl: ['', [Validators.maxLength(MAX_VIDEO_URL)]],
   });
 
   /** Null when creating; the exercise id when editing. Drives the title, the verb and the endpoint. */

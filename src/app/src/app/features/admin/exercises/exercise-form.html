@@ -168,6 +168,7 @@
         id="videoUrl"
         type="text"
         inputmode="url"
+        [attr.maxlength]="maxVideoUrl"
         formControlName="videoUrl"
         [attr.aria-invalid]="form.controls.videoUrl.touched && form.controls.videoUrl.invalid"
       />
