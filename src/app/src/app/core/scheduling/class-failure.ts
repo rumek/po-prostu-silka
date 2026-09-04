@@ -6,8 +6,8 @@ import { ClassFailure } from './class.models';
  * <h2>Why this is a shared table and not two switch statements</h2>
  *
  * Since S-07 there are TWO surfaces that create a class: the full form (`class-form`) and the
- * calendar's drag-to-create overlay (prd-v2 FR-019). Both receive the same eleven `ClassFailure`
- * reasons. Two independent switches over eleven reasons is how the same refusal comes to read one
+ * calendar's drag-to-create overlay (prd-v2 FR-019). Both receive the same sixteen `ClassFailure`
+ * reasons. Two independent switches over sixteen reasons is how the same refusal comes to read one
  * way in one place and another way in the other — and the drift is invisible until someone hits the
  * same error twice in one session.
  *
@@ -46,6 +46,11 @@ const MESSAGES: Record<ClassFailure['reason'], string> = {
   capacity_below_bookings:
     'Liczba miejsc nie może być mniejsza niż liczba zapisanych osób. Zwolnij miejsce albo zostaw większą liczbę.',
   conflict: 'Zapisy na te zajęcia właśnie się zmieniły. Odśwież stronę i spróbuj ponownie.',
+  // S-09, both from the cancel action. Each names the state that makes the action impossible, and
+  // neither leaves the admin anything to retry — so the wording closes the door rather than
+  // suggesting another attempt.
+  class_started: 'Te zajęcia już się rozpoczęły, więc nie można ich odwołać.',
+  already_cancelled: 'Te zajęcia zostały już odwołane.',
 };
 
 /** The fallback for a refusal with no reason, or one this build does not know. */

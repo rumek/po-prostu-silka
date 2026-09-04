@@ -24,10 +24,12 @@ describe('classFailureMessage', () => {
     'has_bookings',
     'capacity_below_bookings',
     'conflict',
+    'class_started',
+    'already_cancelled',
   ];
 
   it('has a message for every reason the API can return', () => {
-    expect(REASONS.length).toBe(14);
+    expect(REASONS.length).toBe(16);
 
     for (const reason of REASONS) {
       const message = classFailureMessage(reason);

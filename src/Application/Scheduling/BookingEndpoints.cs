@@ -546,6 +546,19 @@ public interface IBookingQuery
     /// <summary>
     /// Everyone actively signed up for a class, in the order they booked — so the club can see who
     /// was first.
+    ///
+    /// <para>
+    /// TWO CALLERS SINCE S-09, and the second one is not a screen. The admin's "Zapisani" panel
+    /// displays this; <see cref="ClassEndpoints"/>' cancel and edit paths use the SAME projection as
+    /// the fan-out list for the email and push owed to everyone holding a spot. That is deliberate
+    /// rather than convenient: a member the club can see on the list and a member the club must tell
+    /// are by definition the same set, and a second query would let the two drift.
+    /// </para>
+    ///
+    /// <para>
+    /// ACTIVE ONLY, which is what makes it right for the fan-out: somebody who released their spot
+    /// is owed nothing.
+    /// </para>
     /// </summary>
     Task<IReadOnlyList<ClassBooking>> GetForClassAsync(
         Guid classId, CancellationToken cancellationToken);

@@ -100,6 +100,11 @@ export interface DuplicateResult {
  * a delete once anyone has ever booked the class, `capacity_below_bookings` refuses an edit that
  * would shrink it below the number already signed up, and `conflict` means a booking committed
  * between the server's check and its write.
+ *
+ * S-09 ADDED TWO, both 409s and both belonging to the CANCEL action: `class_started` refuses to
+ * cancel a class that has already begun — there is no undo and the members were already there — and
+ * `already_cancelled` keeps the transition one-way, so two admins cannot send two rounds of email.
+ * `class_started` is spelled exactly as `BookingFailure` spells it: one disagreement, one name.
  */
 export interface ClassFailure {
   reason:
@@ -117,7 +122,9 @@ export interface ClassFailure {
     | 'instructor_not_trainer'
     | 'has_bookings'
     | 'capacity_below_bookings'
-    | 'conflict';
+    | 'conflict'
+    | 'class_started'
+    | 'already_cancelled';
 }
 
 /**

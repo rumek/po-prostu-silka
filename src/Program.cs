@@ -165,6 +165,11 @@ builder.Services.AddScoped<IPushSubscriptionStore, PushSubscriptionStore>();
 builder.Services.AddScoped<IVapidPublicKey, VapidPublicKeyProvider>();
 builder.Services.AddScoped<IAccountApprovedNotification, AccountApprovedNotification>();
 
+// S-09's cancellation and change messages (FR-013, FR-021). Scoped beside the notification above and
+// for the same reason: it enqueues without saving, so it must share the request's DbContext with
+// IUnitOfWork or the outbox rows would not commit with the domain change that triggered them.
+builder.Services.AddScoped<IClassChangeNotification, ClassChangeNotification>();
+
 // S-01's approve action needs to commit a status flip and the outbox rows it triggers together, and
 // to read the pending queue - both without Application referencing EF Core (AGENTS.md layering).
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();

@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace po_prostu_silka.Domain.Scheduling;
 
 /// <summary>
@@ -20,6 +22,14 @@ namespace po_prostu_silka.Domain.Scheduling;
 /// </para>
 ///
 /// <para>
+/// S-09 ADDS A SECOND CALLER, and it does not weaken that rule. Rendering the body of a notification
+/// is not a read path: the text is frozen into an outbox row on the server and delivered to an inbox
+/// or a lock screen, where there is no browser and therefore no locale to defer to. A member reading
+/// "wtorek, 18:00" needs the hour they will actually turn up for, so club-local wall clock is the
+/// only honest choice. Every path that returns JSON still returns UTC.
+/// </para>
+///
+/// <para>
 /// Single-club by design (PRD Non-Goals: "no multi-tenancy, no per-club admins"). If that ever
 /// changes, this becomes a property of the club, not a constant - and that is the moment to move it.
 /// </para>
@@ -34,6 +44,32 @@ public static class ClubTime
     public const string TimeZoneId = "Europe/Warsaw";
 
     public static TimeZoneInfo Zone => TimeZoneInfo.FindSystemTimeZoneById(TimeZoneId);
+
+    /// <summary>
+    /// The culture every notification body is rendered in (S-09). Static readonly rather than a
+    /// per-call lookup: GetCultureInfo caches, but a fan-out to a full class renders this once per
+    /// recipient per channel and there is no reason to pay for the lookup each time.
+    /// </summary>
+    private static readonly CultureInfo PolishCulture = CultureInfo.GetCultureInfo("pl-PL");
+
+    /// <summary>
+    /// The club's wall-clock reading of an instant, as a member reads it in an email or on a lock
+    /// screen (S-09). Example: "wtorek, 3 września 2026, 18:00".
+    ///
+    /// <para>
+    /// The Polish culture is named explicitly rather than taken from CurrentCulture. The renderer is
+    /// a background-adjacent code path — a request thread today, the outbox worker's thread if a
+    /// later change moves it — and the server's ambient culture is invariant on Linux App Service.
+    /// Left to CurrentCulture the same message would render "Tuesday, 03 September" on one host and
+    /// "wtorek, 3 września" on another, for an app whose every other string is Polish.
+    /// </para>
+    /// </summary>
+    public static string ToClubWallClock(DateTimeOffset instant)
+    {
+        var local = TimeZoneInfo.ConvertTime(instant, Zone);
+
+        return local.ToString("dddd, d MMMM yyyy, HH:mm", PolishCulture);
+    }
 
     /// <summary>
     /// Adds whole days in the club's local time, so the wall-clock time survives a DST transition.

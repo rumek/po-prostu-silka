@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Identity;
+using po_prostu_silka.Application.Notifications;
 using po_prostu_silka.Application.Persistence;
 using po_prostu_silka.Domain;
 using po_prostu_silka.Domain.Scheduling;
@@ -96,17 +97,27 @@ public record DuplicateRequest(int Weeks);
 public record DuplicateResult(int Created, IReadOnlyList<int> SkippedWeeks);
 
 /// <summary>
-/// Why a class write was refused. All 400 except the four 409s — <c>time_conflict</c>, <c>has_bookings</c>,
-/// <c>capacity_below_bookings</c> and <c>conflict</c> — each a disagreement with existing state
-/// rather than bad input.
+/// Why a class write was refused. All 400 except the six 409s — <c>time_conflict</c>,
+/// <c>has_bookings</c>, <c>capacity_below_bookings</c>, <c>conflict</c>, <c>class_started</c> and
+/// <c>already_cancelled</c> — each a disagreement with existing state rather than bad input.
 ///
 /// <para>
 /// Reasons: <c>missing_field</c>, <c>invalid_capacity</c>, <c>invalid_duration</c>,
 /// <c>starts_in_past</c>, <c>invalid_weeks</c>, <c>time_conflict</c>, <c>unknown_class_type</c>,
 /// <c>inactive_class_type</c>, <c>class_type_immutable</c>, <c>unknown_instructor</c>,
 /// <c>instructor_not_trainer</c>, <c>has_bookings</c>, <c>capacity_below_bookings</c>,
-/// <c>conflict</c>. Adding one here means adding it to the SPA's ClassFailure union too — that type
-/// mirrors this one field for field.
+/// <c>conflict</c>, <c>class_started</c>, <c>already_cancelled</c>. Adding one here means adding it
+/// to the SPA's ClassFailure union too — that type mirrors this one field for field.
+/// </para>
+///
+/// <para>
+/// S-09 ADDED THE LAST TWO, both 409s and both belonging to <see cref="CancelAsync"/>.
+/// <c>class_started</c> reuses the name BookingEndpoints already gives the same disagreement — the
+/// class is no longer in the future — so the API speaks one vocabulary rather than two; it is a
+/// refusal here because telling members a class that already happened is cancelled is
+/// disinformation, and there is no undo. <c>already_cancelled</c> keeps the transition one-way and,
+/// with the stamp rotation, keeps it exactly-once: two admins cancelling the same class must not
+/// send two rounds of email.
 /// </para>
 ///
 /// <para>
@@ -143,10 +154,11 @@ public record ClassFailure(string Reason);
 /// class that already has bookings. ClassEndpointTests pins this; nothing in the compiler does.
 /// </para>
 ///
-/// No cancel endpoint. FR-013 makes cancellation a state transition that must be accompanied by the
-/// email and push to everyone booked — that lands whole in S-09. DELETE here is for a MISTAKE (a
-/// class created seconds ago), not for cancelling a class members signed up for; S-08 adds the guard
-/// that refuses once bookings exist.
+/// CANCEL AND DELETE ARE DIFFERENT ACTIONS, and S-09 is where the difference became real. DELETE is
+/// for a MISTAKE — a class created seconds ago, which S-08's guard refuses once anybody has ever
+/// booked it. <see cref="CancelAsync"/> is FR-013's state transition: the class stays, its bookings
+/// and history stay, and everyone holding a spot is emailed and pushed in the SAME unit of work that
+/// performs the flip. An admin who meant "this is not happening" wants the second one.
 /// </summary>
 public static class ClassEndpoints
 {
@@ -214,6 +226,7 @@ public static class ClassEndpoints
         admin.MapPost("/", CreateAsync);
         admin.MapPut("/{id:guid}", UpdateAsync);
         admin.MapDelete("/{id:guid}", DeleteAsync);
+        admin.MapPost("/{id:guid}/cancel", CancelAsync);
         admin.MapPost("/{id:guid}/duplicate", DuplicateAsync);
 
         return app;
@@ -611,6 +624,111 @@ public static class ClassEndpoints
         }
 
         return Results.NoContent();
+    }
+
+    /// <summary>
+    /// Cancels a class (prd.md FR-013, US-02) — the state transition that replaces DELETE once
+    /// anybody has signed up.
+    ///
+    /// <para>
+    /// THE CLASS SURVIVES. Status moves to <see cref="ClassStatus.Cancelled"/> and nothing else is
+    /// touched: every booking row stays <c>Active</c>, because cancellation is a state of the CLASS
+    /// and cascading it onto the bookings would record that the MEMBER cancelled, which is false and
+    /// would be the club's own attendance history rewritten. Visibility is driven by the class's
+    /// status instead — the member schedule already filters on it, and S-09 phase 2 adds the same
+    /// filter to "Moje zajęcia".
+    /// </para>
+    ///
+    /// <para>
+    /// ONE-WAY, deliberately. There is no un-cancel: the emails and pushes below cannot be recalled,
+    /// so an admin who mis-clicked creates a new class rather than reversing this one. That is what
+    /// <c>already_cancelled</c> enforces, and why the confirmation on the admin screen carries the
+    /// weight.
+    /// </para>
+    ///
+    /// <para>
+    /// THE HANDLER ORDER IS THE LOAD-BEARING PART. Recipients are resolved BEFORE the flip and the
+    /// enqueue happens BEFORE the save, so the status change and every outbox row land in ONE
+    /// SaveChangesAsync. An enqueue after the save would be a second unit of work and would reopen
+    /// exactly the "cancelled, nobody told" window the outbox exists to close. No explicit
+    /// transaction, for the reason IUnitOfWork records: EnableRetryOnFailure is on, and a
+    /// user-initiated transaction must go through Database.CreateExecutionStrategy().ExecuteAsync or
+    /// it throws at runtime.
+    /// </para>
+    /// </summary>
+    private static async Task<IResult> CancelAsync(
+        Guid id,
+        IClassStore store,
+        IBookingQuery bookings,
+        IClassChangeNotification notification,
+        IUnitOfWork unitOfWork,
+        TimeProvider timeProvider,
+        CancellationToken cancellationToken)
+    {
+        var existing = await store.FindAsync(id, cancellationToken);
+        if (existing is null)
+        {
+            return Results.NotFound();
+        }
+
+        // Checked before the past-class guard, so a second cancel of a class that has since started
+        // answers the state it is actually in rather than a rule about time.
+        if (existing.Status == ClassStatus.Cancelled)
+        {
+            return Results.Json(new ClassFailure("already_cancelled"), statusCode: 409);
+        }
+
+        // AT OR AFTER the start, matching BookAsync's rule and reusing its reason name. A class that
+        // has begun cannot be un-happened, and emailing the people who attended it that it is
+        // cancelled is disinformation this endpoint has no way to take back.
+        if (existing.StartsAt <= timeProvider.GetUtcNow())
+        {
+            return Results.Json(new ClassFailure("class_started"), statusCode: 409);
+        }
+
+        // BEFORE the flip and before the save: this is the list of people owed a message, and it is
+        // read through the same projection the admin's "Zapisani" panel uses. An empty list is
+        // ordinary — cancelling a class nobody booked simply enqueues nothing.
+        var recipients = await bookings.GetForClassAsync(id, cancellationToken);
+
+        existing.Status = ClassStatus.Cancelled;
+
+        // NOT OPTIONAL — read Class.ConcurrencyStamp before touching this line. A cancel changes
+        // whether spots exist at all, so it moves one side of the capacity inequality exactly as a
+        // booking moves the other. Without the rotation EF's UPDATE carries a WHERE clause the
+        // in-flight booker's stale token still matches, and a cancel racing the last booking lets
+        // both believe they won: a member holding a confirmed spot on a cancelled class, and a
+        // message that went out before their booking existed.
+        existing.ConcurrencyStamp = Guid.NewGuid().ToString();
+
+        await notification.NotifyCancelledAsync(
+            new ClassDescription(
+                existing.ClassType.Name,
+                existing.StartsAt,
+                existing.DurationMinutes,
+
+                // From the tracked entity's navigation, which is correct HERE and would not be on the
+                // edit path: this handler changes no instructor, so FindAsync's Instructor is still
+                // the class's own.
+                existing.Instructor.DisplayName),
+            recipients,
+            cancellationToken);
+
+        // The single save. Everything above is in the change tracker; either the flip and all of its
+        // messages commit, or none of them do.
+        if (!await unitOfWork.TrySaveChangesAsync(cancellationToken))
+        {
+            // A booking committed between the recipient read and this write, so the list we rendered
+            // messages for is already wrong. Nothing was written — including the outbox rows — so the
+            // admin retrying gets a fresh list rather than one member silently missing their email.
+            return Results.Json(new ClassFailure("conflict"), statusCode: 409);
+        }
+
+        // The class as it now stands, matching what UpdateAsync returns so the calendar can replace a
+        // tile from the response. The recipient count IS the active booking count as of the commit:
+        // the save succeeded, so no booking write landed in between — any that had tried would have
+        // rotated the stamp and taken this save down with it.
+        return Results.Ok(ToDto(existing, existing.ClassType, existing.Instructor, recipients.Count));
     }
 
     /// <summary>
