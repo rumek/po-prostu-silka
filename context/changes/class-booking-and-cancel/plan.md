@@ -317,6 +317,13 @@ tracked through `IClassStore.FindAsync`, refuses a cancelled class (`class_cance
 `TrySaveAsync`. `Saved` returns the DTO; `ConcurrencyConflict` and `UniqueViolation` both call
 `DiscardChanges()` and retry; exhausting the attempts returns `conflict`.
 
+**Adapted during implementation.** The bound is **10**, not 3 (`BookingEndpoints.cs:126`, rationale at
+`:106-125`). Three is too few because the racers cost each other attempts: with capacity 3 and four
+takers, the fourth burns all three of its attempts losing to the three winners and is answered
+`conflict` — a retryable "try again" — when the truthful answer is `class_full`. Ten makes the loop
+terminate on the real reason at the club sizes the PRD scopes. The same constant governs
+`CancelMineAsync` and `ReleaseAsync`.
+
 `CancelMineAsync` follows the same shape: find the caller's active booking (`not_booked` when there
 is none), set `Status = Cancelled` and `CancelledAt`, rotate the class stamp, `TrySaveAsync`, retry
 on conflict. It applies **no time rule** — free cancel anytime is locked by the PRD.
@@ -417,6 +424,15 @@ delete.
 
 **Contract**: `DeleteAsync` refuses with `409 has_bookings` when `CountActiveAsync` is greater than
 zero, before removing anything. `has_bookings` joins the `ClassFailure` reason union.
+
+**Adapted during implementation.** The guard counts bookings of **any** status, through a new
+`IBookingStore.HasAnyAsync` (`BookingEndpoints.cs:503`, `BookingStore.cs:43`), not just the active
+ones. Both FKs on `Bookings` are `Restrict`, so a class holding only *cancelled* rows would pass an
+active-only guard and then fail the DELETE at the database with an FK violation — a 500 for a refusal
+the server understands perfectly well. This deliberately reverses the Phase 2 test listed in §7 as "a
+class with only a cancelled booking deletes successfully": such a class is now refused, and the
+history is what keeps it. `DeleteAsync` also maps a lost `TrySaveChangesAsync` race to the same
+`has_bookings` (`ClassEndpoints.cs:589-597`), which only became reachable once `Class` carried a token.
 
 #### 4. Capacity guard
 
@@ -579,6 +595,13 @@ row in `rows` with the `ScheduledClass` the server returned and update the set, 
 `generation` fence so a week navigation mid-flight cannot resurrect a stale row. Failures are mapped
 through `bookingFailureMessage` and shown in the overlay, not as a screen-level banner.
 
+**Adapted during implementation.** `getMine()` is fetched on **every** window change, in the same
+`Promise.all` as the schedule load (`schedule.ts:90-97`), not once on init. The list is unbounded by
+window — a member holds a handful of upcoming bookings, not a page of them — and refetching is what
+keeps the set honest when the same tab is left open across a cancellation made from "Moje zajęcia" or
+another device. One extra request per week navigation, against a set that would otherwise go stale
+silently.
+
 #### 6. Moje zajęcia
 
 **File**: `src/app/src/app/features/my-classes/` (new: `.ts`, `.html`, `.scss`, `.spec.ts`)
@@ -669,6 +692,17 @@ Cancelling uses the existing `busy`/`failedId` idiom keyed by booking id, remove
 patches the class row's `freeSpots` so the calendar tile behind the panel stays honest. "Anuluj" closes
 the panel, per the sibling panels.
 
+**Adapted during implementation.** The list ships as an **overlay**, not a panel below the calendar:
+`features/admin/classes/class-bookings-overlay.{ts,html,scss,spec.ts}` (commit `79c9434`), rendered
+from `classes.html:118-128` and closed with "Zamknij". The duplicate and delete panels hold one line
+and one pair of buttons; a sign-up list is unbounded and would push the calendar off-screen on a full
+class, which is exactly the shape the create overlay already exists to handle. The component owns its
+own data load (`ngOnInit`) the way `class-create-overlay` owns its two selects, so `classes.ts` holds
+only the `viewingBookings()` signal — the fourth `.link-button` in `#classActions`, the tri-state, the
+`busy`/`failedId` idiom and the `freeSpots` patch are all as contracted above. Consequences: the styles
+went into the new component's `.scss`, so `classes.scss` (listed under **File** above) was never
+touched, and Progress item 4.6 should read "the overlay is usable on a phone".
+
 ### Success Criteria:
 
 #### Automated Verification:
@@ -739,7 +773,7 @@ round trip** — the property `ClassScheduleQuery.cs:40-43` was written to prote
 is a covering seek for that count, and `IX_Bookings_Member_Status` backs `GET /api/bookings/mine`. This
 keeps the PRD's ~1 s perceived-response NFR intact on Azure SQL Basic's 5 DTU.
 
-The retry loop is bounded at three attempts and only re-runs on a genuine lost race, which for a club
+The retry loop is bounded at ten attempts (see Phase 1 §9) and only re-runs on a genuine lost race, which for a club
 of dozens is rare; the cost of the token is one extra `Classes` UPDATE per booking.
 
 ## Migration Notes
@@ -791,9 +825,9 @@ required `SET` options; EF Core's connections do, hand-run raw SQL sessions may 
 
 #### Manual
 
-- [ ] 1.6 `GET /health` reports a healthy database connection
-- [ ] 1.7 Booking the same class twice is refused with `already_booked`
-- [ ] 1.8 The member schedule still renders unchanged
+- [x] 1.6 `GET /health` reports a healthy database connection
+- [x] 1.7 Booking the same class twice is refused with `already_booked`
+- [x] 1.8 The member schedule still renders unchanged
 
 ### Phase 2: Bookings become visible to the rest of the system
 
@@ -805,10 +839,10 @@ required `SET` options; EF Core's connections do, hand-run raw SQL sessions may 
 
 #### Manual
 
-- [ ] 2.4 Booking drops the spot count; cancelling restores it
-- [ ] 2.5 Deleting a class with a booking is refused and the class survives
-- [ ] 2.6 Lowering a booked class's capacity below the signed-up count is refused
-- [ ] 2.7 Blocking a member frees future spots and leaves past bookings alone
+- [x] 2.4 Booking drops the spot count; cancelling restores it
+- [x] 2.5 Deleting a class with a booking is refused and the class survives
+- [x] 2.6 Lowering a booked class's capacity below the signed-up count is refused
+- [x] 2.7 Blocking a member frees future spots and leaves past bookings alone
 
 ### Phase 3: The member's booking screens
 
@@ -821,13 +855,13 @@ required `SET` options; EF Core's connections do, hand-run raw SQL sessions may 
 
 #### Manual
 
-- [ ] 3.5 Both member screens are reachable from the top nav
-- [ ] 3.6 The overlay shows the description; booking updates the tile without a reload
-- [ ] 3.7 A full class shows the refusal in the overlay in Polish
-- [ ] 3.8 Cancel restores the spot and removes it from "Moje zajęcia"
-- [ ] 3.9 The overlay closes on Escape and returns focus to the tile
-- [ ] 3.10 Both screens are comfortable on a phone
-- [ ] 3.11 The admin calendar is unchanged, including a past week hiding its actions
+- [x] 3.5 Both member screens are reachable from the top nav
+- [x] 3.6 The overlay shows the description; booking updates the tile without a reload
+- [x] 3.7 A full class shows the refusal in the overlay in Polish
+- [x] 3.8 Cancel restores the spot and removes it from "Moje zajęcia"
+- [ ] 3.9 The overlay closes on Escape and returns focus to the tile — Escape verified; focus restoration is NOT implemented (impl-review F3, skipped)
+- [x] 3.10 Both screens are comfortable on a phone
+- [x] 3.11 The admin calendar is unchanged, including a past week hiding its actions
 
 ### Phase 4: The admin's booking list
 
@@ -839,7 +873,7 @@ required `SET` options; EF Core's connections do, hand-run raw SQL sessions may 
 
 #### Manual
 
-- [ ] 4.4 "Zapisani" lists everyone signed up, with an empty state when nobody is
-- [ ] 4.5 Releasing a spot removes the row and raises the tile's count
-- [ ] 4.6 The panel is usable on a phone with a class near capacity
-- [ ] 4.7 A past week still hides the tile actions, including the new one
+- [x] 4.4 "Zapisani" lists everyone signed up, with an empty state when nobody is
+- [x] 4.5 Releasing a spot removes the row and raises the tile's count
+- [x] 4.6 The overlay is usable on a phone with a class near capacity
+- [x] 4.7 A past week still hides the tile actions, including the new one

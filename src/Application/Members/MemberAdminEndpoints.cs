@@ -279,7 +279,11 @@ public static class MemberAdminEndpoints
         //
         // NO CLASS STAMP IS ROTATED, and none is owed: cancelling only ever FREES spots, so a booker
         // racing this cascade reads a count that is conservative rather than permissive - the worst
-        // it can do is refuse a spot that had just come free.
+        // it can do is refuse a spot that had just come free. That makes this the ONE writer against
+        // booking counts that stands outside the stamp protocol, which is why BookAsync's and
+        // CancelMineAsync's "exact" free-spot answers qualify themselves against it: a cascade in
+        // their window leaves them understating the spots available, and understating is the
+        // direction that cannot overbook. Both consequences resolve on the member's next read.
         //
         // NO NOTIFICATION, consistent with the block itself sending none.
         await bookings.CancelActiveFutureForMemberAsync(

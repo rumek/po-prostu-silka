@@ -219,6 +219,18 @@ public class BookingEndpointTests(IntegrationTestFixture fixture)
             .ToListAsync();
     }
 
+    /// <summary>The class's concurrency stamp, read straight from the database — the mechanism itself.</summary>
+    private async Task<string> StampOfAsync(Guid classId)
+    {
+        await using var db = NewContext();
+
+        return await db.Classes
+            .AsNoTracking()
+            .Where(c => c.Id == classId)
+            .Select(c => c.ConcurrencyStamp)
+            .SingleAsync();
+    }
+
     private static async Task<string> ReasonAsync(HttpResponseMessage response)
     {
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
@@ -559,6 +571,78 @@ public class BookingEndpointTests(IntegrationTestFixture fixture)
         var rows = await BookingsForAsync(scheduled.Id);
         Assert.True(
             rows.Count(b => b.Status == BookingStatus.Active) <= Capacity,
+            "the class holds more active bookings than it has spots");
+    }
+
+    /// <summary>
+    /// The guarantee from the OTHER side: an edit that lowers capacity must rotate the stamp too.
+    ///
+    /// <para>
+    /// Deterministic on purpose, because the hazard it guards is not. IsConcurrencyToken only puts
+    /// the column in the WHERE clause — it does not generate a new value — so an edit that forgets
+    /// to assign one leaves the stamp in the database untouched. A member who read the class before
+    /// the shrink would then still hold a matching token and commit a booking against a capacity
+    /// that no longer exists. Asserting the rotation directly catches that; racing for it would not,
+    /// since the interleaving that exposes it cannot be forced from the API.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public async Task Lowering_capacity_rotates_the_class_stamp()
+    {
+        var (admin, typeId, trainerId) = await ArrangeAsync();
+        var scheduled = await PostClassAsync(admin, typeId, trainerId, capacity: 4);
+
+        var before = await StampOfAsync(scheduled.Id);
+
+        var response = await admin.PutAsJsonAsync($"{ClassesEndpoint}/{scheduled.Id}", new
+        {
+            classTypeId = typeId,
+            startsAt = scheduled.StartsAt,
+            instructorUserId = trainerId,
+            durationMinutes = scheduled.DurationMinutes,
+            capacity = 2,
+        });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        // REMOVE THE ROTATION IN UpdateAsync AND THIS LINE FAILS. That is the whole point of it.
+        Assert.NotEqual(before, await StampOfAsync(scheduled.Id));
+    }
+
+    /// <summary>
+    /// A capacity shrink racing a booking for the last spot. Whichever lands first, the class must
+    /// not end up holding more active bookings than the capacity it finally has.
+    /// </summary>
+    [Fact]
+    public async Task A_capacity_shrink_racing_a_booking_never_overbooks()
+    {
+        var (admin, typeId, trainerId) = await ArrangeAsync();
+        var scheduled = await PostClassAsync(admin, typeId, trainerId, capacity: 2);
+
+        // One spot already taken, one left — the spot both writers are reaching for.
+        Assert.Equal(HttpStatusCode.OK, (await BookAsync(await NewMemberAsync(), scheduled.Id)).StatusCode);
+
+        var challenger = await NewMemberAsync();
+
+        await Task.WhenAll(
+            admin.PutAsJsonAsync($"{ClassesEndpoint}/{scheduled.Id}", new
+            {
+                classTypeId = typeId,
+                startsAt = scheduled.StartsAt,
+                instructorUserId = trainerId,
+                durationMinutes = scheduled.DurationMinutes,
+                capacity = 1,
+            }),
+            BookAsync(challenger, scheduled.Id));
+
+        // Either outcome is correct — the shrink may win and refuse the booking as class_full, or
+        // the booking may win and the shrink be refused. What is never correct is a class holding
+        // more people than the capacity it ended up with.
+        var final = await admin.GetFromJsonAsync<ClassBody>($"{ClassesEndpoint}/{scheduled.Id}");
+        var rows = await BookingsForAsync(scheduled.Id);
+
+        Assert.True(
+            rows.Count(b => b.Status == BookingStatus.Active) <= final!.Capacity,
             "the class holds more active bookings than it has spots");
     }
 

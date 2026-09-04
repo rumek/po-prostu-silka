@@ -82,6 +82,14 @@ public class Class
     /// </para>
     ///
     /// <para>
+    /// EVERY WRITER THAT MOVES EITHER SIDE OF THE INEQUALITY ROTATES, not only the ones that change
+    /// how many spots are taken. An admin edit that lowers <see cref="Capacity"/> changes how many
+    /// spots EXIST, and a booking already in flight validated its count against the old number - so
+    /// ClassEndpoints.UpdateAsync rotates as well. The one deliberate exception is the block cascade
+    /// in MemberAdminEndpoints, which only ever frees spots and is therefore always conservative.
+    /// </para>
+    ///
+    /// <para>
     /// A string rather than a SQL rowversion, following the only concurrency-token precedent this
     /// codebase has - Identity's ConcurrencyStamp, rotated by hand in MemberAdminEndpoints for exactly
     /// the same reason. A rowversion would not help here anyway: the database only bumps it when the

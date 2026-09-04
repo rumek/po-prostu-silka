@@ -525,6 +525,20 @@ public static class ClassEndpoints
         existing.Capacity = request.Capacity;
         existing.InstructorUserId = request.InstructorUserId;
 
+        // AND THIS EDIT ROTATES THE STAMP TOO. IsConcurrencyToken only puts the column in the WHERE
+        // clause; it does not generate a new value the way a SQL rowversion would. So without this
+        // line a capacity shrink leaves the stamp in the database exactly as it was, and a member
+        // who read the class BEFORE the shrink still holds a token that matches:
+        //
+        //   member reads Capacity=10, stamp=S1; counts 5 -> room
+        //   admin shrinks to 5        -> UPDATE ... WHERE stamp=S1, stamp still S1
+        //   member inserts, rotates   -> UPDATE ... WHERE stamp=S1 MATCHES -> 6 in a class of 5
+        //
+        // The guard above validates against a count; this line is what stops the capacity it
+        // validated against from moving underneath a booking already in flight. Every writer that
+        // changes how many spots are TAKEN rotates - so must the one that changes how many EXIST.
+        existing.ConcurrencyStamp = Guid.NewGuid().ToString();
+
         // TrySaveChangesAsync since S-08, and the reason is new: Class now CARRIES a concurrency
         // token, so this UPDATE's WHERE clause includes it and a booking that committed between the
         // count above and this line makes the save match no row.

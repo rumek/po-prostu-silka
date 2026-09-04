@@ -249,6 +249,12 @@ public static class BookingEndpoints
                 // this commit - any that had tried would have rotated the stamp and taken this save
                 // down with it. The count is therefore this class as of the instant it committed,
                 // which is the most any answer can claim.
+                //
+                // Exact WITH RESPECT TO STAMPED WRITES, which is every writer but one: the block
+                // cascade in MemberAdminEndpoints cancels future bookings without rotating anything
+                // (see Class.ConcurrencyStamp for why that is safe). A cascade committing in this
+                // window makes the number one too low - never too high - so it can only understate
+                // the spots available, which is the direction that cannot overbook.
                 return Results.Ok(ClassEndpoints.ToDto(
                     entity, entity.ClassType, entity.Instructor, bookedCount + 1));
             }
@@ -321,7 +327,9 @@ public static class BookingEndpoints
             if (outcome == SaveOutcome.Saved)
             {
                 // Minus one, exact for the same reason BookAsync's plus one is: the stamp serialized
-                // this write against every other booking write on the class.
+                // this write against every other STAMPED booking write on the class - and, with the
+                // same single exception, the block cascade, whose effect can only be to free further
+                // spots this number does not yet know about.
                 return Results.Ok(ClassEndpoints.ToDto(
                     entity, entity.ClassType, entity.Instructor, bookedCount - 1));
             }

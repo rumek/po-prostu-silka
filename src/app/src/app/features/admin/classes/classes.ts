@@ -238,17 +238,13 @@ export class Classes {
    * The overlay released a spot. Patches the class's freeSpots so the tile behind the overlay stops
    * disagreeing with the list in front of it.
    *
-   * Fenced like every other write here: navigating to another week while the overlay was open would
-   * otherwise patch a row belonging to the previous window. The overlay closes on a window change,
-   * so this is belt and braces — and cheap.
+   * NOT fenced, unlike the writes above, and deliberately: a generation fence compares a value
+   * captured BEFORE an await against the current one, and this method has no await to straddle. It
+   * is called synchronously by the overlay once its own request has resolved, so there is no window
+   * in which the generation could move underneath it. What actually guards the stale-window case is
+   * that `load` closes the overlay, so a released spot from a previous week has no one to report it.
    */
   protected afterRelease(row: ScheduledClass): void {
-    const generation = this.generation;
-
-    if (generation !== this.generation) {
-      return;
-    }
-
     this.rows.update((rows) =>
       rows.map((candidate) =>
         candidate.id === row.id ? { ...candidate, freeSpots: candidate.freeSpots + 1 } : candidate,

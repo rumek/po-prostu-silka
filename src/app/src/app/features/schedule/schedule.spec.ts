@@ -293,4 +293,40 @@ describe('Schedule', () => {
     // shared projection deliberately carries no bookedByMe.
     expect(html.textContent).toContain('Jesteś zapisany');
   });
+
+  it('does not stay busy when the week changes mid-booking', async () => {
+    flushMine();
+    scheduleRequests()[0].flush([tile()]);
+    await settle();
+
+    const html = await openFirstTile();
+
+    [...html.querySelectorAll('button')]
+      .find((button) => button.textContent?.includes('Zapisz się'))!
+      .click();
+    fixture.detectChanges();
+
+    // Navigating away mid-flight bumps the generation, so the RESULT is rightly discarded. The busy
+    // flag must not be discarded with it: `[busy]="acting()"` disables the overlay's own buttons, so
+    // an acting() stuck true leaves every later overlay dead until the page is reloaded.
+    step('Następny tydzień');
+
+    controller.expectOne('/api/classes/c1/bookings').flush({ ...tile(), freeSpots: 3 });
+    flushMine();
+    scheduleRequests()[0].flush([]);
+    await settle();
+
+    // Back to the week the class is on, so there is a tile to reopen.
+    step('Poprzedni tydzień');
+    flushMine();
+    scheduleRequests()[0].flush([tile()]);
+    await settle();
+
+    const reopened = await openFirstTile();
+    const book = [...reopened.querySelectorAll('button')].find((button) =>
+      button.textContent?.includes('Zapisz się'),
+    )!;
+
+    expect(book.disabled).toBe(false);
+  });
 });

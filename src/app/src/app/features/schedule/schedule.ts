@@ -171,6 +171,11 @@ export class Schedule {
    * Checked after the await for the same reason `load` checks it: the member may have navigated to
    * another week while this was in flight, and writing the row back would resurrect a class that is
    * no longer on screen. The booking still HAPPENED — this only declines to redraw for it.
+   *
+   * The fence gates applying the RESULT, never clearing `acting`. `acting` is this component's flag,
+   * not the stale week's: gating it too would leave it stuck `true` after a mid-flight navigation,
+   * and since `[busy]="acting()"` disables the overlay's own buttons, nothing would ever set it back.
+   * `loading` can afford the guard because the next `load` resets it; this cannot.
    */
   private async act(
     row: ScheduledClass,
@@ -218,9 +223,7 @@ export class Schedule {
       // member is looking at, and a banner above a calendar would be read as being about the week.
       this.actionError.set(bookingFailureMessage(reason));
     } finally {
-      if (generation === this.generation) {
-        this.acting.set(false);
-      }
+      this.acting.set(false);
     }
   }
 }
