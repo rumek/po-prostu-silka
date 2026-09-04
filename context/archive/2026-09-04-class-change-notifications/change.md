@@ -1,10 +1,10 @@
 ---
 change_id: class-change-notifications
 title: Email and push notifications when a booked class is cancelled or changed
-status: impl_reviewed
+status: archived
 created: 2026-09-04
 updated: 2026-09-04
-archived_at: null
+archived_at: 2026-09-04T13:00:41Z
 ---
 
 ## Notes
