@@ -31,6 +31,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
 
     public DbSet<Exercise> Exercises => Set<Exercise>();
 
+    public DbSet<TrainingPlan> TrainingPlans => Set<TrainingPlan>();
+
+    public DbSet<TrainingPlanItem> TrainingPlanItems => Set<TrainingPlanItem>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         // Must come FIRST: this is what builds the Identity model. Inverting the order with

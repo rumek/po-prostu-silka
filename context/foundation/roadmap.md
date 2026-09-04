@@ -3,7 +3,7 @@ project: "Po Prostu Siłka"
 version: 2
 status: draft
 created: 2026-08-31
-updated: 2026-09-04
+updated: 2026-09-05
 prd_version: 1, 2
 main_goal: speed
 top_blocker: decisions
@@ -56,7 +56,7 @@ Mid-milestone, a second decision landed: a class stops being retyped text and be
 | S-08 | class-booking-and-cancel         | book a spot, cancel it, see upcoming classes; admin sees bookings        | S-07                   | v1 US-01, v1 FR-008, v1 FR-009, v1 FR-010, v1 FR-014, v2 FR-014 | done        |
 | S-09 | class-change-notifications       | booked member gets email + push on class cancel/change                   | F-03, S-08             | v1 US-02, v1 FR-013, v1 FR-021, v2 FR-014                       | done        |
 | S-10 | exercise-library                 | admin manages exercises with instructions and videos                     | S-01                   | v1 FR-018, v1 FR-019                                            | done        |
-| S-11 | training-plans                   | admin builds and assigns a plan; member follows it with exercise details | S-01, S-10             | v1 FR-015, v1 FR-016, v1 FR-017, v1 FR-020                      | blocked     |
+| S-11 | training-plans                   | admin builds and assigns a plan; member follows it with exercise details | S-01, S-10             | v1 FR-015, v1 FR-016, v1 FR-017, v1 FR-020                      | in-progress |
 | S-12 | member-and-admin-dashboards      | member and admin land on their at-a-glance home screens                  | S-01, S-07, S-08, S-11 | v1 FR-023, v1 FR-024                                            | proposed    |
 | S-13 | member-profile-edit              | member edits display name and changes password                           | F-02, S-01             | v1 FR-006                                                       | ready       |
 
@@ -262,10 +262,9 @@ What's already in place in the codebase as of `2026-09-02` (auto-researched + us
 - **Prerequisites:** S-01, S-10
 - **Parallel with:** S-07, S-08, S-09, S-13
 - **Blockers:** —
-- **Unknowns:**
-  - What happens to a blocked member's *assigned plan* — does blocking void, archive, or simply hide it? — Owner: user. Block: yes.
-- **Risk:** the one-active-plan replace-and-archive rule is the domain invariant to get right; exercise details are reached only from the plan, which bounds the interface.
-- **Status:** blocked
+- **Unknowns:** — (resolved 2026-09-04: a blocked member's plan is left untouched; blocking cuts access at read time, and the plan is waiting when the account is unblocked.)
+- **Risk:** the one-active-plan replace-and-archive rule is the domain invariant to get right; exercise details are reached only from the plan, which bounds the interface. Scope widened during planning: plan authoring is available to Trainer as well as Admin, which retires prd-v2's "No trainer screen" Non-Goal and answers its Open Question 3.
+- **Status:** in-progress
 
 ### S-12: Member and admin dashboards
 
@@ -308,13 +307,13 @@ What's already in place in the codebase as of `2026-09-02` (auto-researched + us
 | S-08       | class-booking-and-cancel         | Class booking and cancellation with no-overbooking guarantee | no                    | Needs S-07; blocked on Open Question 1              |
 | S-09       | class-change-notifications       | Email + push notifications on class cancel/change            | no                    | North star; needs F-03, S-08                        |
 | S-10       | exercise-library                 | Exercise library management with instructional videos        | yes                   | Run `/10x-plan exercise-library` — best parallel lane |
-| S-11       | training-plans                   | Training plan creation, assignment, and member view          | no                    | Needs S-10; blocked on Open Question 1              |
+| S-11       | training-plans                   | Training plan creation, assignment, and member view          | yes                   | Planned — run `/10x-implement training-plans phase 1` |
 | S-12       | member-and-admin-dashboards      | Member and admin dashboards                                  | no                    | Needs S-01, S-07, S-08, S-11                        |
 | S-13       | member-profile-edit              | Member profile: edit name and change password                | yes                   | Run `/10x-plan member-profile-edit`                 |
 
 ## Open Roadmap Questions
 
-1. **What happens to a blocked member's existing bookings and assigned plan?** — Owner: user. Block: S-08, S-11. (v1 Open Question 1, v2 Open Question 5. The single blocking decision in the milestone, and it sits on the path to the north star. The two halves are separable: the booking half gates S-08, the plan half gates S-11.)
+1. **What happens to a blocked member's existing bookings and assigned plan?** — Owner: user. RESOLVED. The booking half was answered by S-08 (cascade-cancel active future bookings). The plan half was answered during S-11 planning on 2026-09-04: the assigned plan is left untouched. (v1 Open Question 1, v2 Open Question 5.)
 2. **Who enters the initial exercise library content, and when?** — Owner: user. Block: none directly, but S-11 delivers no real value until dozens of exercises exist. (v1 Open Question 2, v2 Open Question 6.)
 3. **A guest instructor without an account runs one class — what then?** — Owner: user. Block: none; S-06 ships with the case unsupported. (v2 Open Question 1.)
 4. **How dense can the full-week view get before it stops working?** — Owner: user. Block: none; a design-time check inside S-07. (v2 Open Question 2.)
