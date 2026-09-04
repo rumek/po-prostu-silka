@@ -1,0 +1,25 @@
+@if (visible()) {
+  <aside class="push-prompt" role="region" aria-label="Powiadomienia o zmianach w zajęciach">
+    <div class="push-prompt__text">
+      <p class="push-prompt__title">Chcesz wiedzieć od razu, gdy zajęcia się zmienią?</p>
+      <p class="push-prompt__body">
+        Włącz powiadomienia, a damy Ci znać na tym urządzeniu, gdy Twoje zajęcia zostaną odwołane
+        albo przeniesione. E-mail wysyłamy zawsze — to tylko szybsza droga.
+      </p>
+    </div>
+
+    <div class="push-prompt__actions">
+      <button type="button" class="button" [disabled]="working()" (click)="enable()">
+        {{ working() ? 'Włączanie…' : 'Włącz' }}
+      </button>
+      <button
+        type="button"
+        class="button button--secondary"
+        [disabled]="working()"
+        (click)="dismiss()"
+      >
+        Nie teraz
+      </button>
+    </div>
+  </aside>
+}

@@ -35,5 +35,13 @@
 </header>
 
 <main id="main" class="shell-main">
+  <!-- Above the routed view rather than inside one screen: the prompt is about the account, not
+       about whatever the member happens to be looking at, and it renders nothing at all unless push
+       is usable and undecided. Gated on isActive() to match every other member control here — an
+       unapproved account has nothing yet to be notified about. -->
+  @if (auth.isActive()) {
+    <app-push-prompt />
+  }
+
   <router-outlet />
 </main>

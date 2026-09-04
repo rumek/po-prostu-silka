@@ -1,0 +1,36 @@
+// .button/.button--secondary come from src/styles.scss; this file is layout only.
+
+.push-prompt {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4) var(--space-5);
+  margin-bottom: var(--space-5);
+  background: var(--section-warm);
+  border-radius: var(--radius);
+}
+
+.push-prompt__text {
+  flex: 1 1 18rem;
+}
+
+.push-prompt__title {
+  margin: 0 0 var(--space-2);
+  font-weight: 600;
+}
+
+.push-prompt__body {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+// Side by side on a phone too - the two answers are a pair, and stacking them makes "Nie teraz"
+// read as an afterthought rather than as an equally available choice.
+.push-prompt__actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: var(--space-2);
+}

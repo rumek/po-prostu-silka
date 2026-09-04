@@ -2,6 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import { SwPush } from '@angular/service-worker';
 import { App } from './app';
 import { AuthService } from './core/auth/auth.service';
 import { CurrentUser } from './core/auth/auth.models';
@@ -25,6 +26,10 @@ describe('App', () => {
         provideHttpClientTesting(),
         provideRouter([]),
         { provide: AuthService, useValue: auth as AuthService },
+        // The shell renders the push opt-in prompt, which reaches SwPush through PushService. A
+        // disabled worker is the honest stub: it is what a dev build and half the browsers in the
+        // wild report, and it makes the prompt render nothing, so these tests stay about the header.
+        { provide: SwPush, useValue: { isEnabled: false } as unknown as SwPush },
       ],
     });
   }

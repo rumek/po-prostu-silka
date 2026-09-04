@@ -434,6 +434,24 @@ It must render nothing at all when `PushService.isSupported` is false or `subscr
 build with the worker off, a server without VAPID keys), and push is best-effort by design because
 email is the channel the guarantee rests on.
 
+**Adapted during implementation.** Two things the contract left open, decided here.
+
+*"Asks again on a later session" is a seven-day cooldown.* The dismissal is a timestamp in
+`localStorage`, and the prompt returns once it has aged past seven days. A per-session flag would
+not have survived what the component actually does — it is re-created on every navigation through
+the shell, so an in-memory or `sessionStorage` dismissal would last until the next route change and
+not be a dismissal at all. Seven days is long enough that declining is not punished, short enough
+that a member who declined before they had booked anything is asked once more when the app has
+become useful to them. An unparseable stored value is treated as no dismissal: asking once more is a
+smaller failure than never asking again.
+
+*Two files the contract did not name were touched to render it.* `app.ts` / `app.html` mount the
+prompt above the routed view, gated on `auth.isActive()` to match every other member control in the
+header — the plan says "rendered from the authenticated shell" and this is that shell. Consequently
+`app.spec.ts` had to provide a stub `SwPush`: the shell now reaches it through `PushService`, and a
+disabled worker is the honest stub, since it is what a dev build reports and it makes the prompt
+render nothing, keeping those tests about the header.
+
 #### 4. Tests
 
 **File**: `src/app/src/app/features/notifications/push-prompt.spec.ts` (new)
@@ -643,12 +661,12 @@ column and the enum value predate this slice.
 
 #### Automated
 
-- [x] 2.1 Solution builds warning-free
-- [x] 2.2 All tests pass
-- [x] 2.3 Editing start time, duration or instructor enqueues one message per booked member
-- [x] 2.4 Editing only capacity, or an unchanged PUT, enqueues nothing
-- [x] 2.5 A cancelled class is absent from `GET /api/bookings/mine`, its booking rows still `Active`
-- [x] 2.6 The member schedule still excludes cancelled classes
+- [x] 2.1 Solution builds warning-free — 37d26fe
+- [x] 2.2 All tests pass — 37d26fe
+- [x] 2.3 Editing start time, duration or instructor enqueues one message per booked member — 37d26fe
+- [x] 2.4 Editing only capacity, or an unchanged PUT, enqueues nothing — 37d26fe
+- [x] 2.5 A cancelled class is absent from `GET /api/bookings/mine`, its booking rows still `Active` — 37d26fe
+- [x] 2.6 The member schedule still excludes cancelled classes — 37d26fe
 
 #### Manual
 
@@ -661,11 +679,11 @@ column and the enum value predate this slice.
 
 #### Automated
 
-- [ ] 3.1 Backend builds warning-free and all tests pass
-- [ ] 3.2 The push payload test asserts a `notification` object with a non-empty `title`
-- [ ] 3.3 Frontend unit tests pass
-- [ ] 3.4 Lint and format clean
-- [ ] 3.5 Frontend builds within budget
+- [x] 3.1 Backend builds warning-free and all tests pass
+- [x] 3.2 The push payload test asserts a `notification` object with a non-empty `title`
+- [x] 3.3 Frontend unit tests pass
+- [x] 3.4 Lint and format clean
+- [x] 3.5 Frontend builds within budget
 
 #### Manual
 

@@ -59,8 +59,7 @@ public class WebPushSender(
         target.SetKey(PushEncryptionKeyName.P256DH, subscription.P256dh);
         target.SetKey(PushEncryptionKeyName.Auth, subscription.Auth);
 
-        // The service worker reads these fields to build the notification.
-        var payload = JsonSerializer.Serialize(new { title, body });
+        var payload = BuildPayload(title, body);
 
         try
         {
@@ -101,6 +100,56 @@ public class WebPushSender(
             return DeliveryResult.Transient("push_unexpected");
         }
     }
+
+    /// <summary>
+    /// The payload shape the Angular service worker requires in order to DISPLAY a notification.
+    ///
+    /// <para>
+    /// THE ENVELOPE IS LOAD-BEARING. `ngsw-worker.js` calls `showNotification` only for a payload
+    /// whose top level is a `notification` object; anything else is pushed onto the
+    /// `SwPush.messages` stream, where nothing in this SPA is listening — so it is delivered,
+    /// marked Sent, and never seen. Only `title` is required by that contract (Angular's SwPush
+    /// docs); `body` and the click target are what make the notification worth receiving.
+    /// </para>
+    ///
+    /// <para>
+    /// This edits code F-03 shipped and reviewed, and the payload was not wrong on its own terms —
+    /// it simply predated any client that had to render it. S-09 is where a member first sees one.
+    /// </para>
+    ///
+    /// <para>
+    /// `data.onActionClick.default` is the service worker's OWN click handler:
+    /// `navigateLastFocusedOrOpen` reuses an already-open tab rather than stacking a new one on
+    /// every cancellation. The flat `data.url` beside it is the same destination in the shape a
+    /// `notificationClicks` subscriber would read, so a future in-app handler needs no second
+    /// server change. Both point at the member's bookings screen: every message this slice sends is
+    /// about a class they hold a spot on.
+    /// </para>
+    /// </summary>
+    public static string BuildPayload(string title, string body) =>
+        JsonSerializer.Serialize(new
+        {
+            notification = new
+            {
+                title,
+                body,
+                data = new
+                {
+                    url = ClickTarget,
+                    onActionClick = new
+                    {
+                        @default = new
+                        {
+                            operation = "navigateLastFocusedOrOpen",
+                            url = ClickTarget,
+                        },
+                    },
+                },
+            },
+        });
+
+    /// <summary>The member's bookings screen — the SPA route, matching app.routes.ts.</summary>
+    private const string ClickTarget = "/my-classes";
 
     private static bool IsPermanent(HttpStatusCode status) =>
         (int)status is >= 400 and < 500
