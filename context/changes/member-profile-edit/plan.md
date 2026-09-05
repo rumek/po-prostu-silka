@@ -718,11 +718,11 @@ are prompted on the profile screen and can save at any time. No backfill runs.
 
 #### Automated
 
-- [x] 1.1 Backend builds clean under `<Nullable>enable</Nullable>`
-- [x] 1.2 Migration applies and reverses
-- [x] 1.3 Integration tests pass
-- [x] 1.4 Frontend unit tests pass
-- [x] 1.5 Formatting and lint clean
+- [x] 1.1 Backend builds clean under `<Nullable>enable</Nullable>` — 1b6f5b0
+- [x] 1.2 Migration applies and reverses — 1b6f5b0
+- [x] 1.3 Integration tests pass — 1b6f5b0
+- [x] 1.4 Frontend unit tests pass — 1b6f5b0
+- [x] 1.5 Formatting and lint clean — 1b6f5b0
 
 #### Manual
 
