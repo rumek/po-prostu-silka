@@ -1,0 +1,21 @@
+// Layout only — the .panel/.card/.field/.notice/.button classes come from src/styles.scss.
+
+.readonly-field {
+  margin-bottom: var(--space-4);
+}
+
+.readonly-field dt {
+  margin-bottom: var(--space-1);
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.readonly-field dd {
+  margin: 0;
+  font-size: 1.0625rem;
+}
+
+.section-title {
+  margin: var(--space-6) 0 var(--space-4);
+  font-size: 1.125rem;
+}

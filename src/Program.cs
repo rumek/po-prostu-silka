@@ -258,6 +258,7 @@ app.UseAuthorization();
 app.MapHealthChecks("/health");
 
 app.MapAuthEndpoints();
+app.MapProfileEndpoints();
 app.MapPushEndpoints();
 app.MapMemberAdminEndpoints();
 app.MapTrainerEndpoints();

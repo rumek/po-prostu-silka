@@ -82,6 +82,36 @@ describe('App', () => {
     expect((fixture.nativeElement as HTMLElement).querySelector('.shell-logout')).not.toBeNull();
   });
 
+  // Every OTHER member link in the header is gated on isActive(). This one is not, and that is the
+  // point: the profile screen is where a member awaiting approval completes the contact details
+  // S-13 added, so hiding it from them would hide the one screen they need. Its route and its API
+  // group make the same choice.
+  it('shows the profile link to a member who is not yet approved', async () => {
+    configure({
+      user: () => MEMBER,
+      isAuthenticated: () => true,
+      isAdmin: () => false,
+      isTrainer: () => false,
+      isActive: () => false,
+    } as unknown as Partial<AuthService>);
+
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector('a[href="/profile"]'),
+    ).not.toBeNull();
+  });
+
+  it('shows no profile link to an anonymous visitor', async () => {
+    configure(anonymous());
+
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+
+    expect((fixture.nativeElement as HTMLElement).querySelector('a[href="/profile"]')).toBeNull();
+  });
+
   // Hidden rather than disabled: a member who never sees the link never wonders why it refuses
   // them. The API enforces the same rule regardless.
   it('hides the approvals link from a non-admin member', async () => {

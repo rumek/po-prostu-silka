@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import { CurrentUser, LoginRequest, RegisterRequest } from './auth.models';
+import { CurrentUser, LoginRequest, ProfileRequest, RegisterRequest } from './auth.models';
 import { ROLES } from './roles';
 
 /**
@@ -79,6 +79,23 @@ export class AuthService {
 
     this.currentUser.set(user);
     this.resolved.set(true);
+    return user;
+  }
+
+  /**
+   * Saves the member's contact details and replaces the session signal from the response.
+   *
+   * The response IS the new session state — the endpoint returns the same CurrentUser shape /me
+   * does — so nothing re-fetches afterwards and every screen reading auth.user() sees the new
+   * values immediately.
+   *
+   * Does NOT catch, like every other method here: a ProfileFailure body has to reach the screen so
+   * it can put `invalid_postal_code` on the postal-code control rather than in a banner.
+   */
+  async updateProfile(request: ProfileRequest): Promise<CurrentUser> {
+    const user = await firstValueFrom(this.http.put<CurrentUser>('/api/profile', request));
+
+    this.currentUser.set(user);
     return user;
   }
 

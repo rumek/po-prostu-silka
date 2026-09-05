@@ -40,6 +40,12 @@
         <a routerLink="/trainer/plans" routerLinkActive="is-active">Plany</a>
       }
 
+      <!-- Gated on isAuthenticated() by the enclosing block alone, unlike every link above it: the
+           profile screen is where a Pending member completes the contact details S-13 added, so
+           narrowing this to isActive() would hide the one screen an unapproved account needs. Its
+           route and its API group make the same choice. -->
+      <a routerLink="/profile" routerLinkActive="is-active">Moje konto</a>
+
       <button type="button" class="shell-logout" (click)="logout()">Wyloguj się</button>
     </nav>
   }

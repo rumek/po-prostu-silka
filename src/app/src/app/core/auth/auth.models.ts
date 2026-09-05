@@ -8,6 +8,19 @@ export interface CurrentUser {
   displayName: string;
   status: AccountStatus;
   roles: string[];
+  /**
+   * Contact details (S-13). They ride the session payload rather than sitting behind a GET of their
+   * own, so the profile form pre-fills without a second round trip.
+   *
+   * Nullable because an account created before that slice has none — which is exactly what the
+   * profile screen's "complete your details" prompt keys off. Optional as well as nullable, so that
+   * every consumer treats "absent" and "empty" the same way: check truthiness, never `=== null`.
+   */
+  phoneNumber?: string | null;
+  street?: string | null;
+  houseNumber?: string | null;
+  postalCode?: string | null;
+  city?: string | null;
 }
 
 /** Mirrors src/Domain/AccountStatus.cs. Serialised by name, not by number. */
@@ -85,4 +98,23 @@ export type ContactFailureReason =
 
 export interface RegisterFailure {
   reason: RegisterFailureReason;
+}
+
+/**
+ * Mirrors ProfileRequest in src/Application/Members/ProfileEndpoints.cs.
+ *
+ * displayName and email are ABSENT ON PURPOSE and their absence is the enforcement — the gym owns
+ * the name on the membership, and no endpoint in this app changes either. Do not add them.
+ */
+export interface ProfileRequest {
+  phoneNumber: string;
+  street: string;
+  houseNumber: string;
+  postalCode: string;
+  city: string;
+}
+
+/** Mirrors ProfileFailure — the same five codes registration answers with, same helper behind them. */
+export interface ProfileFailure {
+  reason: ContactFailureReason;
 }

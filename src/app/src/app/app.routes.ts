@@ -117,5 +117,16 @@ export const routes: Routes = [
       import('./features/my-plan/plan-exercise-detail').then((m) => m.PlanExerciseDetail),
     canActivate: [authGuard, activeMemberGuard],
   },
+  // S-13's profile screen. authGuard ONLY, never activeMemberGuard — the API's /api/profile group
+  // makes the same choice for the same reason: an account created before S-13 has no contact
+  // details, and it must be able to supply them while still awaiting approval.
+  //
+  // LAZY like its neighbours: the initial bundle sits close to the 500 kB budget in angular.json,
+  // and a screen most members open twice has no business in it.
+  {
+    path: 'profile',
+    loadComponent: () => import('./features/profile/profile').then((m) => m.Profile),
+    canActivate: [authGuard],
+  },
   { path: '**', redirectTo: '' },
 ];

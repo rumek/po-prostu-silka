@@ -42,7 +42,29 @@ public record LoginFailure(string Reason);
 /// </summary>
 public record RegisterFailure(string Reason);
 
-public record CurrentUser(string Id, string Email, string DisplayName, string Status, string[] Roles);
+/// <summary>
+/// The session payload every authenticated screen reads.
+///
+/// The contact fields ride along rather than sitting behind their own GET (S-13): the profile form
+/// pre-fills from session state, so the SPA needs no second round trip on a 5-DTU tier - and the
+/// screen that prompts an incomplete account to fill them in can tell they are empty without asking.
+/// They are nullable here and only here: accounts created before S-13 have none, and that is exactly
+/// what the prompt keys off.
+///
+/// DisplayName and Email are deliberately absent from every write surface. The gym owns the name on
+/// the membership; no endpoint in this app lets anyone change either.
+/// </summary>
+public record CurrentUser(
+    string Id,
+    string Email,
+    string DisplayName,
+    string Status,
+    string[] Roles,
+    string? PhoneNumber,
+    string? Street,
+    string? HouseNumber,
+    string? PostalCode,
+    string? City);
 
 /// <summary>
 /// The authentication surface: create an account, establish a session, inspect it, refresh it,
@@ -311,10 +333,20 @@ public static class AuthEndpoints
             user.Email ?? string.Empty,
             user.DisplayName,
             user.Status.ToString(),
-            roles));
+            roles,
+            user.PhoneNumber,
+            user.Street,
+            user.HouseNumber,
+            user.PostalCode,
+            user.City));
     }
 
-    private static async Task<CurrentUser> BuildCurrentUserAsync(
+    /// <summary>
+    /// Builds the session payload from an entity. Internal rather than private: ProfileEndpoints
+    /// returns the same shape after a save, and a second copy of this projection is exactly how the
+    /// two would drift the next time CurrentUser grows a field.
+    /// </summary>
+    internal static async Task<CurrentUser> BuildCurrentUserAsync(
         ApplicationUser user,
         UserManager<ApplicationUser> userManager)
     {
@@ -325,6 +357,11 @@ public static class AuthEndpoints
             user.Email ?? string.Empty,
             user.DisplayName,
             user.Status.ToString(),
-            [.. roles]);
+            [.. roles],
+            user.PhoneNumber,
+            user.Street,
+            user.HouseNumber,
+            user.PostalCode,
+            user.City);
     }
 }

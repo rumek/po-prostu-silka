@@ -273,6 +273,12 @@ second round trip and the profile form can be pre-filled from session state.
 populates them from the entity. `GET /api/auth/me` and both sign-in paths return the extended shape
 unchanged in every other respect.
 
+**Adapted during implementation.** `BuildCurrentUserAsync` moved from `private` to `internal` so
+`ProfileEndpoints` returns the session payload through the same projection instead of writing a
+second copy of it — a duplicate is exactly how the two would drift the next time `CurrentUser` grows
+a field. `GetCurrentUser` keeps its own inline projection, because it reads roles from the cookie's
+claims rather than querying them.
+
 #### 2. Profile endpoint
 
 **File**: `src/Application/Members/ProfileEndpoints.cs` (new)
@@ -297,8 +303,9 @@ or email is ignored by virtue of not being on the request record.
 **Intent**: Mirror the extended `CurrentUser`, add the update call, and refresh the session signal
 from the response so the whole app sees the new values immediately.
 
-**Contract**: `CurrentUser` gains the five optional fields; new `ProfileRequest` and `ProfileFailure`
-types. `AuthService` gains `updateProfile(request)` calling `PUT /api/profile`, setting the user
+**Contract**: `CurrentUser` gains the five optional fields (optional as well as nullable, so the six
+existing spec fixtures that build a `CurrentUser` literal stay valid and every consumer checks
+truthiness rather than `=== null`); new `ProfileRequest` and `ProfileFailure` types. `AuthService` gains `updateProfile(request)` calling `PUT /api/profile`, setting the user
 signal from the response, and — like every other method here — not catching, so the component maps
 the failure onto controls.
 
@@ -324,6 +331,12 @@ pattern.
 
 **Contract**: A link to `/profile` in the authenticated section of the nav, beside the existing
 logout button.
+
+**Adapted during implementation.** It is the only member link in the header NOT gated on
+`isActive()` — the enclosing `isAuthenticated()` block is the whole condition. Narrowing it to match
+its neighbours would hide the one screen a member awaiting approval needs, which is the same reason
+the route and the API group both take `authGuard` / bare `RequireAuthorization()`. `app.spec.ts`
+gained two tests pinning that.
 
 #### 6. Tests
 
@@ -726,19 +739,19 @@ are prompted on the profile screen and can save at any time. No backfill runs.
 
 #### Manual
 
-- [ ] 1.6 Registering with a complete form creates the account and lands on the pending screen
-- [ ] 1.7 A malformed postal code shows an error under the postal-code field, not in the banner
-- [ ] 1.8 A phone entered as `+48 123 456 789` is stored as nine digits
-- [ ] 1.9 Existing accounts still sign in with no contact details present
+- [x] 1.6 Registering with a complete form creates the account and lands on the pending screen — 1b6f5b0
+- [x] 1.7 A malformed postal code shows an error under the postal-code field, not in the banner — 1b6f5b0
+- [x] 1.8 A phone entered as `+48 123 456 789` is stored as nine digits — 1b6f5b0
+- [x] 1.9 Existing accounts still sign in with no contact details present — 1b6f5b0
 
 ### Phase 2: Profile read and edit
 
 #### Automated
 
-- [ ] 2.1 Backend builds clean
-- [ ] 2.2 Integration tests pass
-- [ ] 2.3 Frontend unit tests pass
-- [ ] 2.4 Formatting and lint clean
+- [x] 2.1 Backend builds clean
+- [x] 2.2 Integration tests pass
+- [x] 2.3 Frontend unit tests pass
+- [x] 2.4 Formatting and lint clean
 
 #### Manual
 
