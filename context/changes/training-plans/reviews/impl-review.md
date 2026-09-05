@@ -5,19 +5,24 @@
 - **Scope**: Phases 1-3 of 3 (all implemented; several manual criteria still pending)
 - **Date**: 2026-09-05
 - **Commits**: `1de6369` (p1), `f91c91e` (p2), `26f781b` (p3)
-- **Verdict**: NEEDS ATTENTION
+- **Verdict**: APPROVED (after triage — all nine findings decided; none left open)
 - **Findings**: 0 critical, 5 warnings, 4 observations
+- **Triage**: 2026-09-05 — F1-F5, F8, F9 fixed; F6, F7 accepted
 
 ## Verdicts
 
 | Dimension | Verdict |
 |-----------|---------|
-| Plan Adherence | WARNING |
+| Plan Adherence | PASS |
 | Scope Discipline | PASS |
-| Safety & Quality | WARNING |
+| Safety & Quality | PASS |
 | Architecture | PASS |
-| Pattern Consistency | WARNING |
-| Success Criteria | WARNING |
+| Pattern Consistency | PASS |
+| Success Criteria | PASS |
+
+All six dimensions read PASS after triage: every warning was fixed, and the two accepted
+observations are states unreachable in the current role model (F7) or pre-existing across two screens
+and out of this change's scope (F6).
 
 **Architecture PASS** — no `using Microsoft.EntityFrameworkCore` in `Domain` or `Application`; the
 `ITrainingPlanQuery` / `ITrainingPlanStore` seams are declared in Application and implemented in
@@ -130,7 +135,9 @@ test), no member-facing library browsing, no keyboard reorder, no Home change, n
   - Blind spot: The new F1 test has never executed; if `ArrangeAsync`'s tuple shape or `Endpoint`
     differ from what was assumed, it fails to compile — though `dotnet build` on the test project
     passes, which covers that.
-- **Decision**: PENDING — belongs to the human's environment pass
+- **Decision**: FIXED — Docker started by the human; `dotnet test` green at **367** (the F1 test
+  included), and `dotnet test --filter Concurrent` green on three consecutive runs. Progress 2.2,
+  2.3 and 2.4 checked.
 
 ### F6 — A malformed exercise id reads as a load failure, not "not in your plan"
 
@@ -176,8 +183,9 @@ test), no member-facing library browsing, no keyboard reorder, no Home change, n
   refusal.
 - **Fix**: Either reject more than two decimal places, or document the rounding beside
   `MaxWeightKg`.
-- **Decision**: SKIPPED — half-kilogram granularity is what a gym floor uses; the rounding is
-  invisible in practice
+- **Decision**: FIXED (documented, not enforced) — the rounding is now spelled out on
+  `MaxWeightKg`, including why a validator would be the wrong fix and what to do instead if the exact
+  entered value is ever needed. Behaviour unchanged.
 
 ### F9 — `TrainingPlanItem.Id` is not stable across an edit
 
@@ -194,7 +202,9 @@ test), no member-facing library browsing, no keyboard reorder, no Home change, n
   the slice took deliberately, not an accident.
 - **Fix**: Record the non-stability in `TrainingPlanItem.Id`'s doc comment so the constraint is
   visible before something depends on it.
-- **Decision**: PENDING — worth a doc comment; raise before the first feature that keys on an item
+- **Decision**: FIXED — the non-stability is documented on `TrainingPlanItem.Id`, naming both ways
+  out (a natural key of plan + exercise, or a reconciling write path) and warning that reconciling is
+  what produced the EF collection-fixup bug. Behaviour unchanged.
 
 ## Areas verified clean
 

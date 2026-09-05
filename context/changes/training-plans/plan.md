@@ -820,9 +820,9 @@ here: the previous release simply ignores two empty tables.
 #### Automated
 
 - [x] 2.1 Backend builds warning-free
-- [ ] 2.2 Full suite passes including the new test files
-- [ ] 2.3 Concurrent-assignment test passes on three consecutive runs
-- [ ] 2.4 `EveryRoute` matrices cover both new groups and both split exercise groups
+- [x] 2.2 Full suite passes including the new test files (367 green)
+- [x] 2.3 Concurrent-assignment test passes on three consecutive runs
+- [x] 2.4 `EveryRoute` matrices cover both new groups and both split exercise groups
 
 #### Manual
 

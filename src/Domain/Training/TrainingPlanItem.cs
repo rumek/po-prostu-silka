@@ -20,6 +20,26 @@ namespace po_prostu_silka.Domain.Training;
 /// </summary>
 public class TrainingPlanItem
 {
+    /// <summary>
+    /// NOT STABLE ACROSS AN EDIT. Read this before keying anything on it.
+    ///
+    /// <para>
+    /// Editing a plan replaces its item rows wholesale - TrainingPlanStore.ReplaceItems deletes every
+    /// row and inserts the new list with fresh ids - so the same prescribed exercise comes back with a
+    /// different <see cref="Id"/> after every save. That is the direct price of the replace-wholesale
+    /// write model, and the model is what makes reordering trivially correct: no row carries a
+    /// position to renumber, so a drag cannot produce a gap or a duplicate.
+    /// </para>
+    ///
+    /// <para>
+    /// Nothing keys on this id across requests today - it travels to the client only as a rendering
+    /// key. A future feature that DOES (a workout log, per-exercise progress) cannot simply store it:
+    /// its rows would be orphaned the first time the trainer edits the plan. Such a feature needs
+    /// either a stable natural key (the plan plus the exercise) or a write path that reconciles rows
+    /// instead of replacing them - and reconciling is what produced the EF collection-fixup bug
+    /// documented on ReplaceItems, so it is a decision to make deliberately, not by accident.
+    /// </para>
+    /// </summary>
     public Guid Id { get; set; }
 
     /// <summary>The plan this belongs to. Items have no life outside their plan.</summary>

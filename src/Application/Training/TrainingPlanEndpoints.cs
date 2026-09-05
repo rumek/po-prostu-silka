@@ -180,7 +180,19 @@ public static class TrainingPlanEndpoints
 
     private const decimal MinWeightKg = 0m;
 
-    /// <summary>What decimal(5,2) holds. Exceeding it would be a truncation error, not a rounding one.</summary>
+    /// <summary>
+    /// What decimal(5,2) holds. Exceeding it would be a truncation error, not a rounding one.
+    ///
+    /// <para>
+    /// THE SCALE IS NOT CHECKED, ONLY THE RANGE, and that is deliberate: a submitted 60.123 is stored
+    /// as 60.12, silently. SQL Server rounds rather than truncating here, so this is a changed value
+    /// rather than a failed INSERT - the hazard the other bounds guard against does not apply. Weight
+    /// on a gym floor moves in half-kilograms (the builder's input carries step="0.5" as a nudge), so
+    /// a third decimal place is noise, and refusing it would explain a rejection nobody meant to
+    /// cause. Documented rather than enforced - if a future caller needs the entered value back
+    /// exactly, widen the column, do not add a validator.
+    /// </para>
+    /// </summary>
     private const decimal MaxWeightKg = 999.99m;
 
     /// <summary>
