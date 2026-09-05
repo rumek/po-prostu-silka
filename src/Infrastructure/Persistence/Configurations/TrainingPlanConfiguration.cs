@@ -59,12 +59,13 @@ public class TrainingPlanConfiguration : IEntityTypeConfiguration<TrainingPlan>
         // hostage: every replacement leaves another archived row behind, and a plain unique index
         // would reject the second assignment forever.
         //
-        // This is defence in depth rather than the primary mechanism. TrainingPlan.ConcurrencyStamp
-        // already serializes assignment against the plan being archived, so two concurrent
-        // assignments collide on the stamp and the loser's retry sees the winner's plan. This index
-        // is what still holds if a future write path forgets to rotate - and it is what catches the
-        // one case the stamp cannot, where the member has no active plan at all and two racers each
-        // insert a first one.
+        // THIS INDEX IS THE PRIMARY MECHANISM, not defence in depth - measured, not assumed. Six
+        // racers assigning at once still leave exactly one active plan with the stamp rotation
+        // commented out of the assignment handler; weaken this index instead and all six succeed.
+        // Assignment always INSERTS a new active row, so the collision surfaces here, on the
+        // database, before TrainingPlan.ConcurrencyStamp gets a say. The stamp is the second line:
+        // it fails a loser earlier and more cheaply, and it is the ONLY guard on the edit path,
+        // which inserts nothing and so never touches this index.
         //
         // "[Status] = 0" names TrainingPlanStatus.Active as a literal - the enum's numeric values are
         // pinned for exactly this dependency.

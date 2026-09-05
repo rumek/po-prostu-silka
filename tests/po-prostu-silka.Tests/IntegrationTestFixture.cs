@@ -87,6 +87,18 @@ public class IntegrationTestFixture : IAsyncLifetime
         await CreateUserAsync(TestUsers.ActiveMemberEmail, AccountStatus.Active, ApplicationRoles.User);
         await CreateUserAsync(TestUsers.PendingMemberEmail, AccountStatus.Pending, ApplicationRoles.User);
         await CreateUserAsync(TestUsers.BlockedMemberEmail, AccountStatus.Blocked, ApplicationRoles.User);
+
+        // BOTH ROLES, and that is the point rather than belt-and-braces. A real trainer is an
+        // approved member the admin promoted, so they keep User - and Trainer alone deliberately
+        // fails the ActiveMember policy (see ApplicationRoles.MemberFacing). Seeding this account
+        // with Trainer only would test a state the product cannot produce, and would quietly make
+        // every "a trainer may also read their own plan" assertion unreachable.
+        await CreateUserAsync(
+            TestUsers.ActiveTrainerEmail,
+            AccountStatus.Active,
+            ApplicationRoles.User,
+            displayName: "Test Active Trainer",
+            additionalRole: ApplicationRoles.Trainer);
     }
 
     /// <summary>
@@ -98,8 +110,17 @@ public class IntegrationTestFixture : IAsyncLifetime
     /// same role apart by name — asserting that a resolved display name is the RIGHT one is
     /// meaningless while every trainer is called "Test Trainer".
     /// </param>
+    /// <param name="additionalRole">
+    /// A second role granted alongside <paramref name="role"/>. Roles are additive in this product,
+    /// and the only account that needs two is a trainer who is also a member - which is what every
+    /// real trainer is.
+    /// </param>
     public async Task CreateUserAsync(
-        string email, AccountStatus status, string role, string? displayName = null)
+        string email,
+        AccountStatus status,
+        string role,
+        string? displayName = null,
+        string? additionalRole = null)
     {
         using var scope = Factory.Services.CreateScope();
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
@@ -123,6 +144,11 @@ public class IntegrationTestFixture : IAsyncLifetime
         Assert.True(created.Succeeded, string.Join("; ", created.Errors.Select(e => e.Description)));
 
         await userManager.AddToRoleAsync(user, role);
+
+        if (additionalRole is not null)
+        {
+            await userManager.AddToRoleAsync(user, additionalRole);
+        }
     }
 
     /// <summary>Logs in and returns a client carrying the resulting auth cookie.</summary>
@@ -166,6 +192,9 @@ public static class TestUsers
     public const string ActiveMemberEmail = "active-member@test.local";
     public const string PendingMemberEmail = "pending-member@test.local";
     public const string BlockedMemberEmail = "blocked-member@test.local";
+
+    /// <summary>An approved member who also holds Trainer - what promoting a member actually produces.</summary>
+    public const string ActiveTrainerEmail = "active-trainer@test.local";
 }
 
 [CollectionDefinition(nameof(IntegrationCollection))]

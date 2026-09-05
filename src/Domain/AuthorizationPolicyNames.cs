@@ -21,4 +21,23 @@ public static class AuthorizationPolicyNames
 
     /// <summary>Everything ActiveMember requires, plus the Admin role.</summary>
     public const string Admin = "Admin";
+
+    /// <summary>
+    /// Active, and holding EITHER the Trainer role or the Admin role. The authoring side of training
+    /// plans (S-11), and the first capability the Trainer role has ever carried.
+    ///
+    /// <para>
+    /// The union is deliberate rather than a convenience. prd.md FR-015 gives plan authoring to the
+    /// admin; the S-11 decision widened it to trainers without taking it away, which is exactly what
+    /// prd-v2's additive role model asks for - an owner who teaches holds both roles and must not
+    /// have to pick one.
+    /// </para>
+    ///
+    /// <para>
+    /// NOT a superset of <see cref="ActiveMember"/> and not a substitute for it. An account holding
+    /// only Trainer passes this and fails ActiveMember by design (see ApplicationRoles.MemberFacing).
+    /// Member-facing reads keep using ActiveMember.
+    /// </para>
+    /// </summary>
+    public const string TrainerOrAdmin = "TrainerOrAdmin";
 }

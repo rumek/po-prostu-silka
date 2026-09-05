@@ -113,13 +113,24 @@ order. This is what makes reordering trivially correct — there is no per-row p
 transient duplicate positions and no need for a unique index on `(TrainingPlanId, Position)` that a
 multi-statement reorder would trip over mid-batch.
 
-**One active plan, enforced twice.** The primary mechanism is the same as no-overbooking: the handler
-archives the member's current active plan and inserts the new one inside a bounded retry loop over
-`IUnitOfWork.TrySaveAsync`, rotating the archived plan's `ConcurrencyStamp` so a concurrent writer
-loses. The backstop is a filtered unique index on the member's id where the status is active, which
-makes two active plans unrepresentable even if a future write path forgets the token. A racer that
-loses on the index retries, now sees the winner's plan as the active one, archives it, and inserts —
-the loop converges rather than failing.
+**One active plan, enforced twice.** The primary mechanism is a filtered unique index on the member's
+id where the status is active, which makes two active plans unrepresentable. The handler archives the
+member's current active plan and inserts the new one inside a bounded retry loop over
+`IUnitOfWork.TrySaveAsync`, rotating the archived plan's `ConcurrencyStamp`; the rotation makes a
+racer lose earlier and more cheaply, and is the only guard on the edit path, which inserts nothing. A
+racer that loses either way retries, now sees the winner's plan as the active one, archives it, and
+inserts — the loop converges rather than failing.
+
+**Adapted during implementation.** The plan originally called the retry loop over `ConcurrencyStamp`
+the primary mechanism and the index the backstop, by analogy with the booking slice. Manual
+verification 2.5 measured the opposite. With the rotation commented out of the assignment handler the
+six-racer test still passes; with the index weakened to non-unique (migration only — weakening the
+configuration too trips `PendingModelChangesWarning`) it fails with all six racers holding an active
+plan. Assignment always INSERTs a new active row, so the index sees every collision, whereas in the
+booking slice the capacity check had no index to express it and the stamp had to carry the whole
+invariant. The ordering is reversed above and in the doc comments on `TrainingPlan.ConcurrencyStamp`,
+`TrainingPlanConfiguration`'s index, and `TrainingPlanEndpoints.CreateAsync`; verification criterion
+2.5 is restated to match what actually fails red.
 
 **Two API surfaces with different policies.** Authoring lives under `/api/trainer/plans` behind a new
 `TrainerOrAdmin` policy. The member's read lives under `/api/plans` behind `ActiveMember`, scoped to
@@ -517,7 +528,7 @@ exercise deactivated after assignment is still returned inside the plan; `PUT` w
 
 #### Manual Verification:
 
-- The race test fails red when the `ConcurrencyStamp` rotation is commented out of the assignment handler — confirm this once by hand, then restore it (the discipline `class-booking-and-cancel/plan.md:346-356` requires)
+- The race test fails red when `IX_TrainingPlans_Member_Active` is weakened to non-unique in the migration — confirm this once by hand, then restore it (the discipline `class-booking-and-cancel/plan.md:346-356` requires). Commenting out the `ConcurrencyStamp` rotation instead does NOT fail the race test; see the "Adapted during implementation" note above
 - Signed in as a trainer via the API, `GET /api/admin/exercises` returns 200 and `POST /api/admin/exercises` returns 403
 - Signed in as a plain member, `GET /api/plans/mine` returns 204 before assignment and the plan after
 - A blocked member's plan row is still `Active` in the database after the block, and the member gets 403 rather than an empty plan
@@ -672,6 +683,20 @@ despite the lazy routes, find what pulled the new code into the initial chunk be
 budget — and record the finding as an "**Adapted during implementation.**" note in this plan, per
 `context/foundation/lessons.md`.
 
+**Adapted during implementation.** Two files the phase's contract did not list had to change, and
+one spec needed a harness detail:
+
+- `src/app/src/app/app.spec.ts` — the shell's `AuthService` stubs are partial objects, so adding
+  `auth.isTrainer()` to `app.html` broke every one of them with
+  `TypeError: ctx_r1.auth.isTrainer is not a function`. Each stub gained `isTrainer`, and three tests
+  were added for the two new links, mirroring the existing approvals-link matrix.
+- `src/app/src/app/core/auth/trainer.guard.spec.ts` — written alongside the guard, matching
+  `admin.guard.spec.ts`; the contract named the guard but not its spec.
+- `my-plan.spec.ts` settles TWO rounds of `whenStable`/`detectChanges` rather than one.
+  `TrainingPlanService.getMine()` is the only service method that awaits and then post-processes
+  (204 → `null`), so its promise resolves one microtask after the response and a single round
+  renders the loading state.
+
 ### Success Criteria:
 
 #### Automated Verification:
@@ -785,14 +810,14 @@ here: the previous release simply ignores two empty tables.
 
 #### Automated
 
-- [ ] 2.1 Backend builds warning-free
+- [x] 2.1 Backend builds warning-free
 - [ ] 2.2 Full suite passes including the new test files
 - [ ] 2.3 Concurrent-assignment test passes on three consecutive runs
 - [ ] 2.4 `EveryRoute` matrices cover both new groups and both split exercise groups
 
 #### Manual
 
-- [ ] 2.5 Race test fails red without the concurrency-stamp rotation, then restored
+- [x] 2.5 Race test fails red with the filtered unique index weakened, then restored (the stamp rotation alone does not — see the adaptation note in Phase 2)
 - [ ] 2.6 Trainer can read the exercise library and cannot write it
 - [ ] 2.7 `GET /api/plans/mine` returns 204 before assignment, the plan after
 - [ ] 2.8 A blocked member's plan row stays Active and the member is refused with 403
@@ -801,11 +826,11 @@ here: the previous release simply ignores two empty tables.
 
 #### Automated
 
-- [ ] 3.1 Frontend unit tests pass
-- [ ] 3.2 `npm run quality:check` passes
-- [ ] 3.3 Production build succeeds with no bundle-budget warning
-- [ ] 3.4 Malformed-video-id spec proves no iframe renders
-- [ ] 3.5 My-plan spec distinguishes "no plan" from "load failed"
+- [x] 3.1 Frontend unit tests pass
+- [x] 3.2 `npm run quality:check` passes
+- [x] 3.3 Production build succeeds with no bundle-budget warning (initial 479.22 kB against 500 kB; the CDK landed in the `plan-builder` lazy chunk)
+- [x] 3.4 Malformed-video-id spec proves no iframe renders
+- [x] 3.5 My-plan spec distinguishes "no plan" from "load failed"
 
 #### Manual
 

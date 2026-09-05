@@ -6,9 +6,10 @@ namespace po_prostu_silka.Domain.Training;
 /// <para>
 /// AT MOST ONE ACTIVE PLAN PER MEMBER. Assigning a new plan archives the old one rather than editing
 /// it, which is what FR-016 asks for and what makes "the member's plan" a question with one answer.
-/// The rule is enforced twice: TrainingPlanEndpoints archives-and-inserts inside a retry loop over
-/// <see cref="ConcurrencyStamp"/>, and TrainingPlanConfiguration carries a filtered unique index that
-/// makes two active rows for one member unrepresentable even if a future write path forgets.
+/// The rule is carried by TrainingPlanConfiguration's filtered unique index on (MemberUserId) WHERE
+/// Status = 0, which makes two active rows for one member unrepresentable. TrainingPlanEndpoints
+/// archives-and-inserts inside a retry loop over <see cref="ConcurrencyStamp"/>, but that loop is a
+/// second line rather than the first - see the remarks on <see cref="ConcurrencyStamp"/>.
 /// </para>
 ///
 /// <para>
@@ -74,8 +75,8 @@ public class TrainingPlan
     public DateTimeOffset? ArchivedAt { get; set; }
 
     /// <summary>
-    /// THE ONE-ACTIVE-PLAN GUARANTEE LEANS ON THIS LINE. Read it before touching any code that
-    /// changes a plan's <see cref="Status"/>.
+    /// SECOND LINE OF DEFENCE ON ASSIGNMENT, FIRST LINE ON EDIT. Read it before touching any code
+    /// that changes a plan's <see cref="Status"/>.
     ///
     /// <para>
     /// Assignment is a read-then-write sequence - find the member's active plan, archive it, insert
@@ -86,12 +87,15 @@ public class TrainingPlan
     /// </para>
     ///
     /// <para>
-    /// THAT ONLY WORKS IF THE WRITE ROTATES IT. Unless the handler explicitly assigns a new value
-    /// when it archives, EF still issues the UPDATE (Status changed) but a stale token would be the
-    /// only thing guarding it - and a racer that archives an already-archived plan writes nothing at
-    /// all. The rotation is not bookkeeping, it is the mechanism, exactly as on Class.ConcurrencyStamp.
-    /// The plan edit path rotates too, so two trainers editing one plan cannot overwrite each other
-    /// silently.
+    /// IT IS NOT WHAT MAKES THE RACE SAFE, THOUGH - MEASURED, NOT ASSUMED. Commenting the rotation
+    /// out of the assignment handler leaves the race test green; weakening the filtered unique index
+    /// instead leaves six racers with six active plans. Every assignment INSERTS a new active row,
+    /// and it is the index that rejects the second one, so the invariant holds on the database. This
+    /// is the reverse of Class.ConcurrencyStamp, where the stamp is the whole mechanism because the
+    /// booking count has no index to express it. Here the rotation earns its place by failing a
+    /// loser earlier and more cheaply than a unique violation would, and by guarding the EDIT path,
+    /// where nothing is inserted and the index therefore says nothing: two trainers editing one plan
+    /// cannot overwrite each other silently only because this rotates.
     /// </para>
     ///
     /// <para>

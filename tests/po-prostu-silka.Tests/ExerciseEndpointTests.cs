@@ -121,8 +121,9 @@ public class ExerciseEndpointTests(IntegrationTestFixture fixture)
     }
 
     /// <summary>
-    /// The library is admin-only: prd.md cuts standalone browsing for members, and FR-020 reaches an
-    /// exercise through an assigned plan instead (S-11). An approved member has no way in here.
+    /// prd.md cuts standalone browsing for members, and FR-020 reaches an exercise through an
+    /// assigned plan instead (S-11, MyPlanEndpoints). An approved member who is neither trainer nor
+    /// admin has no way in here - not even to the reads, which S-11 opened to trainers.
     /// </summary>
     [Theory]
     [MemberData(nameof(EveryRoute))]
@@ -134,6 +135,49 @@ public class ExerciseEndpointTests(IntegrationTestFixture fixture)
             new HttpRequestMessage(new HttpMethod(method), url)
             {
                 Content = JsonContent.Create(Request("x")),
+            });
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    /// <summary>
+    /// S-11 split this surface into two groups over one path: reads are TrainerOrAdmin because a
+    /// trainer assembles plans from the library, writes stay Admin because FR-018 makes curating it
+    /// the admin's job. These two tests are the whole point of that split, and they fail the moment
+    /// someone collapses the groups back together in either direction.
+    /// </summary>
+    [Fact]
+    public async Task Trainer_may_read_the_library()
+    {
+        var (_, created) = await CreateAsync();
+        var trainer = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveTrainerEmail);
+
+        var list = await trainer.GetAsync(Endpoint);
+        var one = await trainer.GetAsync($"{Endpoint}/{created.Id}");
+
+        Assert.Equal(HttpStatusCode.OK, list.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, one.StatusCode);
+        Assert.Equal(created.Name, (await one.Content.ReadFromJsonAsync<ExerciseBody>())!.Name);
+    }
+
+    public static TheoryData<string, string> EveryWriteRoute => new()
+    {
+        { "POST", Endpoint },
+        { "PUT", $"{Endpoint}/{Guid.Empty}" },
+        { "POST", $"{Endpoint}/{Guid.Empty}/deactivate" },
+        { "POST", $"{Endpoint}/{Guid.Empty}/activate" },
+    };
+
+    [Theory]
+    [MemberData(nameof(EveryWriteRoute))]
+    public async Task Trainer_may_not_write_the_library(string method, string url)
+    {
+        var trainer = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveTrainerEmail);
+
+        var response = await trainer.SendAsync(
+            new HttpRequestMessage(new HttpMethod(method), url)
+            {
+                Content = JsonContent.Create(Request(UniqueName())),
             });
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);

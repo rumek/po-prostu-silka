@@ -206,6 +206,12 @@ builder.Services.AddScoped<IClassTypeStore, ClassTypeStore>();
 builder.Services.AddScoped<IExerciseQuery, ExerciseQuery>();
 builder.Services.AddScoped<IExerciseStore, ExerciseStore>();
 
+// S-11's training plans (prd.md FR-015..FR-017, FR-020). Scoped for the same reason as the sets
+// above - the store must share the request's DbContext with IUnitOfWork, which is what commits the
+// archive-and-insert that keeps a member to one active plan.
+builder.Services.AddScoped<ITrainingPlanQuery, TrainingPlanQuery>();
+builder.Services.AddScoped<ITrainingPlanStore, TrainingPlanStore>();
+
 builder.Services.AddHostedService<OutboxDeliveryWorker>();
 
 var app = builder.Build();
@@ -258,6 +264,8 @@ app.MapTrainerEndpoints();
 app.MapClassEndpoints();
 app.MapClassTypeEndpoints();
 app.MapExerciseEndpoints();
+app.MapTrainingPlanEndpoints();
+app.MapMyPlanEndpoints();
 app.MapBookingEndpoints();
 
 // Probe endpoints for the ActiveMember and Admin policies, in the "Testing" environment only.

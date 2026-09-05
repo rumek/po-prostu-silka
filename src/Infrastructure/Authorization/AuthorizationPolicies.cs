@@ -44,5 +44,17 @@ public static class AuthorizationPolicies
             .AddPolicy(Admin, policy => policy
                 .RequireAuthenticatedUser()
                 .RequireClaim(StatusClaimType, nameof(AccountStatus.Active))
-                .RequireRole(ApplicationRoles.Admin));
+                .RequireRole(ApplicationRoles.Admin))
+            // The first policy here that admits a UNION of roles. RequireRole with several arguments
+            // is OR in ASP.NET Core - the same semantics ActiveMember already leans on by passing the
+            // MemberFacing array - so this reads "Trainer or Admin", not "Trainer and Admin".
+            //
+            // A role granted to a signed-in account does not reach that session's cookie immediately:
+            // the claims are re-minted on POST /api/auth/refresh, or when the security-stamp
+            // validation interval configured in Program.cs elapses. A freshly promoted trainer
+            // therefore keeps seeing 403 for up to that interval, which is expected rather than a bug.
+            .AddPolicy(AuthorizationPolicyNames.TrainerOrAdmin, policy => policy
+                .RequireAuthenticatedUser()
+                .RequireClaim(StatusClaimType, nameof(AccountStatus.Active))
+                .RequireRole(ApplicationRoles.Trainer, ApplicationRoles.Admin));
 }

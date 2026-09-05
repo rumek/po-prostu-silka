@@ -60,9 +60,12 @@ cards (S-12); progress tracking or weight progression.
 `TrainingPlan` (aggregate root, one per member when active) owns `TrainingPlanItem` rows carrying an
 explicit `Position` and a `Restrict` FK to `Exercise`. Writes replace the entire item list, so
 reordering never updates positions row by row. "One active plan per member" is enforced twice: a
-bounded retry loop over `IUnitOfWork.TrySaveAsync` with an explicitly rotated `ConcurrencyStamp` on the
-plan being archived, backed by a filtered unique index (`[Status] = 0`) that makes two active plans
-unrepresentable. Two API surfaces: `/api/trainer/plans` behind `TrainerOrAdmin`, `/api/plans` behind
+filtered unique index (`[Status] = 0`) that makes two active plans unrepresentable, and a bounded
+retry loop over `IUnitOfWork.TrySaveAsync` with an explicitly rotated `ConcurrencyStamp` on the plan
+being archived. The index is the load-bearing half — measured, not assumed: the race test survives
+removing the rotation and fails without the index, the reverse of the booking slice, because every
+assignment INSERTs a new active row. The rotation makes a loser fail earlier and is the only guard on
+the edit path. Two API surfaces: `/api/trainer/plans` behind `TrainerOrAdmin`, `/api/plans` behind
 `ActiveMember` and scoped to the caller's own id — including the exercise read, which serves an
 exercise only when it sits in the caller's plan, enforcing the "no standalone library browsing"
 Non-Goal rather than merely respecting it.
