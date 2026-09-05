@@ -398,6 +398,12 @@ record reuses the reason-code convention with `invalid_current_password` (400) a
 `invalid_new_password` (400, covering Identity's password-policy codes); Identity's raw error text is
 never forwarded, matching the mapping already in `RegisterAsync`.
 
+**Adapted during implementation.** The handler answers **204 No Content** rather than a body — the
+password is not part of any state the SPA holds, and `RefreshSignInAsync` re-issues the cookie
+server-side, so there is nothing for a response body to carry. It also guards a null current or new
+password before calling `ChangePasswordAsync`, the same compile-time-vs-runtime gap `LoginAsync` and
+`RegisterAsync` already guard: without it a JSON null throws and an authenticated caller gets a 500.
+
 #### 2. SPA contract and service
 
 **Files**: `src/app/src/app/core/auth/auth.models.ts`,
@@ -418,7 +424,10 @@ where they manage everything else about their account.
 **Contract**: A separate `FormGroup` — independent submit, submitting and error state from the
 contact-details form, so one failing does not disable the other. Controls: current password, new
 password (`minLength` mirroring `MIN_PASSWORD_LENGTH`), and a confirmation control with a
-group-level validator requiring the two to match. `autocomplete="current-password"` and
+group-level validator requiring the two to match. The mismatch error stays on the GROUP and the
+template reads it through a `confirmationMismatch` getter — put on the confirmation control instead,
+it is wiped by that control's own validators the next time either field is edited, and the message
+flickers. `autocomplete="current-password"` and
 `"new-password"` respectively. On success the form resets and shows a confirmation.
 
 #### 4. Tests
@@ -755,19 +764,19 @@ are prompted on the profile screen and can save at any time. No backfill runs.
 
 #### Manual
 
-- [ ] 2.5 The profile screen is reachable from the navigation and pre-fills current values
-- [ ] 2.6 Name and email appear as text with no editable input
-- [ ] 2.7 Saving valid changes persists them across a page reload
-- [ ] 2.8 An account registered before Phase 1 shows the prompt and can save
+- [x] 2.5 The profile screen is reachable from the navigation and pre-fills current values — 11a3c0b
+- [x] 2.6 Name and email appear as text with no editable input — 11a3c0b
+- [x] 2.7 Saving valid changes persists them across a page reload — 11a3c0b
+- [x] 2.8 An account registered before Phase 1 shows the prompt and can save — 11a3c0b
 
 ### Phase 3: Change password while signed in
 
 #### Automated
 
-- [ ] 3.1 Backend builds clean
-- [ ] 3.2 Integration tests pass
-- [ ] 3.3 Frontend unit tests pass
-- [ ] 3.4 Formatting and lint clean
+- [x] 3.1 Backend builds clean
+- [x] 3.2 Integration tests pass
+- [x] 3.3 Frontend unit tests pass
+- [x] 3.4 Formatting and lint clean
 
 #### Manual
 

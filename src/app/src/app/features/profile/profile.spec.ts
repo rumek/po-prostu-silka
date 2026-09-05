@@ -181,6 +181,118 @@ describe('Profile', () => {
     expect(compiled().querySelector('.alert')?.textContent).toContain('Nie udało się zapisać');
   });
 
+  describe('password change', () => {
+    function fillPassword(
+      current = 'TestPass_123',
+      next = 'NoweHaslo_456',
+      confirmation = 'NoweHaslo_456',
+    ) {
+      for (const [id, value] of [
+        ['currentPassword', current],
+        ['newPassword', next],
+        ['confirmation', confirmation],
+      ] as const) {
+        const input = compiled().querySelector<HTMLInputElement>(`#${id}`)!;
+        input.value = value;
+        input.dispatchEvent(new Event('input'));
+      }
+    }
+
+    function submitPassword(): void {
+      compiled().querySelectorAll('form')[1]!.dispatchEvent(new Event('submit'));
+    }
+
+    function expectChange() {
+      return vi.waitFor(() => controller.expectOne('/api/auth/change-password'));
+    }
+
+    it('sends only the current and new password', async () => {
+      await createWith(COMPLETE);
+      fillPassword();
+      submitPassword();
+
+      const request = await expectChange();
+      expect(request.request.body).toEqual({
+        currentPassword: 'TestPass_123',
+        newPassword: 'NoweHaslo_456',
+      });
+
+      request.flush(null);
+      await fixture.whenStable();
+    });
+
+    /** Caught in the form, so a typo costs no round trip and leaks no password to the network. */
+    it('refuses a mismatched confirmation before any request is sent', async () => {
+      await createWith(COMPLETE);
+      fillPassword('TestPass_123', 'NoweHaslo_456', 'CosInnego_789');
+      submitPassword();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      controller.expectNone('/api/auth/change-password');
+      expect(compiled().querySelector('#confirmation')?.getAttribute('aria-invalid')).toBe('true');
+    });
+
+    it('surfaces invalid_current_password on the current-password control', async () => {
+      await createWith(COMPLETE);
+      fillPassword();
+      submitPassword();
+
+      (await expectChange()).flush(
+        { reason: 'invalid_current_password' },
+        { status: 400, statusText: 'Bad Request' },
+      );
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(compiled().querySelector('#currentPassword')?.getAttribute('aria-invalid')).toBe(
+        'true',
+      );
+      expect(
+        [...compiled().querySelectorAll('.field-error')].some((e) =>
+          (e.textContent ?? '').includes('Obecne hasło jest nieprawidłowe'),
+        ),
+      ).toBe(true);
+    });
+
+    it('clears the form and confirms on success', async () => {
+      await createWith(COMPLETE);
+      fillPassword();
+      submitPassword();
+
+      (await expectChange()).flush(null);
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(compiled().querySelector<HTMLInputElement>('#currentPassword')!.value).toBe('');
+      expect(
+        [...compiled().querySelectorAll('.notice')].some((n) =>
+          (n.textContent ?? '').includes('Hasło zostało zmienione'),
+        ),
+      ).toBe(true);
+    });
+
+    /**
+     * The two forms are independent by construction. A rejected password must leave the contact
+     * fields alone, or the member sees an address error they did not cause.
+     */
+    it('leaves the contact form untouched when the password change fails', async () => {
+      await createWith(COMPLETE);
+      fillPassword();
+      submitPassword();
+
+      (await expectChange()).flush(
+        { reason: 'invalid_current_password' },
+        { status: 400, statusText: 'Bad Request' },
+      );
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(compiled().querySelector('#postalCode')?.getAttribute('aria-invalid')).toBe('false');
+      expect(compiled().querySelector<HTMLInputElement>('#city')!.value).toBe('Warszawa');
+    });
+  });
+
   it('blocks submit on a postal code the API would refuse', async () => {
     await createWith(COMPLETE);
 

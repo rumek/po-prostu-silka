@@ -3,12 +3,13 @@ import { Component, computed, inject, signal } from '@angular/core';
 import {
   AbstractControl,
   FormBuilder,
+  FormGroup,
   ReactiveFormsModule,
   ValidationErrors,
   Validators,
 } from '@angular/forms';
 import { AuthService } from '../../core/auth/auth.service';
-import { ProfileFailure } from '../../core/auth/auth.models';
+import { ChangePasswordFailure, ProfileFailure } from '../../core/auth/auth.models';
 
 /**
  * Mirrors the rules in src/Application/Members/ContactDetails.cs, and must stay identical to the
@@ -18,6 +19,21 @@ import { ProfileFailure } from '../../core/auth/auth.models';
  */
 const POSTAL_CODE_PATTERN = /^\d{2}-\d{3}$/;
 const PHONE_PATTERN = /^(?:\+?48[\s-]?)?(?:\d[\s-]?){8}\d$/;
+
+/** Matches Identity's RequiredLength in src/Program.cs, like the register screen's copy. */
+const MIN_PASSWORD_LENGTH = 8;
+
+/**
+ * Group-level, because it compares two controls. The error lands on the GROUP rather than on the
+ * confirmation control: setting it on the control would be cleared by that control's own validators
+ * the next time either field is edited, and the member would watch the message flicker.
+ */
+function passwordsMatch(group: AbstractControl): ValidationErrors | null {
+  const newPassword = group.get('newPassword')?.value;
+  const confirmation = group.get('confirmation')?.value;
+
+  return newPassword === confirmation ? null : { mismatch: true };
+}
 
 /**
  * The member's own account screen (S-13, FR-006 as rewritten).
@@ -67,6 +83,26 @@ export class Profile {
   protected readonly saved = signal(false);
   protected readonly submitting = signal(false);
 
+  protected readonly minPasswordLength = MIN_PASSWORD_LENGTH;
+
+  /**
+   * A SEPARATE FormGroup with its own submit and its own state, not a section of the one above.
+   * The two forms fail independently — a rejected postal code must not disable the password button,
+   * and a wrong current password must not make the address fields look broken.
+   */
+  protected readonly passwordForm = inject(FormBuilder).nonNullable.group(
+    {
+      currentPassword: ['', [Validators.required]],
+      newPassword: ['', [Validators.required, Validators.minLength(MIN_PASSWORD_LENGTH)]],
+      confirmation: ['', [Validators.required]],
+    },
+    { validators: passwordsMatch },
+  );
+
+  protected readonly passwordError = signal<string | null>(null);
+  protected readonly passwordChanged = signal(false);
+  protected readonly changingPassword = signal(false);
+
   constructor() {
     // Pre-filled from session state rather than from a GET: CurrentUser already carries these
     // fields, so the screen renders complete on first paint with no request of its own.
@@ -110,6 +146,54 @@ export class Profile {
     } finally {
       this.submitting.set(false);
     }
+  }
+
+  /**
+   * Changes the password without ending the session: the API refreshes this cookie against the
+   * rotated security stamp, so nothing here has to re-establish anything. The form is reset on
+   * success so the old values are not left sitting in the DOM.
+   */
+  protected async submitPassword(): Promise<void> {
+    if (this.passwordForm.invalid) {
+      this.passwordForm.markAllAsTouched();
+      return;
+    }
+
+    this.passwordError.set(null);
+    this.passwordChanged.set(false);
+    this.changingPassword.set(true);
+
+    try {
+      const { currentPassword, newPassword } = this.passwordForm.getRawValue();
+      await this.auth.changePassword({ currentPassword, newPassword });
+
+      this.passwordForm.reset();
+      this.passwordChanged.set(true);
+    } catch (failure) {
+      const reason = ((failure as HttpErrorResponse)?.error as ChangePasswordFailure | undefined)
+        ?.reason;
+
+      switch (reason) {
+        case 'invalid_current_password':
+          this.reject(this.passwordForm.controls.currentPassword, { incorrect: true });
+          return;
+
+        case 'invalid_new_password':
+          this.reject(this.passwordForm.controls.newPassword, { minlength: true });
+          return;
+
+        default:
+          this.passwordError.set('Nie udało się zmienić hasła. Spróbuj ponownie za chwilę.');
+      }
+    } finally {
+      this.changingPassword.set(false);
+    }
+  }
+
+  /** Convenience for the template: the group-level mismatch, once the member has touched the field. */
+  protected get confirmationMismatch(): boolean {
+    const group = this.passwordForm as FormGroup;
+    return group.hasError('mismatch') && this.passwordForm.controls.confirmation.touched;
   }
 
   /** Same per-control mapping the register screen uses, over the same five reason codes. */

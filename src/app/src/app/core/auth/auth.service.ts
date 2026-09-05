@@ -1,7 +1,13 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import { CurrentUser, LoginRequest, ProfileRequest, RegisterRequest } from './auth.models';
+import {
+  ChangePasswordRequest,
+  CurrentUser,
+  LoginRequest,
+  ProfileRequest,
+  RegisterRequest,
+} from './auth.models';
 import { ROLES } from './roles';
 
 /**
@@ -97,6 +103,21 @@ export class AuthService {
 
     this.currentUser.set(user);
     return user;
+  }
+
+  /**
+   * Replaces the member's password without ending their session.
+   *
+   * Returns nothing and touches no signal: the API answers 204, and the session survives because the
+   * endpoint refreshes the cookie against the rotated security stamp server-side. Every OTHER
+   * session for this member expires on its own within the validator's interval — that is the point
+   * of a password change, not a bug.
+   *
+   * Does NOT catch, like its neighbours: the failure has to reach the screen so it can put
+   * `invalid_current_password` on the current-password control.
+   */
+  async changePassword(request: ChangePasswordRequest): Promise<void> {
+    await firstValueFrom(this.http.post<void>('/api/auth/change-password', request));
   }
 
   async logout(): Promise<void> {

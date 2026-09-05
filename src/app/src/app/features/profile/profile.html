@@ -118,5 +118,89 @@
         {{ submitting() ? 'Zapisywanie…' : 'Zapisz zmiany' }}
       </button>
     </form>
+
+    <!-- A SEPARATE form, not a section of the one above. The two fail independently: a rejected
+         postal code must not disable the password button, and vice versa. -->
+    <h2 class="section-title">Zmiana hasła</h2>
+
+    @if (passwordError()) {
+      <p class="alert" role="alert">{{ passwordError() }}</p>
+    }
+
+    @if (passwordChanged()) {
+      <p class="notice" role="status">Hasło zostało zmienione.</p>
+    }
+
+    <form [formGroup]="passwordForm" (ngSubmit)="submitPassword()" novalidate>
+      <div class="field">
+        <label for="currentPassword">Obecne hasło</label>
+        <input
+          id="currentPassword"
+          type="password"
+          autocomplete="current-password"
+          formControlName="currentPassword"
+          [attr.aria-invalid]="
+            passwordForm.controls.currentPassword.touched &&
+            passwordForm.controls.currentPassword.invalid
+          "
+        />
+        @if (
+          passwordForm.controls.currentPassword.touched &&
+          passwordForm.controls.currentPassword.invalid
+        ) {
+          @if (passwordForm.controls.currentPassword.hasError('incorrect')) {
+            <p class="field-error">Obecne hasło jest nieprawidłowe.</p>
+          } @else {
+            <p class="field-error">Podaj obecne hasło.</p>
+          }
+        }
+      </div>
+
+      <div class="field">
+        <label for="newPassword">Nowe hasło</label>
+        <input
+          id="newPassword"
+          type="password"
+          autocomplete="new-password"
+          formControlName="newPassword"
+          [attr.aria-invalid]="
+            passwordForm.controls.newPassword.touched && passwordForm.controls.newPassword.invalid
+          "
+        />
+        @if (
+          passwordForm.controls.newPassword.touched && passwordForm.controls.newPassword.invalid
+        ) {
+          <p class="field-error">Hasło musi mieć co najmniej {{ minPasswordLength }} znaków.</p>
+        } @else {
+          <p class="hint">Co najmniej {{ minPasswordLength }} znaków.</p>
+        }
+      </div>
+
+      <div class="field">
+        <label for="confirmation">Powtórz nowe hasło</label>
+        <input
+          id="confirmation"
+          type="password"
+          autocomplete="new-password"
+          formControlName="confirmation"
+          [attr.aria-invalid]="
+            confirmationMismatch ||
+            (passwordForm.controls.confirmation.touched &&
+              passwordForm.controls.confirmation.invalid)
+          "
+        />
+        @if (confirmationMismatch) {
+          <p class="field-error">Hasła nie są takie same.</p>
+        } @else if (
+          passwordForm.controls.confirmation.touched && passwordForm.controls.confirmation.invalid
+        ) {
+          <p class="field-error">Powtórz nowe hasło.</p>
+        }
+      </div>
+
+      <button type="submit" class="button button--block" [disabled]="changingPassword()">
+        {{ changingPassword() ? 'Zmienianie hasła…' : 'Zmień hasło' }}
+      </button>
+    </form>
   </div>
 </div>

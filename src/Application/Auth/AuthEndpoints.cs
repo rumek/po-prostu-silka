@@ -34,6 +34,24 @@ public record RegisterRequest(
 public record LoginFailure(string Reason);
 
 /// <summary>
+/// An in-session password change (S-13). The current password is required and is the whole
+/// authorisation for the change - a live cookie alone is not enough, because an unattended session
+/// is the exact scenario this guards against.
+/// </summary>
+public record ChangePasswordRequest(string CurrentPassword, string NewPassword);
+
+/// <summary>
+/// Why the change failed. Two codes, both 400: <c>invalid_current_password</c> and
+/// <c>invalid_new_password</c>. Identity's raw error text is never forwarded - same reasoning as
+/// <see cref="RegisterFailure"/>.
+///
+/// Unlike /login, disclosure is not a concern here: the caller has already proved they own the
+/// session, so telling them which of the two passwords was the problem leaks nothing and is the
+/// difference between a fixable form and a dead end.
+/// </summary>
+public record ChangePasswordFailure(string Reason);
+
+/// <summary>
 /// Why registration failed. Never echoes Identity's raw error text to the client.
 ///
 /// The <c>invalid_phone</c> / <c>invalid_street</c> / <c>invalid_house_number</c> /
@@ -92,6 +110,10 @@ public static class AuthEndpoints
         // read their own status, or S-01 cannot tell the awaiting-approval screen from a logged-out
         // visitor.
         group.MapGet("/me", GetCurrentUser).RequireAuthorization();
+
+        // Bare RequireAuthorization() for the /refresh reason: a member awaiting approval owns their
+        // password like anyone else, and nothing about changing it depends on being approved.
+        group.MapPost("/change-password", ChangePasswordAsync).RequireAuthorization();
 
         return app;
     }
@@ -301,6 +323,67 @@ public static class AuthEndpoints
 
         await signInManager.RefreshSignInAsync(user);
         return Results.Ok(await BuildCurrentUserAsync(user, userManager));
+    }
+
+    /// <summary>
+    /// Replaces the caller's password, keeping the session they are using and killing every other.
+    ///
+    /// <para>
+    /// REFRESHSIGNINASYNC IS LOAD-BEARING, NOT TIDINESS. ChangePasswordAsync rotates the security
+    /// stamp, which invalidates every cookie for this user - the caller's included. The validator
+    /// re-checks on the interval set in Program.cs, so without the refresh the member who just
+    /// changed their password is silently signed out a couple of minutes later, on a screen that
+    /// told them it worked. The refresh re-issues THIS cookie against the new stamp; every other
+    /// session still dies on its own next check, which is exactly what a password change should do.
+    /// </para>
+    /// </summary>
+    private static async Task<IResult> ChangePasswordAsync(
+        [FromBody] ChangePasswordRequest request,
+        ClaimsPrincipal principal,
+        SignInManager<ApplicationUser> signInManager,
+        UserManager<ApplicationUser> userManager)
+    {
+        var user = await userManager.GetUserAsync(principal);
+        if (user is null)
+        {
+            return Results.Unauthorized();
+        }
+
+        // A JSON null reaches here despite the non-nullable record - the same compile-time-only
+        // contract LoginAsync and RegisterAsync guard against. ChangePasswordAsync would throw on a
+        // null current password rather than answer.
+        if (string.IsNullOrEmpty(request.CurrentPassword))
+        {
+            return Results.Json(
+                new ChangePasswordFailure("invalid_current_password"), statusCode: 400);
+        }
+
+        if (string.IsNullOrEmpty(request.NewPassword))
+        {
+            return Results.Json(new ChangePasswordFailure("invalid_new_password"), statusCode: 400);
+        }
+
+        var changed = await userManager.ChangePasswordAsync(
+            user, request.CurrentPassword, request.NewPassword);
+
+        if (!changed.Succeeded)
+        {
+            // PasswordMismatch is what a wrong CURRENT password produces; everything else here is
+            // the policy refusing the NEW one. Mapped rather than forwarded, for the reason
+            // RegisterAsync gives: the raw descriptions are English and unlocalised.
+            var reason = changed.Errors.Any(e =>
+                e.Code.Equals("PasswordMismatch", StringComparison.Ordinal))
+                ? "invalid_current_password"
+                : "invalid_new_password";
+
+            return Results.Json(new ChangePasswordFailure(reason), statusCode: 400);
+        }
+
+        // AFTER the change and BEFORE the response - see the summary. Moving or removing this line
+        // does not fail a build or a unit test; it fails two minutes later, in production.
+        await signInManager.RefreshSignInAsync(user);
+
+        return Results.NoContent();
     }
 
     private static async Task<IResult> LogoutAsync(SignInManager<ApplicationUser> signInManager)

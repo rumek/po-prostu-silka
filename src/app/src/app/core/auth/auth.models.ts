@@ -118,3 +118,22 @@ export interface ProfileRequest {
 export interface ProfileFailure {
   reason: ContactFailureReason;
 }
+
+/** Mirrors ChangePasswordRequest in src/Application/Auth/AuthEndpoints.cs. */
+export interface ChangePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
+}
+
+/**
+ * Mirrors ChangePasswordFailure. Two codes, and both land on a control rather than in a banner.
+ *
+ * Unlike login's deliberate non-disclosure, naming which password was wrong leaks nothing here —
+ * the caller already proved they own the session — and it is the difference between a form the
+ * member can fix and a dead end.
+ */
+export type ChangePasswordFailureReason = 'invalid_current_password' | 'invalid_new_password';
+
+export interface ChangePasswordFailure {
+  reason: ChangePasswordFailureReason;
+}
