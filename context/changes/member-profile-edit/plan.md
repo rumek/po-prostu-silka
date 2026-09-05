@@ -773,10 +773,10 @@ are prompted on the profile screen and can save at any time. No backfill runs.
 
 #### Automated
 
-- [x] 3.1 Backend builds clean
-- [x] 3.2 Integration tests pass
-- [x] 3.3 Frontend unit tests pass
-- [x] 3.4 Formatting and lint clean
+- [x] 3.1 Backend builds clean — fbdd612
+- [x] 3.2 Integration tests pass — fbdd612
+- [x] 3.3 Frontend unit tests pass — fbdd612
+- [x] 3.4 Formatting and lint clean — fbdd612
 
 #### Manual
 
