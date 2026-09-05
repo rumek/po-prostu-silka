@@ -1,0 +1,243 @@
+<div class="builder-header">
+  <h1>{{ editingId() ? 'Edytuj plan' : 'Nowy plan' }}</h1>
+  <a class="link-button" routerLink="/trainer/plans">Wróć do listy</a>
+</div>
+
+@if (loading()) {
+  <p class="notice" role="status">Wczytywanie…</p>
+} @else if (loadFailed()) {
+  <p class="alert" role="alert">
+    Nie udało się wczytać tego planu. Odśwież stronę albo
+    <a class="link-button" routerLink="/trainer/plans">wróć do listy</a>.
+  </p>
+} @else {
+  <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+    <div class="card builder-section">
+      <div class="field">
+        <label for="plan-name">Nazwa planu</label>
+        <input
+          id="plan-name"
+          type="text"
+          formControlName="name"
+          [maxlength]="maxName"
+          autocomplete="off"
+        />
+        @if (form.controls.name.touched && form.controls.name.invalid) {
+          <p class="field-error" role="alert">
+            @if (form.controls.name.hasError('required')) {
+              Podaj nazwę planu.
+            } @else {
+              Nazwa może mieć najwyżej {{ maxName }} znaków.
+            }
+          </p>
+        }
+      </div>
+
+      <div class="field">
+        <label for="plan-member">Członek</label>
+        @if (editingId()) {
+          <!-- Disabled, not hidden: the trainer must see whose plan they are editing. A plan does
+               not move between people; assigning a new one supersedes the old. -->
+          <select id="plan-member" formControlName="memberUserId">
+            @for (member of members(); track member.id) {
+              <option [value]="member.id">{{ member.displayName }}</option>
+            }
+          </select>
+          <p class="hint">
+            Planu nie przenosi się między osobami — przypisz nowy plan zamiast tego.
+          </p>
+        } @else {
+          <select id="plan-member" formControlName="memberUserId">
+            <option value="">— wybierz —</option>
+            @for (member of members(); track member.id) {
+              <option [value]="member.id">{{ member.displayName }}</option>
+            }
+          </select>
+          <p class="hint">
+            Nowy plan zarchiwizuje ten, który ta osoba ma teraz. Nic nie ginie, ale widzi tylko
+            najnowszy.
+          </p>
+        }
+        @if (membersFailed()) {
+          <p class="field-error" role="alert">Nie udało się wczytać listy członków.</p>
+        }
+        @if (form.controls.memberUserId.touched && form.controls.memberUserId.invalid) {
+          <p class="field-error" role="alert">
+            @if (form.controls.memberUserId.hasError('memberUnavailable')) {
+              To konto nie jest już aktywne.
+            } @else {
+              Wybierz osobę, dla której układasz plan.
+            }
+          </p>
+        }
+      </div>
+    </div>
+
+    <div class="card builder-section">
+      <h2>Ćwiczenia</h2>
+
+      @if (items.length === 0) {
+        <p class="empty">
+          Plan jest pusty. Wybierz ćwiczenia z biblioteki poniżej — kolejność ustawisz przeciągając
+          wiersze.
+        </p>
+      } @else {
+        <!-- The order of this list IS the order of the plan. Nothing here holds a position number:
+             the server numbers what it receives, so a drag cannot produce a gap or a duplicate. -->
+        <ul class="builder-items" cdkDropList (cdkDropListDropped)="onDrop($event)">
+          @for (item of items.controls; track item; let index = $index) {
+            <li class="builder-item" cdkDrag [formGroup]="item">
+              <div class="builder-item-head">
+                <!-- Pointer-only, and knowingly so (see the component docblock). aria-hidden because
+                     announcing a control no keyboard can operate is worse than announcing none. -->
+                <span class="builder-drag" cdkDragHandle aria-hidden="true" title="Przeciągnij">
+                  ⠿
+                </span>
+                <span class="builder-position">{{ index + 1 }}.</span>
+                <span class="builder-item-name">{{ itemName(index) }}</span>
+                <button
+                  type="button"
+                  class="button button--secondary builder-remove"
+                  (click)="removeItem(index)"
+                >
+                  Usuń
+                </button>
+              </div>
+
+              <div class="builder-params">
+                <div class="field">
+                  <label [for]="'sets-' + index">Serie</label>
+                  <input
+                    [id]="'sets-' + index"
+                    type="number"
+                    inputmode="numeric"
+                    formControlName="sets"
+                    [min]="minSets"
+                    [max]="maxSets"
+                  />
+                </div>
+
+                <div class="field">
+                  <label [for]="'reps-' + index">Powtórzenia</label>
+                  <!-- Text, not a number: "8-12", "do upadku" and "12" are all legitimate (FR-015). -->
+                  <input
+                    [id]="'reps-' + index"
+                    type="text"
+                    formControlName="reps"
+                    [maxlength]="maxReps"
+                    autocomplete="off"
+                    placeholder="np. 8-12"
+                  />
+                </div>
+
+                <div class="field">
+                  <label [for]="'weight-' + index">Ciężar (kg)</label>
+                  <input
+                    [id]="'weight-' + index"
+                    type="number"
+                    inputmode="decimal"
+                    step="0.5"
+                    formControlName="weightKg"
+                    [min]="minWeight"
+                    [max]="maxWeight"
+                  />
+                </div>
+
+                <div class="field">
+                  <label [for]="'rest-' + index">Przerwa (s)</label>
+                  <input
+                    [id]="'rest-' + index"
+                    type="number"
+                    inputmode="numeric"
+                    formControlName="restSeconds"
+                    [min]="minRest"
+                    [max]="maxRest"
+                  />
+                </div>
+              </div>
+
+              <div class="field">
+                <label [for]="'note-' + index">Uwagi</label>
+                <textarea
+                  [id]="'note-' + index"
+                  rows="2"
+                  formControlName="note"
+                  [maxlength]="maxNote"
+                ></textarea>
+              </div>
+
+              @if (item.touched && item.invalid) {
+                <p class="field-error" role="alert">
+                  Sprawdź wartości w tym wierszu: serie {{ minSets }}–{{ maxSets }}, ciężar
+                  {{ minWeight }}–{{ maxWeight }} kg, przerwa {{ minRest }}–{{ maxRest }} s.
+                </p>
+              }
+            </li>
+          }
+        </ul>
+      }
+    </div>
+
+    <div class="card builder-section">
+      <h2>Biblioteka ćwiczeń</h2>
+
+      @if (libraryFailed()) {
+        <p class="alert" role="alert">Nie udało się wczytać biblioteki ćwiczeń.</p>
+      } @else {
+        <label class="builder-search">
+          <span class="builder-search-label">Szukaj ćwiczenia</span>
+          <input
+            type="search"
+            autocomplete="off"
+            [value]="exerciseSearch()"
+            (input)="onExerciseSearch($any($event.target).value)"
+          />
+        </label>
+
+        @if (atItemLimit()) {
+          <p class="notice" role="status">
+            Plan ma już {{ maxItems }} ćwiczeń — to maksimum. Usuń któreś, żeby dodać inne.
+          </p>
+        } @else if (pickable().length === 0) {
+          <p class="empty">
+            @if (exerciseSearch()) {
+              Żadne ćwiczenie nie pasuje do „{{ exerciseSearch() }}”.
+            } @else {
+              Wszystkie aktywne ćwiczenia są już w tym planie.
+            }
+          </p>
+        } @else {
+          <ul class="builder-library">
+            @for (row of pickable(); track row.id) {
+              <li>
+                <button type="button" class="builder-pick" (click)="addExercise(row)">
+                  <span class="builder-pick-name">{{ row.name }}</span>
+                  @if (row.muscleGroup) {
+                    <span class="builder-pick-meta">{{ row.muscleGroup }}</span>
+                  }
+                </button>
+              </li>
+            }
+          </ul>
+        }
+      }
+    </div>
+
+    @if (error()) {
+      <p class="alert" role="alert">{{ error() }}</p>
+    }
+
+    <div class="builder-actions">
+      <button type="submit" class="button" [disabled]="submitting()">
+        @if (submitting()) {
+          Zapisywanie…
+        } @else if (editingId()) {
+          Zapisz zmiany
+        } @else {
+          Przypisz plan
+        }
+      </button>
+      <a class="link-button" routerLink="/trainer/plans">Anuluj</a>
+    </div>
+  </form>
+}

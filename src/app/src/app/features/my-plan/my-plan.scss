@@ -1,0 +1,73 @@
+// Layout only — .card/.alert/.notice/.hint come from src/styles.scss.
+
+.my-plan-header h1 {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.my-plan-meta {
+  margin: var(--space-1) 0 var(--space-5);
+  color: var(--muted);
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+
+// An <ol>, and its numbers are kept: the order is the prescription, and stripping the markers would
+// throw away the one thing that distinguishes a plan from a list of exercises.
+.my-plan-items {
+  padding-left: var(--space-5);
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.my-plan-item {
+  padding: var(--space-5);
+}
+
+// The whole exercise name is the link, sized as a real target: this is read between sets, often
+// one-handed, and a small tap area is the difference between usable and not.
+.my-plan-link {
+  display: inline-block;
+  padding: var(--space-1) 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.my-plan-params {
+  list-style: none;
+  padding: 0;
+  margin: var(--space-3) 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-6);
+}
+
+.my-plan-label {
+  display: block;
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.my-plan-note {
+  margin: var(--space-3) 0 0;
+  // Preserves the line breaks the trainer typed, like exercise-detail's prose sections.
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.empty {
+  margin: 0;
+  color: var(--muted);
+}
+
+.link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}

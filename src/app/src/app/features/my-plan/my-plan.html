@@ -1,0 +1,57 @@
+@if (loading()) {
+  <p class="notice" role="status">Wczytywanie…</p>
+} @else if (loadFailed()) {
+  <p class="alert" role="alert">
+    Nie udało się wczytać planu.
+    <button type="button" class="link-button" (click)="load()">Spróbuj ponownie</button>
+  </p>
+} @else if (plan(); as row) {
+  <div class="my-plan-header">
+    <h1>{{ row.name }}</h1>
+    <p class="my-plan-meta">
+      Plan od: {{ row.assignedByDisplayName }} · {{ row.createdAt | date: 'd MMMM y' }}
+    </p>
+  </div>
+
+  <!-- Ordered by the trainer, and the numbers are the point: this is the sequence to train in, not
+       a set to pick from. The API already sorts; nothing here re-sorts. -->
+  <ol class="my-plan-items">
+    @for (item of row.items; track item.id) {
+      <li class="card my-plan-item">
+        <a class="my-plan-link" [routerLink]="['/my-plan/exercises', item.exerciseId]">
+          {{ item.exerciseName }}
+        </a>
+
+        @if (hasParameters(item)) {
+          <ul class="my-plan-params">
+            @if (item.sets !== null) {
+              <li><span class="my-plan-label">Serie</span>{{ item.sets }}</li>
+            }
+            @if (item.reps !== null) {
+              <li><span class="my-plan-label">Powtórzenia</span>{{ item.reps }}</li>
+            }
+            @if (item.weightKg !== null) {
+              <li><span class="my-plan-label">Ciężar</span>{{ item.weightKg }} kg</li>
+            }
+            @if (item.restSeconds !== null) {
+              <li><span class="my-plan-label">Przerwa</span>{{ item.restSeconds }} s</li>
+            }
+          </ul>
+        }
+
+        @if (item.note) {
+          <p class="my-plan-note">{{ item.note }}</p>
+        }
+      </li>
+    }
+  </ol>
+} @else {
+  <!-- NOT an error. A member without a plan has nothing to retry, so there is no retry button and
+       no alert styling — just what is true and who to ask. -->
+  <h1>Mój plan</h1>
+  <div class="card">
+    <p class="empty">
+      Nie masz jeszcze przypisanego planu treningowego. Poproś trenera, żeby Ci go ułożył.
+    </p>
+  </div>
+}

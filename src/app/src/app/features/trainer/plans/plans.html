@@ -1,0 +1,58 @@
+<div class="plans-header">
+  <h1>Plany treningowe</h1>
+  <a class="button" routerLink="/trainer/plans/new">Nowy plan</a>
+</div>
+<p class="hint">
+  Każdy członek ma jeden aktywny plan. Przypisanie nowego archiwizuje poprzedni — nic nie ginie, ale
+  członek widzi tylko ten najnowszy.
+</p>
+
+<div class="plans-controls">
+  <label class="plans-search">
+    <span class="plans-search-label">Szukaj</span>
+    <input
+      type="search"
+      autocomplete="off"
+      placeholder="Imię członka albo nazwa planu"
+      [value]="search()"
+      (input)="onSearch($any($event.target).value)"
+    />
+  </label>
+</div>
+
+@if (loading()) {
+  <p class="notice" role="status">Wczytywanie…</p>
+} @else if (loadFailed()) {
+  <p class="alert" role="alert">
+    Nie udało się wczytać planów.
+    <button type="button" class="link-button" (click)="load()">Spróbuj ponownie</button>
+  </p>
+} @else if (rows().length === 0) {
+  <div class="card">
+    <p class="empty">Nie przypisano jeszcze żadnego planu.</p>
+  </div>
+} @else if (hiddenByFilter()) {
+  <div class="card">
+    <p class="empty">Żaden plan nie pasuje do „{{ search() }}”.</p>
+  </div>
+} @else {
+  <ul class="plans">
+    @for (row of visible(); track row.id) {
+      <li class="card plans-row">
+        <div class="plans-identity">
+          <p class="plans-member">{{ row.memberDisplayName }}</p>
+          <p class="plans-name">{{ row.name }}</p>
+          <p class="plans-meta">
+            {{ row.itemCount }} {{ exerciseNoun(row.itemCount) }} · przypisał(a)
+            {{ row.assignedByDisplayName }},
+            {{ row.createdAt | date: 'd MMMM y' }}
+          </p>
+        </div>
+
+        <div class="plans-actions">
+          <a class="button button--secondary" [routerLink]="['/trainer/plans', row.id]">Otwórz</a>
+        </div>
+      </li>
+    }
+  </ul>
+}

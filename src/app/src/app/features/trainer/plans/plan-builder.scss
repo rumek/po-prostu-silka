@@ -1,0 +1,208 @@
+// Layout only — .card/.button/.button--secondary/.alert/.notice/.field/.field-error/.hint come from
+// src/styles.scss.
+
+.builder-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.builder-header h1 {
+  margin: 0;
+}
+
+.builder-section {
+  margin-bottom: var(--space-5);
+  padding: var(--space-5);
+}
+
+.builder-section h2 {
+  margin: 0 0 var(--space-4);
+  font-size: 1rem;
+}
+
+.builder-items {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.builder-item {
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--radius-sm);
+  padding: var(--space-4);
+  // The CDK positions the dragged copy absolutely; without this the row it left behind collapses
+  // its own background and the list looks like it lost an entry mid-drag.
+  background: var(--surface, #fff);
+}
+
+.builder-item-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+// Deliberately large: this is the only way to reorder, and a hit target sized for a mouse is
+// unusable with a thumb on the gym floor. 44px is the smallest target that reliably works by touch.
+.builder-drag {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  border-radius: var(--radius-sm);
+  color: var(--muted);
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: grab;
+  touch-action: none;
+}
+
+.builder-drag:active {
+  cursor: grabbing;
+}
+
+.builder-position {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.builder-item-name {
+  min-width: 0;
+  flex: 1 1 10rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.builder-remove {
+  margin-left: auto;
+}
+
+// Four narrow numeric fields that wrap rather than scroll: at phone width they stack two-by-two,
+// which is still one glance, where a horizontal scroller would hide half the prescription.
+.builder-params {
+  margin-top: var(--space-3);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+  gap: var(--space-3);
+}
+
+.builder-search {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  max-width: 22rem;
+  margin-bottom: var(--space-4);
+}
+
+.builder-search-label {
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.builder-library {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+// A button, not a link: adding an exercise changes the form, it does not navigate. Being a real
+// <button> is also what makes the whole picker reachable by keyboard, which the reorder is not.
+.builder-pick {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--radius-sm);
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.builder-pick:hover {
+  border-color: var(--accent, #2563eb);
+}
+
+.builder-pick-name {
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.builder-pick-meta {
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.builder-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.empty {
+  margin: 0;
+  color: var(--muted);
+}
+
+.link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+// --- CDK drag-drop chrome. These class names are the CDK's, not ours. ---
+
+// The floating copy under the pointer.
+.cdk-drag-preview {
+  border-radius: var(--radius-sm);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 18%);
+  opacity: 0.95;
+}
+
+// The gap left where the row came from.
+.cdk-drag-placeholder {
+  opacity: 0.4;
+}
+
+.cdk-drag-animating,
+.builder-items.cdk-drop-list-dragging .builder-item:not(.cdk-drag-placeholder) {
+  transition: transform 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cdk-drag-animating,
+  .builder-items.cdk-drop-list-dragging .builder-item:not(.cdk-drag-placeholder) {
+    transition: none;
+  }
+}
+
+@media (max-width: 30rem) {
+  .builder-remove {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .builder-actions .button {
+    flex: 1 1 auto;
+    text-align: center;
+  }
+}

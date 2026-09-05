@@ -39,6 +39,7 @@ describe('App', () => {
       user: () => null,
       isAuthenticated: () => false,
       isAdmin: () => false,
+      isTrainer: () => false,
       isActive: () => false,
     } as unknown as Partial<AuthService>;
   }
@@ -71,6 +72,7 @@ describe('App', () => {
       user: () => MEMBER,
       isAuthenticated: () => true,
       isAdmin: () => false,
+      isTrainer: () => false,
       isActive: () => true,
     } as unknown as Partial<AuthService>);
 
@@ -87,6 +89,7 @@ describe('App', () => {
       user: () => MEMBER,
       isAuthenticated: () => true,
       isAdmin: () => false,
+      isTrainer: () => false,
       isActive: () => true,
     } as unknown as Partial<AuthService>);
 
@@ -105,6 +108,7 @@ describe('App', () => {
       user: () => ADMIN,
       isAuthenticated: () => true,
       isAdmin: () => true,
+      isTrainer: () => false,
       isActive: () => false,
     } as unknown as Partial<AuthService>);
 
@@ -121,6 +125,7 @@ describe('App', () => {
       user: () => ADMIN,
       isAuthenticated: () => true,
       isAdmin: () => true,
+      isTrainer: () => false,
       isActive: () => true,
     } as unknown as Partial<AuthService>);
 
@@ -130,5 +135,66 @@ describe('App', () => {
     expect(
       (fixture.nativeElement as HTMLElement).querySelector('a[href="/admin/approvals"]'),
     ).not.toBeNull();
+  });
+
+  // Every approved account has a plan surface, whether or not one has been assigned yet - the
+  // screen says so itself when there is none, which beats a missing link.
+  it('shows the own-plan link to any active member', async () => {
+    configure({
+      user: () => MEMBER,
+      isAuthenticated: () => true,
+      isAdmin: () => false,
+      isTrainer: () => false,
+      isActive: () => true,
+    } as unknown as Partial<AuthService>);
+
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector('a[href="/my-plan"]'),
+    ).not.toBeNull();
+    // ...but the authoring screen is not theirs.
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector('a[href="/trainer/plans"]'),
+    ).toBeNull();
+  });
+
+  // The header's condition must match trainerGuard and the API's TrainerOrAdmin policy: Active AND
+  // (Trainer OR Admin). An admin authors plans too - FR-015 was widened, not moved.
+  it.each([
+    ['trainer', { isTrainer: () => true, isAdmin: () => false }],
+    ['admin', { isTrainer: () => false, isAdmin: () => true }],
+  ])('shows the plans link to an active %s', async (_role, roles) => {
+    configure({
+      user: () => ADMIN,
+      isAuthenticated: () => true,
+      isActive: () => true,
+      ...roles,
+    } as unknown as Partial<AuthService>);
+
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector('a[href="/trainer/plans"]'),
+    ).not.toBeNull();
+  });
+
+  it('hides the plans link from a trainer whose account is not active', async () => {
+    configure({
+      user: () => MEMBER,
+      isAuthenticated: () => true,
+      isAdmin: () => false,
+      isTrainer: () => true,
+      isActive: () => false,
+    } as unknown as Partial<AuthService>);
+
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector('a[href="/trainer/plans"]'),
+    ).toBeNull();
   });
 });

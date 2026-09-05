@@ -2,6 +2,7 @@ import { Routes } from '@angular/router';
 import { activeMemberGuard } from './core/auth/active-member.guard';
 import { adminGuard } from './core/auth/admin.guard';
 import { authGuard } from './core/auth/auth.guard';
+import { trainerGuard } from './core/auth/trainer.guard';
 import { Approvals } from './features/admin/approvals/approvals';
 import { ClassForm } from './features/admin/classes/class-form';
 import { ClassTypes } from './features/admin/class-types/class-types';
@@ -83,6 +84,38 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./features/admin/exercises/exercise-detail').then((m) => m.ExerciseDetail),
     canActivate: [authGuard, adminGuard],
+  },
+  // S-11's training plans, on two surfaces with two guards. LAZY for the exercise-library reason:
+  // the initial bundle sits close to the 500 kB budget, and the builder additionally pulls in
+  // @angular/cdk's drag-drop - which must land in the builder's own chunk and nowhere else.
+  {
+    path: 'trainer/plans',
+    loadComponent: () => import('./features/trainer/plans/plans').then((m) => m.Plans),
+    canActivate: [authGuard, trainerGuard],
+  },
+  // 'new' MUST precede ':id' here too, or the literal segment is swallowed by the parameter.
+  {
+    path: 'trainer/plans/new',
+    loadComponent: () => import('./features/trainer/plans/plan-builder').then((m) => m.PlanBuilder),
+    canActivate: [authGuard, trainerGuard],
+  },
+  {
+    path: 'trainer/plans/:id',
+    loadComponent: () => import('./features/trainer/plans/plan-builder').then((m) => m.PlanBuilder),
+    canActivate: [authGuard, trainerGuard],
+  },
+  // The member's own plan. activeMemberGuard, not trainerGuard: every approved account has a plan
+  // surface, the trainer's own included - the API applies ActiveMember at this group.
+  {
+    path: 'my-plan',
+    loadComponent: () => import('./features/my-plan/my-plan').then((m) => m.MyPlan),
+    canActivate: [authGuard, activeMemberGuard],
+  },
+  {
+    path: 'my-plan/exercises/:id',
+    loadComponent: () =>
+      import('./features/my-plan/plan-exercise-detail').then((m) => m.PlanExerciseDetail),
+    canActivate: [authGuard, activeMemberGuard],
   },
   { path: '**', redirectTo: '' },
 ];

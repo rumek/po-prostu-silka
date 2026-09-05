@@ -29,6 +29,13 @@ export class AuthService {
   readonly isAdmin = computed(() => this.currentUser()?.roles.includes(ROLES.admin) ?? false);
 
   /**
+   * Holds the Trainer role. Additive and confers nothing alone - the authoring screens gate on
+   * `(isTrainer() || isAdmin()) && isActive()`, mirroring the API's TrainerOrAdmin policy, which
+   * requires Active plus either role. A trainer who is not approved is not a trainer here either.
+   */
+  readonly isTrainer = computed(() => this.currentUser()?.roles.includes(ROLES.trainer) ?? false);
+
+  /**
    * Has loadCurrentUser() finished at least once? The guard waits on this so a page reload with a
    * valid cookie is not bounced to login before the session is known.
    */

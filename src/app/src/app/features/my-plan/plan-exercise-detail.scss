@@ -1,0 +1,88 @@
+// Layout only - .card/.alert/.notice come from src/styles.scss. Adapted from the admin's
+// exercise-detail.scss; the badge and the edit-action rules are dropped, since a member sees no
+// activation state and does not maintain the library.
+
+.plan-exercise-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.plan-exercise-header h1 {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  overflow-wrap: anywhere;
+}
+
+// The one-line facts, as a definition-ish row rather than a table: three optional values that read
+// as labels, not as data to compare across rows.
+.plan-exercise-facts {
+  list-style: none;
+  padding: 0;
+  margin: var(--space-4) 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-6);
+}
+
+.plan-exercise-label {
+  display: block;
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+// Same 16:9 box as the list's thumbnail, so a video occupies the shape the admin already learned.
+// Capped so the player does not dominate a wide screen â€” the instructions are what is read here.
+.plan-exercise-video {
+  margin-top: var(--space-5);
+  max-width: 40rem;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  background: #000;
+}
+
+.plan-exercise-video iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+}
+
+.plan-exercise-section {
+  margin-top: var(--space-5);
+  max-width: 44rem;
+}
+
+.plan-exercise-section h2 {
+  margin: 0 0 var(--space-2);
+  font-size: 1rem;
+}
+
+.plan-exercise-section p {
+  margin: 0;
+  // Preserves the line breaks the admin typed: instructions are steps, and collapsing them into one
+  // paragraph is exactly what makes them unreadable between sets.
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.empty {
+  margin: 0;
+  color: var(--muted);
+}
+
+.link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}

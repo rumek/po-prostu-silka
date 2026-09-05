@@ -23,10 +23,21 @@
       @if (auth.isActive()) {
         <a routerLink="/schedule" routerLinkActive="is-active">Grafik</a>
         <a routerLink="/my-classes" routerLinkActive="is-active">Moje zajęcia</a>
+        <!-- Gated on isActive() alone like its neighbours: every approved account has a plan
+             surface, whether or not one has been assigned yet. The screen says so itself when
+             there is no plan, which is a better answer than a missing link. -->
+        <a routerLink="/my-plan" routerLinkActive="is-active">Mój plan</a>
       }
 
       @if (auth.isAdmin() && auth.isActive()) {
         <a routerLink="/admin/approvals" routerLinkActive="is-active">Zgłoszenia</a>
+      }
+
+      <!-- Trainer OR admin, for the reason FR-015 was widened: an admin authors plans too. The
+           condition MUST match trainerGuard's and the API's TrainerOrAdmin policy — see the
+           Zgłoszenia comment above for what a mismatch does to a member who clicks. -->
+      @if ((auth.isTrainer() || auth.isAdmin()) && auth.isActive()) {
+        <a routerLink="/trainer/plans" routerLinkActive="is-active">Plany</a>
       }
 
       <button type="button" class="shell-logout" (click)="logout()">Wyloguj się</button>
