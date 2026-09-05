@@ -472,7 +472,12 @@ public static class TrainingPlanEndpoints
             return Refuse("name_too_long", 400);
         }
 
-        if (request.Items.Count == 0)
+        // NULL, not just empty. Items is declared non-nullable, but System.Text.Json does not honour
+        // nullable reference annotations and nothing configures RespectNullableAnnotations - a body
+        // that simply omits "items" binds null here, and dereferencing it would be a
+        // NullReferenceException escaping as a 500 for what is ordinary bad input. This is the first
+        // request body in the codebase carrying a collection, so no sibling covers it.
+        if (request.Items is null || request.Items.Count == 0)
         {
             return Refuse("no_items", 400);
         }

@@ -120,6 +120,13 @@ export class PlanBuilder implements OnInit {
   protected readonly members = signal<AssignableMember[]>([]);
   protected readonly membersFailed = signal(false);
 
+  /**
+   * Whose plan this is, on the EDIT path only, taken from the loaded plan rather than from
+   * `members()`. The picker lists active accounts; a member blocked after assignment keeps their
+   * plan, so looking their name up in that list would find nothing.
+   */
+  protected readonly memberName = signal('');
+
   /** The exercise library, ACTIVE ONLY — a retired exercise must not be prescribed anew. */
   protected readonly library = signal<ExerciseSummary[]>([]);
   protected readonly libraryFailed = signal(false);
@@ -175,6 +182,7 @@ export class PlanBuilder implements OnInit {
 
       // The member is fixed for the life of a plan; see the class docblock.
       this.form.controls.memberUserId.disable();
+      this.memberName.set(existing.memberDisplayName);
 
       // Already ordered by the API. Nothing here re-sorts, and nothing reads `position`.
       for (const item of existing.items) {

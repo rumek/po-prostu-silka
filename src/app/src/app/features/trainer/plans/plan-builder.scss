@@ -94,6 +94,20 @@
   gap: var(--space-3);
 }
 
+// The edit path's member row: a caption plus a name, where the create path has a label plus a
+// select. Sized to read as a value, not as a heading.
+.builder-caption {
+  display: block;
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.builder-member {
+  margin: var(--space-1) 0 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
 .builder-search {
   display: flex;
   flex-direction: column;

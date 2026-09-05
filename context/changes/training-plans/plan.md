@@ -398,6 +398,15 @@ Failure reasons — 400 unless noted: `missing_field`, `too_long`, `no_items`, `
 `inactive_exercise`, `duplicate_exercise`; 404 `not_found`; 409 `member_not_found`,
 `member_not_active`, `member_changed`, `conflict`.
 
+**Adapted during implementation.** The shipped set differs from the line above in two ways, and the
+SPA's `TrainingPlanFailure` union mirrors the shipped one. `too_long` is split into
+`name_too_long`, `reps_too_long` and `note_too_long`, because a single reason gives the builder
+nothing to attach to a control — the whole reason the union is closed. `invalid_reps` does not exist:
+reps is free text with only a length bound, so an over-long value is `reps_too_long` and there is no
+other way for it to be invalid. And `not_found` is not a body reason at all — the three 404s return a
+bare `Results.NotFound()`, matching every other 404 in this codebase, because a reason string adds
+nothing to a status that already says the whole story.
+
 Seams at the bottom of the file: `ITrainingPlanQuery` (list, detail by id, active plan for a member id)
 and `ITrainingPlanStore` (find tracked by id, find the member's tracked active plan, add, clear an
 existing plan's items, and a check that a set of exercise ids all exist and are active).

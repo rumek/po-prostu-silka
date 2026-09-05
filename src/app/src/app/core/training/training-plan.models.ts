@@ -77,7 +77,10 @@ export interface TrainingPlanItemRequest {
  * Mirrors TrainingPlanRequest. Create and edit take the same shape; an edit replaces the name and
  * the ENTIRE item list.
  *
- * `memberUserId` is ignored by the edit endpoint — a plan cannot change hands, it is superseded.
+ * `memberUserId` is VALIDATED on edit, not ignored: the server compares it against the plan and
+ * refuses a mismatch with 409 `member_changed`. A plan cannot change hands — it is superseded — and
+ * refusing tells a stale tab its state is old instead of silently accepting a write it misunderstood.
+ * The builder therefore sends the id even though the control is disabled while editing.
  */
 export interface TrainingPlanRequest {
   name: string;

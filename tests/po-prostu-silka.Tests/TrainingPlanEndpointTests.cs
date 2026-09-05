@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text;
 using po_prostu_silka.Domain;
 
 namespace po_prostu_silka.Tests;
@@ -522,6 +523,32 @@ public class TrainingPlanEndpointTests(IntegrationTestFixture fixture)
         var (trainer, memberId, _) = await ArrangeAsync();
 
         var response = await trainer.PostAsJsonAsync(Endpoint, Request("x", memberId));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("no_items", (await response.Content.ReadFromJsonAsync<FailureBody>())!.Reason);
+    }
+
+    /// <summary>
+    /// AN OMITTED "items" IS NOT AN EMPTY ONE, and the difference is a 400 versus a 500.
+    ///
+    /// <para>
+    /// TrainingPlanRequest.Items is declared non-nullable, but System.Text.Json does not honour
+    /// nullable reference annotations and nothing here configures RespectNullableAnnotations, so this
+    /// body binds null. Sent as a raw string rather than through Request(...) precisely because the
+    /// typed helper cannot express an absent property.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public async Task A_plan_whose_body_omits_items_entirely_is_400_not_500()
+    {
+        var (trainer, memberId, _) = await ArrangeAsync();
+
+        var body = new StringContent(
+            $"{{\"name\":\"Masa\",\"memberUserId\":\"{memberId}\"}}",
+            Encoding.UTF8,
+            "application/json");
+
+        var response = await trainer.PostAsync(Endpoint, body);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Equal("no_items", (await response.Content.ReadFromJsonAsync<FailureBody>())!.Reason);

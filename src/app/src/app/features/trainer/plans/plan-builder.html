@@ -34,15 +34,17 @@
       </div>
 
       <div class="field">
-        <label for="plan-member">Członek</label>
         @if (editingId()) {
-          <!-- Disabled, not hidden: the trainer must see whose plan they are editing. A plan does
-               not move between people; assigning a new one supersedes the old. -->
-          <select id="plan-member" formControlName="memberUserId">
-            @for (member of members(); track member.id) {
-              <option [value]="member.id">{{ member.displayName }}</option>
-            }
-          </select>
+          <span class="builder-caption">Członek</span>
+        } @else {
+          <label for="plan-member">Członek</label>
+        }
+        @if (editingId()) {
+          <!-- STATIC TEXT, not a disabled <select>. The picker carries only ACTIVE accounts, and a
+               member blocked after assignment keeps their plan (the backend supports that state
+               deliberately) - so a select would match no option and render blank, hiding exactly the
+               thing it exists to show. The name comes from the plan the builder already loaded. -->
+          <p id="plan-member" class="builder-member">{{ memberName() }}</p>
           <p class="hint">
             Planu nie przenosi się między osobami — przypisz nowy plan zamiast tego.
           </p>

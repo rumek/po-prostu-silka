@@ -251,11 +251,22 @@ describe('PlanBuilder', () => {
     request.flush(PLAN);
   });
 
-  /** A plan does not move between people; it is superseded. */
-  it('locks the member while editing', async () => {
+  /**
+   * A plan does not move between people; it is superseded. The member is shown as STATIC TEXT on the
+   * edit path, not as a disabled picker: the picker lists only active accounts, and a member blocked
+   * after assignment keeps their plan - a select would then match no option and render blank.
+   */
+  it('shows the member as fixed text while editing, with no picker', async () => {
     await create('p1');
 
-    expect(root().querySelector<HTMLSelectElement>('#plan-member')!.disabled).toBe(true);
+    expect(root().querySelector('select#plan-member')).toBeNull();
+    expect(root().querySelector('#plan-member')!.textContent).toContain('Anna Kowalska');
+  });
+
+  it('offers a member picker when creating', async () => {
+    await create(null);
+
+    expect(root().querySelector<HTMLSelectElement>('select#plan-member')).not.toBeNull();
   });
 
   /** An empty plan is refused by the server too (`no_items`); saying so here costs no round trip. */
