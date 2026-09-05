@@ -63,6 +63,81 @@
         }
       </div>
 
+      <div class="field">
+        <label for="phoneNumber">Numer telefonu</label>
+        <input
+          id="phoneNumber"
+          type="tel"
+          autocomplete="tel"
+          formControlName="phoneNumber"
+          [attr.aria-invalid]="
+            form.controls.phoneNumber.touched && form.controls.phoneNumber.invalid
+          "
+        />
+        @if (form.controls.phoneNumber.touched && form.controls.phoneNumber.invalid) {
+          <p class="field-error">Podaj numer telefonu w formacie 123 456 789.</p>
+        }
+      </div>
+
+      <div class="field">
+        <label for="street">Ulica</label>
+        <input
+          id="street"
+          type="text"
+          autocomplete="address-line1"
+          formControlName="street"
+          [attr.aria-invalid]="form.controls.street.touched && form.controls.street.invalid"
+        />
+        @if (form.controls.street.touched && form.controls.street.invalid) {
+          <p class="field-error">Podaj nazwę ulicy.</p>
+        }
+      </div>
+
+      <div class="field">
+        <label for="houseNumber">Numer domu / mieszkania</label>
+        <input
+          id="houseNumber"
+          type="text"
+          autocomplete="address-line2"
+          formControlName="houseNumber"
+          [attr.aria-invalid]="
+            form.controls.houseNumber.touched && form.controls.houseNumber.invalid
+          "
+        />
+        @if (form.controls.houseNumber.touched && form.controls.houseNumber.invalid) {
+          <p class="field-error">Podaj numer domu lub mieszkania.</p>
+        }
+      </div>
+
+      <div class="field">
+        <label for="postalCode">Kod pocztowy</label>
+        <input
+          id="postalCode"
+          type="text"
+          inputmode="numeric"
+          autocomplete="postal-code"
+          formControlName="postalCode"
+          [attr.aria-invalid]="form.controls.postalCode.touched && form.controls.postalCode.invalid"
+        />
+        @if (form.controls.postalCode.touched && form.controls.postalCode.invalid) {
+          <p class="field-error">Podaj kod pocztowy w formacie 00-000.</p>
+        }
+      </div>
+
+      <div class="field">
+        <label for="city">Miejscowość</label>
+        <input
+          id="city"
+          type="text"
+          autocomplete="address-level2"
+          formControlName="city"
+          [attr.aria-invalid]="form.controls.city.touched && form.controls.city.invalid"
+        />
+        @if (form.controls.city.touched && form.controls.city.invalid) {
+          <p class="field-error">Podaj miejscowość.</p>
+        }
+      </div>
+
       <button type="submit" class="button button--block" [disabled]="submitting()">
         {{ submitting() ? 'Tworzenie konta…' : 'Załóż konto' }}
       </button>

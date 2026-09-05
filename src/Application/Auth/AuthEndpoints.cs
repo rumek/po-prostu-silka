@@ -1,13 +1,26 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using po_prostu_silka.Application.Members;
 using po_prostu_silka.Domain;
 
 namespace po_prostu_silka.Application.Auth;
 
 public record LoginRequest(string Email, string Password);
 
-public record RegisterRequest(string Email, string Password, string DisplayName);
+/// <summary>
+/// Registration input. The five contact fields land here with S-13 and are required: the columns
+/// behind them are nullable only so accounts created before that slice remain readable.
+/// </summary>
+public record RegisterRequest(
+    string Email,
+    string Password,
+    string DisplayName,
+    string PhoneNumber,
+    string Street,
+    string HouseNumber,
+    string PostalCode,
+    string City);
 
 /// <summary>
 /// Why the login failure is named: S-02's blocked members need a different message from a wrong
@@ -20,7 +33,13 @@ public record RegisterRequest(string Email, string Password, string DisplayName)
 /// </summary>
 public record LoginFailure(string Reason);
 
-/// <summary>Why registration failed. Never echoes Identity's raw error text to the client.</summary>
+/// <summary>
+/// Why registration failed. Never echoes Identity's raw error text to the client.
+///
+/// The <c>invalid_phone</c> / <c>invalid_street</c> / <c>invalid_house_number</c> /
+/// <c>invalid_postal_code</c> / <c>invalid_city</c> codes come from <see cref="ContactDetails"/>,
+/// which is also what <c>PUT /api/profile</c> answers with - one vocabulary, two endpoints.
+/// </summary>
 public record RegisterFailure(string Reason);
 
 public record CurrentUser(string Id, string Email, string DisplayName, string Status, string[] Roles);
@@ -146,6 +165,20 @@ public static class AuthEndpoints
             return Results.Json(new RegisterFailure("invalid_password"), statusCode: 400);
         }
 
+        // Contact details are validated BEFORE the duplicate-email lookup and long before
+        // CreateAsync, so a malformed submission creates nothing and costs one round trip.
+        if (!ContactDetails.TryCreate(
+                request.PhoneNumber,
+                request.Street,
+                request.HouseNumber,
+                request.PostalCode,
+                request.City,
+                out var contact,
+                out var contactFailure))
+        {
+            return Results.Json(new RegisterFailure(contactFailure), statusCode: 400);
+        }
+
         if (await userManager.FindByEmailAsync(request.Email) is not null)
         {
             return Results.Json(new RegisterFailure("email_taken"), statusCode: 409);
@@ -158,6 +191,11 @@ public static class AuthEndpoints
             DisplayName = displayName,
             Status = AccountStatus.Pending,
             CreatedAt = timeProvider.GetUtcNow(),
+            PhoneNumber = contact.PhoneNumber,
+            Street = contact.Street,
+            HouseNumber = contact.HouseNumber,
+            PostalCode = contact.PostalCode,
+            City = contact.City,
         };
 
         var created = await userManager.CreateAsync(user, request.Password);

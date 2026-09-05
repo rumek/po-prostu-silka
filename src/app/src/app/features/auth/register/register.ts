@@ -15,6 +15,16 @@ import { RegisterFailure } from '../../../core/auth/auth.models';
 const MIN_PASSWORD_LENGTH = 8;
 
 /**
+ * Mirrors the rules in src/Application/Members/ContactDetails.cs, the same way
+ * MIN_PASSWORD_LENGTH mirrors Program.cs. The server stays the authority — these only spare the
+ * member a round trip.
+ */
+const POSTAL_CODE_PATTERN = /^\d{2}-\d{3}$/;
+
+/** Nine digits after separators and an optional +48; the server normalises to the bare nine. */
+const PHONE_PATTERN = /^(?:\+?48[\s-]?)?(?:\d[\s-]?){8}\d$/;
+
+/**
  * Registration (FR-001). The account is created Pending and signed in immediately, so this always
  * ends on the awaiting-approval screen.
  */
@@ -34,6 +44,11 @@ export class Register {
     displayName: ['', [Validators.required]],
     email: ['', [Validators.required, Validators.email]],
     password: ['', [Validators.required, Validators.minLength(MIN_PASSWORD_LENGTH)]],
+    phoneNumber: ['', [Validators.required, Validators.pattern(PHONE_PATTERN)]],
+    street: ['', [Validators.required]],
+    houseNumber: ['', [Validators.required]],
+    postalCode: ['', [Validators.required, Validators.pattern(POSTAL_CODE_PATTERN)]],
+    city: ['', [Validators.required]],
   });
 
   protected readonly error = signal<string | null>(null);
@@ -50,7 +65,18 @@ export class Register {
 
     try {
       const value = this.form.getRawValue();
-      await this.auth.register({ ...value, displayName: value.displayName.trim() });
+
+      // Trimmed here as well as on the server: the API normalises before storing, but a trailing
+      // space the member cannot see should not be what a validator rejects on the way back.
+      await this.auth.register({
+        ...value,
+        displayName: value.displayName.trim(),
+        phoneNumber: value.phoneNumber.trim(),
+        street: value.street.trim(),
+        houseNumber: value.houseNumber.trim(),
+        postalCode: value.postalCode.trim(),
+        city: value.city.trim(),
+      });
 
       await this.router.navigate(['/pending']);
     } catch (failure) {
@@ -83,6 +109,26 @@ export class Register {
 
       case 'invalid_display_name':
         this.reject(this.form.controls.displayName, { required: true });
+        return;
+
+      case 'invalid_phone':
+        this.reject(this.form.controls.phoneNumber, { pattern: true });
+        return;
+
+      case 'invalid_street':
+        this.reject(this.form.controls.street, { required: true });
+        return;
+
+      case 'invalid_house_number':
+        this.reject(this.form.controls.houseNumber, { required: true });
+        return;
+
+      case 'invalid_postal_code':
+        this.reject(this.form.controls.postalCode, { pattern: true });
+        return;
+
+      case 'invalid_city':
+        this.reject(this.form.controls.city, { required: true });
         return;
 
       default:

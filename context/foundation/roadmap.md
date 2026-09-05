@@ -58,7 +58,7 @@ Mid-milestone, a second decision landed: a class stops being retyped text and be
 | S-10 | exercise-library                 | admin manages exercises with instructions and videos                     | S-01                   | v1 FR-018, v1 FR-019                                            | done        |
 | S-11 | training-plans                   | admin builds and assigns a plan; member follows it with exercise details | S-01, S-10             | v1 FR-015, v1 FR-016, v1 FR-017, v1 FR-020                      | done        |
 | S-12 | member-and-admin-dashboards      | member and admin land on their at-a-glance home screens                  | S-01, S-07, S-08, S-11 | v1 FR-023, v1 FR-024                                            | proposed    |
-| S-13 | member-profile-edit              | member edits display name and changes password                           | F-02, S-01             | v1 FR-006                                                       | ready       |
+| S-13 | member-profile-edit              | member edits display name and changes password                           | F-02, S-01             | v1 FR-006                                                       | in-progress |
 
 ## Streams
 
@@ -288,7 +288,7 @@ What's already in place in the codebase as of `2026-09-02` (auto-researched + us
 - **Blockers:** —
 - **Unknowns:** —
 - **Risk:** smallest slice in the milestone; nothing depends on it, so it slots into any idle parallel lane.
-- **Status:** ready
+- **Status:** in-progress
 
 ## Backlog Handoff
 

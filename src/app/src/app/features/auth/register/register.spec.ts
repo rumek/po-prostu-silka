@@ -38,18 +38,23 @@ describe('Register', () => {
 
   afterEach(() => controller.verify());
 
-  function fill(
-    displayName = 'Nowy Członek',
-    email = 'nowy@test.local',
-    password = 'TestPass_123',
-  ) {
+  /** Overrides are keyed by control id, so a test names only the field it cares about. */
+  function fill(overrides: Partial<Record<string, string>> = {}) {
     const compiled = fixture.nativeElement as HTMLElement;
 
-    for (const [id, value] of [
-      ['displayName', displayName],
-      ['email', email],
-      ['password', password],
-    ] as const) {
+    const values: Record<string, string> = {
+      displayName: 'Nowy Członek',
+      email: 'nowy@test.local',
+      password: 'TestPass_123',
+      phoneNumber: '123456789',
+      street: 'Piłsudskiego',
+      houseNumber: '12A/3',
+      postalCode: '00-001',
+      city: 'Warszawa',
+      ...overrides,
+    };
+
+    for (const [id, value] of Object.entries(values)) {
       const input = compiled.querySelector<HTMLInputElement>(`#${id}`)!;
       input.value = value;
       input.dispatchEvent(new Event('input'));
@@ -67,7 +72,7 @@ describe('Register', () => {
   }
 
   it('blocks submit on a password shorter than the API allows', async () => {
-    fill(undefined, undefined, 'krotkie');
+    fill({ password: 'krotkie' });
     submit();
     await fixture.whenStable();
 
@@ -75,7 +80,7 @@ describe('Register', () => {
   });
 
   it('trims the display name before sending it', async () => {
-    fill('  Anna Kowalska  ');
+    fill({ displayName: '  Anna Kowalska  ' });
     submit();
 
     const request = await expectRegister();
@@ -83,6 +88,38 @@ describe('Register', () => {
 
     request.flush(PENDING);
     await fixture.whenStable();
+  });
+
+  /**
+   * The API contract is eight fields, not three (S-13). A field silently dropped from the payload
+   * fails as a 400 the member cannot act on, so assert the whole shape rather than one key.
+   */
+  it('sends every contact field the API requires', async () => {
+    fill();
+    submit();
+
+    const request = await expectRegister();
+    expect(request.request.body).toEqual({
+      displayName: 'Nowy Członek',
+      email: 'nowy@test.local',
+      password: 'TestPass_123',
+      phoneNumber: '123456789',
+      street: 'Piłsudskiego',
+      houseNumber: '12A/3',
+      postalCode: '00-001',
+      city: 'Warszawa',
+    });
+
+    request.flush(PENDING);
+    await fixture.whenStable();
+  });
+
+  it('blocks submit on a postal code the API would refuse', async () => {
+    fill({ postalCode: '00001' });
+    submit();
+    await fixture.whenStable();
+
+    controller.expectNone('/api/auth/register');
   });
 
   it('navigates to the awaiting-approval screen on success', async () => {
@@ -114,6 +151,28 @@ describe('Register', () => {
     expect(compiled.querySelector('.alert')).toBeNull();
     expect(compiled.querySelector('#email')?.getAttribute('aria-invalid')).toBe('true');
     expect(compiled.querySelector('.field-error')?.textContent).toContain('To konto już istnieje');
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Same payoff as email_taken, for the contact codes: each maps to its own control, so a rejected
+   * postal code must not surface as a banner the member has to map back onto a field themselves.
+   */
+  it('surfaces invalid_postal_code on the postal-code control, not as a banner', async () => {
+    fill();
+    submit();
+
+    (await expectRegister()).flush(
+      { reason: 'invalid_postal_code' },
+      { status: 400, statusText: 'Bad Request' },
+    );
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('.alert')).toBeNull();
+    expect(compiled.querySelector('#postalCode')?.getAttribute('aria-invalid')).toBe('true');
+    expect(compiled.querySelector('#email')?.getAttribute('aria-invalid')).toBe('false');
     expect(navigate).not.toHaveBeenCalled();
   });
 

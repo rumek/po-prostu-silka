@@ -21,8 +21,10 @@ public class RegisterEndpointTests(IntegrationTestFixture fixture)
     private static string NewEmail() => $"register-{Guid.NewGuid():N}@test.local";
 
     private static object Registration(string email, string password = TestUsers.Password,
-        string displayName = "Nowy Członek") =>
-        new { email, password, displayName };
+        string displayName = "Nowy Członek", string phoneNumber = "123456789",
+        string street = "Piłsudskiego", string houseNumber = "12A/3",
+        string postalCode = "00-001", string city = "Warszawa") =>
+        new { email, password, displayName, phoneNumber, street, houseNumber, postalCode, city };
 
     [Fact]
     public async Task Registration_creates_a_pending_member_in_the_User_role_and_signs_them_in()
@@ -85,8 +87,21 @@ public class RegisterEndpointTests(IntegrationTestFixture fixture)
     {
         var client = fixture.CreateClient();
 
+        // Email and password are guarded BEFORE the contact details, so a complete address here
+        // proves the reason code comes from the credential guard and not from ContactDetails.
         var response = await client.PostAsJsonAsync(
-            "/api/auth/register", new { email, password, displayName = "Ktoś" });
+            "/api/auth/register",
+            new
+            {
+                email,
+                password,
+                displayName = "Ktoś",
+                phoneNumber = "123456789",
+                street = "Piłsudskiego",
+                houseNumber = "12A/3",
+                postalCode = "00-001",
+                city = "Warszawa",
+            });
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Equal(
@@ -147,5 +162,109 @@ public class RegisterEndpointTests(IntegrationTestFixture fixture)
 
         var body = await response.Content.ReadFromJsonAsync<RegisterFailureBody>();
         Assert.Equal("invalid_email", body!.Reason);
+    }
+
+    /// <summary>
+    /// S-13. The contact fields are required by the API even though their columns are nullable, and
+    /// the phone number is stored normalised - so "+48 123 456 789" and "123456789" are one value in
+    /// the database, not two that look different to every future comparison.
+    /// </summary>
+    [Fact]
+    public async Task Contact_details_are_stored_with_the_phone_number_normalised()
+    {
+        var client = fixture.CreateClient();
+        var email = NewEmail();
+
+        var response = await client.PostAsJsonAsync(
+            "/api/auth/register",
+            Registration(
+                email,
+                phoneNumber: "+48 123 456 789",
+                street: "  Piłsudskiego  ",
+                houseNumber: " 12A/3 ",
+                postalCode: "31-042",
+                city: "  Kraków  "));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        using var scope = fixture.Factory.Services.CreateScope();
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var stored = await userManager.FindByEmailAsync(email);
+
+        Assert.NotNull(stored);
+        Assert.Equal("123456789", stored.PhoneNumber);
+        Assert.Equal("Piłsudskiego", stored.Street);
+        Assert.Equal("12A/3", stored.HouseNumber);
+        Assert.Equal("31-042", stored.PostalCode);
+        Assert.Equal("Kraków", stored.City);
+    }
+
+    /// <summary>
+    /// Each contact field answers with its own reason code, because the SPA maps every code onto a
+    /// specific control - a shared "invalid_contact" would put the error on the wrong field.
+    /// </summary>
+    [Theory]
+    [InlineData("00001", "invalid_postal_code")]
+    [InlineData("00-0001", "invalid_postal_code")]
+    [InlineData("ab-cde", "invalid_postal_code")]
+    public async Task Malformed_postal_code_is_rejected(string postalCode, string expectedReason)
+    {
+        var client = fixture.CreateClient();
+
+        var response = await client.PostAsJsonAsync(
+            "/api/auth/register", Registration(NewEmail(), postalCode: postalCode));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(
+            expectedReason,
+            (await response.Content.ReadFromJsonAsync<RegisterFailureBody>())!.Reason);
+    }
+
+    [Theory]
+    [InlineData("12345678", "invalid_phone")]
+    [InlineData("1234567890", "invalid_phone")]
+    [InlineData("nie-numer", "invalid_phone")]
+    public async Task Malformed_phone_number_is_rejected(string phoneNumber, string expectedReason)
+    {
+        var client = fixture.CreateClient();
+
+        var response = await client.PostAsJsonAsync(
+            "/api/auth/register", Registration(NewEmail(), phoneNumber: phoneNumber));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(
+            expectedReason,
+            (await response.Content.ReadFromJsonAsync<RegisterFailureBody>())!.Reason);
+    }
+
+    [Fact]
+    public async Task Blank_city_is_rejected()
+    {
+        var client = fixture.CreateClient();
+
+        var response = await client.PostAsJsonAsync(
+            "/api/auth/register", Registration(NewEmail(), city: "   "));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(
+            "invalid_city",
+            (await response.Content.ReadFromJsonAsync<RegisterFailureBody>())!.Reason);
+    }
+
+    /// <summary>
+    /// The contact details are validated before CreateAsync, so a refused registration must leave
+    /// nothing behind - otherwise the member retries and is told the address is taken.
+    /// </summary>
+    [Fact]
+    public async Task A_registration_refused_for_contact_details_creates_no_account()
+    {
+        var client = fixture.CreateClient();
+        var email = NewEmail();
+
+        await client.PostAsJsonAsync("/api/auth/register", Registration(email, street: ""));
+
+        using var scope = fixture.Factory.Services.CreateScope();
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        Assert.Null(await userManager.FindByEmailAsync(email));
     }
 }

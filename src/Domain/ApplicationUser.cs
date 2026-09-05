@@ -28,4 +28,30 @@ public class ApplicationUser : IdentityUser
 
     /// <summary>When the account was registered. The admin's pending list (FR-005) orders by it.</summary>
     public DateTimeOffset CreatedAt { get; set; }
+
+    // CONTACT DETAILS (S-13). The phone number is NOT declared here on purpose: IdentityUser
+    // already carries a PhoneNumber column, it was unused until this slice, and adding a second
+    // phone property would leave two columns where one member has one number. Its length is
+    // bounded explicitly in ApplicationUserConfiguration - inherited properties get no length from
+    // Identity, so without that it stays nvarchar(max).
+    //
+    // PhoneNumberConfirmed stays deliberately unused: nothing in this milestone sends an SMS, and
+    // confirming a number nobody verifies would be a lie in the schema.
+    //
+    // All four are nullable because accounts registered before this slice have no values. The
+    // schema tolerates them; the API does not - both /register and PUT /api/profile require every
+    // field through ContactDetails, and the profile screen prompts an incomplete account to fill
+    // them in.
+
+    /// <summary>Street name, without the house number. Required by the API, nullable in the schema.</summary>
+    public string? Street { get; set; }
+
+    /// <summary>House number, optionally with a flat number ("12A/3"). One field, because that is how a Polish address is written.</summary>
+    public string? HouseNumber { get; set; }
+
+    /// <summary>Polish postal code in NN-NNN form.</summary>
+    public string? PostalCode { get; set; }
+
+    /// <summary>Town or city.</summary>
+    public string? City { get; set; }
 }

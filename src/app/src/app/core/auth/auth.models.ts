@@ -34,10 +34,21 @@ export interface LoginRequest {
   password: string;
 }
 
+/**
+ * Mirrors RegisterRequest in src/Application/Auth/AuthEndpoints.cs.
+ *
+ * The five contact fields land with S-13 and are required by the API even though their columns are
+ * nullable — the nullability exists only for accounts created before that slice.
+ */
 export interface RegisterRequest {
   email: string;
   password: string;
   displayName: string;
+  phoneNumber: string;
+  street: string;
+  houseNumber: string;
+  postalCode: string;
+  city: string;
 }
 
 /**
@@ -56,7 +67,21 @@ export type RegisterFailureReason =
   | 'invalid_password'
   | 'invalid_email'
   | 'invalid_display_name'
+  | ContactFailureReason
   | 'invalid_registration';
+
+/**
+ * Mirrors the failure codes ContactDetails.TryCreate returns
+ * (src/Application/Members/ContactDetails.cs). Shared between registration and the profile
+ * endpoint, because both validate the same five fields through the same helper — so the UI maps
+ * them once and both screens reuse the mapping.
+ */
+export type ContactFailureReason =
+  | 'invalid_phone'
+  | 'invalid_street'
+  | 'invalid_house_number'
+  | 'invalid_postal_code'
+  | 'invalid_city';
 
 export interface RegisterFailure {
   reason: RegisterFailureReason;
