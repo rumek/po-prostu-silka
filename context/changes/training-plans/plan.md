@@ -827,9 +827,9 @@ here: the previous release simply ignores two empty tables.
 #### Manual
 
 - [x] 2.5 Race test fails red with the filtered unique index weakened, then restored (the stamp rotation alone does not — see the adaptation note in Phase 2)
-- [ ] 2.6 Trainer can read the exercise library and cannot write it
-- [ ] 2.7 `GET /api/plans/mine` returns 204 before assignment, the plan after
-- [ ] 2.8 A blocked member's plan row stays Active and the member is refused with 403
+- [x] 2.6 Trainer can read the exercise library and cannot write it
+- [x] 2.7 `GET /api/plans/mine` returns 204 before assignment, the plan after
+- [x] 2.8 A blocked member's plan row stays Active and the member is refused with 403
 
 ### Phase 3: The trainer's builder and the member's plan screen
 
@@ -843,11 +843,11 @@ here: the previous release simply ignores two empty tables.
 
 #### Manual
 
-- [ ] 3.6 Trainer creates and saves a plan with several exercises and full parameters
-- [ ] 3.7 Dragging reorders rows, and the order survives save and reload
-- [ ] 3.8 A second assignment replaces the first for that member
-- [ ] 3.9 Member sees the plan, the author, the order, and the exercise detail with video
-- [ ] 3.10 Member with no plan sees the empty card, not an error
-- [ ] 3.11 A plain member is redirected away from `/trainer/plans`
-- [ ] 3.12 The builder is usable at phone width
-- [ ] 3.13 Everything except reordering works from the keyboard alone (reordering is a known, accepted gap)
+- [x] 3.6 Trainer creates and saves a plan with several exercises and full parameters
+- [x] 3.7 Dragging reorders rows, and the order survives save and reload
+- [x] 3.8 A second assignment replaces the first for that member
+- [x] 3.9 Member sees the plan, the author, the order, and the exercise detail with video
+- [x] 3.10 Member with no plan sees the empty card, not an error
+- [x] 3.11 A plain member is redirected away from `/trainer/plans`
+- [x] 3.12 The builder is usable at phone width
+- [x] 3.13 Everything except reordering works from the keyboard alone (reordering is a known, accepted gap)

@@ -56,7 +56,7 @@ Mid-milestone, a second decision landed: a class stops being retyped text and be
 | S-08 | class-booking-and-cancel         | book a spot, cancel it, see upcoming classes; admin sees bookings        | S-07                   | v1 US-01, v1 FR-008, v1 FR-009, v1 FR-010, v1 FR-014, v2 FR-014 | done        |
 | S-09 | class-change-notifications       | booked member gets email + push on class cancel/change                   | F-03, S-08             | v1 US-02, v1 FR-013, v1 FR-021, v2 FR-014                       | done        |
 | S-10 | exercise-library                 | admin manages exercises with instructions and videos                     | S-01                   | v1 FR-018, v1 FR-019                                            | done        |
-| S-11 | training-plans                   | admin builds and assigns a plan; member follows it with exercise details | S-01, S-10             | v1 FR-015, v1 FR-016, v1 FR-017, v1 FR-020                      | in-progress |
+| S-11 | training-plans                   | admin builds and assigns a plan; member follows it with exercise details | S-01, S-10             | v1 FR-015, v1 FR-016, v1 FR-017, v1 FR-020                      | done        |
 | S-12 | member-and-admin-dashboards      | member and admin land on their at-a-glance home screens                  | S-01, S-07, S-08, S-11 | v1 FR-023, v1 FR-024                                            | proposed    |
 | S-13 | member-profile-edit              | member edits display name and changes password                           | F-02, S-01             | v1 FR-006                                                       | ready       |
 
@@ -264,7 +264,7 @@ What's already in place in the codebase as of `2026-09-02` (auto-researched + us
 - **Blockers:** —
 - **Unknowns:** — (resolved 2026-09-04: a blocked member's plan is left untouched; blocking cuts access at read time, and the plan is waiting when the account is unblocked.)
 - **Risk:** the one-active-plan replace-and-archive rule is the domain invariant to get right; exercise details are reached only from the plan, which bounds the interface. Scope widened during planning: plan authoring is available to Trainer as well as Admin, which retires prd-v2's "No trainer screen" Non-Goal and answers its Open Question 3.
-- **Status:** in-progress
+- **Status:** done
 
 ### S-12: Member and admin dashboards
 
