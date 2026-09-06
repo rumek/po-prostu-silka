@@ -312,9 +312,9 @@ What's already in place in the codebase as of `2026-09-02` (auto-researched + us
 | S-08       | class-booking-and-cancel         | Class booking and cancellation with no-overbooking guarantee | no                    | Needs S-07; blocked on Open Question 1              |
 | S-09       | class-change-notifications       | Email + push notifications on class cancel/change            | no                    | North star; needs F-03, S-08                        |
 | S-10       | exercise-library                 | Exercise library management with instructional videos        | yes                   | Run `/10x-plan exercise-library` — best parallel lane |
-| S-11       | training-plans                   | Training plan creation, assignment, and member view          | yes                   | Planned — run `/10x-implement training-plans phase 1` |
+| S-11       | training-plans                   | Training plan creation, assignment, and member view          | no                    | Done — archived 2026-09-06                          |
 | S-12       | member-and-admin-dashboards      | Member and admin dashboards                                  | no                    | Needs S-01, S-07, S-08, S-11                        |
-| S-13       | member-profile-edit              | Member profile, password change, and password reset          | no                    | Implemented and reviewed — awaiting close-out              |
+| S-13       | member-profile-edit              | Member profile, password change, and password reset          | no                    | Done — archived 2026-09-06                          |
 
 ## Open Roadmap Questions
 
