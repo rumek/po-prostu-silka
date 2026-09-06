@@ -11,9 +11,7 @@ import {
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/auth/auth.service';
 import { ResetPasswordFailure } from '../../../core/auth/auth.models';
-
-/** Matches Identity's RequiredLength in src/Program.cs, like the register and profile screens. */
-const MIN_PASSWORD_LENGTH = 8;
+import { MIN_PASSWORD_LENGTH } from '../../../core/auth/validation';
 
 /** Group-level for the reason profile.ts gives: on the control it would be wiped and flicker. */
 function passwordsMatch(group: AbstractControl): ValidationErrors | null {
@@ -78,6 +76,14 @@ export class ResetPassword {
     this.email = params.get('email') ?? '';
     this.token = params.get('token') ?? '';
     this.linkBroken = this.email === '' || this.token === '';
+
+    // Scrubs the token out of the address bar and out of browser history as soon as it has been
+    // read. It is a live credential until it is used, and this screen is often opened on a shared or
+    // synced browser. replaceUrl so Back does not bring it back. The server-side exposure is not
+    // solved here: the link arrives as an ordinary same-origin request, so the query string is
+    // written to the request log before this code runs at all — that is accepted and recorded in the
+    // implementation review (F4).
+    void this.router.navigate([], { queryParams: {}, replaceUrl: true });
   }
 
   protected async submit(): Promise<void> {

@@ -159,14 +159,9 @@ builder.Services.AddRateLimiter(options =>
 
     options.AddPolicy(RateLimitPolicies.ForgotPassword, context =>
     {
-        var forwardedFor = context.Request.Headers["X-Forwarded-For"].FirstOrDefault();
-
-        var clientIp = forwardedFor?.Split(',').FirstOrDefault()?.Trim()
-            ?? context.Connection.RemoteIpAddress?.ToString()
-            ?? "unknown";
-
+        // Address only, port stripped - see RateLimitPolicies.PartitionKey for why that matters here.
         return RateLimitPartition.GetFixedWindowLimiter(
-            clientIp,
+            RateLimitPolicies.PartitionKey(context),
             _ => new FixedWindowRateLimiterOptions
             {
                 // Five in a minute leaves room for a member who mistypes their address twice, and

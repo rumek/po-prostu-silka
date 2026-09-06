@@ -62,6 +62,12 @@ public class PasswordResetThrottle(TimeProvider timeProvider) : IPasswordResetTh
 
     private readonly ConcurrentDictionary<string, DateTimeOffset> lastSentAt = new();
 
+    /// <remarks>
+    /// The window is consumed here, BEFORE the caller enqueues and commits. If that save then fails,
+    /// the member is held off for the full window with no email sent, and has to wait it out. That
+    /// is the deliberate trade: releasing the window on failure would mean the caller could tell a
+    /// failed send from a successful one by retrying, which is the disclosure this whole flow avoids.
+    /// </remarks>
     public bool TryAcquire(string email)
     {
         var key = email.Trim().ToLowerInvariant();
@@ -96,6 +102,16 @@ public class PasswordResetThrottle(TimeProvider timeProvider) : IPasswordResetTh
         return granted;
     }
 
+    /// <summary>
+    /// Drops windows that have expired, once the dictionary is large enough to be worth walking.
+    ///
+    /// <para>
+    /// O(n) on a request thread, and it repeats the sweep on every call while all entries are fresh.
+    /// Fine at this app's scale: keys are bounded by the member count, because TryAcquire is reached
+    /// only after the address has been matched to an account - an unknown address never allocates an
+    /// entry, which is the property that keeps this from being a memory-growth vector.
+    /// </para>
+    /// </summary>
     private void Prune(DateTimeOffset now)
     {
         if (lastSentAt.Count < PruneThreshold)

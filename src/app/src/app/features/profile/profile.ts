@@ -10,18 +10,11 @@ import {
 } from '@angular/forms';
 import { AuthService } from '../../core/auth/auth.service';
 import { ChangePasswordFailure, ProfileFailure } from '../../core/auth/auth.models';
-
-/**
- * Mirrors the rules in src/Application/Members/ContactDetails.cs, and must stay identical to the
- * copies in the register component — the two forms write the same five columns through the same
- * server-side helper, so a rule that differs here is a field the member can save but not register
- * with.
- */
-const POSTAL_CODE_PATTERN = /^\d{2}-\d{3}$/;
-const PHONE_PATTERN = /^(?:\+?48[\s-]?)?(?:\d[\s-]?){8}\d$/;
-
-/** Matches Identity's RequiredLength in src/Program.cs, like the register screen's copy. */
-const MIN_PASSWORD_LENGTH = 8;
+import {
+  MIN_PASSWORD_LENGTH,
+  PHONE_PATTERN,
+  POSTAL_CODE_PATTERN,
+} from '../../core/auth/validation';
 
 /**
  * Group-level, because it compares two controls. The error lands on the GROUP rather than on the

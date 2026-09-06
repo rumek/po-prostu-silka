@@ -424,11 +424,22 @@ public static class AuthEndpoints
     /// <para>
     /// THIS ENDPOINT ANSWERS THE SAME THING NO MATTER WHAT. 200, empty body, for a registered
     /// address, an unregistered one, a Pending account, a Blocked account, a throttled repeat and a
-    /// misconfigured BaseUrl alike. Every branch below returns <c>Results.Ok()</c> and none of them
-    /// returns early past work the found-user path performs, because a difference in status code,
-    /// body or latency is an account-enumeration oracle. F-02's implementation review flagged
-    /// exactly this shape on /login
+    /// misconfigured BaseUrl alike. Every branch below returns <c>Results.Ok()</c>, because a
+    /// difference in status code or body is an account-enumeration oracle. F-02's implementation
+    /// review flagged exactly this shape on /login
     /// (context/archive/2026-08-31-auth-identity-foundation/reviews/impl-review.md:93-101).
+    /// </para>
+    ///
+    /// <para>
+    /// WHAT IS NOT EQUALISED: LATENCY. The unknown-address and throttled branches return early,
+    /// before the token mint, the render and the commit that the found-user path performs, so a
+    /// registered address costs measurably more than an unregistered one. That is a known, accepted
+    /// gap - the plan asked for comparable work and this does not deliver it (see the "Adapted
+    /// during implementation." note on Phase 4 item 6 in
+    /// context/changes/member-profile-edit/plan.md). Exploiting it needs many samples through a
+    /// 5-per-minute cap and hosting jitter; equalising it would mean holding an anonymous request on
+    /// a thread for a fixed budget, on the one endpoint an anonymous caller can spam. Do not
+    /// "restore" the guarantee by deleting this paragraph - either close the gap or leave both.
     /// </para>
     ///
     /// <para>
@@ -450,6 +461,7 @@ public static class AuthEndpoints
         IPasswordResetNotification notification,
         IPasswordResetThrottle throttle,
         IUnitOfWork unitOfWork,
+        ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Email))
@@ -470,12 +482,30 @@ public static class AuthEndpoints
             return Results.Ok();
         }
 
-        var token = await userManager.GeneratePasswordResetTokenAsync(user);
-        notification.Notify(user, token);
+        // SWALLOWED ON PURPOSE - the one place in this app where that is correct. There is no
+        // UseExceptionHandler here, so an unhandled throw would answer 500 for a registered address
+        // while an unregistered one still answered 200: the enumeration oracle this endpoint exists
+        // to deny, appearing exactly under the load that makes it easiest to measure. SQL throttling
+        // on Basic DTU is the realistic trigger. The member gets no email and retries; nobody learns
+        // anything from the response.
+        try
+        {
+            var token = await userManager.GeneratePasswordResetTokenAsync(user);
+            notification.Notify(user, token);
 
-        // Notify enqueues without saving, like every other notification here, so the outbox row
-        // only exists after this commit.
-        await unitOfWork.SaveChangesAsync(cancellationToken);
+            // Notify enqueues without saving, like every other notification here, so the outbox row
+            // only exists after this commit.
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+        catch (Exception exception)
+        {
+            loggerFactory
+                .CreateLogger(typeof(AuthEndpoints))
+                .LogError(
+                    exception,
+                    "Password reset could not be queued. The caller was answered normally so the "
+                    + "failure does not disclose whether the address is registered.");
+        }
 
         return Results.Ok();
     }

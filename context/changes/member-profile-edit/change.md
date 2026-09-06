@@ -1,9 +1,9 @@
 ---
 change_id: member-profile-edit
 title: Member profile edit with address/phone fields, password change, and password reset
-status: implementing
+status: impl_reviewed
 created: 2026-09-05
-updated: 2026-09-05
+updated: 2026-09-06
 archived_at: null
 ---
 

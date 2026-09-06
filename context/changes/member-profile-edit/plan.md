@@ -484,6 +484,11 @@ limiter scoped to the request endpoint, the two API endpoints, and the two publi
 renders at enqueue time, and a worker retry has no HTTP request to derive a host from, so this cannot
 come from the request.
 
+**Adapted during implementation.** The empty-BaseUrl error is logged by
+`PasswordResetNotification`, not by the forgot-password handler as the contract says. The handler is
+unaware: it still enqueues nothing, commits an empty unit of work and answers 200. Behaviour is
+identical; the responsibility sits with the type that needs the URL.
+
 **Adapted during implementation.** The options class landed in
 `src/Application/Notifications/AppOptions.cs`, not under `Infrastructure`: its only consumer is
 `PasswordResetNotification`, which is an Application type, and Application may not reference
@@ -572,6 +577,15 @@ statuses), matching `/change-password`. The handler also guards a blank email, t
 before touching Identity — a JSON `null` reaching the non-nullable record — mapping the first two to
 `invalid_token` and the third to `invalid_new_password`, so a malformed body cannot answer
 differently from a wrong one.
+
+**Adapted during implementation — accepted risk.** The equal-work requirement in Critical
+Implementation Details is *not* met: the blank-email, unknown-address and throttled branches return
+before the token mint, the render and the commit, so a registered address costs measurably more time
+than an unregistered one. The response shape is identical and pinned by tests; only latency differs.
+Equalising it would mean holding an anonymous request on a thread for a fixed budget, on the one
+endpoint an anonymous caller can spam, and exploiting the gap needs many samples through a
+5-per-minute cap plus hosting jitter. Recorded here and in the handler's docblock rather than
+silently left as a comment that claims otherwise. Flagged by the implementation review as F2.
 
 #### 7. SPA contract, service, routes and screens
 

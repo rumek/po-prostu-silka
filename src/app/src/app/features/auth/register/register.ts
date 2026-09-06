@@ -10,19 +10,11 @@ import {
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/auth/auth.service';
 import { RegisterFailure } from '../../../core/auth/auth.models';
-
-/** Matches Identity's RequiredLength in src/Program.cs. Keep the two in step. */
-const MIN_PASSWORD_LENGTH = 8;
-
-/**
- * Mirrors the rules in src/Application/Members/ContactDetails.cs, the same way
- * MIN_PASSWORD_LENGTH mirrors Program.cs. The server stays the authority — these only spare the
- * member a round trip.
- */
-const POSTAL_CODE_PATTERN = /^\d{2}-\d{3}$/;
-
-/** Nine digits after separators and an optional +48; the server normalises to the bare nine. */
-const PHONE_PATTERN = /^(?:\+?48[\s-]?)?(?:\d[\s-]?){8}\d$/;
+import {
+  MIN_PASSWORD_LENGTH,
+  PHONE_PATTERN,
+  POSTAL_CODE_PATTERN,
+} from '../../../core/auth/validation';
 
 /**
  * Registration (FR-001). The account is created Pending and signed in immediately, so this always

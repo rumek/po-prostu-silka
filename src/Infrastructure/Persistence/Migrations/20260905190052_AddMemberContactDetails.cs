@@ -10,6 +10,11 @@ namespace po_prostu_silka.Infrastructure.Persistence.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            // Narrowing PhoneNumber from nvarchar(max) would abort with "String or binary data would
+            // be truncated" on any existing row longer than 20 characters. Safe here because no
+            // application code ever wrote this column before this slice - Identity declares it, and
+            // nothing set it - so every existing row is NULL. Not self-evident from this file, hence
+            // the note.
             migrationBuilder.AlterColumn<string>(
                 name: "PhoneNumber",
                 table: "AspNetUsers",

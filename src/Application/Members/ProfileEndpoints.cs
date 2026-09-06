@@ -56,7 +56,8 @@ public static class ProfileEndpoints
     private static async Task<IResult> UpdateProfileAsync(
         [FromBody] ProfileRequest request,
         ClaimsPrincipal principal,
-        UserManager<ApplicationUser> userManager)
+        UserManager<ApplicationUser> userManager,
+        ILoggerFactory loggerFactory)
     {
         var user = await userManager.GetUserAsync(principal);
 
@@ -90,7 +91,16 @@ public static class ProfileEndpoints
         {
             // Nothing here is user-correctable: the fields were already validated, so a failure at
             // this point is a concurrency stamp or a database problem. Do not map Identity's error
-            // text onto a control - it would blame a field the member just fixed.
+            // text onto a control - it would blame a field the member just fixed. Logged rather than
+            // returned, like RegisterAsync's role-assignment failure, because "saving my address
+            // 500s" is otherwise unreportable and undiagnosable.
+            loggerFactory
+                .CreateLogger(typeof(ProfileEndpoints))
+                .LogError(
+                    "Profile update failed for user {UserId}. Errors: {Errors}",
+                    user.Id,
+                    string.Join("; ", updated.Errors.Select(e => e.Description)));
+
             return Results.Problem("Profile could not be saved.", statusCode: 500);
         }
 

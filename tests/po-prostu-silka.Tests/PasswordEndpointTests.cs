@@ -517,4 +517,31 @@ public class PasswordEndpointTests(IntegrationTestFixture fixture)
 
         Assert.Equal(HttpStatusCode.TooManyRequests, refused.StatusCode);
     }
+
+    /// <summary>
+    /// THE REGRESSION TEST FOR THE PORT SUFFIX. App Service writes X-Forwarded-For as
+    /// "client-ip:ephemeral-port" and that port changes per connection, so a partition key taken from
+    /// the header verbatim gives every request its own bucket and the cap never fires in production -
+    /// while a test sending a bare address stays green. This one sends the production header shape.
+    /// </summary>
+    [Fact]
+    public async Task One_caller_shares_a_partition_across_ephemeral_ports()
+    {
+        var email = await CreateMemberAsync();
+
+        async Task<HttpResponseMessage> FromPortAsync(int port)
+        {
+            var client = fixture.CreateClient();
+            client.DefaultRequestHeaders.Add("X-Forwarded-For", $"198.51.100.7:{port}");
+
+            return await ForgotAsync(client, email);
+        }
+
+        for (var port = 51422; port < 51427; port++)
+        {
+            Assert.Equal(HttpStatusCode.OK, (await FromPortAsync(port)).StatusCode);
+        }
+
+        Assert.Equal(HttpStatusCode.TooManyRequests, (await FromPortAsync(51427)).StatusCode);
+    }
 }
