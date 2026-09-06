@@ -666,6 +666,12 @@ member's name. Two requirements added: contact details (phone and address) colle
 and editable by the member; and password reset by emailed link before login. Each carries the same
 `Socrates:` / `Resolution:` annotation style as its neighbours.
 
+**Adapted during implementation.** The two new requirements are numbered **FR-025** and **FR-026**,
+continuing from the document's highest ID rather than being inserted after FR-006 as FR-006a/b. They
+still sit in the "Accounts & access" section where they belong; only the numbering follows the tail,
+because the roadmap references PRD requirements by number and inserting IDs would have silently
+repointed every reference after FR-006. The PRD carries a note saying so.
+
 #### 2. Roadmap
 
 **File**: `context/foundation/roadmap.md`
@@ -676,6 +682,11 @@ and editable by the member; and password reset by emailed link before login. Eac
 change and password reset; `PRD refs` extended with the new requirement IDs; the `Risk` line —
 currently "smallest slice in the milestone" — corrected. `Status` is left to `/10x-implement` and
 `/10x-archive`; frontmatter `updated` bumped.
+
+**Adapted during implementation.** Two references outside the S-13 block also had to move, or the
+document would have contradicted itself: the milestone's `Scope anchors` line still read
+`FR-001–FR-024`, and the Backlog Handoff row still advertised S-13 as "edit name and change password"
+and ready for `/10x-plan`.
 
 #### 3. Lessons
 
@@ -822,19 +833,19 @@ are prompted on the profile screen and can save at any time. No backfill runs.
 
 #### Manual
 
-- [ ] 4.5 The login screen shows the forgot-password link and it reaches the form
-- [ ] 4.6 Submitting a registered address writes the reset link to the application log
-- [ ] 4.7 Following that link sets a new password and the member can sign in with it
-- [ ] 4.8 Following the same link a second time is refused
-- [ ] 4.9 An unregistered address produces exactly the same on-screen result as a registered one
-- [ ] 4.10 Repeated rapid submissions from one client are refused with 429
+- [x] 4.5 The login screen shows the forgot-password link and it reaches the form — 3645703
+- [x] 4.6 Submitting a registered address writes the reset link to the application log — 3645703
+- [x] 4.7 Following that link sets a new password and the member can sign in with it — 3645703
+- [x] 4.8 Following the same link a second time is refused — 3645703
+- [x] 4.9 An unregistered address produces exactly the same on-screen result as a registered one — 3645703
+- [x] 4.10 Repeated rapid submissions from one client are refused with 429 — 3645703
 
 ### Phase 5: Documents
 
 #### Automated
 
-- [ ] 5.1 No PRD requirement still promises member-editable display name
-- [ ] 5.2 The roadmap's S-13 block mentions password reset
+- [x] 5.1 No PRD requirement still promises member-editable display name
+- [x] 5.2 The roadmap's S-13 block mentions password reset
 
 #### Manual
 

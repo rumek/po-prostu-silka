@@ -27,3 +27,25 @@
 - **Applies to**: Every `/10x-implement` phase. Strongest when the deviation was *necessary* rather
   than optional — that is exactly the case where a future reader would otherwise assume the plan was
   simply not followed.
+
+## Verify a prerequisite against the code, not against an archived plan
+
+- **Context**: `context/archive/2026-08-31-auth-identity-foundation/plan.md` (F-02) vs
+  `src/Program.cs` — Identity registration. Surfaced while researching S-13's password reset.
+
+- **Problem**: F-02's plan never mentions `AddDefaultTokenProviders()`, which is what mints
+  password-reset tokens. Read as the contract for what F-02 delivered, it says the prerequisite is
+  missing and S-13 has to add it. The shipped code already calls it. Trusting the plan would have
+  produced a phase of work that was already done, and — worse — a "prerequisite missing" finding in
+  the plan review that a reader would have had no reason to doubt. The asymmetry is the point: code
+  is corrected whenever it is wrong, because it runs; a plan is corrected only when someone
+  remembers to, and an archived plan is immutable by rule, so it can never be corrected at all.
+
+- **Rule**: When research establishes that a prerequisite exists, cite the code that provides it —
+  a file and line in `src/`, not a contract in a plan. An archived plan is evidence of what was
+  *intended*, never of what shipped. This applies in both directions: a plan that omits something is
+  not proof it is absent, and a plan that promises something is not proof it is present.
+
+- **Applies to**: `/10x-research` and `/10x-plan` on any slice that builds on a `done` foundation,
+  and to `/10x-plan-review` before flagging a prerequisite as missing.
+

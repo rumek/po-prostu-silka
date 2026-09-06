@@ -3,7 +3,7 @@ project: "Po Prostu Siłka"
 version: 2
 status: draft
 created: 2026-08-31
-updated: 2026-09-05
+updated: 2026-09-06
 prd_version: 1, 2
 main_goal: speed
 top_blocker: decisions
@@ -25,7 +25,7 @@ milestone_status: open
 - **Intent:** The club runs on the app instead of Excel: a member can register, get approved, browse the schedule, book and cancel classes, follow their assigned training plan — and is reliably told by email + push when a booked class is cancelled or changed.
 - **Source materials:** `context/foundation/prd.md` (v1) and `context/foundation/prd-v2.md` (v2). The v2 change — class types, the Trainer role, the room's removal, and the calendar — was folded into this milestone rather than opening a new one: it restructures how M-1's own scheduling slices are built, and M-1's intent is unchanged by it.
 - **Done when:** every F-NN and S-NN below is `done`.
-- **Scope anchors:** from v1 — FR-001–FR-024 (all must-have; FR-022 removed by the PRD itself), US-01, US-02, and the four NFRs. From v2 — FR-001–FR-018 and US-01, US-02. Both PRDs number from FR-001, so every reference below names its source (`prd.md FR-007` vs `prd-v2 FR-007`).
+- **Scope anchors:** from v1 — FR-001–FR-026 (all must-have; FR-022 removed by the PRD itself, FR-025 and FR-026 added by S-13), US-01, US-02, and the four NFRs. From v2 — FR-001–FR-018 and US-01, US-02. Both PRDs number from FR-001, so every reference below names its source (`prd.md FR-007` vs `prd-v2 FR-007`).
 
 ## Vision recap
 
@@ -58,7 +58,7 @@ Mid-milestone, a second decision landed: a class stops being retyped text and be
 | S-10 | exercise-library                 | admin manages exercises with instructions and videos                     | S-01                   | v1 FR-018, v1 FR-019                                            | done        |
 | S-11 | training-plans                   | admin builds and assigns a plan; member follows it with exercise details | S-01, S-10             | v1 FR-015, v1 FR-016, v1 FR-017, v1 FR-020                      | done        |
 | S-12 | member-and-admin-dashboards      | member and admin land on their at-a-glance home screens                  | S-01, S-07, S-08, S-11 | v1 FR-023, v1 FR-024                                            | proposed    |
-| S-13 | member-profile-edit              | member edits display name and changes password                           | F-02, S-01             | v1 FR-006                                                       | in-progress |
+| S-13 | member-profile-edit              | member edits contact details, changes password, resets a forgotten one   | F-02, S-01             | v1 FR-006, v1 FR-025, v1 FR-026                                 | in-progress |
 
 ## Streams
 
@@ -280,14 +280,19 @@ What's already in place in the codebase as of `2026-09-02` (auto-researched + us
 
 ### S-13: Member edits their profile
 
-- **Outcome:** user can edit their display name and change their password.
+- **Outcome:** member sees their name and email, edits their contact details (phone and address),
+  changes their password while signed in, and resets a forgotten password by emailed link before login.
+  The display name is deliberately NOT editable — the gym owns how a member appears on its lists.
 - **Change ID:** member-profile-edit
-- **PRD refs:** v1 FR-006
+- **PRD refs:** v1 FR-006, v1 FR-025, v1 FR-026
 - **Prerequisites:** F-02, S-01
 - **Parallel with:** S-03, S-04, S-05, S-06, S-07, S-08, S-09, S-10, S-11, S-12
 - **Blockers:** —
 - **Unknowns:** —
-- **Risk:** smallest slice in the milestone; nothing depends on it, so it slots into any idle parallel lane.
+- **Risk:** not the small slice it first looked like. The password-reset half is anonymous, sends mail
+  on demand, and must answer identically for every address — an account-enumeration oracle is the
+  failure mode, and it is invisible to a build or a lint run. Contact details also became required at
+  registration, which touches the schema and every account created before this slice.
 - **Status:** in-progress
 
 ## Backlog Handoff
@@ -309,7 +314,7 @@ What's already in place in the codebase as of `2026-09-02` (auto-researched + us
 | S-10       | exercise-library                 | Exercise library management with instructional videos        | yes                   | Run `/10x-plan exercise-library` — best parallel lane |
 | S-11       | training-plans                   | Training plan creation, assignment, and member view          | yes                   | Planned — run `/10x-implement training-plans phase 1` |
 | S-12       | member-and-admin-dashboards      | Member and admin dashboards                                  | no                    | Needs S-01, S-07, S-08, S-11                        |
-| S-13       | member-profile-edit              | Member profile: edit name and change password                | yes                   | Run `/10x-plan member-profile-edit`                 |
+| S-13       | member-profile-edit              | Member profile, password change, and password reset          | no                    | Planned — run `/10x-implement member-profile-edit phase 5` |
 
 ## Open Roadmap Questions
 

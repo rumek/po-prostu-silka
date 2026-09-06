@@ -79,8 +79,12 @@ Scope decision (revised in the Socratic round): MVP notifications are delivered 
   > Socrates: "What happens to a blocked member's existing bookings and plan?" Resolution: kept; blocked-user edge cases routed to Open Questions.
 - FR-005: Admin can browse members in one searchable list with status badges and a status filter (pending / active / blocked). Priority: must-have
   > Socrates: "Four status tabs is over-structured for a small club." Resolution: REVISED — grouped tabs replaced by a single list + filter; 'rejected' status gone with FR-003's revision.
-- FR-006: Member can edit their display name and change their password. Priority: must-have
-  > Socrates: "Profile editing is low-value — what's actually editable?" Resolution: REVISED — profile management trimmed to name + password for MVP.
+- FR-006: Member can edit their contact details and change their password. Priority: must-have
+  > Socrates: "Profile editing is low-value — what's actually editable?" Resolution: REVISED TWICE — first trimmed to name + password for MVP; then the display name was dropped from the editable set, because the gym owns how a member appears on its class lists and a member renaming themselves mid-season makes those lists unreadable. The name and the email are shown on the profile screen as text; the password and the contact details below are what the member changes.
+- FR-025: Member supplies phone number and address (street, house number, postal code, city) at registration, and can edit them afterwards. Priority: must-have
+  > Socrates: "Why does a gym need a home address at all — that is regulated personal data for a class booking?" Resolution: kept; the club issues invoices and access cards from these details, and collecting them at registration avoids chasing members later. Numbered after FR-024 rather than inserted as FR-006a because the roadmap references these IDs by number and renumbering would silently repoint them.
+- FR-026: Member who has forgotten their password can request a reset link by email and set a new password without signing in. Priority: must-have
+  > Socrates: "Is a self-service reset worth the surface, when the owner can reset a password by hand for a club this size?" Resolution: kept; a member locked out on a Sunday cannot book Monday's class, and a reset endpoint that answers identically for every address (registered or not) is cheaper to build correctly than a manual process is to run. Any admin-visible variant would leak which addresses are registered.
 
 ### Class schedule & bookings
 - FR-007: Member can browse the class schedule (name, date/time, room, instructor, free spots). Priority: must-have
