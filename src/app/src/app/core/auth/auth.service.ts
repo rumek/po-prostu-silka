@@ -4,9 +4,11 @@ import { firstValueFrom } from 'rxjs';
 import {
   ChangePasswordRequest,
   CurrentUser,
+  ForgotPasswordRequest,
   LoginRequest,
   ProfileRequest,
   RegisterRequest,
+  ResetPasswordRequest,
 } from './auth.models';
 import { ROLES } from './roles';
 
@@ -118,6 +120,29 @@ export class AuthService {
    */
   async changePassword(request: ChangePasswordRequest): Promise<void> {
     await firstValueFrom(this.http.post<void>('/api/auth/change-password', request));
+  }
+
+  /**
+   * Asks for a reset link.
+   *
+   * ALWAYS RESOLVES on a reachable API, because the endpoint answers 200 whether or not the address
+   * belongs to an account — deliberately, so nothing here can be used to probe which addresses are
+   * registered. The screen must therefore show the same confirmation on every success and must not
+   * infer anything from this resolving.
+   */
+  async forgotPassword(request: ForgotPasswordRequest): Promise<void> {
+    await firstValueFrom(this.http.post<void>('/api/auth/forgot-password', request));
+  }
+
+  /**
+   * Consumes a reset token and sets the new password. Does NOT establish a session — the API
+   * deliberately does not sign the member in, so the caller sends them to /login.
+   *
+   * Does not catch: the failure has to reach the screen so it can tell a dead link from a password
+   * the policy refused.
+   */
+  async resetPassword(request: ResetPasswordRequest): Promise<void> {
+    await firstValueFrom(this.http.post<void>('/api/auth/reset-password', request));
   }
 
   async logout(): Promise<void> {

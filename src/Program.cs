@@ -1,7 +1,9 @@
 ﻿using Azure.Communication.Email;
 using Lib.Net.Http.WebPush;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
@@ -136,12 +138,59 @@ builder.Services.Configure<SecurityStampValidatorOptions>(options =>
 builder.Services.AddAuthorizationBuilder().AddApplicationPolicies();
 
 // ---------------------------------------------------------------------------
+// Rate limiting (S-13).
+//
+// ONE policy, on ONE endpoint. /forgot-password is the only anonymous route in this app that causes
+// mail to be sent, which makes it the only one where an unauthenticated caller can spend a real
+// resource. A global limiter is explicitly out of scope: every other endpoint is either
+// authenticated or free.
+//
+// Partitioned on client IP. Behind App Service the socket address is the reverse proxy's, so
+// X-Forwarded-For is what distinguishes callers - and it is spoofable, which is why this is a
+// courtesy cap on volume and NOT an authorization control. The per-address throttle
+// (IPasswordResetThrottle) is what protects an individual mailbox, and it cannot be sidestepped by
+// changing IP.
+// ---------------------------------------------------------------------------
+builder.Services.AddRateLimiter(options =>
+{
+    // 429, not the framework's default 503: the caller is being told to slow down, not that the
+    // service is unavailable.
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    options.AddPolicy(RateLimitPolicies.ForgotPassword, context =>
+    {
+        var forwardedFor = context.Request.Headers["X-Forwarded-For"].FirstOrDefault();
+
+        var clientIp = forwardedFor?.Split(',').FirstOrDefault()?.Trim()
+            ?? context.Connection.RemoteIpAddress?.ToString()
+            ?? "unknown";
+
+        return RateLimitPartition.GetFixedWindowLimiter(
+            clientIp,
+            _ => new FixedWindowRateLimiterOptions
+            {
+                // Five in a minute leaves room for a member who mistypes their address twice, and
+                // still caps a script at a rate that makes bulk mailing pointless.
+                PermitLimit = 5,
+                Window = TimeSpan.FromMinutes(1),
+
+                // No queue: a throttled caller is refused immediately rather than held on a request
+                // thread. Queueing would turn the limiter into a way to occupy the server.
+                QueueLimit = 0,
+            });
+    });
+});
+
+// ---------------------------------------------------------------------------
 // Notification delivery (F-03).
 //
 // Everything goes through the outbox: infrastructure.md:79 records that App Service recycles
 // without warning, so a fire-and-forget send silently drops whatever was in flight - a direct hit
 // on the "no missed cancellations" guardrail. The worker below is what makes delivery survive that.
 // ---------------------------------------------------------------------------
+// Where this app lives, for the links password-reset emails carry. See AppOptions for why it is a
+// setting and not something derived from the request.
+builder.Services.Configure<AppOptions>(builder.Configuration.GetSection(AppOptions.SectionName));
 builder.Services.Configure<AcsOptions>(builder.Configuration.GetSection(AcsOptions.SectionName));
 builder.Services.Configure<VapidOptions>(builder.Configuration.GetSection(VapidOptions.SectionName));
 builder.Services.Configure<OutboxOptions>(builder.Configuration.GetSection(OutboxOptions.SectionName));
@@ -159,13 +208,37 @@ builder.Services.AddSingleton(sp =>
 // PushServiceClient wraps an HttpClient, so it goes through IHttpClientFactory for pooling.
 builder.Services.AddHttpClient<PushServiceClient>();
 
-builder.Services.AddScoped<IEmailSender, AcsEmailSender>();
+// LoggingEmailSender ONLY when Development AND ACS is unconfigured. Without it, a developer machine
+// answers Permanent("acs_not_configured") to every send and the password-reset link - the only route
+// back into an account - is never visible anywhere. Configure ACS locally and this branch is skipped.
+//
+// Never widen this condition: it writes reset links to the log in plain text.
+var acsConfigured = builder.Configuration
+    .GetSection(AcsOptions.SectionName)
+    .Get<AcsOptions>()?.IsConfigured == true;
+
+if (builder.Environment.IsDevelopment() && !acsConfigured)
+{
+    builder.Services.AddScoped<IEmailSender, LoggingEmailSender>();
+}
+else
+{
+    builder.Services.AddScoped<IEmailSender, AcsEmailSender>();
+}
 builder.Services.AddScoped<IPushSender, WebPushSender>();
 builder.Services.AddScoped<IOutboxWriter, OutboxWriter>();
 builder.Services.AddScoped<IOutboxEnqueuer, OutboxEnqueuer>();
 builder.Services.AddScoped<IPushSubscriptionStore, PushSubscriptionStore>();
 builder.Services.AddScoped<IVapidPublicKey, VapidPublicKeyProvider>();
 builder.Services.AddScoped<IAccountApprovedNotification, AccountApprovedNotification>();
+
+// S-13's reset email. Scoped for the reason its neighbours are: it enqueues without saving, so it
+// must share the request's DbContext with IUnitOfWork.
+builder.Services.AddScoped<IPasswordResetNotification, PasswordResetNotification>();
+
+// Singleton, because the sliding window IS the state - a scoped instance would forget every request.
+// Per-instance and therefore single-instance-only; see the class for what that costs on scale-out.
+builder.Services.AddSingleton<IPasswordResetThrottle, PasswordResetThrottle>();
 
 // S-09's cancellation and change messages (FR-013, FR-021). Scoped beside the notification above and
 // for the same reason: it enqueues without saving, so it must share the request's DbContext with
@@ -253,6 +326,10 @@ app.UseStaticFiles();
 // before the auth middleware ever sees them.
 app.UseAuthentication();
 app.UseAuthorization();
+
+// After authentication/authorization and before the endpoints, so only the endpoint that opts in
+// via RequireRateLimiting is affected. Nothing else in this app carries a limit.
+app.UseRateLimiter();
 
 // Anonymous by design: a health probe that needs credentials cannot answer "is the app reachable".
 app.MapHealthChecks("/health");

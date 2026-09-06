@@ -484,6 +484,12 @@ limiter scoped to the request endpoint, the two API endpoints, and the two publi
 renders at enqueue time, and a worker retry has no HTTP request to derive a host from, so this cannot
 come from the request.
 
+**Adapted during implementation.** The options class landed in
+`src/Application/Notifications/AppOptions.cs`, not under `Infrastructure`: its only consumer is
+`PasswordResetNotification`, which is an Application type, and Application may not reference
+Infrastructure. It is a plain class with a `BaseUrl` property and an `IsConfigured` guard rather than
+a record, matching `AcsOptions`.
+
 **Contract**: New `App` section with a `BaseUrl` key, documented in `appsettings.json` in the same
 "documented here, never set here" style as `Acs` and `AdminSeed`, with the production setting spelled
 out as `App__BaseUrl`. Bound to an options record and registered alongside `AcsOptions`
@@ -561,6 +567,12 @@ code so the endpoint discloses nothing) or `invalid_new_password` (400). Does **
 in on success; they are sent to the login screen, which is also the only way an already-signed-in
 session would notice the stamp rotation.
 
+**Adapted during implementation.** Success answers `204 No Content` (the plan named only the failure
+statuses), matching `/change-password`. The handler also guards a blank email, token or password
+before touching Identity — a JSON `null` reaching the non-nullable record — mapping the first two to
+`invalid_token` and the third to `invalid_new_password`, so a malformed body cannot answer
+differently from a wrong one.
+
 #### 7. SPA contract, service, routes and screens
 
 **Files**: `src/app/src/app/core/auth/auth.models.ts`, `auth.service.ts`, `app.routes.ts`,
@@ -593,6 +605,20 @@ Active one; the token from the captured mail resets the password; the same token
 returns `invalid_token`; a garbage token returns `invalid_token`. Frontend cases — the forgot screen
 shows the neutral confirmation after submitting; the reset screen reads both query parameters and
 sends them; mismatched confirmation blocks submit.
+
+**Adapted during implementation.** The backend cases read the queued rows straight from
+`AppDbContext.OutboxMessages` instead of going through `FakeChannels`: the endpoint *enqueues* and
+does not deliver, so a fake sender would capture nothing without also running the delivery worker,
+and the assertion that matters is that exactly one email row exists with a usable link. That link is
+matched against `IntegrationTestFixture.TestAppBaseUrl`, a new constant the fixture also feeds to the
+test host as `App:BaseUrl` — without it the notification would log its misconfiguration and enqueue
+nothing. Two cases beyond the contract: a new password below the policy length answers
+`invalid_new_password` and leaves the old password working, and a JSON `null` email still answers
+200. Each forgot-password client sends a distinct `X-Forwarded-For`, so it lands in its own
+rate-limiter partition — the whole collection otherwise shares one loopback address and the file
+makes more than five requests a minute, which the limiter refuses. The cap itself is asserted by one
+test that deliberately exhausts a single partition and expects 429, so the manual check at 4.10 has
+an automated counterpart.
 
 ### Success Criteria:
 
@@ -780,19 +806,19 @@ are prompted on the profile screen and can save at any time. No backfill runs.
 
 #### Manual
 
-- [ ] 3.5 Changing the password succeeds and the session stays signed in
-- [ ] 3.6 Signing out and back in works with the new password and fails with the old one
-- [ ] 3.7 A second session as the same member is signed out within about two minutes
-- [ ] 3.8 Mismatched confirmation is refused before any request is sent
+- [x] 3.5 Changing the password succeeds and the session stays signed in — fbdd612
+- [x] 3.6 Signing out and back in works with the new password and fails with the old one — fbdd612
+- [x] 3.7 A second session as the same member is signed out within about two minutes — fbdd612
+- [x] 3.8 Mismatched confirmation is refused before any request is sent — fbdd612
 
 ### Phase 4: Forgot and reset password before login
 
 #### Automated
 
-- [ ] 4.1 Backend builds clean
-- [ ] 4.2 Integration tests pass, including the outbox assertions
-- [ ] 4.3 Frontend unit tests pass
-- [ ] 4.4 Formatting and lint clean
+- [x] 4.1 Backend builds clean
+- [x] 4.2 Integration tests pass, including the outbox assertions
+- [x] 4.3 Frontend unit tests pass
+- [x] 4.4 Formatting and lint clean
 
 #### Manual
 

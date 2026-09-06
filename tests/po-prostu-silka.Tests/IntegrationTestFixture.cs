@@ -163,6 +163,9 @@ public class IntegrationTestFixture : IAsyncLifetime
         return client;
     }
 
+    /// <summary>The App:BaseUrl the test host runs with. Reset-link assertions match against it.</summary>
+    public const string TestAppBaseUrl = "https://test.poprostusilka.local";
+
     private sealed class TestAppFactory(string connectionString) : WebApplicationFactory<Program>
     {
         protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -179,6 +182,11 @@ public class IntegrationTestFixture : IAsyncLifetime
                     // exercised rather than skipped.
                     ["AdminSeed:Email"] = TestUsers.SeededAdminEmail,
                     ["AdminSeed:Password"] = TestUsers.Password,
+
+                    // The origin password-reset links are built from (S-13). Set, so the tests
+                    // exercise the configured path rather than the "logs an error and sends
+                    // nothing" fallback.
+                    ["App:BaseUrl"] = TestAppBaseUrl,
                 }));
         }
     }

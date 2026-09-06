@@ -24,6 +24,23 @@ import { Home } from './features/home/home';
 export const routes: Routes = [
   { path: 'login', component: Login },
   { path: 'register', component: Register },
+  // The pre-login recovery flow (S-13). GUARD-FREE, like login and register — a visitor who cannot
+  // sign in is exactly who these are for, and authGuard would bounce them to /login, which is the
+  // screen they just failed at.
+  //
+  // LAZY: they sit in the anonymous bundle's blast radius otherwise, and most visitors never open
+  // them. /reset-password reads its email and token from the QUERY STRING, never the path —
+  // Identity's tokens contain characters a path segment mangles.
+  {
+    path: 'forgot-password',
+    loadComponent: () =>
+      import('./features/auth/forgot-password/forgot-password').then((m) => m.ForgotPassword),
+  },
+  {
+    path: 'reset-password',
+    loadComponent: () =>
+      import('./features/auth/reset-password/reset-password').then((m) => m.ResetPassword),
+  },
   { path: 'pending', component: Pending, canActivate: [authGuard] },
   { path: '', component: Home, canActivate: [authGuard, activeMemberGuard] },
   { path: 'admin/approvals', component: Approvals, canActivate: [authGuard, adminGuard] },

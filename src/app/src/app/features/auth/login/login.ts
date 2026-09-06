@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/auth/auth.service';
 import { LoginFailure } from '../../../core/auth/auth.models';
 
@@ -26,6 +26,16 @@ export class Login {
 
   protected readonly error = signal<string | null>(null);
   protected readonly submitting = signal(false);
+
+  /**
+   * Set by /reset-password on success (S-13). The reset endpoint deliberately does not sign the
+   * member in, so this screen is where they land and where they find out it worked — otherwise the
+   * flow ends on a bare login form that looks like nothing happened.
+   *
+   * Read once from the snapshot: this route is not reused, so there is nothing to observe.
+   */
+  protected readonly passwordReset =
+    inject(ActivatedRoute).snapshot.queryParamMap.get('reset') === 'ok';
 
   protected async submit(): Promise<void> {
     // markAllAsTouched, not a silent return: a submit that appears to do nothing reads as a broken

@@ -2,6 +2,8 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using po_prostu_silka.Application.Members;
+using po_prostu_silka.Application.Notifications;
+using po_prostu_silka.Application.Persistence;
 using po_prostu_silka.Domain;
 
 namespace po_prostu_silka.Application.Auth;
@@ -32,6 +34,25 @@ public record RegisterRequest(
 /// LoginFailureReason union still carries it and removing it is churn for no gain.
 /// </summary>
 public record LoginFailure(string Reason);
+
+/// <summary>Asks for a reset link. The only field is the address to send it to.</summary>
+public record ForgotPasswordRequest(string Email);
+
+/// <summary>
+/// Sets a new password from an emailed token. The email travels with the token because Identity's
+/// tokens are validated against a specific user - the token alone does not identify one.
+/// </summary>
+public record ResetPasswordRequest(string Email, string Token, string NewPassword);
+
+/// <summary>
+/// Why the reset failed.
+///
+/// <c>invalid_token</c> deliberately covers an unknown address, a malformed token, a token belonging
+/// to someone else, an already-used token AND an expired one. Splitting those apart would hand an
+/// anonymous caller the account-enumeration oracle that <c>/forgot-password</c> is built to deny -
+/// "expired" means the address exists. One code, and the screen says "poproś o nowy link".
+/// </summary>
+public record ResetPasswordFailure(string Reason);
 
 /// <summary>
 /// An in-session password change (S-13). The current password is required and is the whole
@@ -114,6 +135,17 @@ public static class AuthEndpoints
         // Bare RequireAuthorization() for the /refresh reason: a member awaiting approval owns their
         // password like anyone else, and nothing about changing it depends on being approved.
         group.MapPost("/change-password", ChangePasswordAsync).RequireAuthorization();
+
+        // The only anonymous endpoint in this app that sends mail on demand, so it is the only one
+        // that carries a rate limit (Program.cs). AllowAnonymous by definition - a member who can
+        // sign in does not need it.
+        group.MapPost("/forgot-password", ForgotPasswordAsync)
+            .AllowAnonymous()
+            .RequireRateLimiting(RateLimitPolicies.ForgotPassword);
+
+        // Not rate-limited: it sends nothing, and a wrong token is already refused. The token's
+        // single-use guarantee is the security stamp, which ResetPasswordAsync rotates.
+        group.MapPost("/reset-password", ResetPasswordAsync).AllowAnonymous();
 
         return app;
     }
@@ -382,6 +414,122 @@ public static class AuthEndpoints
         // AFTER the change and BEFORE the response - see the summary. Moving or removing this line
         // does not fail a build or a unit test; it fails two minutes later, in production.
         await signInManager.RefreshSignInAsync(user);
+
+        return Results.NoContent();
+    }
+
+    /// <summary>
+    /// Emails a reset link, if the address belongs to an account.
+    ///
+    /// <para>
+    /// THIS ENDPOINT ANSWERS THE SAME THING NO MATTER WHAT. 200, empty body, for a registered
+    /// address, an unregistered one, a Pending account, a Blocked account, a throttled repeat and a
+    /// misconfigured BaseUrl alike. Every branch below returns <c>Results.Ok()</c> and none of them
+    /// returns early past work the found-user path performs, because a difference in status code,
+    /// body or latency is an account-enumeration oracle. F-02's implementation review flagged
+    /// exactly this shape on /login
+    /// (context/archive/2026-08-31-auth-identity-foundation/reviews/impl-review.md:93-101).
+    /// </para>
+    ///
+    /// <para>
+    /// ASYMMETRY WITH /register, ON PURPOSE. Registration discloses <c>email_taken</c> because
+    /// silence would strand a real member. Here silence strands nobody: someone who mistypes their
+    /// address simply gets no email and tries again. This endpoint sits on /login's side of that
+    /// line.
+    /// </para>
+    ///
+    /// <para>
+    /// STATUS IS NOT CHECKED. A Blocked member can request a reset and use it. Branching on status
+    /// would reintroduce the oracle from the other direction, and a blocked account is refused at
+    /// /login regardless - a new password gets them nothing.
+    /// </para>
+    /// </summary>
+    private static async Task<IResult> ForgotPasswordAsync(
+        [FromBody] ForgotPasswordRequest request,
+        UserManager<ApplicationUser> userManager,
+        IPasswordResetNotification notification,
+        IPasswordResetThrottle throttle,
+        IUnitOfWork unitOfWork,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request.Email))
+        {
+            return Results.Ok();
+        }
+
+        var user = await userManager.FindByEmailAsync(request.Email);
+        if (user is null)
+        {
+            return Results.Ok();
+        }
+
+        // Consumes the window. A refused attempt still falls through to the same Ok() below - the
+        // throttle decides what is SENT, never what is ANSWERED.
+        if (!throttle.TryAcquire(request.Email))
+        {
+            return Results.Ok();
+        }
+
+        var token = await userManager.GeneratePasswordResetTokenAsync(user);
+        notification.Notify(user, token);
+
+        // Notify enqueues without saving, like every other notification here, so the outbox row
+        // only exists after this commit.
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return Results.Ok();
+    }
+
+    /// <summary>
+    /// Consumes a reset token and sets the new password.
+    ///
+    /// <para>
+    /// SINGLE USE COMES FROM THE SECURITY STAMP, NOT FROM ANYTHING HERE. ResetPasswordAsync rotates
+    /// the stamp, and the token was generated against the old one, so replaying the same link fails
+    /// validation the second time. Nothing marks the token as used, and nothing needs to.
+    /// </para>
+    ///
+    /// <para>
+    /// The member is deliberately NOT signed in on success. They are sent to /login, which both
+    /// proves the new password works and is the only thing an existing session of theirs - now
+    /// invalidated by the same stamp rotation - could sensibly do next.
+    /// </para>
+    /// </summary>
+    private static async Task<IResult> ResetPasswordAsync(
+        [FromBody] ResetPasswordRequest request,
+        UserManager<ApplicationUser> userManager)
+    {
+        if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Token))
+        {
+            return Results.Json(new ResetPasswordFailure("invalid_token"), statusCode: 400);
+        }
+
+        if (string.IsNullOrEmpty(request.NewPassword))
+        {
+            return Results.Json(new ResetPasswordFailure("invalid_new_password"), statusCode: 400);
+        }
+
+        var user = await userManager.FindByEmailAsync(request.Email);
+        if (user is null)
+        {
+            // invalid_token, NOT a distinct "no such account" - see the comment on
+            // ResetPasswordFailure. The caller holding a link for an address that does not exist is
+            // indistinguishable from one holding a bad token, and must stay that way.
+            return Results.Json(new ResetPasswordFailure("invalid_token"), statusCode: 400);
+        }
+
+        var reset = await userManager.ResetPasswordAsync(user, request.Token, request.NewPassword);
+        if (!reset.Succeeded)
+        {
+            // InvalidToken covers malformed, expired and already-used. Everything else here is the
+            // password policy refusing the new password, which the member CAN act on.
+            var reason = reset.Errors.Any(e =>
+                e.Code.Equals("InvalidToken", StringComparison.Ordinal))
+                ? "invalid_token"
+                : "invalid_new_password";
+
+            return Results.Json(new ResetPasswordFailure(reason), statusCode: 400);
+        }
 
         return Results.NoContent();
     }

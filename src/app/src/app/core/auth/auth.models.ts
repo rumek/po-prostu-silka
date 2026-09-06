@@ -137,3 +137,28 @@ export type ChangePasswordFailureReason = 'invalid_current_password' | 'invalid_
 export interface ChangePasswordFailure {
   reason: ChangePasswordFailureReason;
 }
+
+/** Mirrors ForgotPasswordRequest in src/Application/Auth/AuthEndpoints.cs. */
+export interface ForgotPasswordRequest {
+  email: string;
+}
+
+/** Mirrors ResetPasswordRequest. The email travels with the token — Identity validates one against the other. */
+export interface ResetPasswordRequest {
+  email: string;
+  token: string;
+  newPassword: string;
+}
+
+/**
+ * Mirrors ResetPasswordFailure.
+ *
+ * `invalid_token` deliberately covers an unknown address, a malformed token, one belonging to
+ * someone else, an already-used one AND an expired one. The API refuses to distinguish them, so the
+ * UI must not imply it can — "wygasł" would tell an anonymous caller the address is registered.
+ */
+export type ResetPasswordFailureReason = 'invalid_token' | 'invalid_new_password';
+
+export interface ResetPasswordFailure {
+  reason: ResetPasswordFailureReason;
+}
