@@ -815,10 +815,10 @@ are prompted on the profile screen and can save at any time. No backfill runs.
 
 #### Automated
 
-- [x] 4.1 Backend builds clean
-- [x] 4.2 Integration tests pass, including the outbox assertions
-- [x] 4.3 Frontend unit tests pass
-- [x] 4.4 Formatting and lint clean
+- [x] 4.1 Backend builds clean — 3645703
+- [x] 4.2 Integration tests pass, including the outbox assertions — 3645703
+- [x] 4.3 Frontend unit tests pass — 3645703
+- [x] 4.4 Formatting and lint clean — 3645703
 
 #### Manual
 
