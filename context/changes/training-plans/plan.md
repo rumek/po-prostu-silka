@@ -804,50 +804,50 @@ here: the previous release simply ignores two empty tables.
 
 #### Automated
 
-- [x] 1.1 Backend builds warning-free
-- [x] 1.2 Migration script generates cleanly
-- [x] 1.3 Migration applies against the local database
-- [x] 1.4 Existing test suite still green
+- [x] 1.1 Backend builds warning-free — 1de6369
+- [x] 1.2 Migration script generates cleanly — 1de6369
+- [x] 1.3 Migration applies against the local database — 1de6369
+- [x] 1.4 Existing test suite still green — 1de6369
 
 #### Manual
 
-- [x] 1.5 Down-then-up round trip runs clean against local SQL Server
-- [x] 1.6 Filtered unique index rejects a second active plan, allows an archived one
-- [x] 1.7 `GET /health` healthy after the migration
+- [x] 1.5 Down-then-up round trip runs clean against local SQL Server — 1de6369
+- [x] 1.6 Filtered unique index rejects a second active plan, allows an archived one — 1de6369
+- [x] 1.7 `GET /health` healthy after the migration — 1de6369
 
 ### Phase 2: Authorization, the plans API, and the member read surface
 
 #### Automated
 
-- [x] 2.1 Backend builds warning-free
-- [x] 2.2 Full suite passes including the new test files (367 green)
-- [x] 2.3 Concurrent-assignment test passes on three consecutive runs
-- [x] 2.4 `EveryRoute` matrices cover both new groups and both split exercise groups
+- [x] 2.1 Backend builds warning-free — f91c91e
+- [x] 2.2 Full suite passes including the new test files (367 green) — f91c91e
+- [x] 2.3 Concurrent-assignment test passes on three consecutive runs — f91c91e
+- [x] 2.4 `EveryRoute` matrices cover both new groups and both split exercise groups — f91c91e
 
 #### Manual
 
-- [x] 2.5 Race test fails red with the filtered unique index weakened, then restored (the stamp rotation alone does not — see the adaptation note in Phase 2)
-- [x] 2.6 Trainer can read the exercise library and cannot write it
-- [x] 2.7 `GET /api/plans/mine` returns 204 before assignment, the plan after
-- [x] 2.8 A blocked member's plan row stays Active and the member is refused with 403
+- [x] 2.5 Race test fails red with the filtered unique index weakened, then restored (the stamp rotation alone does not — see the adaptation note in Phase 2) — f91c91e
+- [x] 2.6 Trainer can read the exercise library and cannot write it — 2ae79df
+- [x] 2.7 `GET /api/plans/mine` returns 204 before assignment, the plan after — 2ae79df
+- [x] 2.8 A blocked member's plan row stays Active and the member is refused with 403 — 2ae79df
 
 ### Phase 3: The trainer's builder and the member's plan screen
 
 #### Automated
 
-- [x] 3.1 Frontend unit tests pass
-- [x] 3.2 `npm run quality:check` passes
-- [x] 3.3 Production build succeeds with no bundle-budget warning (initial 479.22 kB against 500 kB; the CDK landed in the `plan-builder` lazy chunk)
-- [x] 3.4 Malformed-video-id spec proves no iframe renders
-- [x] 3.5 My-plan spec distinguishes "no plan" from "load failed"
+- [x] 3.1 Frontend unit tests pass — 26f781b
+- [x] 3.2 `npm run quality:check` passes — 26f781b
+- [x] 3.3 Production build succeeds with no bundle-budget warning (initial 479.22 kB against 500 kB; the CDK landed in the `plan-builder` lazy chunk) — 26f781b
+- [x] 3.4 Malformed-video-id spec proves no iframe renders — 26f781b
+- [x] 3.5 My-plan spec distinguishes "no plan" from "load failed" — 26f781b
 
 #### Manual
 
-- [x] 3.6 Trainer creates and saves a plan with several exercises and full parameters
-- [x] 3.7 Dragging reorders rows, and the order survives save and reload
-- [x] 3.8 A second assignment replaces the first for that member
-- [x] 3.9 Member sees the plan, the author, the order, and the exercise detail with video
-- [x] 3.10 Member with no plan sees the empty card, not an error
-- [x] 3.11 A plain member is redirected away from `/trainer/plans`
-- [x] 3.12 The builder is usable at phone width
-- [x] 3.13 Everything except reordering works from the keyboard alone (reordering is a known, accepted gap)
+- [x] 3.6 Trainer creates and saves a plan with several exercises and full parameters — 2ae79df
+- [x] 3.7 Dragging reorders rows, and the order survives save and reload — 2ae79df
+- [x] 3.8 A second assignment replaces the first for that member — 2ae79df
+- [x] 3.9 Member sees the plan, the author, the order, and the exercise detail with video — 2ae79df
+- [x] 3.10 Member with no plan sees the empty card, not an error — 2ae79df
+- [x] 3.11 A plain member is redirected away from `/trainer/plans` — 2ae79df
+- [x] 3.12 The builder is usable at phone width — 2ae79df
+- [x] 3.13 Everything except reordering works from the keyboard alone (reordering is a known, accepted gap) — 2ae79df
