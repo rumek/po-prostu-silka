@@ -863,5 +863,5 @@ are prompted on the profile screen and can save at any time. No backfill runs.
 
 #### Manual
 
-- [ ] 5.3 FR-006 and its neighbours describe what the app actually does
-- [ ] 5.4 The S-13 roadmap entry would not mislead someone picking the slice up cold
+- [x] 5.3 FR-006 and its neighbours describe what the app actually does — 40a1294
+- [x] 5.4 The S-13 roadmap entry would not mislead someone picking the slice up cold — 40a1294
