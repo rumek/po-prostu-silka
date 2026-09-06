@@ -58,7 +58,7 @@ Mid-milestone, a second decision landed: a class stops being retyped text and be
 | S-10 | exercise-library                 | admin manages exercises with instructions and videos                     | S-01                   | v1 FR-018, v1 FR-019                                            | done        |
 | S-11 | training-plans                   | admin builds and assigns a plan; member follows it with exercise details | S-01, S-10             | v1 FR-015, v1 FR-016, v1 FR-017, v1 FR-020                      | done        |
 | S-12 | member-and-admin-dashboards      | member and admin land on their at-a-glance home screens                  | S-01, S-07, S-08, S-11 | v1 FR-023, v1 FR-024                                            | proposed    |
-| S-13 | member-profile-edit              | member edits contact details, changes password, resets a forgotten one   | F-02, S-01             | v1 FR-006, v1 FR-025, v1 FR-026                                 | in-progress |
+| S-13 | member-profile-edit              | member edits contact details, changes password, resets a forgotten one   | F-02, S-01             | v1 FR-006, v1 FR-025, v1 FR-026                                 | done        |
 
 ## Streams
 
@@ -293,7 +293,7 @@ What's already in place in the codebase as of `2026-09-02` (auto-researched + us
   on demand, and must answer identically for every address — an account-enumeration oracle is the
   failure mode, and it is invisible to a build or a lint run. Contact details also became required at
   registration, which touches the schema and every account created before this slice.
-- **Status:** in-progress
+- **Status:** done
 
 ## Backlog Handoff
 
@@ -368,3 +368,4 @@ Resolved since the previous roadmap: the sender-domain question that gated F-03 
 - **S-08: user can book a spot in a class with free capacity (free-spot count drops by one, the class appears in their upcoming list), cancel the booking (spot released, cancelled booking kept in history), and view all upcoming classes; the admin can view a class's booking list. A class never accepts more bookings than it has spots, even under simultaneous requests.** — Archived 2026-09-04 → `context/archive/2026-09-03-class-booking-and-cancel/`. Lesson: —.
 - **S-09: user (admin) cancels a class → it moves to a visible `cancelled` state (not deleted; bookings and history preserved) → every booked member receives an email and a push notification within minutes, and the class disappears from their upcoming bookings; editing a booked class triggers the same delivery.** — Archived 2026-09-04 → `context/archive/2026-09-04-class-change-notifications/`. Lesson: —.
 - **S-10: user (admin) can create and edit exercises — description, muscle group, difficulty, equipment, and preparation / starting-position / execution instructions, all optional — and attach an instructional video to an exercise.** — Archived 2026-09-04 → `context/archive/2026-09-04-exercise-library/`. Lesson: —.
+- **S-13: member sees their name and email, edits their contact details (phone and address), changes their password while signed in, and resets a forgotten password by emailed link before login. The display name is deliberately NOT editable — the gym owns how a member appears on its lists.** — Archived 2026-09-06 → `context/archive/2026-09-05-member-profile-edit/`. Lesson: Verify a prerequisite against the code, not against an archived plan (`context/foundation/lessons.md`).
