@@ -844,8 +844,8 @@ are prompted on the profile screen and can save at any time. No backfill runs.
 
 #### Automated
 
-- [x] 5.1 No PRD requirement still promises member-editable display name
-- [x] 5.2 The roadmap's S-13 block mentions password reset
+- [x] 5.1 No PRD requirement still promises member-editable display name — 40a1294
+- [x] 5.2 The roadmap's S-13 block mentions password reset — 40a1294
 
 #### Manual
 
