@@ -1,0 +1,59 @@
+// Layout only — colours come from src/styles.scss tokens.
+
+// BELOW the overlays. class-details-overlay, class-create-overlay and class-bookings-overlay are all
+// position: fixed with aria-modal="true", and a modal that a navigation bar sits on top of is not
+// modal. There is no shared z-index scale in this codebase yet; this is the first entry in one, and
+// it is deliberately low so the overlays keep winning without having to declare anything.
+$bottom-nav-z: 10;
+
+:host {
+  display: contents;
+}
+
+.bottom-nav {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: $bottom-nav-z;
+  border-top: 1px solid var(--line);
+  background: var(--section-warm);
+  // The home indicator on a notched iPhone sits over the bottom of the viewport. This resolves to 0px
+  // everywhere else — and would resolve to 0px there too without viewport-fit=cover in index.html.
+  padding-bottom: env(safe-area-inset-bottom);
+
+  // A phone-only surface: from 30rem up the header carries the same links, and showing both would be
+  // two navigations for one view.
+  @media (min-width: 30.0625rem) {
+    display: none;
+  }
+}
+
+.bottom-nav-list {
+  display: grid;
+  grid-auto-columns: 1fr;
+  grid-auto-flow: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+// 44px is the tap-target floor .button sets in styles.scss; a tab that misses it is the one control
+// on the screen a thumb cannot hit reliably.
+.bottom-nav-tab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding: var(--space-2) var(--space-1);
+  color: var(--muted);
+  font-size: 0.75rem;
+  line-height: 1.2;
+  text-align: center;
+  text-decoration: none;
+
+  &.is-active {
+    color: var(--ink);
+    font-weight: 600;
+  }
+}

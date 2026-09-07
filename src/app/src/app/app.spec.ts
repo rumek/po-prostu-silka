@@ -227,4 +227,92 @@ describe('App', () => {
       (fixture.nativeElement as HTMLElement).querySelector('a[href="/trainer/plans"]'),
     ).toBeNull();
   });
+
+  /**
+   * The bottom bar (S-12).
+   *
+   * The header tests above still assert the header, unchanged: the phone breakpoint hides .shell-nav
+   * in CSS rather than dropping it from the DOM, so the links are still there to find. What is new is
+   * the second navigation surface, and what matters about it here is that the SHELL decides whether
+   * it exists at all — the bar itself is role-blind, and BottomNav's own spec covers its contents.
+   */
+  function bar(fixture: { nativeElement: unknown }): Element | null {
+    return (fixture.nativeElement as HTMLElement).querySelector('.bottom-nav');
+  }
+
+  it('renders no bottom bar for an anonymous visitor', async () => {
+    configure(anonymous());
+
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+
+    expect(bar(fixture)).toBeNull();
+  });
+
+  it('renders the bottom bar once there is a session', async () => {
+    configure({
+      user: () => MEMBER,
+      isAuthenticated: () => true,
+      isAdmin: () => false,
+      isTrainer: () => false,
+      isActive: () => true,
+    } as unknown as Partial<AuthService>);
+
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+
+    expect(bar(fixture)).not.toBeNull();
+  });
+
+  /**
+   * Gated on isAuthenticated() alone, deliberately — the same gate the header's nav uses. A Pending
+   * member sees the bar, because /more is their only remaining path to /profile once the header's
+   * links are hidden on a phone.
+   */
+  it('renders the bottom bar for a member who is not yet approved', async () => {
+    configure({
+      user: () => MEMBER,
+      isAuthenticated: () => true,
+      isAdmin: () => false,
+      isTrainer: () => false,
+      isActive: () => false,
+    } as unknown as Partial<AuthService>);
+
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+
+    expect(bar(fixture)).not.toBeNull();
+  });
+
+  /** The design promise: the bar does not change shape between roles. */
+  it('gives an admin the same five tabs as a member', async () => {
+    const tabsFor = async (auth: Partial<AuthService>) => {
+      TestBed.resetTestingModule();
+      configure(auth);
+      const fixture = TestBed.createComponent(App);
+      await fixture.whenStable();
+      return [...(fixture.nativeElement as HTMLElement).querySelectorAll('.bottom-nav-tab')].map(
+        (a) => a.textContent?.trim(),
+      );
+    };
+
+    const member = await tabsFor({
+      user: () => MEMBER,
+      isAuthenticated: () => true,
+      isAdmin: () => false,
+      isTrainer: () => false,
+      isActive: () => true,
+    } as unknown as Partial<AuthService>);
+
+    const admin = await tabsFor({
+      user: () => ADMIN,
+      isAuthenticated: () => true,
+      isAdmin: () => true,
+      isTrainer: () => false,
+      isActive: () => true,
+    } as unknown as Partial<AuthService>);
+
+    expect(member.length).toBe(5);
+    expect(admin).toEqual(member);
+  });
 });

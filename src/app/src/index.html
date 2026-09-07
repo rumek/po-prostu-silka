@@ -4,7 +4,13 @@
     <meta charset="utf-8" />
     <title>PoProstu Siłka</title>
     <base href="/" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!--
+      viewport-fit=cover is what makes env(safe-area-inset-*) resolve to a real value on a notched
+      iOS device; without it the bottom bar's safe-area padding computes to 0px and the bar sits
+      under the home indicator. It is a GLOBAL change - it lets content extend into the inset areas
+      on every screen, not only the ones with the bar.
+    -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <link rel="icon" type="image/x-icon" href="favicon.ico" />
 
     <!--

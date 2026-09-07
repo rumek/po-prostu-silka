@@ -2,6 +2,7 @@ import { Component, inject } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthService } from './core/auth/auth.service';
 import { PushPrompt } from './features/notifications/push-prompt';
+import { BottomNav } from './shared/bottom-nav/bottom-nav';
 
 /**
  * The application shell: brand, the authenticated-only controls, and the routed view.
@@ -10,7 +11,7 @@ import { PushPrompt } from './features/notifications/push-prompt';
  * resolved by a guard mid-navigation, and signals already do that.
  */
 @Component({
-  imports: [PushPrompt, RouterOutlet, RouterLink, RouterLinkActive],
+  imports: [BottomNav, PushPrompt, RouterOutlet, RouterLink, RouterLinkActive],
   selector: 'app-root',
   styleUrl: './app.scss',
   templateUrl: './app.html',

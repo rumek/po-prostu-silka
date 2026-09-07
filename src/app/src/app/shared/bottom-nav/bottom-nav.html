@@ -1,0 +1,20 @@
+<!-- Labelled, unlike the header's <nav>: with two navigation landmarks in the document, an unlabelled
+     pair is indistinguishable to a screen reader listing them. -->
+<nav class="bottom-nav" aria-label="Nawigacja główna">
+  <ul class="bottom-nav-list">
+    @for (tab of tabs; track tab.route) {
+      <li>
+        <a
+          class="bottom-nav-tab"
+          [routerLink]="tab.route"
+          routerLinkActive="is-active"
+          [routerLinkActiveOptions]="{ exact: tab.exact }"
+          #active="routerLinkActive"
+          [attr.aria-current]="active.isActive ? 'page' : null"
+        >
+          {{ tab.label }}
+        </a>
+      </li>
+    }
+  </ul>
+</nav>

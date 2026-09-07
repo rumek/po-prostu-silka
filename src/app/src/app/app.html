@@ -62,3 +62,10 @@
 
   <router-outlet />
 </main>
+
+<!-- The phone's navigation. Inside the same isAuthenticated() gate the header's nav uses, and for the
+     same reason: the shell renders before any guard runs, so until sessionResolved flips every role
+     signal reads false. The bar itself is role-blind — see BottomNav. -->
+@if (auth.isAuthenticated()) {
+  <app-bottom-nav />
+}

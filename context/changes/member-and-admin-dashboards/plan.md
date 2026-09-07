@@ -395,6 +395,16 @@ the `/more` screen's spec in Phase 3 and replaced here by bar-level assertions: 
 authenticated account, does not render for an anonymous visitor, and shows the same five tabs
 regardless of role.
 
+**Adapted during implementation.** No test was retargeted or removed — all 11 were kept as they were,
+and the bar-level assertions were *added* alongside them. The contract assumed the header's links stop
+being findable on a phone, but the shell hides `.shell-nav` with a CSS rule at the `30rem` breakpoint
+rather than dropping it from the DOM, so every existing header assertion still holds in jsdom (which
+has no viewport width to hide anything by). The `/more` spec from Phase 3 covers the same role matrix
+independently, so the matrix is now asserted in two places rather than moved between them — deliberate,
+since the header and the hub are two real surfaces that must not drift apart. One further consequence:
+`.shell-logout` sits *inside* `.shell-nav`, so the single rule hides both and the plan's separate
+mention of hiding `.shell-logout` needed no separate rule.
+
 ### Success Criteria:
 
 #### Automated Verification:
@@ -515,10 +525,10 @@ repointed; no URL changes, so no redirects and no bookmarks broken.
 
 #### Automated
 
-- [x] 3.1 Unit tests pass: `npm test` from `src/app/`
-- [x] 3.2 Quality gate passes: `npm run quality:check` from `src/app/`
-- [x] 3.3 Build succeeds within budget: `npm run build` from `src/app/`
-- [x] 3.4 Specs assert the full six-row role matrix plus the Pending profile-link case
+- [x] 3.1 Unit tests pass: `npm test` from `src/app/` — bfcaddf
+- [x] 3.2 Quality gate passes: `npm run quality:check` from `src/app/` — bfcaddf
+- [x] 3.3 Build succeeds within budget: `npm run build` from `src/app/` — bfcaddf
+- [x] 3.4 Specs assert the full six-row role matrix plus the Pending profile-link case — bfcaddf
 
 #### Manual
 
@@ -530,11 +540,11 @@ repointed; no URL changes, so no redirects and no bookmarks broken.
 
 #### Automated
 
-- [ ] 4.1 Unit tests pass: `npm test` from `src/app/`
-- [ ] 4.2 Quality gate passes: `npm run quality:check` from `src/app/`
-- [ ] 4.3 Build succeeds within the 500 kB initial budget: `npm run build` from `src/app/`
-- [ ] 4.4 No component stylesheet exceeds the 6 kB warning budget
-- [ ] 4.5 Specs assert five tabs for every role, no bar for anonymous, `aria-current` on the active tab, and Start inactive while on `/schedule`
+- [x] 4.1 Unit tests pass: `npm test` from `src/app/`
+- [x] 4.2 Quality gate passes: `npm run quality:check` from `src/app/`
+- [x] 4.3 Build succeeds within the 500 kB initial budget: `npm run build` from `src/app/`
+- [x] 4.4 No component stylesheet exceeds the 6 kB warning budget
+- [x] 4.5 Specs assert five tabs for every role, no bar for anonymous, `aria-current` on the active tab, and Start inactive while on `/schedule`
 
 #### Manual
 

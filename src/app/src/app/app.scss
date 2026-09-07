@@ -83,6 +83,17 @@
 
 @media (max-width: 30rem) {
   .shell-main {
-    padding: var(--space-6) var(--space-4);
+    // The bottom padding clears the fixed bar plus the iOS home indicator, so the last element of a
+    // scrolling screen is reachable rather than parked underneath it. Keep the 48px in step with
+    // .bottom-nav-tab's min-height.
+    padding: var(--space-6) var(--space-4) calc(48px + var(--space-5) + env(safe-area-inset-bottom));
+  }
+
+  // The links and the logout move to the bar and to /more on a phone; the header keeps the brand.
+  // Kept rather than removed entirely: it is the skip-link's target and the <header> landmark, and in
+  // standalone mode — no address bar — the brand is the only thing telling the member which app this
+  // is.
+  .shell-nav {
+    display: none;
   }
 }
