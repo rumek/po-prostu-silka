@@ -540,11 +540,11 @@ repointed; no URL changes, so no redirects and no bookmarks broken.
 
 #### Automated
 
-- [x] 4.1 Unit tests pass: `npm test` from `src/app/`
-- [x] 4.2 Quality gate passes: `npm run quality:check` from `src/app/`
-- [x] 4.3 Build succeeds within the 500 kB initial budget: `npm run build` from `src/app/`
-- [x] 4.4 No component stylesheet exceeds the 6 kB warning budget
-- [x] 4.5 Specs assert five tabs for every role, no bar for anonymous, `aria-current` on the active tab, and Start inactive while on `/schedule`
+- [x] 4.1 Unit tests pass: `npm test` from `src/app/` — 85e5309
+- [x] 4.2 Quality gate passes: `npm run quality:check` from `src/app/` — 85e5309
+- [x] 4.3 Build succeeds within the 500 kB initial budget: `npm run build` from `src/app/` — 85e5309
+- [x] 4.4 No component stylesheet exceeds the 6 kB warning budget — 85e5309
+- [x] 4.5 Specs assert five tabs for every role, no bar for anonymous, `aria-current` on the active tab, and Start inactive while on `/schedule` — 85e5309
 
 #### Manual
 
