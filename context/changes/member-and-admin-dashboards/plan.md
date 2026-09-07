@@ -499,10 +499,10 @@ repointed; no URL changes, so no redirects and no bookmarks broken.
 
 #### Automated
 
-- [x] 2.1 Unit tests pass: `npm test` from `src/app/`
-- [x] 2.2 Quality gate passes: `npm run quality:check` from `src/app/`
-- [x] 2.3 Build stays inside the 500 kB initial budget with no warning: `npm run build` from `src/app/`
-- [x] 2.4 Specs cover member cards, admin section gating, the "no plan" card, and independent card failure
+- [x] 2.1 Unit tests pass: `npm test` from `src/app/` — 79a383f
+- [x] 2.2 Quality gate passes: `npm run quality:check` from `src/app/` — 79a383f
+- [x] 2.3 Build stays inside the 500 kB initial budget with no warning: `npm run build` from `src/app/` — 79a383f
+- [x] 2.4 Specs cover member cards, admin section gating, the "no plan" card, and independent card failure — 79a383f
 
 #### Manual
 
@@ -515,10 +515,10 @@ repointed; no URL changes, so no redirects and no bookmarks broken.
 
 #### Automated
 
-- [ ] 3.1 Unit tests pass: `npm test` from `src/app/`
-- [ ] 3.2 Quality gate passes: `npm run quality:check` from `src/app/`
-- [ ] 3.3 Build succeeds within budget: `npm run build` from `src/app/`
-- [ ] 3.4 Specs assert the full six-row role matrix plus the Pending profile-link case
+- [x] 3.1 Unit tests pass: `npm test` from `src/app/`
+- [x] 3.2 Quality gate passes: `npm run quality:check` from `src/app/`
+- [x] 3.3 Build succeeds within budget: `npm run build` from `src/app/`
+- [x] 3.4 Specs assert the full six-row role matrix plus the Pending profile-link case
 
 #### Manual
 

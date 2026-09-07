@@ -1,0 +1,61 @@
+<h1>Więcej</h1>
+
+<nav class="more-section" aria-label="Konto">
+  <h2 class="more-heading">Konto</h2>
+
+  <ul class="more-list">
+    <!-- isAuthenticated() only, never isActive(): this is the one screen a Pending member must reach,
+         because it is where they supply the contact details S-13 made mandatory. -->
+    <li>
+      <a class="more-link" routerLink="/profile" routerLinkActive="is-active">Moje konto</a>
+    </li>
+  </ul>
+</nav>
+
+@if (canSeePanel()) {
+  <nav class="more-section" aria-label="Panel">
+    <h2 class="more-heading">Panel</h2>
+
+    <ul class="more-list">
+      @if (isAdmin()) {
+        <li>
+          <a class="more-link" routerLink="/admin/approvals" routerLinkActive="is-active"
+            >Zgłoszenia</a
+          >
+        </li>
+        <li>
+          <a class="more-link" routerLink="/admin/members" routerLinkActive="is-active"
+            >Członkowie</a
+          >
+        </li>
+        <li>
+          <a class="more-link" routerLink="/admin/classes" routerLinkActive="is-active">Zajęcia</a>
+        </li>
+        <li>
+          <a class="more-link" routerLink="/admin/class-types" routerLinkActive="is-active"
+            >Typy zajęć</a
+          >
+        </li>
+        <li>
+          <a class="more-link" routerLink="/admin/exercises" routerLinkActive="is-active"
+            >Ćwiczenia</a
+          >
+        </li>
+      }
+
+      <!-- Trainer OR admin, matching trainerGuard and the API's TrainerOrAdmin policy: an admin
+           authors plans too, which is what widened FR-015. -->
+      @if (isTrainerOrAdmin()) {
+        <li>
+          <a class="more-link" routerLink="/trainer/plans" routerLinkActive="is-active">Plany</a>
+        </li>
+      }
+    </ul>
+  </nav>
+}
+
+<!-- A button, not a link: logging out changes server state, so it must not be something a browser can
+     prefetch or a member can middle-click into a new tab. -->
+<button type="button" class="button button--secondary more-logout" (click)="logout()">
+  Wyloguj się
+</button>

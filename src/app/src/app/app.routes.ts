@@ -149,5 +149,16 @@ export const routes: Routes = [
     loadComponent: () => import('./features/profile/profile').then((m) => m.Profile),
     canActivate: [authGuard],
   },
+  // S-12's hub for everything the bottom bar does not give a tab: the account screen, logout, and the
+  // panel links. authGuard ONLY, deliberately — once the header's links are hidden on a phone this is
+  // the only path a Pending member has to /profile, and activeMemberGuard would bounce them off it.
+  //
+  // LAZY: the initial bundle now carries the dashboard, and a screen reached by one tap out of five
+  // has no business in it.
+  {
+    path: 'more',
+    loadComponent: () => import('./features/more/more').then((m) => m.More),
+    canActivate: [authGuard],
+  },
   { path: '**', redirectTo: '' },
 ];
