@@ -39,21 +39,35 @@ $bottom-nav-z: 10;
 }
 
 // 44px is the tap-target floor .button sets in styles.scss; a tab that misses it is the one control
-// on the screen a thumb cannot hit reliably.
+// on the screen a thumb cannot hit reliably. Icon-only tabs are short, so the height comes from
+// padding rather than from content — without it these would collapse to the icon's 24px.
 .bottom-nav-tab {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 48px;
-  padding: var(--space-2) var(--space-1);
+  min-height: 52px;
+  // The icon sizes itself in em, so this is what actually sets it: 1.5em of 1rem = 24px.
+  font-size: 1rem;
   color: var(--muted);
-  font-size: 0.75rem;
-  line-height: 1.2;
-  text-align: center;
   text-decoration: none;
 
   &.is-active {
-    color: var(--ink);
-    font-weight: 600;
+    color: var(--accent);
+  }
+
+  // Colour alone is doing too much work on an icon-only bar — there is no label to embolden, and a
+  // muted-to-accent shift is a weak signal for anyone who does not perceive that hue difference. The
+  // bar along the top edge is the redundant, non-colour half of the marking.
+  &.is-active::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: 1.75rem;
+    height: 2px;
+    transform: translateX(-50%);
+    border-radius: 0 0 2px 2px;
+    background: var(--accent);
   }
 }

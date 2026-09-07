@@ -291,8 +291,9 @@ describe('App', () => {
       configure(auth);
       const fixture = TestBed.createComponent(App);
       await fixture.whenStable();
+      // aria-label, not text: the tabs are icon-only, so this is the only name they carry.
       return [...(fixture.nativeElement as HTMLElement).querySelectorAll('.bottom-nav-tab')].map(
-        (a) => a.textContent?.trim(),
+        (a) => a.getAttribute('aria-label'),
       );
     };
 

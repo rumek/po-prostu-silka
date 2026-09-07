@@ -46,7 +46,7 @@ describe('BottomNav', () => {
   it('renders exactly the five declared tabs, in order', async () => {
     const element = await create();
 
-    expect(tabs(element).map((a) => a.textContent?.trim())).toEqual([
+    expect(tabs(element).map((a) => a.getAttribute('aria-label'))).toEqual([
       'Start',
       'Grafik',
       'Moje zajęcia',
@@ -54,6 +54,28 @@ describe('BottomNav', () => {
       'Więcej',
     ]);
     expect(tabs(element).length).toBe(BOTTOM_NAV_TABS.length);
+  });
+
+  /**
+   * The icon-only bargain. Nothing on screen names a tab, so aria-label IS the accessible name — miss
+   * one and a screen reader announces an empty link. Nothing visual would reveal that, which is why it
+   * is asserted here rather than left to review.
+   */
+  it('gives every icon-only tab an accessible name and hides the icon from it', async () => {
+    const element = await create();
+
+    for (const tab of tabs(element)) {
+      expect(tab.getAttribute('aria-label')).toBeTruthy();
+      expect(tab.textContent?.trim()).toBe('');
+      expect(tab.querySelector('svg')!.getAttribute('aria-hidden')).toBe('true');
+    }
+  });
+
+  /** A distinct icon per tab: two tabs sharing one would be indistinguishable without labels. */
+  it('gives every tab its own icon', async () => {
+    const icons = BOTTOM_NAV_TABS.map((tab) => tab.icon);
+
+    expect(new Set(icons).size).toBe(icons.length);
   });
 
   /** Role-blind by construction: the component injects no AuthService and takes no inputs. */
@@ -72,7 +94,7 @@ describe('BottomNav', () => {
     const current = tabs(element).filter((a) => a.getAttribute('aria-current') === 'page');
 
     expect(current.length).toBe(1);
-    expect(current[0].textContent?.trim()).toBe('Moje zajęcia');
+    expect(current[0].getAttribute('aria-label')).toBe('Moje zajęcia');
   });
 
   /**
@@ -83,7 +105,7 @@ describe('BottomNav', () => {
     const element = await create('/schedule');
     const start = tabs(element)[0];
 
-    expect(start.textContent?.trim()).toBe('Start');
+    expect(start.getAttribute('aria-label')).toBe('Start');
     expect(start.getAttribute('aria-current')).toBeNull();
   });
 

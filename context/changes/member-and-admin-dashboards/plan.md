@@ -354,6 +354,20 @@ tab at least 44px tall to match the `.button` tap-target rule in `styles.scss:31
 `30rem` breakpoint the codebase already uses in 11 files. `z-index` **below** the three overlays named
 in Critical Implementation Details, with a comment saying so.
 
+**Adapted during implementation.** The tabs are **icon-only**; the labels above are no longer rendered
+as text and became each tab's `aria-label` instead. Requested after the phase shipped, on the grounds
+that a bar of five text labels reads poorly. Three consequences the contract did not anticipate:
+
+- A new `shared/icon/` primitive — inline SVG on `currentColor`, no dependency — is now the app's icon
+  convention, which it had none of before (the only prior "icons" were the Unicode glyphs `▶` in
+  `exercises.html:49` and `⠿` in `plan-builder.html:95`). An icon *package* was rejected on budget
+  grounds, not taste: the shell is eager and there was ~2.4 kB of headroom.
+- The active tab is marked by colour **plus a bar along its top edge**. With no label there is no font
+  weight to change, and a muted-to-accent hue shift alone is a weak signal for anyone who does not
+  perceive that difference.
+- Icons cost 1.87 kB, taking the initial bundle to **499.46 kB against the 500 kB warning**. The budget
+  is now effectively exhausted — see "Open Risks" in `plan-brief.md`.
+
 #### 2. Shell restructure
 
 **File**: `src/app/src/app/app.html`, `app.ts`, `app.scss`

@@ -4,6 +4,9 @@
   <ul class="bottom-nav-list">
     @for (tab of tabs; track tab.route) {
       <li>
+        <!-- aria-label carries the name, because the icon is aria-hidden and there is no text: without
+             it a screen reader announces five empty links. title gives the same name on a long press
+             and on the rare pointer that reaches this bar. -->
         <a
           class="bottom-nav-tab"
           [routerLink]="tab.route"
@@ -11,8 +14,10 @@
           [routerLinkActiveOptions]="{ exact: tab.exact }"
           #active="routerLinkActive"
           [attr.aria-current]="active.isActive ? 'page' : null"
+          [attr.aria-label]="tab.label"
+          [title]="tab.label"
         >
-          {{ tab.label }}
+          <app-icon [name]="tab.icon" />
         </a>
       </li>
     }

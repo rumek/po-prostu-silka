@@ -1,0 +1,39 @@
+<!-- One 24x24 stroke grid for every icon, so they sit at the same optical weight beside each other.
+     aria-hidden throughout: naming is the containing control's job — see the component docblock. -->
+<svg
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="1.75"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+  aria-hidden="true"
+  focusable="false"
+>
+  @switch (name()) {
+    @case ('home') {
+      <path d="M3 11 12 3l9 8" />
+      <path d="M5.5 9.5V20h13V9.5" />
+    }
+    @case ('calendar') {
+      <rect x="3" y="5" width="18" height="16" rx="2" />
+      <path d="M8 3v4M16 3v4M3 11h18" />
+    }
+    <!-- A booking is a class you are confirmed for, so: a tick, not another grid. Deliberately the
+         least calendar-like shape in the set, because "Grafik" sits next to it. -->
+    @case ('booking') {
+      <circle cx="12" cy="12" r="9" />
+      <path d="M8 12.5l2.5 2.5L16 9.5" />
+    }
+    <!-- A dumbbell rather than a list: "Mój plan" is the other list-shaped tab, and two list icons in
+         one bar is exactly how an icon-only bar stops being readable. -->
+    @case ('plan') {
+      <path d="M6.5 6.5v11M3.5 9.5v5M17.5 6.5v11M20.5 9.5v5M6.5 12h11" />
+    }
+    @case ('more') {
+      <circle cx="5" cy="12" r="1.25" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="12" r="1.25" fill="currentColor" stroke="none" />
+      <circle cx="19" cy="12" r="1.25" fill="currentColor" stroke="none" />
+    }
+  }
+</svg>

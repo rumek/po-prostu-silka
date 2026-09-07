@@ -1,0 +1,10 @@
+// Sized by the caller through font-size, so an icon scales with the text it sits beside without the
+// caller having to know the viewBox.
+:host {
+  display: inline-flex;
+}
+
+svg {
+  width: 1.5em;
+  height: 1.5em;
+}
