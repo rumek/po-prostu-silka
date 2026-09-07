@@ -217,6 +217,7 @@ That build figure is worth recording: the triage fixes alone carried the bundle 
 warning. F6 was not a hypothetical — the margin was consumed by the next change, and that change was
 this one.
 
-**Still open — the one thing triage did not resolve:** manual check 4.9 ("opening a class-details
-overlay covers the bar") is marked `[x]` in the plan against the pre-fix code, which F1 showed could
-not satisfy it. It should be re-run on a phone width before this change is archived.
+**Closed 2026-09-07.** Manual check 4.9 ("opening a class-details overlay covers the bar") was
+re-run on a phone width against the post-F1 code and confirmed by the user. The overlay now covers the
+bar, so the check is honest against the code it is recorded against. Nothing from this review remains
+open.
