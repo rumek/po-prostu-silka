@@ -1,10 +1,15 @@
 // Layout only — colours come from src/styles.scss tokens.
 
-// BELOW the overlays. class-details-overlay, class-create-overlay and class-bookings-overlay are all
-// position: fixed with aria-modal="true", and a modal that a navigation bar sits on top of is not
-// modal. There is no shared z-index scale in this codebase yet; this is the first entry in one, and
-// it is deliberately low so the overlays keep winning without having to declare anything.
-$bottom-nav-z: 10;
+// BELOW the overlays, and the exact number matters. class-details-overlay, class-create-overlay and
+// class-bookings-overlay each declare `z-index: 10` and are position: fixed with aria-modal="true".
+// This bar renders AFTER </main> in app.html, and neither App's :host (display: flex) nor .shell-main
+// (a flex item with no z-index) opens a stacking context — so all four resolve at the root, where an
+// EQUAL z-index is broken by document order and the bar, being later, paints OVER the modal. That is
+// what 10 did here, and a modal a navigation bar sits on top of is not modal.
+//
+// Hence 5: strictly under the overlays rather than tied with them. First entry in what should become
+// a shared scale; anything added above this bar must declare a value above 10.
+$bottom-nav-z: 5;
 
 :host {
   display: contents;
@@ -22,9 +27,14 @@ $bottom-nav-z: 10;
   // everywhere else — and would resolve to 0px there too without viewport-fit=cover in index.html.
   padding-bottom: env(safe-area-inset-bottom);
 
-  // A phone-only surface: from 30rem up the header carries the same links, and showing both would be
+  // A phone-only surface: above 30rem the header carries the same links, and showing both would be
   // two navigations for one view.
-  @media (min-width: 30.0625rem) {
+  //
+  // 30.0001rem, not 30.0625rem: .shell-nav hides at `max-width: 30rem`, so anything above 30rem must
+  // show the header and hide this. A 1px gap (30rem–30.0625rem) left a fractional width such as
+  // 480.5px — reachable through browser zoom — where NEITHER rule applied and both navigations
+  // rendered at once. These two breakpoints must partition the axis exactly.
+  @media (min-width: 30.0001rem) {
     display: none;
   }
 }
@@ -46,7 +56,8 @@ $bottom-nav-z: 10;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 52px;
+  // From styles.scss, shared with .shell-main's bottom padding — see the note on the token.
+  min-height: var(--bottom-nav-tab-height);
   // The icon sizes itself in em, so this is what actually sets it: 1.5em of 1rem = 24px.
   font-size: 1rem;
   color: var(--muted);

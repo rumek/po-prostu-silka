@@ -155,6 +155,41 @@ describe('Dashboard', () => {
     controller.verify();
   });
 
+  /**
+   * Heading outline. The dashboard owns the only h1; a loaded plan card contributes exactly one h2
+   * (the plan's name), not two — a static card title beside plan-summary's own heading would read to
+   * a screen reader as two unrelated topics instead of a label and its content.
+   */
+  it('renders one heading per card, and only one h1 on the screen', async () => {
+    configure(MEMBER);
+
+    controller.expectOne(BOOKINGS_URL).flush([booking()]);
+    controller.expectOne(PLAN_URL).flush(PLAN);
+    await settle();
+
+    expect(element().querySelectorAll('h1').length).toBe(1);
+
+    const planCard = [...element().querySelectorAll('.dashboard-card')].find((card) =>
+      card.textContent?.includes('Masa - jesień'),
+    )!;
+
+    expect(planCard.querySelectorAll('h2').length).toBe(1);
+    expect(planCard.querySelector('h2')!.textContent).toContain('Masa - jesień');
+    controller.verify();
+  });
+
+  /** ...but a card with no plan still needs a title, since there is no name to stand in for one. */
+  it('keeps the static card title when there is no plan to name it', async () => {
+    configure(MEMBER);
+
+    controller.expectOne(BOOKINGS_URL).flush([booking()]);
+    controller.expectOne(PLAN_URL).flush(null, { status: 204, statusText: 'No Content' });
+    await settle();
+
+    expect(text()).toContain('Twój plan treningowy');
+    controller.verify();
+  });
+
   /** The distinction /my-plan draws, preserved here: 204 is an empty state, not a failure. */
   it('renders "no plan" as a plain card, not an alert', async () => {
     configure(MEMBER);

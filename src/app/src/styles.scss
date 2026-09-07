@@ -111,6 +111,12 @@
   --space-7: 3rem;
 
   --shadow-card: 0 1px 2px rgb(39 35 33 / 4%), 0 8px 24px rgb(39 35 33 / 6%);
+
+  // Height of one bottom-nav tab, and the reason it is global rather than local to the component:
+  // .shell-main's bottom padding has to clear the fixed bar, so app.scss and bottom-nav.scss both
+  // need this number. They were hard-coded separately once and drifted (48px vs 52px) the moment the
+  // bar went icon-only.
+  --bottom-nav-tab-height: 52px;
 }
 
 // -----------------------------------------------------------------------------

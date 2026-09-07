@@ -358,10 +358,12 @@ in Critical Implementation Details, with a comment saying so.
 as text and became each tab's `aria-label` instead. Requested after the phase shipped, on the grounds
 that a bar of five text labels reads poorly. Three consequences the contract did not anticipate:
 
-- A new `shared/icon/` primitive — inline SVG on `currentColor`, no dependency — is now the app's icon
+- A new `shared/icons/` primitive — inline SVG on `currentColor`, no dependency — is now the app's icon
   convention, which it had none of before (the only prior "icons" were the Unicode glyphs `▶` in
   `exercises.html:49` and `⠿` in `plan-builder.html:95`). An icon *package* was rejected on budget
-  grounds, not taste: the shell is eager and there was ~2.4 kB of headroom.
+  grounds, not taste: the shell is eager and there was ~2.4 kB of headroom. The folder name is
+  **plural and must stay so**: `.gitignore:443` carries the stock macOS `Icon` entry, which matches any
+  path segment named `icon` case-insensitively — a folder called `icon/` is silently untracked here.
 - The active tab is marked by colour **plus a bar along its top edge**. With no label there is no font
   weight to change, and a muted-to-accent hue shift alone is a weak signal for anyone who does not
   perceive that difference.

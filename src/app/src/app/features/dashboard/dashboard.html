@@ -41,7 +41,12 @@
   </article>
 
   <article class="card dashboard-card">
-    <h2 class="dashboard-card-title">Twój plan treningowy</h2>
+    <!-- The static heading appears ONLY in the states that have no plan name to show. When a plan is
+         loaded, plan-summary's own h2 is the card's heading — two sibling h2s would read to a screen
+         reader as two unrelated topics rather than a label and its content. -->
+    @if (!plan() || planLoading() || planFailed()) {
+      <h2 class="dashboard-card-title">Twój plan treningowy</h2>
+    }
 
     @if (planLoading()) {
       <p class="notice" role="status">Wczytywanie…</p>

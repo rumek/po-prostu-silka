@@ -84,9 +84,11 @@
 @media (max-width: 30rem) {
   .shell-main {
     // The bottom padding clears the fixed bar plus the iOS home indicator, so the last element of a
-    // scrolling screen is reachable rather than parked underneath it. Keep the 48px in step with
-    // .bottom-nav-tab's min-height.
-    padding: var(--space-6) var(--space-4) calc(48px + var(--space-5) + env(safe-area-inset-bottom));
+    // scrolling screen is reachable rather than parked underneath it. The bar occupies one tab's
+    // height plus its 1px border-top; --space-5 is breathing room on top of that. The height comes
+    // from the shared token precisely so this cannot drift out of step again — it already did once.
+    padding: var(--space-6) var(--space-4)
+      calc(var(--bottom-nav-tab-height) + 1px + var(--space-5) + env(safe-area-inset-bottom));
   }
 
   // The links and the logout move to the bar and to /more on a phone; the header keeps the brand.

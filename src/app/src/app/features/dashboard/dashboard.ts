@@ -59,6 +59,14 @@ export class Dashboard implements OnInit {
   protected readonly bookingsFailed = signal(false);
 
   /**
+   * One fence PER CARD, not one for the screen — the same guard `my-classes.ts` and `schedule.ts`
+   * carry, for the same reason: two responses to the same card can land in either order, and the
+   * loser must not write back. A single shared counter would be wrong here, because a retry on one
+   * card would then discard an in-flight response belonging to another.
+   */
+  private bookingsGeneration = 0;
+
+  /**
    * Sliced here, not sorted here. The API already orders by the class's start
    * (BookingQuery.GetUpcomingForMemberAsync), and re-sorting would be a second source of truth for a
    * rule the server already owns.
@@ -72,12 +80,14 @@ export class Dashboard implements OnInit {
   protected readonly plan = signal<TrainingPlanDetail | null>(null);
   protected readonly planLoading = signal(true);
   protected readonly planFailed = signal(false);
+  private planGeneration = 0;
 
   // --- Admin: pending approvals ------------------------------------------------------------------
 
   protected readonly pendingCount = signal(0);
   protected readonly pendingLoading = signal(true);
   protected readonly pendingFailed = signal(false);
+  private pendingGeneration = 0;
 
   // --- Admin: today and upcoming -----------------------------------------------------------------
 
@@ -85,6 +95,7 @@ export class Dashboard implements OnInit {
   protected readonly upcomingClasses = signal<ScheduledClass[]>([]);
   protected readonly classesLoading = signal(true);
   protected readonly classesFailed = signal(false);
+  private classesGeneration = 0;
 
   ngOnInit(): void {
     void this.loadBookings();
@@ -99,46 +110,88 @@ export class Dashboard implements OnInit {
   }
 
   protected async loadBookings(): Promise<void> {
+    const generation = ++this.bookingsGeneration;
+
     this.bookingsLoading.set(true);
     this.bookingsFailed.set(false);
 
     try {
-      this.allBookings.set(await this.bookings.getMine());
+      const rows = await this.bookings.getMine();
+
+      if (generation !== this.bookingsGeneration) {
+        return;
+      }
+
+      this.allBookings.set(rows);
     } catch {
+      if (generation !== this.bookingsGeneration) {
+        return;
+      }
+
       this.allBookings.set([]);
       this.bookingsFailed.set(true);
     } finally {
-      this.bookingsLoading.set(false);
+      if (generation === this.bookingsGeneration) {
+        this.bookingsLoading.set(false);
+      }
     }
   }
 
   protected async loadPlan(): Promise<void> {
+    const generation = ++this.planGeneration;
+
     this.planLoading.set(true);
     this.planFailed.set(false);
 
     try {
-      this.plan.set(await this.plans.getMine());
+      const plan = await this.plans.getMine();
+
+      if (generation !== this.planGeneration) {
+        return;
+      }
+
+      this.plan.set(plan);
     } catch {
+      if (generation !== this.planGeneration) {
+        return;
+      }
+
       // Cleared as well as flagged, following my-plan.ts: a stale plan under an error banner invites
       // the member to act on something the app no longer believes it has.
       this.plan.set(null);
       this.planFailed.set(true);
     } finally {
-      this.planLoading.set(false);
+      if (generation === this.planGeneration) {
+        this.planLoading.set(false);
+      }
     }
   }
 
   protected async loadPending(): Promise<void> {
+    const generation = ++this.pendingGeneration;
+
     this.pendingLoading.set(true);
     this.pendingFailed.set(false);
 
     try {
-      this.pendingCount.set((await this.members.getPending()).length);
+      const pending = await this.members.getPending();
+
+      if (generation !== this.pendingGeneration) {
+        return;
+      }
+
+      this.pendingCount.set(pending.length);
     } catch {
+      if (generation !== this.pendingGeneration) {
+        return;
+      }
+
       this.pendingCount.set(0);
       this.pendingFailed.set(true);
     } finally {
-      this.pendingLoading.set(false);
+      if (generation === this.pendingGeneration) {
+        this.pendingLoading.set(false);
+      }
     }
   }
 
@@ -150,6 +203,8 @@ export class Dashboard implements OnInit {
    * precisely the ones an admin running the day is looking for.
    */
   protected async loadClasses(): Promise<void> {
+    const generation = ++this.classesGeneration;
+
     this.classesLoading.set(true);
     this.classesFailed.set(false);
 
@@ -158,14 +213,24 @@ export class Dashboard implements OnInit {
     try {
       const rows = await this.classes.getAdminClasses(from, to);
 
+      if (generation !== this.classesGeneration) {
+        return;
+      }
+
       this.todayClasses.set(rows.filter((row) => new Date(row.startsAt) < tomorrow));
       this.upcomingClasses.set(rows.filter((row) => new Date(row.startsAt) >= tomorrow));
     } catch {
+      if (generation !== this.classesGeneration) {
+        return;
+      }
+
       this.todayClasses.set([]);
       this.upcomingClasses.set([]);
       this.classesFailed.set(true);
     } finally {
-      this.classesLoading.set(false);
+      if (generation === this.classesGeneration) {
+        this.classesLoading.set(false);
+      }
     }
   }
 
