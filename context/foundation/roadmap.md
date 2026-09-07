@@ -3,7 +3,7 @@ project: "Po Prostu Siłka"
 version: 2
 status: draft
 created: 2026-08-31
-updated: 2026-09-06
+updated: 2026-09-07
 prd_version: 1, 2
 main_goal: speed
 top_blocker: decisions
@@ -57,7 +57,7 @@ Mid-milestone, a second decision landed: a class stops being retyped text and be
 | S-09 | class-change-notifications       | booked member gets email + push on class cancel/change                   | F-03, S-08             | v1 US-02, v1 FR-013, v1 FR-021, v2 FR-014                       | done        |
 | S-10 | exercise-library                 | admin manages exercises with instructions and videos                     | S-01                   | v1 FR-018, v1 FR-019                                            | done        |
 | S-11 | training-plans                   | admin builds and assigns a plan; member follows it with exercise details | S-01, S-10             | v1 FR-015, v1 FR-016, v1 FR-017, v1 FR-020                      | done        |
-| S-12 | member-and-admin-dashboards      | member and admin land on their at-a-glance home screens                  | S-01, S-07, S-08, S-11 | v1 FR-023, v1 FR-024                                            | in-progress |
+| S-12 | member-and-admin-dashboards      | member and admin land on their at-a-glance home screens                  | S-01, S-07, S-08, S-11 | v1 FR-023, v1 FR-024                                            | done        |
 | S-13 | member-profile-edit              | member edits contact details, changes password, resets a forgotten one   | F-02, S-01             | v1 FR-006, v1 FR-025, v1 FR-026                                 | done        |
 
 ## Streams
@@ -276,7 +276,7 @@ What's already in place in the codebase as of `2026-09-02` (auto-researched + us
 - **Blockers:** —
 - **Unknowns:** —
 - **Risk:** pure aggregation over data every earlier slice produces — deliberately last, because building it earlier means stubbing every card. Its class-facing cards read the calendar surface S-07 settles, which is why it waits for that rather than for S-03.
-- **Status:** in-progress
+- **Status:** done
 
 ### S-13: Member edits their profile
 
@@ -370,3 +370,4 @@ Resolved since the previous roadmap: the sender-domain question that gated F-03 
 - **S-10: user (admin) can create and edit exercises — description, muscle group, difficulty, equipment, and preparation / starting-position / execution instructions, all optional — and attach an instructional video to an exercise.** — Archived 2026-09-04 → `context/archive/2026-09-04-exercise-library/`. Lesson: —.
 - **S-11: user (admin) can create a training plan (ordered exercise list with sets, reps, weight, rest time, note) and assign it to a member — a new assignment replaces the old, so each member has at most one active plan; the member sees their current plan and opens any exercise's details from within it.** — Archived 2026-09-06 → `context/archive/2026-09-04-training-plans/`. Lesson: —.
 - **S-13: member sees their name and email, edits their contact details (phone and address), changes their password while signed in, and resets a forgotten password by emailed link before login. The display name is deliberately NOT editable — the gym owns how a member appears on its lists.** — Archived 2026-09-06 → `context/archive/2026-09-05-member-profile-edit/`. Lesson: Verify a prerequisite against the code, not against an archived plan (`context/foundation/lessons.md`).
+- **S-12: user (member) lands on a dashboard showing their nearest upcoming classes and active training plan; the admin lands on a dashboard of items needing attention — pending approvals, today's and upcoming classes.** — Archived 2026-09-07 → `context/archive/2026-09-06-member-and-admin-dashboards/`. Lesson: —.
