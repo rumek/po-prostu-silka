@@ -485,10 +485,10 @@ repointed; no URL changes, so no redirects and no bookmarks broken.
 
 #### Automated
 
-- [x] 1.1 Unit tests pass: `npm test` from `src/app/`
-- [x] 1.2 Formatting and linting pass: `npm run quality:check` from `src/app/`
-- [x] 1.3 Production build succeeds and stays within budget: `npm run build` from `src/app/`
-- [x] 1.4 The two new components each have a spec file
+- [x] 1.1 Unit tests pass: `npm test` from `src/app/` — a361ead
+- [x] 1.2 Formatting and linting pass: `npm run quality:check` from `src/app/` — a361ead
+- [x] 1.3 Production build succeeds and stays within budget: `npm run build` from `src/app/` — a361ead
+- [x] 1.4 The two new components each have a spec file — a361ead
 
 #### Manual
 
@@ -499,10 +499,10 @@ repointed; no URL changes, so no redirects and no bookmarks broken.
 
 #### Automated
 
-- [ ] 2.1 Unit tests pass: `npm test` from `src/app/`
-- [ ] 2.2 Quality gate passes: `npm run quality:check` from `src/app/`
-- [ ] 2.3 Build stays inside the 500 kB initial budget with no warning: `npm run build` from `src/app/`
-- [ ] 2.4 Specs cover member cards, admin section gating, the "no plan" card, and independent card failure
+- [x] 2.1 Unit tests pass: `npm test` from `src/app/`
+- [x] 2.2 Quality gate passes: `npm run quality:check` from `src/app/`
+- [x] 2.3 Build stays inside the 500 kB initial budget with no warning: `npm run build` from `src/app/`
+- [x] 2.4 Specs cover member cards, admin section gating, the "no plan" card, and independent card failure
 
 #### Manual
 

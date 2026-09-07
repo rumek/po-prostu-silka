@@ -11,7 +11,7 @@ import { Members } from './features/admin/members/members';
 import { Login } from './features/auth/login/login';
 import { Pending } from './features/auth/pending/pending';
 import { Register } from './features/auth/register/register';
-import { Home } from './features/home/home';
+import { Dashboard } from './features/dashboard/dashboard';
 
 /**
  * Paths stay English while the copy is Polish (S-01 D10): /login already exists and authGuard
@@ -42,7 +42,11 @@ export const routes: Routes = [
       import('./features/auth/reset-password/reset-password').then((m) => m.ResetPassword),
   },
   { path: 'pending', component: Pending, canActivate: [authGuard] },
-  { path: '', component: Home, canActivate: [authGuard, activeMemberGuard] },
+  // EAGER, as Home was before it. This is the screen every approved account lands on, and a lazy
+  // chunk here would put a network round trip between signing in and seeing anything — the one place
+  // in the app where that cost is paid by everyone, every visit. The 500 kB budget in angular.json is
+  // what governs whether it stays that way.
+  { path: '', component: Dashboard, canActivate: [authGuard, activeMemberGuard] },
   { path: 'admin/approvals', component: Approvals, canActivate: [authGuard, adminGuard] },
   { path: 'admin/members', component: Members, canActivate: [authGuard, adminGuard] },
   // LAZY, both of them, and deliberately (S-07). They are the only routes that pull in

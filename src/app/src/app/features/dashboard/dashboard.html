@@ -1,0 +1,161 @@
+<h1>Cześć{{ displayName() ? ', ' + displayName() : '' }}</h1>
+
+<!-- The member's half, shown to every approved account — the admin's included, because an admin books
+     classes like anyone else. -->
+<section class="dashboard-cards" aria-label="Twoje zajęcia i plan">
+  <article class="card dashboard-card">
+    <h2 class="dashboard-card-title">Najbliższe zajęcia</h2>
+
+    @if (bookingsLoading()) {
+      <p class="notice" role="status">Wczytywanie…</p>
+    } @else if (bookingsFailed()) {
+      <p class="alert" role="alert">
+        Nie udało się wczytać zapisów.
+        <button type="button" class="link-button" (click)="loadBookings()">Spróbuj ponownie</button>
+      </p>
+    } @else if (nearestBookings().length === 0) {
+      <p class="notice" role="status">
+        Nie masz jeszcze żadnych zapisów.
+        <a routerLink="/schedule">Zobacz grafik zajęć</a>
+      </p>
+    } @else {
+      <ul class="dashboard-list">
+        @for (row of nearestBookings(); track row.bookingId) {
+          <li>
+            <app-class-summary
+              [name]="row.name"
+              [startsAt]="row.startsAt"
+              [durationMinutes]="row.durationMinutes"
+              [instructor]="row.instructor"
+            />
+          </li>
+        }
+      </ul>
+
+      <!-- Shown only when the card is actually hiding something: a "see all" that leads to the same
+           three rows teaches the member the link is not worth pressing. -->
+      @if (hasMoreBookings()) {
+        <a class="dashboard-more" routerLink="/my-classes">Zobacz wszystkie zapisy</a>
+      }
+    }
+  </article>
+
+  <article class="card dashboard-card">
+    <h2 class="dashboard-card-title">Twój plan treningowy</h2>
+
+    @if (planLoading()) {
+      <p class="notice" role="status">Wczytywanie…</p>
+    } @else if (planFailed()) {
+      <p class="alert" role="alert">
+        Nie udało się wczytać planu.
+        <button type="button" class="link-button" (click)="loadPlan()">Spróbuj ponownie</button>
+      </p>
+    } @else if (plan(); as row) {
+      <!-- h2, not h1: this card sits under the dashboard's own heading, and a second h1 would flatten
+           the outline for anyone navigating by heading. -->
+      <app-plan-summary
+        headingLevel="h2"
+        [name]="row.name"
+        [assignedByDisplayName]="row.assignedByDisplayName"
+        [createdAt]="row.createdAt"
+      />
+      <a class="dashboard-more" routerLink="/my-plan">Otwórz plan</a>
+    } @else {
+      <!-- NOT an error, and deliberately not styled as one: the API says 204, and a member who has not
+           been given a plan has nothing to retry. Same distinction /my-plan draws. -->
+      <p class="empty">
+        Nie masz jeszcze przypisanego planu treningowego. Poproś trenera, żeby Ci go ułożył.
+      </p>
+    }
+  </article>
+</section>
+
+@if (isAdmin()) {
+  <section class="dashboard-cards" aria-label="Wymaga uwagi">
+    <h2 class="dashboard-section-title">Wymaga uwagi</h2>
+
+    <article class="card dashboard-card">
+      <h3 class="dashboard-card-title">Zgłoszenia</h3>
+
+      @if (pendingLoading()) {
+        <p class="notice" role="status">Wczytywanie…</p>
+      } @else if (pendingFailed()) {
+        <p class="alert" role="alert">
+          Nie udało się wczytać zgłoszeń.
+          <button type="button" class="link-button" (click)="loadPending()">
+            Spróbuj ponownie
+          </button>
+        </p>
+      } @else if (pendingCount() === 0) {
+        <p class="empty">Brak oczekujących zgłoszeń.</p>
+      } @else {
+        <p class="dashboard-count">{{ pendingCount() }}</p>
+        <a class="dashboard-more" routerLink="/admin/approvals">Przejdź do zgłoszeń</a>
+      }
+    </article>
+
+    <article class="card dashboard-card">
+      <h3 class="dashboard-card-title">Dzisiaj</h3>
+
+      @if (classesLoading()) {
+        <p class="notice" role="status">Wczytywanie…</p>
+      } @else if (classesFailed()) {
+        <p class="alert" role="alert">
+          Nie udało się wczytać zajęć.
+          <button type="button" class="link-button" (click)="loadClasses()">
+            Spróbuj ponownie
+          </button>
+        </p>
+      } @else if (todayClasses().length === 0) {
+        <p class="empty">Dzisiaj nie ma zaplanowanych zajęć.</p>
+      } @else {
+        <ul class="dashboard-list">
+          @for (row of todayClasses(); track row.id) {
+            <li>
+              <app-class-summary
+                [name]="row.name"
+                [startsAt]="row.startsAt"
+                [durationMinutes]="row.durationMinutes"
+                [instructor]="row.instructor"
+              />
+            </li>
+          }
+        </ul>
+      }
+    </article>
+
+    <article class="card dashboard-card">
+      <h3 class="dashboard-card-title">Nadchodzące</h3>
+
+      <!-- Same load as "Dzisiaj" — one request, bucketed — so this card mirrors its states rather than
+           firing a second request for the other half of the same window. -->
+      @if (classesLoading()) {
+        <p class="notice" role="status">Wczytywanie…</p>
+      } @else if (classesFailed()) {
+        <p class="alert" role="alert">
+          Nie udało się wczytać zajęć.
+          <button type="button" class="link-button" (click)="loadClasses()">
+            Spróbuj ponownie
+          </button>
+        </p>
+      } @else if (upcomingClasses().length === 0) {
+        <p class="empty">Brak zajęć w najbliższym tygodniu.</p>
+      } @else {
+        <ul class="dashboard-list">
+          @for (row of upcomingClasses(); track row.id) {
+            <li>
+              <app-class-summary
+                [name]="row.name"
+                [startsAt]="row.startsAt"
+                [durationMinutes]="row.durationMinutes"
+                [instructor]="row.instructor"
+              />
+            </li>
+          }
+        </ul>
+
+        <a class="dashboard-more" routerLink="/admin/classes">Zarządzaj zajęciami</a>
+      }
+    </article>
+  </section>
+}

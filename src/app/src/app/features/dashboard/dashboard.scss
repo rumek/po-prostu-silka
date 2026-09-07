@@ -1,0 +1,70 @@
+// Layout only — .card/.notice/.alert/.empty come from src/styles.scss.
+
+.dashboard-cards {
+  display: grid;
+  gap: var(--space-4);
+  margin-top: var(--space-5);
+  // Cards sit side by side once there is room and stack on a phone, without a media query: the
+  // dashboard is the one screen whose card count varies by role, so a fixed column count would leave
+  // a member with a gap where the admin cards are.
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+}
+
+// The section heading spans the grid rather than sitting in a cell of its own.
+.dashboard-section-title {
+  grid-column: 1 / -1;
+  margin: var(--space-5) 0 0;
+  font-size: 1.25rem;
+}
+
+.dashboard-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-5);
+}
+
+.dashboard-card-title {
+  margin: 0;
+  font-size: 1.125rem;
+}
+
+.dashboard-list {
+  display: grid;
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+// The one number on the screen that is the answer rather than a label.
+.dashboard-count {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 2.5rem;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+// Pushed to the bottom so the link sits on the card's edge whatever the card above it contains.
+.dashboard-more {
+  margin-top: auto;
+  font-size: 0.9375rem;
+}
+
+// A card's "nothing here", which is not an error and must not read as one.
+.empty {
+  margin: 0;
+  color: var(--muted);
+}
+
+// Declared locally, as every other feature does — there is no global rule for it.
+.link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
