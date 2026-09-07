@@ -19,32 +19,7 @@
   gap: var(--space-3);
 }
 
-.my-classes-details {
-  // Takes the remaining width so a long class name wraps rather than pushing the action off the row.
-  flex: 1 1 14rem;
-
-  p {
-    margin: 0;
-  }
-}
-
-.my-classes-when {
-  color: var(--muted);
-  font-variant-numeric: tabular-nums;
-  &::first-letter {
-    text-transform: uppercase;
-  }
-}
-
-.my-classes-name {
-  font-weight: 600;
-  overflow-wrap: anywhere;
-}
-
-.my-classes-meta {
-  color: var(--muted);
-  overflow-wrap: anywhere;
-}
+// The details block moved to shared/class-summary, which owns its own flex sizing on :host.
 
 .my-classes-actions {
   display: flex;

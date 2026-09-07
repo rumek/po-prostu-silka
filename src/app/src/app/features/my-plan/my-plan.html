@@ -6,12 +6,11 @@
     <button type="button" class="link-button" (click)="load()">Spróbuj ponownie</button>
   </p>
 } @else if (plan(); as row) {
-  <div class="my-plan-header">
-    <h1>{{ row.name }}</h1>
-    <p class="my-plan-meta">
-      Plan od: {{ row.assignedByDisplayName }} · {{ row.createdAt | date: 'd MMMM y' }}
-    </p>
-  </div>
+  <app-plan-summary
+    [name]="row.name"
+    [assignedByDisplayName]="row.assignedByDisplayName"
+    [createdAt]="row.createdAt"
+  />
 
   <!-- Ordered by the trainer, and the numbers are the point: this is the sequence to train in, not
        a set to pick from. The API already sorts; nothing here re-sorts. -->

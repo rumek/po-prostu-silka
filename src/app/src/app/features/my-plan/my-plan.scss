@@ -1,15 +1,10 @@
 // Layout only — .card/.alert/.notice/.hint come from src/styles.scss.
 
-.my-plan-header h1 {
-  margin: 0;
-  overflow-wrap: anywhere;
-}
-
-.my-plan-meta {
-  margin: var(--space-1) 0 var(--space-5);
-  color: var(--muted);
-  font-size: 0.875rem;
-  overflow-wrap: anywhere;
+// The header moved to shared/plan-summary. That component owns its internal spacing; the gap before
+// the exercise list is this screen's business, so it stays here on the host element.
+app-plan-summary {
+  display: block;
+  margin-bottom: var(--space-5);
 }
 
 // An <ol>, and its numbers are kept: the order is the prescription, and stripping the markers would

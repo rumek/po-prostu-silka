@@ -1,10 +1,10 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit, inject, signal } from '@angular/core';
-import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { bookingFailureMessage } from '../../core/scheduling/booking-failure';
 import { BookingService } from '../../core/scheduling/booking.service';
 import { MyBooking } from '../../core/scheduling/booking.models';
+import { ClassSummary } from '../../shared/class-summary/class-summary';
 
 /**
  * The member's upcoming bookings (prd.md FR-010).
@@ -20,7 +20,7 @@ import { MyBooking } from '../../core/scheduling/booking.models';
  * not disable the rest of the list.
  */
 @Component({
-  imports: [DatePipe, RouterLink],
+  imports: [ClassSummary, RouterLink],
   selector: 'app-my-classes',
   styleUrl: './my-classes.scss',
   templateUrl: './my-classes.html',
@@ -106,11 +106,6 @@ export class MyClasses implements OnInit {
 
   protected isBusy(classId: string): boolean {
     return this.busy().has(classId);
-  }
-
-  /** Derived, never stored — the same rule the Class aggregate follows. */
-  protected endsAt(row: MyBooking): Date {
-    return new Date(new Date(row.startsAt).getTime() + row.durationMinutes * 60_000);
   }
 
   private setBusy(classId: string, value: boolean): void {

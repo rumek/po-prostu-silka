@@ -1,0 +1,33 @@
+// Layout only — colours and spacing come from src/styles.scss tokens.
+
+// The host IS the block, so the flex sizing that lived on `.my-classes-details` lives here: it is the
+// host element that sits in the parent's flex row, and a rule on an inner wrapper would size nothing.
+// Takes the remaining width so a long class name wraps rather than pushing a sibling action off the
+// row.
+:host {
+  display: block;
+  flex: 1 1 14rem;
+}
+
+:host p {
+  margin: 0;
+}
+
+.class-summary-when {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  // Polish weekday names come from CLDR lowercase; the sentence starts here.
+  &::first-letter {
+    text-transform: uppercase;
+  }
+}
+
+.class-summary-name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.class-summary-meta {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}

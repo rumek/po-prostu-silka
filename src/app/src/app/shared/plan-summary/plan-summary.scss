@@ -1,0 +1,20 @@
+// Layout only — colours and spacing come from src/styles.scss tokens.
+
+// Internal spacing only. The gap BELOW this block is the caller's business: `/my-plan` needs room
+// before the exercise list, a dashboard card does not, and baking one caller's margin in here would
+// make the other override it.
+:host {
+  display: block;
+}
+
+.plan-summary-name {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.plan-summary-meta {
+  margin: var(--space-1) 0 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}

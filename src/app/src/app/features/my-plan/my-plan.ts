@@ -1,8 +1,8 @@
-import { DatePipe } from '@angular/common';
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { TrainingPlanService } from '../../core/training/training-plan.service';
 import { TrainingPlanDetail, TrainingPlanItemView } from '../../core/training/training-plan.models';
+import { PlanSummary } from '../../shared/plan-summary/plan-summary';
 
 /**
  * The member's own training plan (prd.md FR-017).
@@ -20,7 +20,7 @@ import { TrainingPlanDetail, TrainingPlanItemView } from '../../core/training/tr
  * four empty labels would make it look broken.
  */
 @Component({
-  imports: [DatePipe, RouterLink],
+  imports: [PlanSummary, RouterLink],
   selector: 'app-my-plan',
   styleUrl: './my-plan.scss',
   templateUrl: './my-plan.html',

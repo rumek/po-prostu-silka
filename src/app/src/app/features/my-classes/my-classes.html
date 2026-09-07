@@ -22,15 +22,12 @@
   <ul class="my-classes-list">
     @for (row of rows(); track row.bookingId) {
       <li class="card my-classes-row">
-        <div class="my-classes-details">
-          <p class="my-classes-when">
-            {{ row.startsAt | date: 'EEEE, d MMMM' }}, {{ row.startsAt | date: 'HH:mm' }}–{{
-              endsAt(row) | date: 'HH:mm'
-            }}
-          </p>
-          <p class="my-classes-name">{{ row.name }}</p>
-          <p class="my-classes-meta">{{ row.instructor }}</p>
-        </div>
+        <app-class-summary
+          [name]="row.name"
+          [startsAt]="row.startsAt"
+          [durationMinutes]="row.durationMinutes"
+          [instructor]="row.instructor"
+        />
 
         <div class="my-classes-actions">
           <button

@@ -1,0 +1,7 @@
+<p class="class-summary-when">
+  {{ startsAt() | date: 'EEEE, d MMMM' }}, {{ startsAt() | date: 'HH:mm' }}–{{
+    endsAt() | date: 'HH:mm'
+  }}
+</p>
+<p class="class-summary-name">{{ name() }}</p>
+<p class="class-summary-meta">{{ instructor() }}</p>
