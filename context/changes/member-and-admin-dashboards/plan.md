@@ -516,8 +516,8 @@ repointed; no URL changes, so no redirects and no bookmarks broken.
 
 #### Manual
 
-- [ ] 1.5 `/my-classes` renders identically to before, and cancelling a booking still works
-- [ ] 1.6 `/my-plan` renders identically to before, including the "no plan yet" state
+- [x] 1.5 `/my-classes` renders identically to before, and cancelling a booking still works — a361ead
+- [x] 1.6 `/my-plan` renders identically to before, including the "no plan yet" state — a361ead
 
 ### Phase 2: The dashboard at `/`
 
@@ -530,10 +530,10 @@ repointed; no URL changes, so no redirects and no bookmarks broken.
 
 #### Manual
 
-- [ ] 2.5 A member with bookings sees at most three, nearest first, each linking to `/my-classes`
-- [ ] 2.6 A member with no bookings and no plan sees empty states that lead somewhere, not errors
-- [ ] 2.7 An admin sees the correct pending count, and a class that started earlier today appears under "dzisiaj"
-- [ ] 2.8 Dashboard renders within about a second on a phone-sized viewport
+- [x] 2.5 A member with bookings sees at most three, nearest first, each linking to `/my-classes` — 79a383f
+- [x] 2.6 A member with no bookings and no plan sees empty states that lead somewhere, not errors — 79a383f
+- [x] 2.7 An admin sees the correct pending count, and a class that started earlier today appears under "dzisiaj" — 79a383f
+- [x] 2.8 Dashboard renders within about a second on a phone-sized viewport — 79a383f
 
 ### Phase 3: The "Więcej" screen
 
@@ -546,9 +546,9 @@ repointed; no URL changes, so no redirects and no bookmarks broken.
 
 #### Manual
 
-- [ ] 3.5 Logging out from `/more` ends the session and lands on `/login`
-- [ ] 3.6 An admin reaches all four previously URL-only screens from here
-- [ ] 3.7 A Pending member can open `/more` and reach `/profile`
+- [x] 3.5 Logging out from `/more` ends the session and lands on `/login` — bfcaddf
+- [x] 3.6 An admin reaches all four previously URL-only screens from here — bfcaddf
+- [x] 3.7 A Pending member can open `/more` and reach `/profile` — bfcaddf
 
 ### Phase 4: Bottom bar and shell restructure
 
@@ -562,10 +562,10 @@ repointed; no URL changes, so no redirects and no bookmarks broken.
 
 #### Manual
 
-- [ ] 4.6 On a phone viewport the header shows only the brand, and all navigation is in the bar
-- [ ] 4.7 At `30rem` and above the header is unchanged and the bar is absent
-- [ ] 4.8 Installed to an iOS home screen, the bar sits above the home indicator
-- [ ] 4.9 Opening a class-details overlay covers the bar rather than sitting under it
-- [ ] 4.10 No screen scrolls its last element under the bar
-- [ ] 4.11 `viewport-fit=cover` has not introduced edge-clipping or horizontal scroll on existing screens
-- [ ] 4.12 The push prompt and the bar do not fight for space on a first load on a narrow phone
+- [x] 4.6 On a phone viewport the header shows only the brand, and all navigation is in the bar — 85e5309
+- [x] 4.7 At `30rem` and above the header is unchanged and the bar is absent — 85e5309
+- [x] 4.8 Installed to an iOS home screen, the bar sits above the home indicator — 85e5309
+- [x] 4.9 Opening a class-details overlay covers the bar rather than sitting under it — 85e5309
+- [x] 4.10 No screen scrolls its last element under the bar — 85e5309
+- [x] 4.11 `viewport-fit=cover` has not introduced edge-clipping or horizontal scroll on existing screens — 85e5309
+- [x] 4.12 The push prompt and the bar do not fight for space on a first load on a narrow phone — 85e5309
