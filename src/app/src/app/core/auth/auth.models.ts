@@ -21,10 +21,33 @@ export interface CurrentUser {
   houseNumber?: string | null;
   postalCode?: string | null;
   city?: string | null;
+
+  /**
+   * The club's record of this person (S-14), and whether they may use the club.
+   *
+   * <p>
+   * NULL MEANS THE ACCOUNT HAS NO MEMBER ROW — a state three producers make unreachable, and one the
+   * API refuses everywhere rather than papering over. The SPA reads it as "signed in but unusable"
+   * and must not substitute a default: inventing `Active` here would hide exactly the failure the
+   * policies exist to surface.
+   * </p>
+   *
+   * <p>
+   * `membershipStatus` is NOT the same question as `status`. That one says whether this login may be
+   * used and owns the pending → active approval; this one says whether the person may use the club
+   * and is the only one that means anything for someone the admin blocked without touching their
+   * account. Both are checked by every policy on the server.
+   * </p>
+   */
+  memberId?: string | null;
+  membershipStatus?: MembershipStatus | null;
 }
 
 /** Mirrors src/Domain/AccountStatus.cs. Serialised by name, not by number. */
 export type AccountStatus = 'Pending' | 'Active' | 'Blocked';
+
+/** Mirrors src/Domain/Members/MembershipStatus.cs. Serialised by name, not by number. */
+export type MembershipStatus = 'Active' | 'Blocked';
 
 /**
  * Why a login failure is named rather than generic: blocked members need a different message from a

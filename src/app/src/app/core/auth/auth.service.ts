@@ -31,8 +31,22 @@ export class AuthService {
 
   readonly isAuthenticated = computed(() => this.currentUser() !== null);
 
-  /** True only for an approved account. A Pending member is authenticated but not active. */
-  readonly isActive = computed(() => this.currentUser()?.status === 'Active');
+  /**
+   * True only for an approved account whose MEMBERSHIP is also active — the same pair of conditions
+   * the server's ActiveMember policy checks, and it must stay that way: a guard that admitted someone
+   * the API then refuses routes them into a screen made of 403s.
+   *
+   * <p>
+   * A Pending member is authenticated but not active. Since S-14 so is a member the admin blocked
+   * without touching their account, and so is an account with no member row at all — `membershipStatus`
+   * is null there, and `=== 'Active'` correctly refuses it rather than assuming a default.
+   * </p>
+   */
+  readonly isActive = computed(() => {
+    const user = this.currentUser();
+
+    return user?.status === 'Active' && user?.membershipStatus === 'Active';
+  });
 
   readonly isAdmin = computed(() => this.currentUser()?.roles.includes(ROLES.admin) ?? false);
 

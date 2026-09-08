@@ -162,6 +162,29 @@ same schedule an account block does.
 > "absent ⇒ treat as Active" fallback: that is a permanent authorization bypass hiding behind a
 > data-integrity assumption. If you want a safety net, make it a startup log-and-count.
 
+**Adapted during implementation (Phase 3).**
+
+- **`PUT /api/profile` now writes the member's contact details too.** The plan assigned the
+  contact-detail dual-write to "Phases 1–6" without naming the member's own profile screen as one of
+  the writers. Left as it was, a member correcting their phone number would update the account and
+  leave the club's record stale — invisible until Phase 8's read flip resurrected the old value. Both
+  copies move in the one `SaveChangesAsync` `UserManager.UpdateAsync` already issues.
+- **`GET /api/auth/me` reads the membership rather than taking it from the claim.** The claim is up to
+  one validation interval stale, and seeing past exactly that staleness is what `/me` is for — the SPA
+  calls it on every cold load to decide where to route.
+- **`CurrentUser.MemberId` / `MembershipStatus` are nullable on the wire.** They are null exactly when
+  the account has no member row, which is the tripwire state; filling in a default would hide the
+  failure the policies exist to surface.
+- **A membership block does not end a live session instantly, and the tests now say so.** The plan
+  said a block "bites on exactly the same schedule an account block does", which is true and is the
+  point — but that schedule is the security-stamp validation interval (2 minutes) or an explicit
+  `/api/auth/refresh`, not the moment of the block. `MemberBlockPolicyTests` pins that bound rather
+  than asserting an immediate 401 the product has never done.
+
+**Still outstanding from this phase's verification:** the plan's step 5 — running the Phase 1 backfill
+against a restored copy of production and asserting zero accounts without a member — has NOT been
+done, and cannot be from here. It must happen before this phase is deployed.
+
 ### Phase 4 — Repoint the FKs, dual-write
 
 Migration 15 `AddMemberForeignKeys`: add **nullable** `Bookings.MemberId`, `TrainingPlans.MemberId`,

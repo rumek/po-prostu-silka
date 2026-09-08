@@ -57,7 +57,8 @@ public static class ProfileEndpoints
         [FromBody] ProfileRequest request,
         ClaimsPrincipal principal,
         UserManager<ApplicationUser> userManager,
-        ILoggerFactory loggerFactory)
+        ILoggerFactory loggerFactory,
+        IMemberStore members)
     {
         var user = await userManager.GetUserAsync(principal);
 
@@ -86,6 +87,25 @@ public static class ProfileEndpoints
         user.PostalCode = contact.PostalCode;
         user.City = contact.City;
 
+        // THE MEMBER'S COPIES MOVE WITH THE ACCOUNT'S (S-14). Both rows carry contact details until
+        // the read flips to Members, and updating only one of them would leave the club's record of
+        // this person quietly stale — invisible right up until the flip resurrects an address the
+        // member corrected months earlier. The admin's edit surface writes both for the same reason.
+        //
+        // Staged here and committed by the same UpdateAsync below: UserManager's save goes through
+        // the SAME scoped DbContext, so the two land in one SaveChangesAsync rather than two writes
+        // that can half-fail.
+        var member = await members.FindByUserIdAsync(user.Id, CancellationToken.None);
+        if (member is not null)
+        {
+            member.PhoneNumber = contact.PhoneNumber;
+            member.Street = contact.Street;
+            member.HouseNumber = contact.HouseNumber;
+            member.PostalCode = contact.PostalCode;
+            member.City = contact.City;
+            member.ConcurrencyStamp = Guid.NewGuid().ToString();
+        }
+
         var updated = await userManager.UpdateAsync(user);
         if (!updated.Succeeded)
         {
@@ -106,6 +126,6 @@ public static class ProfileEndpoints
 
         // The same shape /me returns, built by the same projection, so the SPA replaces its session
         // signal from this response instead of re-fetching.
-        return Results.Ok(await AuthEndpoints.BuildCurrentUserAsync(user, userManager));
+        return Results.Ok(await AuthEndpoints.BuildCurrentUserAsync(user, userManager, members));
     }
 }

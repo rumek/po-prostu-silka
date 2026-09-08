@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using po_prostu_silka.Domain;
+using po_prostu_silka.Domain.Members;
 
 namespace po_prostu_silka.Infrastructure.Authorization;
 
@@ -16,6 +17,19 @@ namespace po_prostu_silka.Infrastructure.Authorization;
 /// <see cref="Identity.AppUserClaimsPrincipalFactory"/>; staleness is bounded by the security-stamp
 /// validation interval configured in Program.cs, which is the one place that number is stated.
 ///
+/// SINCE S-14 EVERY POLICY CHECKS TWO STATUSES, and both are load-bearing. The account status says
+/// whether this login may be used; the membership status says whether the person may use the club,
+/// and it is the only one that means anything for someone the admin blocked without touching their
+/// account. Neither implies the other: an approved account can have a blocked membership, and a
+/// pending account has an active one from the moment it is created.
+///
+/// AN ACCOUNT WITH NO MEMBER ROW FAILS EVERY POLICY HERE, INCLUDING Admin. That is deliberate — the
+/// alternative, treating an absent claim as Active, is a permanent authorization bypass hiding behind
+/// a data-integrity assumption. What makes it safe is that three producers create the member row
+/// (the AddMembers backfill, AdminSeeder on every cold start, and RegisterAsync), so the state cannot
+/// be reached. If it ever is, the club is locked out of its own app and the fix is data, not a
+/// relaxed policy.
+///
 /// THE NAMES THEMSELVES LIVE IN DOMAIN (<see cref="AuthorizationPolicyNames"/>), not here: endpoint
 /// definitions in Application reference them, and Application may not reference Infrastructure. This
 /// file keeps only the builder, which genuinely is infrastructure. The aliases below exist so
@@ -25,6 +39,12 @@ public static class AuthorizationPolicies
 {
     /// <inheritdoc cref="AuthorizationPolicyNames.StatusClaimType"/>
     public const string StatusClaimType = AuthorizationPolicyNames.StatusClaimType;
+
+    /// <inheritdoc cref="AuthorizationPolicyNames.MemberStatusClaimType"/>
+    public const string MemberStatusClaimType = AuthorizationPolicyNames.MemberStatusClaimType;
+
+    /// <inheritdoc cref="AuthorizationPolicyNames.MemberIdClaimType"/>
+    public const string MemberIdClaimType = AuthorizationPolicyNames.MemberIdClaimType;
 
     /// <inheritdoc cref="AuthorizationPolicyNames.ActiveMember"/>
     public const string ActiveMember = AuthorizationPolicyNames.ActiveMember;
@@ -40,10 +60,12 @@ public static class AuthorizationPolicies
             .AddPolicy(ActiveMember, policy => policy
                 .RequireAuthenticatedUser()
                 .RequireClaim(StatusClaimType, nameof(AccountStatus.Active))
+                .RequireClaim(MemberStatusClaimType, nameof(MembershipStatus.Active))
                 .RequireRole(ApplicationRoles.MemberFacing))
             .AddPolicy(Admin, policy => policy
                 .RequireAuthenticatedUser()
                 .RequireClaim(StatusClaimType, nameof(AccountStatus.Active))
+                .RequireClaim(MemberStatusClaimType, nameof(MembershipStatus.Active))
                 .RequireRole(ApplicationRoles.Admin))
             // The first policy here that admits a UNION of roles. RequireRole with several arguments
             // is OR in ASP.NET Core - the same semantics ActiveMember already leans on by passing the
@@ -56,5 +78,6 @@ public static class AuthorizationPolicies
             .AddPolicy(AuthorizationPolicyNames.TrainerOrAdmin, policy => policy
                 .RequireAuthenticatedUser()
                 .RequireClaim(StatusClaimType, nameof(AccountStatus.Active))
+                .RequireClaim(MemberStatusClaimType, nameof(MembershipStatus.Active))
                 .RequireRole(ApplicationRoles.Trainer, ApplicationRoles.Admin));
 }

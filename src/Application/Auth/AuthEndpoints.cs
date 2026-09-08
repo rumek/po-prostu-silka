@@ -104,7 +104,9 @@ public record CurrentUser(
     string? Street,
     string? HouseNumber,
     string? PostalCode,
-    string? City);
+    string? City,
+    Guid? MemberId,
+    string? MembershipStatus);
 
 /// <summary>
 /// The authentication surface: create an account, establish a session, inspect it, refresh it,
@@ -154,7 +156,8 @@ public static class AuthEndpoints
     private static async Task<IResult> LoginAsync(
         [FromBody] LoginRequest request,
         SignInManager<ApplicationUser> signInManager,
-        UserManager<ApplicationUser> userManager)
+        UserManager<ApplicationUser> userManager,
+        IMemberStore members)
     {
         // The record's strings are non-nullable, but {"email": null} deserialises to null all the
         // same - nullable reference types are a compile-time contract, not a runtime one - and
@@ -199,7 +202,7 @@ public static class AuthEndpoints
         // it the cookie is a session cookie and mobile members re-login constantly (PRD FR-002).
         await signInManager.SignInAsync(user, isPersistent: true);
 
-        return Results.Ok(await BuildCurrentUserAsync(user, userManager));
+        return Results.Ok(await BuildCurrentUserAsync(user, userManager, members));
     }
 
     /// <summary>
@@ -378,7 +381,7 @@ public static class AuthEndpoints
         await signInManager.SignInAsync(user, isPersistent: true);
 
         // Same shape /login returns, so the SPA has one code path for "you now have a session".
-        return Results.Ok(await BuildCurrentUserAsync(user, userManager));
+        return Results.Ok(await BuildCurrentUserAsync(user, userManager, members));
     }
 
     /// <summary>
@@ -400,7 +403,8 @@ public static class AuthEndpoints
     private static async Task<IResult> RefreshAsync(
         ClaimsPrincipal principal,
         SignInManager<ApplicationUser> signInManager,
-        UserManager<ApplicationUser> userManager)
+        UserManager<ApplicationUser> userManager,
+        IMemberStore members)
     {
         var user = await userManager.GetUserAsync(principal);
         if (user is null)
@@ -409,7 +413,7 @@ public static class AuthEndpoints
         }
 
         await signInManager.RefreshSignInAsync(user);
-        return Results.Ok(await BuildCurrentUserAsync(user, userManager));
+        return Results.Ok(await BuildCurrentUserAsync(user, userManager, members));
     }
 
     /// <summary>
@@ -627,7 +631,8 @@ public static class AuthEndpoints
 
     private static async Task<IResult> GetCurrentUser(
         ClaimsPrincipal principal,
-        UserManager<ApplicationUser> userManager)
+        UserManager<ApplicationUser> userManager,
+        IMemberStore members)
     {
         var user = await userManager.GetUserAsync(principal);
 
@@ -644,6 +649,12 @@ public static class AuthEndpoints
         // the same data - and /me is called on every SPA cold load against a 5-DTU tier.
         var roles = principal.FindAll(ClaimTypes.Role).Select(c => c.Value).ToArray();
 
+        // The MEMBERSHIP half does cost a read, unlike the roles above, and deliberately: it lives on
+        // a different row, and taking it from the cookie's claim would make /me report a status that
+        // is up to one validation interval stale — which is exactly the staleness this endpoint
+        // exists to let the SPA see past.
+        var member = await members.FindByUserIdAsync(user.Id, CancellationToken.None);
+
         return Results.Ok(new CurrentUser(
             user.Id,
             user.Email ?? string.Empty,
@@ -654,19 +665,31 @@ public static class AuthEndpoints
             user.Street,
             user.HouseNumber,
             user.PostalCode,
-            user.City));
+            user.City,
+            member?.Id,
+            member?.Status.ToString()));
     }
 
     /// <summary>
     /// Builds the session payload from an entity. Internal rather than private: ProfileEndpoints
     /// returns the same shape after a save, and a second copy of this projection is exactly how the
     /// two would drift the next time CurrentUser grows a field.
+    ///
+    /// <para>
+    /// <c>MemberId</c> and <c>MembershipStatus</c> are NULLABLE on the wire and must stay that way.
+    /// They are null exactly when the account has no member row — the state the claims factory treats
+    /// as a tripwire — and the SPA reads that as "signed in but unusable" rather than inventing a
+    /// status. Filling them in with a default here would hide the same failure the policies exist to
+    /// surface.
+    /// </para>
     /// </summary>
     internal static async Task<CurrentUser> BuildCurrentUserAsync(
         ApplicationUser user,
-        UserManager<ApplicationUser> userManager)
+        UserManager<ApplicationUser> userManager,
+        IMemberStore members)
     {
         var roles = await userManager.GetRolesAsync(user);
+        var member = await members.FindByUserIdAsync(user.Id, CancellationToken.None);
 
         return new CurrentUser(
             user.Id,
@@ -678,6 +701,8 @@ public static class AuthEndpoints
             user.Street,
             user.HouseNumber,
             user.PostalCode,
-            user.City);
+            user.City,
+            member?.Id,
+            member?.Status.ToString());
     }
 }
