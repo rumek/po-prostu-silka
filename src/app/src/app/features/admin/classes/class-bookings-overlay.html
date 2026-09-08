@@ -55,6 +55,43 @@
     </ul>
   }
 
+  <!-- Sign somebody up (S-14, AM-007). Below the list rather than above it: the panel's subject is
+       who is coming, and this is an action taken after reading that. Hidden entirely when there is
+       nobody left to add — an empty select with a disabled button explains nothing. -->
+  @if (bookable().length > 0) {
+    <div class="bookings-add">
+      <label class="field" for="add-member">Dopisz członka</label>
+      <div class="bookings-add-controls">
+        <select
+          id="add-member"
+          [ngModel]="chosen()"
+          (ngModelChange)="chosen.set($event)"
+          [disabled]="adding()"
+        >
+          <option value="">Wybierz osobę…</option>
+          @for (member of bookable(); track member.id) {
+            <option [value]="member.id">
+              {{ member.displayName }}{{ member.userId ? '' : ' — bez konta' }}
+            </option>
+          }
+        </select>
+
+        <button
+          type="button"
+          class="button button--secondary"
+          [disabled]="!chosen() || adding()"
+          (click)="add()"
+        >
+          {{ adding() ? 'Zapisuję…' : 'Zapisz' }}
+        </button>
+      </div>
+
+      @if (addFailure()) {
+        <p class="field-error" role="alert">{{ addFailure() }}</p>
+      }
+    </div>
+  }
+
   <div class="overlay-actions">
     <button type="button" class="link-button" (click)="close()">Zamknij</button>
   </div>

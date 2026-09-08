@@ -379,12 +379,17 @@ describe('Classes', () => {
     bookedAt: todayAt(9),
   };
 
-  /** Opens the overlay for a class and answers the request it makes. */
+  /**
+   * Opens the overlay for a class and answers BOTH requests it makes: the roster, and the member
+   * list its sign-up picker offers (S-14). Nobody is offered here — this screen's tests are about
+   * the calendar, and the picker has its own spec.
+   */
   async function openBookings(name: string, rows: (typeof SIGNUP)[]): Promise<void> {
     actionIn(tileFor(name), 'Zapisani').click();
     await settle();
 
     controller.expectOne('/api/admin/classes/c1/bookings').flush(rows);
+    controller.expectOne('/api/admin/members?filter=Active').flush([]);
     await settle();
   }
 

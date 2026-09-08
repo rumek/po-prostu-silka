@@ -330,6 +330,29 @@ now stands, like the member path, so the booking panel updates in place. Also he
 member picker marks accountless people "bez konta", so nobody wonders why the plan never appears on
 someone's phone.
 
+**Adapted during implementation (Phase 7).**
+
+- **`member_blocked` joined the wire vocabulary, and it is admin-only.** The plan named it; what it
+  did not say is that the reason can never reach the member's own route, because the `ActiveMember`
+  policy has already vouched for the caller. It says so in `BookingFailure`'s own doc now, so nobody
+  writes a member-side branch for a state that cannot occur there.
+- **The SPA needed a SECOND failure mapper, not a second table.** `booking-failure.ts` addresses the
+  member in the second person, which is right everywhere except the one screen where an admin acts
+  for somebody else — "Jesteś już zapisany" about a third party is simply false.
+  `adminBookingFailureMessage` restates only the two person-relative reasons and delegates the rest,
+  so a cancelled class or a lost race still reads from the one table.
+- **The sign-up picker lives in the bookings overlay and loads its own members**, like everything
+  else that overlay owns. It offers `getMembers('Active')` minus whoever already holds a spot — the
+  server would refuse those with `already_booked`, and a list with unchoosable entries in it is
+  worse than a shorter one. A failed member load is deliberately quiet: the picker disappears and
+  the panel's real job, showing who is coming, is untouched.
+- **`booked` emits the CLASS, where `released` emits nothing.** The release path adjusts the tile by
+  one; the admin sign-up replaces it outright, because the API answers with the occurrence as it now
+  stands and a count the server just computed beats one the screen inferred.
+- **The picker marks accountless people "bez konta"** — the same wording the trainer's plan picker
+  got in Phase 5, and for the same reason: a booking that never appears on anyone's phone is
+  otherwise a mystery.
+
 ### Phase 8 — Contact details flip, schema tightens
 
 `BuildCurrentUserAsync` and `ProfileEndpoints` read and write the `Member`; the dual-write of contact

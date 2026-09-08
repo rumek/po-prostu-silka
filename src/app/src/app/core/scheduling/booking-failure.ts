@@ -24,6 +24,9 @@ const MESSAGES: Record<BookingFailure['reason'], string> = {
   already_booked: 'Jesteś już zapisany na te zajęcia.',
   class_full: 'Brak wolnych miejsc na tych zajęciach.',
   not_booked: 'Nie jesteś zapisany na te zajęcia.',
+  // Admin route only — see BookingFailure. Phrased about the member because that is the only place
+  // it can ever be shown.
+  member_blocked: 'Ta osoba jest zablokowana i nie może być zapisana na zajęcia.',
   // Not a product rule: the server lost an optimistic race on every attempt. Trying again is
   // genuinely the right advice, and it is what the message says.
   conflict: 'Ktoś właśnie zmienił zapisy na te zajęcia. Spróbuj ponownie.',
@@ -45,4 +48,27 @@ export function bookingFailureMessage(reason: unknown): string {
   return typeof reason === 'string' && Object.hasOwn(MESSAGES, reason)
     ? MESSAGES[reason as BookingFailure['reason']]
     : UNKNOWN;
+}
+
+/**
+ * The two reasons that are ABOUT A PERSON, as the admin needs to read them.
+ *
+ * The shared table above addresses the member in the second person, which is right on every screen
+ * that shows a member their own booking and wrong on the one screen where an admin is acting for
+ * somebody else — "Jesteś już zapisany" about a third party is simply false. Only the person-relative
+ * reasons are restated; everything else (a cancelled class, a full class, a lost race) reads the same
+ * whoever is looking at it, and still comes from the one table.
+ */
+const ADMIN_MESSAGES: Partial<Record<BookingFailure['reason'], string>> = {
+  already_booked: 'Ta osoba jest już zapisana na te zajęcia.',
+  not_booked: 'Ta osoba nie jest zapisana na te zajęcia.',
+};
+
+/** The message for a refusal the ADMIN caused, acting on somebody else's behalf (S-14). */
+export function adminBookingFailureMessage(reason: unknown): string {
+  return (
+    (typeof reason === 'string' && Object.hasOwn(ADMIN_MESSAGES, reason)
+      ? ADMIN_MESSAGES[reason as BookingFailure['reason']]
+      : undefined) ?? bookingFailureMessage(reason)
+  );
 }

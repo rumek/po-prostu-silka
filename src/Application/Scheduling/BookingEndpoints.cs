@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using po_prostu_silka.Application.Members;
 using po_prostu_silka.Application.Persistence;
 using po_prostu_silka.Domain;
+using po_prostu_silka.Domain.Members;
 using po_prostu_silka.Domain.Scheduling;
 
 namespace po_prostu_silka.Application.Scheduling;
@@ -79,8 +80,15 @@ public record ClassBooking(
 ///
 /// <para>
 /// Reasons: <c>class_cancelled</c>, <c>class_started</c>, <c>already_booked</c>, <c>class_full</c>,
-/// <c>not_booked</c>, <c>conflict</c>. Adding one means adding it to the SPA's BookingFailure union
-/// too. A missing class is a 404 and not a reason — an unknown id is not a state disagreement.
+/// <c>not_booked</c>, <c>conflict</c>, and — on the admin route only — <c>member_blocked</c>. Adding
+/// one means adding it to the SPA's BookingFailure union too. A missing class is a 404 and not a
+/// reason — an unknown id is not a state disagreement, and neither is a member id nobody issued.
+/// </para>
+///
+/// <para>
+/// <c>member_blocked</c> cannot occur on the member's own route: the <c>ActiveMember</c> policy
+/// already requires an active membership, so a blocked member never reaches the handler. It exists
+/// because the admin route names its member in the body, where no policy can vouch for them (S-14).
 /// </para>
 ///
 /// <para>
@@ -90,6 +98,18 @@ public record ClassBooking(
 /// </para>
 /// </summary>
 public record BookingFailure(string Reason);
+
+/// <summary>
+/// Who the admin is booking (S-14, AM-007).
+///
+/// <para>
+/// A MEMBER ID IN A BODY, which every other booking route refuses on principle — see
+/// <c>BookAsync</c>. The exception is deliberate and is the whole point of the route: the admin is
+/// acting for somebody else, typically somebody with no account who could not book for themselves.
+/// What makes it safe is the <c>Admin</c> policy on the group, not the shape of the request.
+/// </para>
+/// </summary>
+public record AdminBookingRequest(Guid MemberId);
 
 /// <summary>
 /// Booking and cancelling a spot (prd.md US-01, FR-008, FR-009, FR-010).
@@ -167,6 +187,7 @@ public static class BookingEndpoints
             .RequireAuthorization(AuthorizationPolicyNames.Admin);
 
         adminBookings.MapGet("/{classId:guid}/bookings", GetForClassAsync);
+        adminBookings.MapPost("/{classId:guid}/bookings", BookForMemberAsync);
         adminBookings.MapDelete("/{classId:guid}/bookings/{bookingId:guid}", ReleaseAsync);
 
         return app;
@@ -212,6 +233,43 @@ public static class BookingEndpoints
             return Results.Unauthorized();
         }
 
+        return await TryBookAsync(
+            classId, memberId.Value, memberUserId, classes, bookings, unitOfWork, timeProvider,
+            cancellationToken);
+    }
+
+    /// <summary>
+    /// Books a spot for a member the caller has already established the right to book for (S-14).
+    ///
+    /// <para>
+    /// ONE LOOP, TWO CALLERS, and that is the point of the extraction rather than a tidiness
+    /// exercise: the no-overbooking protocol is a specific sequence — re-read, check, insert, rotate
+    /// the stamp, save, discard and retry — and a second copy of it written for the admin route would
+    /// be a second chance to get that sequence subtly wrong. <c>AdminBookingEndpointTests</c> runs
+    /// the concurrency race through the ADMIN route for exactly this reason.
+    /// </para>
+    ///
+    /// <para>
+    /// It takes no <see cref="ClaimsPrincipal"/> on purpose. Who may book for whom is settled by the
+    /// caller — the cookie on the member route, the <c>Admin</c> policy on the other — and passing
+    /// the principal in here would invite a future authorization check in the one place that must
+    /// stay a pure mechanism.
+    /// </para>
+    /// </summary>
+    /// <param name="memberUserId">
+    /// The member's account, written beside <paramref name="memberId"/> for one more release. NULL
+    /// for a member with no login — the case this slice exists for.
+    /// </param>
+    private static async Task<IResult> TryBookAsync(
+        Guid classId,
+        Guid memberId,
+        string? memberUserId,
+        IClassStore classes,
+        IBookingStore bookings,
+        IUnitOfWork unitOfWork,
+        TimeProvider timeProvider,
+        CancellationToken cancellationToken)
+    {
         for (var attempt = 1; attempt <= MaxAttempts; attempt++)
         {
             var entity = await classes.FindAsync(classId, cancellationToken);
@@ -235,7 +293,7 @@ public static class BookingEndpoints
                 return Refuse("class_started");
             }
 
-            if (await bookings.FindActiveAsync(classId, memberId.Value, cancellationToken) is not null)
+            if (await bookings.FindActiveAsync(classId, memberId, cancellationToken) is not null)
             {
                 return Refuse("already_booked");
             }
@@ -253,7 +311,7 @@ public static class BookingEndpoints
                 Id = Guid.NewGuid(),
                 ClassId = entity.Id,
                 MemberUserId = memberUserId,
-                MemberId = memberId.Value,
+                MemberId = memberId,
                 Status = BookingStatus.Active,
                 CreatedAt = now,
             });
@@ -292,6 +350,54 @@ public static class BookingEndpoints
         }
 
         return Refuse("conflict");
+    }
+
+    /// <summary>
+    /// Books somebody else in (S-14, AM-007).
+    ///
+    /// <para>
+    /// THE REASON THE SLICE NEEDED THIS: a member with no account cannot tap Book, so without an
+    /// admin route the club could record them, plan for them, and never get them into a class. It
+    /// works for members WITH accounts too — a phone call to the desk is a perfectly ordinary way to
+    /// sign up.
+    /// </para>
+    ///
+    /// <para>
+    /// Two pre-checks the member route cannot need, both BEFORE the loop because neither depends on
+    /// state the loop re-reads: an unknown member is a 404, exactly like an unknown class, and a
+    /// blocked one is refused. The rest is <see cref="TryBookAsync"/> — the same loop, the same
+    /// refusals, the same guarantee — and it deliberately grants no exemptions: an admin cannot
+    /// overfill a class or book into one that has started, because the club would then have to honour
+    /// a seat that does not exist.
+    /// </para>
+    /// </summary>
+    private static async Task<IResult> BookForMemberAsync(
+        Guid classId,
+        AdminBookingRequest request,
+        IMemberStore members,
+        IClassStore classes,
+        IBookingStore bookings,
+        IUnitOfWork unitOfWork,
+        TimeProvider timeProvider,
+        CancellationToken cancellationToken)
+    {
+        var member = await members.FindAsync(request.MemberId, cancellationToken);
+        if (member is null)
+        {
+            return Results.NotFound();
+        }
+
+        // A blocked member may not attend, and the block cascade would cancel this booking the next
+        // time anyone blocked them anyway. Refusing is the honest answer rather than writing a spot
+        // the club has already decided not to honour.
+        if (member.Status != MembershipStatus.Active)
+        {
+            return Refuse("member_blocked");
+        }
+
+        return await TryBookAsync(
+            classId, member.Id, member.UserId, classes, bookings, unitOfWork, timeProvider,
+            cancellationToken);
     }
 
     /// <summary>

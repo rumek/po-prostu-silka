@@ -114,3 +114,26 @@
   text-decoration: underline;
   cursor: pointer;
 }
+
+// The sign-up row (S-14). Separated from the list by a rule rather than by space alone: it is an
+// action on the class, not another person on it, and at a glance the two must not read as one list.
+.bookings-add {
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--line);
+}
+
+.bookings-add-controls {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  margin-top: var(--space-2);
+
+  select {
+    flex: 1;
+
+    // A member list can hold long names, and a select that grows past its container pushes the
+    // button off the panel.
+    min-width: 0;
+  }
+}

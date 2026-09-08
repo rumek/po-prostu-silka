@@ -60,7 +60,11 @@ export interface ClassBooking {
  *
  * EVERY ONE OF THESE IS A 409, which is what makes this union different from `ClassFailure`. A
  * booking request carries no fields to get wrong — the class is in the URL and the member is the
- * caller — so there is nothing here that could be a 400. A missing class is a 404 and not a reason.
+ * caller — so there is nothing here that could be a 400. A missing class is a 404 and not a reason,
+ * and neither is a member id nobody issued.
+ *
+ * `member_blocked` reaches only the ADMIN booking route (S-14): on the member's own route the
+ * ActiveMember policy has already vouched for them, so it cannot occur there.
  *
  * `conflict` is the only one that is not a product rule: the server's retry loop lost its race on
  * every attempt, and the honest advice is to try again.
@@ -72,5 +76,6 @@ export interface BookingFailure {
     | 'already_booked'
     | 'class_full'
     | 'not_booked'
+    | 'member_blocked'
     | 'conflict';
 }

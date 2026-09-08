@@ -276,6 +276,19 @@ export class Classes {
     );
   }
 
+  /**
+   * The overlay signed somebody up (S-14). Unlike `afterRelease` this REPLACES the class rather than
+   * adjusting a number: the admin route answers with the occurrence as it now stands, and a count
+   * the server just computed beats one this screen infers.
+   */
+  protected afterAdminBooking(updated: ScheduledClass): void {
+    this.rows.update((rows) =>
+      rows.map((candidate) => (candidate.id === updated.id ? updated : candidate)),
+    );
+
+    this.viewingBookings.update((open) => (open && open.id === updated.id ? updated : open));
+  }
+
   protected closeDuplicate(): void {
     this.duplicating.set(null);
   }

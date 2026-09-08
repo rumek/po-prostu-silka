@@ -172,6 +172,7 @@
   <app-class-bookings-overlay
     [row]="row"
     (released)="afterRelease(row)"
+    (booked)="afterAdminBooking($event)"
     (closed)="closeBookings()"
   />
 }

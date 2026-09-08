@@ -57,6 +57,22 @@ export class BookingService {
     );
   }
 
+  /**
+   * Books somebody else in (S-14, AM-007). Admin only. Resolves with the class as it now stands,
+   * exactly like `book`.
+   *
+   * THE ONE BOOKING CALL THAT NAMES ITS MEMBER. Every other route here takes the member from the
+   * cookie; this one cannot, because the person being booked may have no login at all — which is
+   * the case the route exists for. What makes it safe is the Admin policy on the server.
+   */
+  bookForMember(classId: string, memberId: string): Promise<ScheduledClass> {
+    return firstValueFrom(
+      this.http.post<ScheduledClass>(`/api/admin/classes/${encodeURIComponent(classId)}/bookings`, {
+        memberId,
+      }),
+    );
+  }
+
   /** Releases somebody else's spot. Admin only. */
   async cancelAsAdmin(classId: string, bookingId: string): Promise<void> {
     await firstValueFrom(

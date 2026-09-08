@@ -2,6 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { Component, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { Member } from '../../../core/admin/member-admin.models';
 import { ClassBooking } from '../../../core/scheduling/booking.models';
 import { ScheduledClass } from '../../../core/scheduling/class.models';
 import { ClassBookingsOverlay } from './class-bookings-overlay';
@@ -31,6 +32,20 @@ function signup(over: Partial<ClassBooking> = {}): ClassBooking {
   };
 }
 
+function member(over: Partial<Member> = {}): Member {
+  return {
+    id: over.id ?? 'm2',
+    userId: over.userId === undefined ? 'u2' : over.userId,
+    displayName: over.displayName ?? 'Jan Nowak',
+    email: over.email ?? 'jan@example.test',
+    membershipStatus: 'Active',
+    accountStatus: over.userId === null ? null : 'Active',
+    hasAccessCode: false,
+    roles: ['User'],
+    createdAt: '2026-09-01T08:00:00+00:00',
+  };
+}
+
 /** Hosts the overlay the way the admin screen does, so the inputs and outputs run as bound. */
 @Component({
   imports: [ClassBookingsOverlay],
@@ -38,6 +53,7 @@ function signup(over: Partial<ClassBooking> = {}): ClassBooking {
     <app-class-bookings-overlay
       [row]="row()"
       (released)="releases = releases + 1"
+      (booked)="booked = $event"
       (closed)="closes = closes + 1"
     />
   `,
@@ -46,6 +62,9 @@ class Host {
   readonly row = signal<ScheduledClass>(JOGA);
   releases = 0;
   closes = 0;
+
+  /** The class the API answered the sign-up with — what the screen replaces its tile from. */
+  booked: ScheduledClass | null = null;
 }
 
 /**
@@ -90,8 +109,14 @@ describe('ClassBookingsOverlay', () => {
     fixture.detectChanges();
   }
 
-  async function respond(rows: ClassBooking[]): Promise<void> {
+  /**
+   * Answers BOTH of the overlay's init requests: the roster, and the member list its sign-up picker
+   * offers (S-14). `candidates` defaults to nobody, so a test that does not care about signing
+   * people up sees no picker and no leftover request for afterEach's verify() to trip on.
+   */
+  async function respond(rows: ClassBooking[], candidates: Member[] = []): Promise<void> {
     controller.expectOne('/api/admin/classes/c1/bookings').flush(rows);
+    controller.expectOne('/api/admin/members?filter=Active').flush(candidates);
     await settle();
   }
 
@@ -130,6 +155,7 @@ describe('ClassBookingsOverlay', () => {
 
   it('offers a retry when the list fails to load', async () => {
     controller.expectOne('/api/admin/classes/c1/bookings').error(new ProgressEvent('failed'));
+    controller.expectOne('/api/admin/members?filter=Active').flush([]);
     await settle();
 
     expect(element().querySelector('[role="alert"]')).not.toBeNull();
@@ -137,7 +163,8 @@ describe('ClassBookingsOverlay', () => {
     buttonWith('Spróbuj ponownie')!.click();
     await settle();
 
-    await respond([signup()]);
+    controller.expectOne('/api/admin/classes/c1/bookings').flush([signup()]);
+    await settle();
 
     expect(rows().length).toBe(1);
   });
@@ -195,5 +222,106 @@ describe('ClassBookingsOverlay', () => {
     element().querySelector<HTMLButtonElement>('.overlay-backdrop')!.click();
 
     expect(host.closes).toBe(1);
+  });
+
+  // --- signing somebody up (S-14) -------------------------------------------
+
+  function picker(): HTMLSelectElement | null {
+    return element().querySelector<HTMLSelectElement>('#add-member');
+  }
+
+  function optionLabels(): string[] {
+    return [...picker()!.options].map((option) => option.textContent!.trim());
+  }
+
+  /**
+   * THE CASE THE ROUTE EXISTS FOR: somebody with no login cannot tap Book, so the club can only get
+   * them into a class from here. The picker says so, because a plan or a booking that never appears
+   * on anyone's phone is otherwise a mystery.
+   */
+  it('offers members with no account, and marks them', async () => {
+    await respond([], [member({ id: 'm9', userId: null, displayName: 'Filip Bez Konta' })]);
+
+    expect(optionLabels()).toContain('Filip Bez Konta — bez konta');
+  });
+
+  /** Choosing somebody already on the list could only produce an already_booked refusal. */
+  it('leaves out members who already hold a spot', async () => {
+    await respond(
+      [signup({ memberId: 'm1', displayName: 'Ala Kowalska' })],
+      [member({ id: 'm1', displayName: 'Ala Kowalska' }), member({ id: 'm2' })],
+    );
+
+    expect(optionLabels()).not.toContain('Ala Kowalska');
+    expect(optionLabels()).toContain('Jan Nowak');
+  });
+
+  /** Nobody left to add means no picker at all — an empty select explains nothing. */
+  it('hides the picker when everybody is already signed up', async () => {
+    await respond([signup({ memberId: 'm2' })], [member({ id: 'm2' })]);
+
+    expect(picker()).toBeNull();
+  });
+
+  it('signs the chosen member up and hands the screen the updated class', async () => {
+    await respond([], [member({ id: 'm2' })]);
+
+    picker()!.value = 'm2';
+    picker()!.dispatchEvent(new Event('change'));
+    await settle();
+
+    buttonWith('Zapisz')!.click();
+    await settle();
+
+    const request = controller.expectOne('/api/admin/classes/c1/bookings');
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body).toEqual({ memberId: 'm2' });
+    request.flush({ ...JOGA, freeSpots: 17 });
+    await settle();
+
+    // The roster is refetched: the API answered with the class, so there is no row to append.
+    controller.expectOne('/api/admin/classes/c1/bookings').flush([signup({ memberId: 'm2' })]);
+    await settle();
+
+    expect(rows().length).toBe(1);
+
+    // The server's count, not one this screen inferred.
+    expect(host.booked?.freeSpots).toBe(17);
+  });
+
+  /**
+   * The shared failure table addresses the member in the second person, which is wrong on the one
+   * screen where an admin acts for somebody else — see adminBookingFailureMessage.
+   */
+  it('names a refusal in the third person', async () => {
+    await respond([], [member({ id: 'm2' })]);
+
+    picker()!.value = 'm2';
+    picker()!.dispatchEvent(new Event('change'));
+    await settle();
+
+    buttonWith('Zapisz')!.click();
+    await settle();
+
+    controller
+      .expectOne('/api/admin/classes/c1/bookings')
+      .flush({ reason: 'member_blocked' }, { status: 409, statusText: 'Conflict' });
+    await settle();
+
+    expect(element().textContent).toContain('Ta osoba jest zablokowana');
+    expect(host.booked).toBeNull();
+  });
+
+  /**
+   * A failed member list must not take the panel down with it — the admin came here to see who is
+   * coming, and that still works.
+   */
+  it('still shows the roster when the member list fails to load', async () => {
+    controller.expectOne('/api/admin/classes/c1/bookings').flush([signup()]);
+    controller.expectOne('/api/admin/members?filter=Active').error(new ProgressEvent('failed'));
+    await settle();
+
+    expect(rows().length).toBe(1);
+    expect(picker()).toBeNull();
   });
 });
