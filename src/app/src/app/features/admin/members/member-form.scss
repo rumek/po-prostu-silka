@@ -1,0 +1,35 @@
+// Layout only — the .panel/.card/.field/.hint/.notice/.button classes come from src/styles.scss.
+
+.section-title {
+  margin: var(--space-6) 0 var(--space-4);
+  font-size: 1.125rem;
+}
+
+// Marks a field the club may legitimately leave empty. Quiet, and part of the label rather than a
+// separate hint line: an admin scanning the form needs to know which fields they can skip without
+// reading a paragraph under each one.
+.optional {
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-weight: 400;
+}
+
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-6);
+}
+
+// The cancel link sits beside a submit BUTTON and has to match its box, which an anchor does not get
+// from .button alone — the shared rule assumes a control that is already inline-block and centred.
+.form-actions a.button {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+.link-button {
+  color: inherit;
+}

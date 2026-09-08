@@ -1,46 +1,128 @@
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
 using po_prostu_silka.Application.Notifications;
 using po_prostu_silka.Application.Persistence;
 using po_prostu_silka.Application.Scheduling;
 using po_prostu_silka.Domain;
+using po_prostu_silka.Domain.Members;
 
 namespace po_prostu_silka.Application.Members;
 
 /// <summary>
 /// A member waiting for approval, as the admin's queue sees them. This is a CONTRACT the SPA's
 /// member-admin service mirrors — renaming a field breaks the approvals screen silently.
+///
+/// <para>
+/// Addressed by <see cref="MemberId"/> since S-14, like everything else on this surface, even though
+/// approval is an ACCOUNT action: the queue's rows are people, and a screen that addressed some of
+/// them by member and others by account would be one mix-up away from approving the wrong person.
+/// <see cref="UserId"/> travels too, because the queue is by definition accounts-only and the screen
+/// has legitimate uses for it.
+/// </para>
 /// </summary>
-public record PendingMember(string Id, string Email, string DisplayName, DateTimeOffset CreatedAt);
+public record PendingMember(
+    Guid MemberId,
+    string UserId,
+    string Email,
+    string DisplayName,
+    DateTimeOffset CreatedAt);
 
 /// <summary>
-/// A member as the admin's full list sees them (FR-005). Wider than <see cref="PendingMember"/>,
-/// which stays as it is — the approvals queue does not need a status it already knows.
+/// A member as the admin's full list sees them (FR-005, and S-14's accountless records).
 ///
 /// This is a CONTRACT the SPA's member-admin service mirrors — renaming a field breaks the members
 /// screen silently.
 ///
 /// <para>
-/// Status crosses the wire as the enum NAME ("Pending" / "Active" / "Blocked"), not its int. The
-/// numeric values exist for persistence stability (see <see cref="AccountStatus"/>) and are nobody
-/// else's business; a badge keyed on 2 would break the day someone renumbers, which is exactly the
-/// scenario that enum's comment warns about.
+/// TWO STATUSES, AND THEY ARE NOT THE SAME QUESTION. <see cref="MembershipStatus"/> is always present
+/// and says whether the person may use the club; <see cref="AccountStatus"/> is null exactly when
+/// <see cref="UserId"/> is null and says whether their login works. Collapsing them into one field was
+/// the obvious simplification and it is wrong: an accountless member has no account status to report,
+/// and reporting "Active" for them would claim a login exists.
 /// </para>
 ///
 /// <para>
-/// <see cref="Roles"/> carries the account's role NAMES as stored ("User", "Admin", "Trainer") — the
-/// same reasoning as Status: a name survives a renumbering, and the screen needs to render a badge
-/// per role and decide which actions a row offers. It is a list rather than a boolean because
-/// admins now appear in this list, so a single is-trainer flag would immediately need a second
-/// is-admin flag beside it.
+/// Both cross the wire as enum NAMES, never their ints — the numeric values exist for persistence
+/// stability and a badge keyed on 2 would break the day someone renumbers.
+/// <see cref="Roles"/> follows the same rule and is empty for a member with no account, because roles
+/// live in Identity and a record without a login holds none.
 /// </para>
 /// </summary>
 public record MemberSummary(
-    string Id,
-    string Email,
+    Guid Id,
+    string? UserId,
     string DisplayName,
-    string Status,
+    string? Email,
+    string MembershipStatus,
+    string? AccountStatus,
     IReadOnlyList<string> Roles,
+    bool HasAccessCode,
     DateTimeOffset CreatedAt);
+
+/// <summary>
+/// One member with everything the admin's edit form needs. Separate from <see cref="MemberSummary"/>
+/// rather than widening it: the list renders dozens of rows and has no business shipping everybody's
+/// home address to build a table.
+/// </summary>
+public record MemberDetail(
+    Guid Id,
+    string? UserId,
+    string DisplayName,
+    string? Email,
+    string MembershipStatus,
+    string? AccountStatus,
+    IReadOnlyList<string> Roles,
+    string? PhoneNumber,
+    string? Street,
+    string? HouseNumber,
+    string? PostalCode,
+    string? City,
+    DateTimeOffset CreatedAt);
+
+/// <summary>
+/// The positions the admin's filter offers. Bound as a nullable enum, so an unparseable value is a 400
+/// from the framework's binding rather than a silent fall-through to "no filter" — the same reasoning
+/// the account-status filter used before S-14 widened it.
+///
+/// <para>
+/// These are the states an ADMIN thinks in, not a projection of either enum. That is why they overlap
+/// the two underlying statuses rather than mirroring one: "pending" is a fact about a login, "without
+/// account" is the absence of one, and "active" has to mean the same thing for a person with a login
+/// and a person without.
+/// </para>
+/// </summary>
+public enum MemberListFilter
+{
+    /// <summary>Has an account that is awaiting approval.</summary>
+    Pending = 0,
+
+    /// <summary>May use the club: active membership, and an active account if there is one at all.</summary>
+    Active = 1,
+
+    /// <summary>Barred. Since S-14 a block sets both statuses together, so membership alone answers this.</summary>
+    Blocked = 2,
+
+    /// <summary>Recorded by the club, never registered. The case S-14 exists for.</summary>
+    WithoutAccount = 3,
+}
+
+/// <summary>
+/// What the admin submits to create or edit a member record.
+///
+/// <para>
+/// The five contact fields are ALL-OR-NOTHING rather than individually optional — see
+/// <see cref="MemberAdminEndpoints"/>'s remarks on why they are not simply required here the way they
+/// are at registration.
+/// </para>
+/// </summary>
+public record MemberRequest(
+    string DisplayName,
+    string? Email,
+    string? PhoneNumber,
+    string? Street,
+    string? HouseNumber,
+    string? PostalCode,
+    string? City);
 
 public record ApproveFailure(string Reason);
 
@@ -52,8 +134,12 @@ public record ApproveFailure(string Reason);
 public record BlockFailure(string Reason);
 
 /// <summary>
-/// Why an unblock was refused. <c>not_blocked</c> — the target is Pending, so the action wanted is
-/// approve, not unblock; <c>conflict</c> — as above.
+/// Why an unblock was refused. <c>conflict</c> — someone changed the row between our read and our
+/// write, so the caller's view is stale and should be refetched.
+///
+/// <c>not_blocked</c> is GONE as of S-14 and must not come back: membership has two states, so
+/// "not blocked" is "already active", and that is a no-op the handler reports as success rather than
+/// an error.
 /// </summary>
 public record UnblockFailure(string Reason);
 
@@ -61,6 +147,10 @@ public record UnblockFailure(string Reason);
 /// Why a Trainer-role change was refused. <c>not_active</c> — the target is Pending or Blocked, and
 /// FR-001 grants the role to an approved account only; letting it through would put an unvetted
 /// account into the instructor selection S-06 builds on top of this.
+///
+/// <c>no_account</c> — the member has no login, and roles live in Identity. S-14 makes an accountless
+/// instructor REPRESENTABLE (the class's instructor is a member now) but deliberately still refuses
+/// one; see roadmap Open Question 3.
 ///
 /// <c>failed</c> — Identity refused the write. This IS a real concurrency failure, despite the role
 /// change looking like a simple insert: AddToRoleAsync goes through UpdateUserAsync, which is a
@@ -72,21 +162,45 @@ public record UnblockFailure(string Reason);
 public record TrainerRoleFailure(string Reason);
 
 /// <summary>
-/// The admin's member surface: the approval queue (S-01), and the full member list S-02 adds on top
-/// of it.
+/// Why a create or edit was refused. <c>invalid_display_name</c> — blank or too long;
+/// <c>invalid_email</c> — present but malformed; <c>email_taken</c> — another member or account
+/// already holds it; <c>conflict</c> — a lost optimistic race. The five contact codes
+/// (<c>invalid_phone</c> and friends) come straight from <see cref="ContactDetails"/> and are the same
+/// strings <c>/register</c> and <c>PUT /api/profile</c> answer with.
+/// </summary>
+public record MemberFailure(string Reason);
+
+/// <summary>
+/// The admin's member surface: the approval queue (S-01), the full member list S-02 added on top of
+/// it, and since S-14 the records of people who have never registered at all.
 ///
-/// There is still no reject — FR-003 dropped it from the MVP. The PRD's open question about a
-/// blocked member's existing bookings, recorded here by S-01 and reassigned during S-02's framing
-/// because it asked about an aggregate that did not exist, is ANSWERED as of S-08: blocking silently
-/// cancels the member's FUTURE bookings and leaves past ones alone. Unblocking restores nothing.
+/// <para>
+/// EVERY ROUTE HERE IS ADDRESSED BY MEMBER ID, including the ones that act on an account. That is a
+/// deliberate uniformity: this screen's rows are people, half of them may have no account id to be
+/// addressed by, and a surface where the identifier in the URL depended on which action you were
+/// taking would be a mix-up waiting to happen. The account-shaped actions — approve, and the Trainer
+/// role — resolve the member first and answer 409 <c>no_account</c> when there is nothing to act on.
+/// </para>
 ///
-/// These are the FIRST production consumers of the Admin policy; before this it existed only for the
-/// environment-guarded probes in Program.cs.
+/// <para>
+/// WHY CONTACT DETAILS ARE ALL-OR-NOTHING HERE, AND REQUIRED AT REGISTRATION. FR-025 makes them
+/// mandatory when someone registers, and that rule is unchanged. An admin recording a person at the
+/// desk is a different situation: demanding a full postal address before the club may write down that
+/// someone trains here would make this slice unusable for the case it exists for. So the block is
+/// optional — but if ANY of the five is supplied, all five must be, validated by the same
+/// <see cref="ContactDetails.TryCreate"/> the other two callers use. Half an address is the one
+/// outcome nobody wants, and reusing the validator verbatim is what keeps the three surfaces from
+/// drifting.
+/// </para>
+///
+/// <para>
+/// There is still no reject — FR-003 dropped it from the MVP. The PRD's open question about a blocked
+/// member's existing bookings is ANSWERED as of S-08: blocking silently cancels the member's FUTURE
+/// bookings and leaves past ones alone. Unblocking restores nothing.
+/// </para>
 ///
 /// The policy name comes from Domain (AuthorizationPolicyNames), not from Infrastructure's
-/// AuthorizationPolicies, so this file holds no upward reference: Application -> Domain only. The
-/// builder that turns the name into an ASP.NET policy stays in Infrastructure, which is the half
-/// that genuinely is infrastructure.
+/// AuthorizationPolicies, so this file holds no upward reference: Application -> Domain only.
 /// </summary>
 public static class MemberAdminEndpoints
 {
@@ -100,11 +214,14 @@ public static class MemberAdminEndpoints
 
         group.MapGet("/pending", GetPendingAsync);
         group.MapGet("/", GetMembersAsync);
-        group.MapPost("/{id}/approve", ApproveAsync);
-        group.MapPost("/{id}/block", BlockAsync);
-        group.MapPost("/{id}/unblock", UnblockAsync);
-        group.MapPost("/{id}/roles/trainer", GrantTrainerAsync);
-        group.MapDelete("/{id}/roles/trainer", RevokeTrainerAsync);
+        group.MapGet("/{memberId:guid}", GetMemberAsync);
+        group.MapPost("/", CreateAsync);
+        group.MapPut("/{memberId:guid}", UpdateAsync);
+        group.MapPost("/{memberId:guid}/approve", ApproveAsync);
+        group.MapPost("/{memberId:guid}/block", BlockAsync);
+        group.MapPost("/{memberId:guid}/unblock", UnblockAsync);
+        group.MapPost("/{memberId:guid}/roles/trainer", GrantTrainerAsync);
+        group.MapDelete("/{memberId:guid}/roles/trainer", RevokeTrainerAsync);
 
         return app;
     }
@@ -113,8 +230,7 @@ public static class MemberAdminEndpoints
     /// Oldest waiting first — the admin works a queue, not a list.
     ///
     /// No pagination: a single gym's pending queue is small, and D5 rules out the search/filter UI
-    /// that would make paging meaningful. The query is covered by the Status index in
-    /// ApplicationUserConfiguration.
+    /// that would make paging meaningful.
     /// </summary>
     private static async Task<IResult> GetPendingAsync(
         IPendingMemberQuery query,
@@ -122,34 +238,185 @@ public static class MemberAdminEndpoints
         Results.Ok(await query.GetPendingAsync(cancellationToken));
 
     /// <summary>
-    /// Every account, or one status of them (FR-005). Admins ARE included since S-04 — prd-v2
+    /// Every member, or one filter position of them (FR-005). Admins ARE included since S-04 — prd-v2
     /// FR-003 needs an owner who teaches to be grantable the Trainer role, and this list is the
     /// surface that grant lives on. Nothing here is a security boundary: the only thing stopping the
-    /// club from blocking its own admin is <see cref="BlockAsync"/>'s is_admin check. See the note
-    /// on MemberQuery before assuming otherwise.
+    /// club from blocking its own admin is <see cref="BlockAsync"/>'s is_admin check.
     ///
-    /// <paramref name="status"/> binds as a nullable enum, so an unparseable value is a 400 from the
-    /// framework's binding rather than a silent fall-through to "no filter". That distinction
-    /// matters: a typo in the SPA must surface as a broken request, not as the admin quietly being
-    /// shown everyone when they asked for the blocked.
-    ///
-    /// No pagination, for the reason GetPendingAsync gives: a single gym's list is small. Search is
-    /// the SPA's job — it filters the loaded rows, which is instant and costs no round-trip.
+    /// No pagination, for the reason GetPendingAsync gives. Search is the SPA's job — it filters the
+    /// loaded rows, which is instant and costs no round-trip.
     /// </summary>
     private static async Task<IResult> GetMembersAsync(
-        AccountStatus? status,
+        MemberListFilter? filter,
         IMemberQuery query,
         CancellationToken cancellationToken) =>
-        Results.Ok(await query.GetMembersAsync(status, cancellationToken));
+        Results.Ok(await query.GetMembersAsync(filter, cancellationToken));
 
+    private static async Task<IResult> GetMemberAsync(
+        Guid memberId,
+        IMemberQuery query,
+        CancellationToken cancellationToken)
+    {
+        var member = await query.FindDetailAsync(memberId, cancellationToken);
+
+        return member is null ? Results.NotFound() : Results.Ok(member);
+    }
+
+    /// <summary>
+    /// Records a person who has no account (S-14, AM-001).
+    ///
+    /// Creates a member and NOTHING ELSE — no Identity row, no password, no invitation. The person
+    /// gets a login only if they later register with an access code, and until then they exist purely
+    /// as the club's own record.
+    /// </summary>
+    private static async Task<IResult> CreateAsync(
+        [FromBody] MemberRequest request,
+        IMemberStore members,
+        IMemberQuery query,
+        IUnitOfWork unitOfWork,
+        TimeProvider timeProvider,
+        CancellationToken cancellationToken)
+    {
+        if (!TryReadRequest(request, out var displayName, out var email, out var contact, out var failure))
+        {
+            return failure;
+        }
+
+        // Checked before the insert so the ordinary case answers in this endpoint's own vocabulary
+        // rather than as a unique-index violation. The index is still what makes it true - two admins
+        // creating the same address at the same moment both pass this, and the loser gets the 500 that
+        // an unhandled DbUpdateException produces. Rare enough to leave, and safe: nothing is written.
+        if (email is not null && await query.EmailExistsAsync(email, null, cancellationToken))
+        {
+            return Results.Json(new MemberFailure("email_taken"), statusCode: 409);
+        }
+
+        var member = new Member
+        {
+            Id = Guid.NewGuid(),
+            UserId = null,
+            DisplayName = displayName,
+            Email = email,
+            PhoneNumber = contact?.PhoneNumber,
+            Street = contact?.Street,
+            HouseNumber = contact?.HouseNumber,
+            PostalCode = contact?.PostalCode,
+            City = contact?.City,
+
+            // Active on creation: an admin typing someone in has vetted them by the act of typing them
+            // in. See MembershipStatus for why there is no membership Pending to land in instead.
+            Status = MembershipStatus.Active,
+            CreatedAt = timeProvider.GetUtcNow(),
+        };
+
+        members.Add(member);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return Results.Created($"/api/admin/members/{member.Id}", new { id = member.Id });
+    }
+
+    /// <summary>
+    /// Edits a member's own details (S-14, AM-002).
+    ///
+    /// <para>
+    /// APPLIES TO MEMBERS WITH ACCOUNTS TOO, and that is a real widening: before this the admin could
+    /// change nobody's details, only their status and roles. It follows from the record being the
+    /// club's rather than the account holder's — the same reasoning that makes the display name
+    /// un-editable by the member themselves (S-13, FR-006).
+    /// </para>
+    ///
+    /// <para>
+    /// The linked account's copies are updated alongside, while both rows still carry them. Letting
+    /// them diverge would mean the profile screen and the admin screen disagreeing about a phone
+    /// number, with no way to tell which was right.
+    /// </para>
+    /// </summary>
+    private static async Task<IResult> UpdateAsync(
+        Guid memberId,
+        [FromBody] MemberRequest request,
+        IMemberStore members,
+        IMemberQuery query,
+        UserManager<ApplicationUser> userManager,
+        IUnitOfWork unitOfWork,
+        CancellationToken cancellationToken)
+    {
+        if (!TryReadRequest(request, out var displayName, out var email, out var contact, out var failure))
+        {
+            return failure;
+        }
+
+        var member = await members.FindAsync(memberId, cancellationToken);
+        if (member is null)
+        {
+            return Results.NotFound();
+        }
+
+        if (email is not null && await query.EmailExistsAsync(email, memberId, cancellationToken))
+        {
+            return Results.Json(new MemberFailure("email_taken"), statusCode: 409);
+        }
+
+        member.DisplayName = displayName;
+        member.Email = email;
+        member.PhoneNumber = contact?.PhoneNumber;
+        member.Street = contact?.Street;
+        member.HouseNumber = contact?.HouseNumber;
+        member.PostalCode = contact?.PostalCode;
+        member.City = contact?.City;
+        member.ConcurrencyStamp = Guid.NewGuid().ToString();
+
+        if (member.UserId is not null)
+        {
+            var user = await userManager.FindByIdAsync(member.UserId);
+            if (user is not null)
+            {
+                // The EMAIL IS NOT TOUCHED on the account. It is the login identifier, Identity keeps a
+                // normalised copy and a uniqueness index over it, and changing it here would rename
+                // somebody's username as a side effect of an admin fixing a typo in a phone number.
+                // Changing a login address is its own operation and nobody has asked for it.
+                user.DisplayName = displayName;
+                user.PhoneNumber = contact?.PhoneNumber;
+                user.Street = contact?.Street;
+                user.HouseNumber = contact?.HouseNumber;
+                user.PostalCode = contact?.PostalCode;
+                user.City = contact?.City;
+                user.ConcurrencyStamp = Guid.NewGuid().ToString();
+            }
+        }
+
+        if (!await unitOfWork.TrySaveChangesAsync(cancellationToken))
+        {
+            return Results.Json(new MemberFailure("conflict"), statusCode: 409);
+        }
+
+        return Results.NoContent();
+    }
+
+    /// <summary>
+    /// Approves the member's ACCOUNT (FR-003). Addressed by member, acts on the login.
+    /// </summary>
     private static async Task<IResult> ApproveAsync(
-        string id,
+        Guid memberId,
+        IMemberStore members,
         UserManager<ApplicationUser> userManager,
         IAccountApprovedNotification notification,
         IUnitOfWork unitOfWork,
         CancellationToken cancellationToken)
     {
-        var user = await userManager.FindByIdAsync(id);
+        var member = await members.FindAsync(memberId, cancellationToken);
+        if (member is null)
+        {
+            return Results.NotFound();
+        }
+
+        // Nothing to approve: approval is about a login, and this person has none. Not a 404 - the
+        // member exists, the action does not apply to them.
+        if (member.UserId is null)
+        {
+            return Results.Json(new ApproveFailure("no_account"), statusCode: 409);
+        }
+
+        var user = await userManager.FindByIdAsync(member.UserId);
         if (user is null)
         {
             return Results.NotFound();
@@ -193,8 +460,7 @@ public static class MemberAdminEndpoints
 
         // NO explicit transaction here, deliberately. A single SaveChangesAsync is already atomic,
         // and EnableRetryOnFailure (Program.cs) means an explicit transaction must go through
-        // Database.CreateExecutionStrategy().ExecuteAsync(...) or it throws at RUNTIME. If a later
-        // edit genuinely needs multiple saves in one transaction, that is the rule to follow.
+        // Database.CreateExecutionStrategy().ExecuteAsync(...) or it throws at RUNTIME.
         if (!await unitOfWork.TrySaveChangesAsync(cancellationToken))
         {
             // We lost the race: someone approved this member between our read and our write. They
@@ -204,67 +470,80 @@ public static class MemberAdminEndpoints
         }
 
         // The member's cookie still carries account_status=Pending until they call
-        // POST /api/auth/refresh or the security-stamp validation interval fires. That is why that
-        // endpoint exists; see AuthEndpoints.RefreshAsync.
+        // POST /api/auth/refresh or the security-stamp validation interval fires.
         return Results.Ok();
     }
 
     /// <summary>
-    /// Block a member (FR-004): refuse them at login, and cut the session they may already hold.
+    /// Blocks a member (FR-004, and S-14's AM-002): bar them from the club, refuse them at login if
+    /// they have one, and cut the session they may already hold.
     ///
-    /// Follows ApproveAsync's transition shape — idempotency check, manual concurrency-stamp
-    /// rotation, one save — for the same reasons documented there. Two differences:
+    /// <para>
+    /// SINCE S-14 THE BLOCK IS ON THE MEMBERSHIP, not the account, which is what lets an accountless
+    /// record be blocked at all. When there IS an account the two move together and always have to:
+    /// a person barred from the club whose login still worked would reach every screen the
+    /// ActiveMember policy guards.
+    /// </para>
     ///
-    /// 1. It rotates the SECURITY stamp as well, which is what actually ends a live session. F-02
-    ///    deferred this obligation here by name (auth-identity-foundation plan, D-notes): without
-    ///    it, a blocked member keeps a valid cookie carrying account_status=Active and sails past
-    ///    the ActiveMember policy until it happens to be re-minted. Note this is assigned directly
-    ///    rather than via UserManager.UpdateSecurityStampAsync, which would issue its OWN save and
-    ///    split the block into two writes - the exact thing ApproveAsync bypasses UpdateAsync to
-    ///    avoid.
-    /// 2. No notification. The PRD asks for no block email, and telling someone they have been
-    ///    blocked is a product decision nobody has made.
+    /// <para>
+    /// It rotates the account's SECURITY stamp as well, which is what actually ends a live session.
+    /// Without it, a blocked member keeps a valid cookie carrying account_status=Active and sails
+    /// past the policy until it happens to be re-minted. Note this is assigned directly rather than
+    /// via UserManager.UpdateSecurityStampAsync, which would issue its OWN save and split the block
+    /// into two writes.
+    /// </para>
     ///
-    /// SINCE S-08 IT ALSO RELEASES THEIR FUTURE SPOTS — see the cascade comment in the body. That
-    /// answers the PRD open question this file recorded as reassigned, and it is the only place in
-    /// the application where a status change rewrites another aggregate.
+    /// <para>
+    /// No notification. The PRD asks for no block email, and telling someone they have been blocked is
+    /// a product decision nobody has made.
+    /// </para>
     /// </summary>
     private static async Task<IResult> BlockAsync(
-        string id,
+        Guid memberId,
+        IMemberStore members,
         UserManager<ApplicationUser> userManager,
         IBookingStore bookings,
         IUnitOfWork unitOfWork,
         TimeProvider timeProvider,
         CancellationToken cancellationToken)
     {
-        var user = await userManager.FindByIdAsync(id);
-        if (user is null)
+        var member = await members.FindAsync(memberId, cancellationToken);
+        if (member is null)
         {
             return Results.NotFound();
         }
 
-        // THE ONLY THING stopping the club from locking itself out of its own app. Do not remove or
-        // weaken it. This used to be the second of two layers - MemberQuery also excluded admins
-        // structurally - but S-04 lifted that exclusion so the Trainer role could be granted to an
-        // owner who teaches (prd-v2 FR-003). The screen hides block on an admin row, but a screen is
-        // not a boundary and a hand-made request must still be refused here. Checked by ROLE, so it
-        // holds if a second admin is ever seeded.
-        if (await userManager.IsInRoleAsync(user, ApplicationRoles.Admin))
+        ApplicationUser? user = null;
+        if (member.UserId is not null)
         {
-            return Results.Json(new BlockFailure("is_admin"), statusCode: 409);
+            user = await userManager.FindByIdAsync(member.UserId);
+
+            // THE ONLY THING stopping the club from locking itself out of its own app. Do not remove
+            // or weaken it. The screen must not offer block on an admin row — but the screen is not
+            // the boundary; this is. Checked by ROLE, so it holds if a second admin is ever seeded.
+            if (user is not null && await userManager.IsInRoleAsync(user, ApplicationRoles.Admin))
+            {
+                return Results.Json(new BlockFailure("is_admin"), statusCode: 409);
+            }
         }
 
         // Idempotent, like approve: a double-click must not be an error.
-        if (user.Status == AccountStatus.Blocked)
+        if (member.Status == MembershipStatus.Blocked)
         {
             return Results.Ok();
         }
 
-        // Blockable from Active AND Pending: a junk registration should be stoppable without first
-        // approving it, which would be an absurd thing to make the admin do.
-        user.Status = AccountStatus.Blocked;
-        user.ConcurrencyStamp = Guid.NewGuid().ToString();
-        user.SecurityStamp = Guid.NewGuid().ToString();
+        member.Status = MembershipStatus.Blocked;
+        member.ConcurrencyStamp = Guid.NewGuid().ToString();
+
+        if (user is not null)
+        {
+            // Blockable from Active AND Pending: a junk registration should be stoppable without first
+            // approving it, which would be an absurd thing to make the admin do.
+            user.Status = AccountStatus.Blocked;
+            user.ConcurrencyStamp = Guid.NewGuid().ToString();
+            user.SecurityStamp = Guid.NewGuid().ToString();
+        }
 
         // THE ONE STORED CASCADE IN THIS APPLICATION, and a deliberate exception to the convention
         // this file otherwise follows: access consequences are enforced at READ time by policy
@@ -272,22 +551,23 @@ public static class MemberAdminEndpoints
         // cannot attend, and leaving their seats held would have the schedule promise spots to
         // nobody while other members are turned away as full.
         //
-        // Queued into the SAME unit of work as the status flip, so a member is never blocked with
+        // Queued into the SAME unit of work as the status flips, so a member is never blocked with
         // their bookings still held, nor released while still Active.
+        //
+        // KEYED ON THE ACCOUNT AND SKIPPED ENTIRELY WITHOUT ONE, because bookings still carry a user
+        // id at this phase. That is not a gap: a member with no account cannot have booked anything
+        // yet either. When the booking foreign key moves onto the member, this call moves with it and
+        // the accountless case starts mattering - it must not be left keyed on the account then.
         //
         // FUTURE ONLY. Past bookings are attendance history and rewriting them would falsify it.
         //
         // NO CLASS STAMP IS ROTATED, and none is owed: cancelling only ever FREES spots, so a booker
-        // racing this cascade reads a count that is conservative rather than permissive - the worst
-        // it can do is refuse a spot that had just come free. That makes this the ONE writer against
-        // booking counts that stands outside the stamp protocol, which is why BookAsync's and
-        // CancelMineAsync's "exact" free-spot answers qualify themselves against it: a cascade in
-        // their window leaves them understating the spots available, and understating is the
-        // direction that cannot overbook. Both consequences resolve on the member's next read.
-        //
-        // NO NOTIFICATION, consistent with the block itself sending none.
-        await bookings.CancelActiveFutureForMemberAsync(
-            user.Id, timeProvider.GetUtcNow(), cancellationToken);
+        // racing this cascade reads a count that is conservative rather than permissive.
+        if (member.UserId is not null)
+        {
+            await bookings.CancelActiveFutureForMemberAsync(
+                member.UserId, timeProvider.GetUtcNow(), cancellationToken);
+        }
 
         if (!await unitOfWork.TrySaveChangesAsync(cancellationToken))
         {
@@ -302,45 +582,54 @@ public static class MemberAdminEndpoints
     }
 
     /// <summary>
-    /// Unblock a member (FR-004) — return them to Active.
+    /// Unblocks a member (FR-004) — return them to the club, and to their login if they have one.
     ///
-    /// Deliberately does NOT rotate the security stamp. Rotation exists to destroy a session
-    /// carrying a stale PERMISSIVE claim; a blocked member has no such session, because block
-    /// already rotated their stamp and their claim is refused either way. There is nothing to
-    /// revoke, so revoking would only sign out a member we just let back in.
+    /// Deliberately does NOT rotate the security stamp. Rotation exists to destroy a session carrying
+    /// a stale PERMISSIVE claim; a blocked member has no such session, because block already rotated
+    /// their stamp and their claim is refused either way. There is nothing to revoke, so revoking
+    /// would only sign out a member we just let back in.
     ///
     /// No approval email either: IAccountApprovedNotification fires on approve, and an account being
     /// unblocked was approved once already - a second welcome would be a lie about what happened.
     /// </summary>
     private static async Task<IResult> UnblockAsync(
-        string id,
+        Guid memberId,
+        IMemberStore members,
         UserManager<ApplicationUser> userManager,
         IUnitOfWork unitOfWork,
         CancellationToken cancellationToken)
     {
-        var user = await userManager.FindByIdAsync(id);
-        if (user is null)
+        var member = await members.FindAsync(memberId, cancellationToken);
+        if (member is null)
         {
             return Results.NotFound();
         }
 
-        if (user.Status == AccountStatus.Active)
+        // Idempotent, mirroring BlockAsync: a double-click must not be an error. Before S-14 this
+        // branch could also mean "the account is Pending, so the action wanted is approve" and
+        // answered 409 not_blocked. Membership has only two states, so that case no longer exists —
+        // a member whose LOGIN is pending has an active membership and nothing to unblock, and
+        // saying so with an error would be a lie about a no-op.
+        if (member.Status == MembershipStatus.Active)
         {
             return Results.Ok();
         }
 
-        // Pending is not unblockable - it was never blocked. Approve is the action, and routing it
-        // here would let unblock silently double as approval for an account nobody has vetted.
-        if (user.Status != AccountStatus.Blocked)
-        {
-            return Results.Json(new UnblockFailure("not_blocked"), statusCode: 409);
-        }
+        member.Status = MembershipStatus.Active;
+        member.ConcurrencyStamp = Guid.NewGuid().ToString();
 
-        // Always to Active, never back to Pending. A member blocked while still Pending is approved
-        // by this action - accepted deliberately (S-02 planning) so that no prior-status column has
-        // to exist. The members screen says so on the button.
-        user.Status = AccountStatus.Active;
-        user.ConcurrencyStamp = Guid.NewGuid().ToString();
+        if (member.UserId is not null)
+        {
+            var user = await userManager.FindByIdAsync(member.UserId);
+            if (user is not null && user.Status == AccountStatus.Blocked)
+            {
+                // Always to Active, never back to Pending. A member blocked while still Pending is
+                // approved by this action - accepted deliberately (S-02 planning) so that no
+                // prior-status column has to exist. The members screen says so on the button.
+                user.Status = AccountStatus.Active;
+                user.ConcurrencyStamp = Guid.NewGuid().ToString();
+            }
+        }
 
         if (!await unitOfWork.TrySaveChangesAsync(cancellationToken))
         {
@@ -356,21 +645,63 @@ public static class MemberAdminEndpoints
     ///
     /// DELIBERATELY NOT the transition shape ApproveAsync and BlockAsync use, and this is the one
     /// place on this surface that departs from it. Those two bypass UserManager and rotate the
-    /// concurrency stamp by hand so a status flip and its outbox rows land in ONE
-    /// SaveChangesAsync. A role change enqueues nothing, so there is no second write to bind to it
-    /// — and hand-writing the UserRoles join would mean re-implementing Identity's own name
-    /// normalisation, which MemberQuery already has to be careful to agree with.
+    /// concurrency stamp by hand so a status flip and its outbox rows land in ONE SaveChangesAsync. A
+    /// role change enqueues nothing, so there is no second write to bind to it — and hand-writing the
+    /// UserRoles join would mean re-implementing Identity's own name normalisation.
     ///
-    /// No security-stamp rotation either. The role reaches the holder's own cookie when the
-    /// security stamp next validates or they call POST /api/auth/refresh; that latency is harmless
-    /// while the role grants nothing. A later slice that gives Trainer real permissions must
-    /// revisit revocation timing — see the plan's Open Risks.
+    /// No security-stamp rotation either. The role reaches the holder's own cookie when the security
+    /// stamp next validates or they call POST /api/auth/refresh; that latency is harmless while the
+    /// role grants nothing.
     /// </summary>
-    private static async Task<IResult> GrantTrainerAsync(
-        string id,
-        UserManager<ApplicationUser> userManager)
+    private static Task<IResult> GrantTrainerAsync(
+        Guid memberId,
+        IMemberStore members,
+        UserManager<ApplicationUser> userManager,
+        CancellationToken cancellationToken) =>
+        ChangeTrainerRoleAsync(memberId, members, userManager, grant: true, cancellationToken);
+
+    /// <summary>
+    /// Revoke the Trainer role (FR-001).
+    ///
+    /// Mirrors <see cref="GrantTrainerAsync"/>, including the status guard: revoking is refused on a
+    /// non-active account for the same reason granting is, so the two directions cannot disagree
+    /// about which accounts this surface may touch. An account that is blocked WHILE holding the
+    /// role keeps it — S-06 filters the selection by status, so a blocked trainer is already
+    /// unselectable there.
+    /// </summary>
+    private static Task<IResult> RevokeTrainerAsync(
+        Guid memberId,
+        IMemberStore members,
+        UserManager<ApplicationUser> userManager,
+        CancellationToken cancellationToken) =>
+        ChangeTrainerRoleAsync(memberId, members, userManager, grant: false, cancellationToken);
+
+    /// <summary>
+    /// The shared body of the two role routes. One method because the guards are identical in both
+    /// directions and were already duplicated before S-14 re-keyed them; two copies of a status check
+    /// is exactly how the two directions come to disagree.
+    /// </summary>
+    private static async Task<IResult> ChangeTrainerRoleAsync(
+        Guid memberId,
+        IMemberStore members,
+        UserManager<ApplicationUser> userManager,
+        bool grant,
+        CancellationToken cancellationToken)
     {
-        var user = await userManager.FindByIdAsync(id);
+        var member = await members.FindAsync(memberId, cancellationToken);
+        if (member is null)
+        {
+            return Results.NotFound();
+        }
+
+        // Roles live in Identity; a member with no login holds none and cannot be given one. See the
+        // record's remarks - this is the case S-14 made representable and still refuses.
+        if (member.UserId is null)
+        {
+            return Results.Json(new TrainerRoleFailure("no_account"), statusCode: 409);
+        }
+
+        var user = await userManager.FindByIdAsync(member.UserId);
         if (user is null)
         {
             return Results.NotFound();
@@ -380,19 +711,23 @@ public static class MemberAdminEndpoints
         // write. Checked before the status guard so that re-granting to an account that was
         // approved-then-blocked reports the truth — it already holds the role — rather than
         // refusing a change that would be a no-op anyway.
-        if (await userManager.IsInRoleAsync(user, ApplicationRoles.Trainer))
+        var holdsRole = await userManager.IsInRoleAsync(user, ApplicationRoles.Trainer);
+        if (holdsRole == grant)
         {
             return Results.Ok();
         }
 
         // FR-001 grants to an approved account only. Pending and Blocked are both refused: an
-        // unvetted or barred account must not reach the instructor selection.
-        if (user.Status != AccountStatus.Active)
+        // unvetted or barred account must not reach the instructor selection. Membership is checked
+        // too, because since S-14 that is the status that can bar a person on its own.
+        if (user.Status != AccountStatus.Active || member.Status != MembershipStatus.Active)
         {
             return Results.Json(new TrainerRoleFailure("not_active"), statusCode: 409);
         }
 
-        var result = await userManager.AddToRoleAsync(user, ApplicationRoles.Trainer);
+        var result = grant
+            ? await userManager.AddToRoleAsync(user, ApplicationRoles.Trainer)
+            : await userManager.RemoveFromRoleAsync(user, ApplicationRoles.Trainer);
 
         // A failed result here is a genuine Identity concurrency failure - typically a BlockAsync
         // that rotated the concurrency stamp underneath us - so the caller's view is stale and the
@@ -403,49 +738,82 @@ public static class MemberAdminEndpoints
         // there rather than returning a failed result, so that surfaces as a 500. AdminSeeder
         // creates the role on every start, but Program.cs deliberately swallows seeder failures, so
         // a started-but-unseeded app is the one state where that happens.
-        return result.Succeeded ? Results.Ok() : Results.Json(new TrainerRoleFailure("failed"), statusCode: 409);
+        return result.Succeeded
+            ? Results.Ok()
+            : Results.Json(new TrainerRoleFailure("failed"), statusCode: 409);
     }
 
     /// <summary>
-    /// Revoke the Trainer role (FR-001).
+    /// Validates the fields shared by create and edit, in the order they appear on the form.
     ///
-    /// Mirrors <see cref="GrantTrainerAsync"/>, including the status guard: revoking is refused on a
-    /// non-active account for the same reason granting is, so the two directions cannot disagree
-    /// about which accounts this surface may touch. An account that is blocked WHILE holding the
-    /// role keeps it — S-06 filters the selection by status, so a blocked trainer is already
-    /// unselectable there.
-    ///
-    /// Does not rotate the security stamp. Block rotates because it must destroy a session carrying
-    /// a stale permissive claim; this role carries no permission to destroy.
+    /// <paramref name="contact"/> comes back null when the caller supplied none of the five fields,
+    /// which is the "recorded at the desk with nothing but a name" case. Supplying SOME of them is a
+    /// failure, not a partial save.
     /// </summary>
-    private static async Task<IResult> RevokeTrainerAsync(
-        string id,
-        UserManager<ApplicationUser> userManager)
+    private static bool TryReadRequest(
+        MemberRequest request,
+        out string displayName,
+        out string? email,
+        out ContactDetails? contact,
+        out IResult failure)
     {
-        var user = await userManager.FindByIdAsync(id);
-        if (user is null)
+        displayName = string.Empty;
+        email = null;
+        contact = null;
+        failure = Results.Empty;
+
+        var trimmedName = request.DisplayName?.Trim() ?? string.Empty;
+        if (trimmedName.Length == 0 || trimmedName.Length > 100)
         {
-            return Results.NotFound();
+            failure = Results.Json(new MemberFailure("invalid_display_name"), statusCode: 400);
+            return false;
         }
 
-        if (!await userManager.IsInRoleAsync(user, ApplicationRoles.Trainer))
+        displayName = trimmedName;
+
+        var trimmedEmail = string.IsNullOrWhiteSpace(request.Email) ? null : request.Email.Trim();
+        if (trimmedEmail is not null
+            && (trimmedEmail.Length > 256 || !trimmedEmail.Contains('@') || trimmedEmail.Contains(' ')))
         {
-            return Results.Ok();
+            // Deliberately not a full RFC parse. The address is a way to reach someone, this endpoint
+            // never sends to it, and Identity does the real validation on the path where it becomes a
+            // login. What this rejects is the typo that would otherwise sit in the club's records.
+            failure = Results.Json(new MemberFailure("invalid_email"), statusCode: 400);
+            return false;
         }
 
-        if (user.Status != AccountStatus.Active)
+        email = trimmedEmail;
+
+        var supplied = new[]
         {
-            return Results.Json(new TrainerRoleFailure("not_active"), statusCode: 409);
+            request.PhoneNumber, request.Street, request.HouseNumber, request.PostalCode, request.City,
+        };
+
+        if (supplied.All(string.IsNullOrWhiteSpace))
+        {
+            return true;
         }
 
-        var result = await userManager.RemoveFromRoleAsync(user, ApplicationRoles.Trainer);
+        if (!ContactDetails.TryCreate(
+                request.PhoneNumber,
+                request.Street,
+                request.HouseNumber,
+                request.PostalCode,
+                request.City,
+                out var details,
+                out var contactFailure))
+        {
+            failure = Results.Json(new MemberFailure(contactFailure), statusCode: 400);
+            return false;
+        }
 
-        return result.Succeeded ? Results.Ok() : Results.Json(new TrainerRoleFailure("failed"), statusCode: 409);
+        contact = details;
+        return true;
     }
 }
 
 /// <summary>
-/// Narrow read seam over the user table, so Application does not reference EF Core
+/// Narrow read seam over the member table, so Application does not reference EF Core
 /// (AGENTS.md layering). Implemented in Infrastructure.
 /// </summary>
 public interface IPendingMemberQuery
@@ -456,14 +824,27 @@ public interface IPendingMemberQuery
 /// <summary>
 /// The same seam for the full member list (FR-005). Separate from
 /// <see cref="IPendingMemberQuery"/> rather than replacing it: the approvals queue orders oldest
-/// first and needs no status, this one browses alphabetically and needs nothing else.
+/// first and needs no status, this one browses alphabetically and needs everything.
 /// </summary>
 public interface IMemberQuery
 {
-    /// <param name="status">
-    /// Narrow to one status, or null for every member. Applied in SQL against the Status index.
-    /// </param>
+    /// <param name="filter">Narrow to one filter position, or null for everyone.</param>
     Task<IReadOnlyList<MemberSummary>> GetMembersAsync(
-        AccountStatus? status,
+        MemberListFilter? filter,
+        CancellationToken cancellationToken);
+
+    /// <summary>One member with the fields the edit form needs, or null.</summary>
+    Task<MemberDetail?> FindDetailAsync(Guid memberId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Whether this address is already in use, by a member or by an account.
+    /// </summary>
+    /// <param name="exceptMemberId">
+    /// The member being edited, so that saving a form without changing the address is not a
+    /// collision with itself.
+    /// </param>
+    Task<bool> EmailExistsAsync(
+        string email,
+        Guid? exceptMemberId,
         CancellationToken cancellationToken);
 }

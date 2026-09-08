@@ -52,14 +52,14 @@ export class Approvals implements OnInit {
   protected async approve(member: PendingMember): Promise<void> {
     this.failedId.set(null);
     this.failedMessage.set(null);
-    this.setApproving(member.id, true);
+    this.setApproving(member.memberId, true);
 
     try {
-      await this.members.approve(member.id);
+      await this.members.approve(member.memberId);
 
       // Remove the row locally rather than refetching: the list is small, the answer is already
       // known, and a refetch would make an approval feel slower than it is.
-      this.pending.update((rows) => rows.filter((row) => row.id !== member.id));
+      this.pending.update((rows) => rows.filter((row) => row.memberId !== member.memberId));
     } catch (failure) {
       const reason = ((failure as HttpErrorResponse)?.error as ApproveFailure | undefined)?.reason;
 
@@ -67,7 +67,7 @@ export class Approvals implements OnInit {
         // 409 means the row is stale, not that the call failed: someone approved this member in
         // another tab, or they are Blocked. Retrying can never succeed, so drop the row and say why
         // rather than inviting the admin to press the button forever.
-        this.pending.update((rows) => rows.filter((row) => row.id !== member.id));
+        this.pending.update((rows) => rows.filter((row) => row.memberId !== member.memberId));
         this.failedMessage.set(
           `${member.displayName} nie oczekuje już na zatwierdzenie — lista była nieaktualna.`,
         );
@@ -76,9 +76,9 @@ export class Approvals implements OnInit {
 
       // The row STAYS. Dropping it on a genuine failure would tell the admin someone was approved
       // when they were not — and nothing else in the product would ever correct that belief.
-      this.failedId.set(member.id);
+      this.failedId.set(member.memberId);
     } finally {
-      this.setApproving(member.id, false);
+      this.setApproving(member.memberId, false);
     }
   }
 

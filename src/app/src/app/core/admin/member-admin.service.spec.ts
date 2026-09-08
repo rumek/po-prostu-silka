@@ -5,16 +5,23 @@ import { MemberAdminService } from './member-admin.service';
 import { Member, PendingMember } from './member-admin.models';
 
 const MEMBER: PendingMember = {
-  id: 'm1',
+  memberId: 'm1',
+  userId: 'u1',
   email: 'nowy@test.local',
   displayName: 'Nowy Członek',
   createdAt: '2026-09-01T08:00:00+00:00',
 };
 
 const FULL_MEMBER: Member = {
-  ...MEMBER,
-  status: 'Active',
+  id: MEMBER.memberId,
+  userId: MEMBER.userId,
+  email: MEMBER.email,
+  displayName: MEMBER.displayName,
+  createdAt: MEMBER.createdAt,
+  membershipStatus: 'Active',
+  accountStatus: 'Active',
   roles: ['User'],
+  hasAccessCode: false,
 };
 
 describe('MemberAdminService', () => {
@@ -75,11 +82,11 @@ describe('MemberAdminService', () => {
     await expect(members).resolves.toEqual([FULL_MEMBER]);
   });
 
-  it('sends the status as a query parameter when filtering', async () => {
+  it('sends the filter as a query parameter when filtering', async () => {
     const members = service.getMembers('Blocked');
 
     const request = await vi.waitFor(() =>
-      controller.expectOne('/api/admin/members?status=Blocked'),
+      controller.expectOne('/api/admin/members?filter=Blocked'),
     );
     request.flush([]);
 
@@ -87,14 +94,14 @@ describe('MemberAdminService', () => {
   });
 
   /**
-   * The endpoint binds status as a nullable enum and 400s on an unparseable value, so `?status=`
+   * The endpoint binds the filter as a nullable enum and 400s on an unparseable value, so `?filter=`
    * would be a broken request rather than "no filter". The parameter has to be absent, not empty.
    */
-  it('omits the status parameter entirely when unfiltered', async () => {
+  it('omits the filter parameter entirely when unfiltered', async () => {
     const members = service.getMembers();
 
     const request = await vi.waitFor(() => controller.expectOne('/api/admin/members'));
-    expect(request.request.params.has('status')).toBe(false);
+    expect(request.request.params.has('filter')).toBe(false);
     request.flush([]);
 
     await members;

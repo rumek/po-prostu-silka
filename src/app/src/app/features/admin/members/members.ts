@@ -2,18 +2,19 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, HostListener, OnInit, computed, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { MemberAdminService } from '../../../core/admin/member-admin.service';
 import { ROLES } from '../../../core/auth/roles';
 import {
   BlockFailure,
   Member,
-  MemberStatus,
+  MemberFilter,
   TrainerRoleFailure,
   UnblockFailure,
 } from '../../../core/admin/member-admin.models';
 
-/** The filter positions, including "everyone". `null` means no status parameter is sent. */
-type StatusFilter = MemberStatus | null;
+/** The filter positions, including "everyone". `null` means no filter parameter is sent. */
+type StatusFilter = MemberFilter | null;
 
 /** Stable DOM id for a row's menu trigger, so Escape can return focus to it. */
 const triggerId = (memberId: string): string => `member-menu-${memberId}`;
@@ -32,7 +33,7 @@ const triggerId = (memberId: string): string => `member-menu-${memberId}`;
  * the admin somewhere else to do the obvious thing.
  */
 @Component({
-  imports: [DatePipe, FormsModule],
+  imports: [DatePipe, FormsModule, RouterLink],
   selector: 'app-members',
   styleUrl: './members.scss',
   templateUrl: './members.html',
@@ -80,7 +81,7 @@ export class Members implements OnInit {
     return this.rows().filter(
       (row) =>
         row.displayName.toLocaleLowerCase().includes(term) ||
-        row.email.toLocaleLowerCase().includes(term),
+        (row.email?.toLocaleLowerCase().includes(term) ?? false),
     );
   });
 
@@ -135,7 +136,7 @@ export class Members implements OnInit {
     await this.mutate(
       member,
       () => this.members.approve(member.id),
-      (row) => ({ ...row, status: 'Active' }),
+      (row) => ({ ...row, accountStatus: 'Active' }),
       () => `Nie udało się zatwierdzić — ${member.displayName} nie oczekuje już na zatwierdzenie.`,
     );
   }
@@ -144,7 +145,14 @@ export class Members implements OnInit {
     await this.mutate(
       member,
       () => this.members.block(member.id),
-      (row) => ({ ...row, status: 'Blocked' }),
+      (row) => ({
+        ...row,
+        membershipStatus: 'Blocked',
+
+        // Both, because the API moves both: a person barred from the club whose login still worked
+        // would reach every screen the ActiveMember policy guards.
+        accountStatus: row.userId ? 'Blocked' : null,
+      }),
       (reason) =>
         reason === 'is_admin'
           ? `${member.displayName} zarządza klubem i nie może zostać zablokowany.`
@@ -156,11 +164,14 @@ export class Members implements OnInit {
     await this.mutate(
       member,
       () => this.members.unblock(member.id),
-      (row) => ({ ...row, status: 'Active' }),
-      (reason) =>
-        reason === 'not_blocked'
-          ? `${member.displayName} nie jest zablokowany — użyj „Zatwierdź”.`
-          : null,
+      (row) => ({
+        ...row,
+        membershipStatus: 'Active',
+        accountStatus: row.userId ? 'Active' : null,
+      }),
+      // No named reason left to map: unblocking an already-active member is a no-op the API reports
+      // as success, so the only failure here is the generic conflict the shared handler covers.
+      () => null,
     );
   }
 
@@ -201,7 +212,58 @@ export class Members implements OnInit {
    * it elsewhere would put a button on the screen whose only outcome is a 409.
    */
   protected canChangeTrainer(member: Member): boolean {
-    return member.status === 'Active';
+    return member.accountStatus === 'Active' && member.membershipStatus === 'Active';
+  }
+
+  /** A record the club keeps for someone who never registered (S-14). */
+  protected hasNoAccount(member: Member): boolean {
+    return member.userId === null;
+  }
+
+  /**
+   * Approve acts on a LOGIN, so it is offered only where one is waiting. Without this the action
+   * would appear on an accountless row whose only possible outcome is a 409 `no_account`.
+   */
+  protected canApprove(member: Member): boolean {
+    return member.accountStatus === 'Pending';
+  }
+
+  protected canBlock(member: Member): boolean {
+    return member.membershipStatus !== 'Blocked' && !this.isAdmin(member);
+  }
+
+  protected canUnblock(member: Member): boolean {
+    return member.membershipStatus === 'Blocked';
+  }
+
+  /**
+   * What the row's badge says. One label rather than two, because two statuses side by side on a
+   * phone row is noise: the membership answers "may they use the club", and the account status only
+   * adds anything while it disagrees — which is exactly the pending case.
+   */
+  protected statusLabel(member: Member): string {
+    if (member.membershipStatus === 'Blocked') {
+      return 'Zablokowany';
+    }
+
+    if (member.accountStatus === 'Pending') {
+      return 'Oczekuje';
+    }
+
+    return member.userId ? 'Aktywny' : 'Bez konta';
+  }
+
+  /** Drives the badge's colour. Kept separate from the label so the CSS never parses Polish. */
+  protected statusKind(member: Member): string {
+    if (member.membershipStatus === 'Blocked') {
+      return 'blocked';
+    }
+
+    if (member.accountStatus === 'Pending') {
+      return 'pending';
+    }
+
+    return member.userId ? 'active' : 'no-account';
   }
 
   /**
@@ -224,7 +286,9 @@ export class Members implements OnInit {
       (reason) =>
         reason === 'not_active'
           ? `${member.displayName} nie jest aktywny — rolę Trenera można zmienić tylko aktywnemu koncie.`
-          : null,
+          : reason === 'no_account'
+            ? `${member.displayName} nie ma konta — rola Trenera wymaga logowania.`
+            : null,
     );
   }
 

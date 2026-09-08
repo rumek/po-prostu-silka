@@ -5,14 +5,16 @@ import { PendingMember } from '../../../core/admin/member-admin.models';
 import { Approvals } from './approvals';
 
 const ANNA: PendingMember = {
-  id: 'm1',
+  memberId: 'm1',
+  userId: 'u1',
   email: 'anna@test.local',
   displayName: 'Anna Kowalska',
   createdAt: '2026-09-01T08:00:00+00:00',
 };
 
 const BARTEK: PendingMember = {
-  id: 'm2',
+  memberId: 'm2',
+  userId: 'u2',
   email: 'bartek@test.local',
   displayName: 'Bartek Nowak',
   createdAt: '2026-09-01T09:00:00+00:00',

@@ -20,25 +20,36 @@ namespace po_prostu_silka.Tests;
 public class MemberAdminEndpointTests(IntegrationTestFixture fixture)
 {
     private sealed record PendingMemberBody(
-        string Id, string Email, string DisplayName, DateTimeOffset CreatedAt);
+        Guid MemberId, string UserId, string Email, string DisplayName, DateTimeOffset CreatedAt);
 
     private sealed record ApproveFailureBody(string Reason);
 
     private sealed record TrainerRoleFailureBody(string Reason);
 
-    /// <summary>Mirrors MemberSummary, including the Roles field S-04 added.</summary>
+    /// <summary>
+    /// Mirrors MemberSummary — the Roles field S-04 added, and S-14's split of one status into two.
+    /// </summary>
     private sealed record MemberSummaryBody(
-        string Id,
-        string Email,
+        Guid Id,
+        string? UserId,
         string DisplayName,
-        string Status,
+        string? Email,
+        string MembershipStatus,
+        string? AccountStatus,
         string[] Roles,
+        bool HasAccessCode,
         DateTimeOffset CreatedAt);
 
     private AppDbContext NewContext() =>
         new(new DbContextOptionsBuilder<AppDbContext>().UseSqlServer(fixture.ConnectionString).Options);
 
-    private async Task<(string Id, string Email)> CreateMemberAsync(AccountStatus status)
+    /// <summary>
+    /// Seeds an account and returns BOTH ids. Since S-14 the two are different things and the tests
+    /// need both: every route on this surface is addressed by <c>MemberId</c>, while the assertions
+    /// that read a status back out of Identity need the <c>UserId</c>.
+    /// </summary>
+    private async Task<(Guid MemberId, string UserId, string Email)> CreateMemberAsync(
+        AccountStatus status)
     {
         var email = $"admin-target-{Guid.NewGuid():N}@test.local";
         await fixture.CreateUserAsync(email, status, ApplicationRoles.User);
@@ -47,7 +58,10 @@ public class MemberAdminEndpointTests(IntegrationTestFixture fixture)
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
         var user = await userManager.FindByEmailAsync(email);
 
-        return (user!.Id, email);
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var member = await db.Members.AsNoTracking().SingleAsync(m => m.UserId == user!.Id);
+
+        return (member.Id, user!.Id, email);
     }
 
     private static Task<int> CountApprovalEmailsAsync(AppDbContext db, string email) =>
@@ -95,7 +109,7 @@ public class MemberAdminEndpointTests(IntegrationTestFixture fixture)
     [Fact]
     public async Task Admin_sees_pending_members_oldest_first()
     {
-        var (_, email) = await CreateMemberAsync(AccountStatus.Pending);
+        var (_, _, email) = await CreateMemberAsync(AccountStatus.Pending);
         var admin = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveAdminEmail);
 
         var pending = await admin.GetFromJsonAsync<PendingMemberBody[]>("/api/admin/members/pending");
@@ -114,7 +128,7 @@ public class MemberAdminEndpointTests(IntegrationTestFixture fixture)
     [Fact]
     public async Task Approve_activates_the_member_and_queues_exactly_one_email()
     {
-        var (id, email) = await CreateMemberAsync(AccountStatus.Pending);
+        var (id, userId, email) = await CreateMemberAsync(AccountStatus.Pending);
         var admin = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveAdminEmail);
 
         var response = await admin.PostAsync($"/api/admin/members/{id}/approve", content: null);
@@ -122,7 +136,7 @@ public class MemberAdminEndpointTests(IntegrationTestFixture fixture)
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
         await using var db = NewContext();
-        var user = await db.Users.AsNoTracking().SingleAsync(u => u.Id == id);
+        var user = await db.Users.AsNoTracking().SingleAsync(u => u.Id == userId);
         Assert.Equal(AccountStatus.Active, user.Status);
 
         // The status flip and the outbox row share one SaveChangesAsync — if the transaction had
@@ -133,7 +147,7 @@ public class MemberAdminEndpointTests(IntegrationTestFixture fixture)
     [Fact]
     public async Task Approving_twice_queues_exactly_one_email()
     {
-        var (id, email) = await CreateMemberAsync(AccountStatus.Pending);
+        var (id, userId, email) = await CreateMemberAsync(AccountStatus.Pending);
         var admin = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveAdminEmail);
 
         var first = await admin.PostAsync($"/api/admin/members/{id}/approve", content: null);
@@ -159,7 +173,7 @@ public class MemberAdminEndpointTests(IntegrationTestFixture fixture)
     [Fact]
     public async Task Concurrent_approves_still_queue_exactly_one_email()
     {
-        var (id, email) = await CreateMemberAsync(AccountStatus.Pending);
+        var (id, userId, email) = await CreateMemberAsync(AccountStatus.Pending);
 
         var first = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveAdminEmail);
         var second = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveAdminEmail);
@@ -173,14 +187,14 @@ public class MemberAdminEndpointTests(IntegrationTestFixture fixture)
         Assert.All(responses, r => Assert.Equal(HttpStatusCode.OK, r.StatusCode));
 
         await using var db = NewContext();
-        Assert.Equal(AccountStatus.Active, (await db.Users.AsNoTracking().SingleAsync(u => u.Id == id)).Status);
+        Assert.Equal(AccountStatus.Active, (await db.Users.AsNoTracking().SingleAsync(u => u.Id == userId)).Status);
         Assert.Equal(1, await CountApprovalEmailsAsync(db, email));
     }
 
     [Fact]
     public async Task Approving_a_blocked_member_is_409_and_queues_nothing()
     {
-        var (id, email) = await CreateMemberAsync(AccountStatus.Blocked);
+        var (id, userId, email) = await CreateMemberAsync(AccountStatus.Blocked);
         var admin = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveAdminEmail);
 
         var response = await admin.PostAsync($"/api/admin/members/{id}/approve", content: null);
@@ -191,7 +205,7 @@ public class MemberAdminEndpointTests(IntegrationTestFixture fixture)
         Assert.Equal("not_pending", (await response.Content.ReadFromJsonAsync<ApproveFailureBody>())!.Reason);
 
         await using var db = NewContext();
-        Assert.Equal(AccountStatus.Blocked, (await db.Users.AsNoTracking().SingleAsync(u => u.Id == id)).Status);
+        Assert.Equal(AccountStatus.Blocked, (await db.Users.AsNoTracking().SingleAsync(u => u.Id == userId)).Status);
         Assert.Equal(0, await CountApprovalEmailsAsync(db, email));
     }
 
@@ -209,7 +223,7 @@ public class MemberAdminEndpointTests(IntegrationTestFixture fixture)
     [Fact]
     public async Task Approved_member_leaves_the_pending_list()
     {
-        var (id, email) = await CreateMemberAsync(AccountStatus.Pending);
+        var (id, userId, email) = await CreateMemberAsync(AccountStatus.Pending);
         var admin = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveAdminEmail);
 
         await admin.PostAsync($"/api/admin/members/{id}/approve", content: null);
@@ -220,11 +234,11 @@ public class MemberAdminEndpointTests(IntegrationTestFixture fixture)
 
     // --- Trainer role (S-04, prd-v2 FR-001/FR-002/FR-003) ----------------------
 
-    private async Task<bool> HoldsTrainerAsync(string id)
+    private async Task<bool> HoldsTrainerAsync(string userId)
     {
         using var scope = fixture.Factory.Services.CreateScope();
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
-        var user = await userManager.FindByIdAsync(id);
+        var user = await userManager.FindByIdAsync(userId);
 
         return await userManager.IsInRoleAsync(user!, ApplicationRoles.Trainer);
     }
@@ -241,13 +255,13 @@ public class MemberAdminEndpointTests(IntegrationTestFixture fixture)
     [Fact]
     public async Task Granting_trainer_to_an_active_member_succeeds()
     {
-        var (id, _) = await CreateMemberAsync(AccountStatus.Active);
+        var (id, userId, _) = await CreateMemberAsync(AccountStatus.Active);
         var admin = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveAdminEmail);
 
         var response = await admin.PostAsync($"/api/admin/members/{id}/roles/trainer", content: null);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.True(await HoldsTrainerAsync(id));
+        Assert.True(await HoldsTrainerAsync(userId));
     }
 
     /// <summary>
@@ -256,7 +270,7 @@ public class MemberAdminEndpointTests(IntegrationTestFixture fixture)
     [Fact]
     public async Task Granting_trainer_keeps_the_member_role()
     {
-        var (id, email) = await CreateMemberAsync(AccountStatus.Active);
+        var (id, userId, email) = await CreateMemberAsync(AccountStatus.Active);
         var admin = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveAdminEmail);
 
         await admin.PostAsync($"/api/admin/members/{id}/roles/trainer", content: null);
@@ -281,9 +295,12 @@ public class MemberAdminEndpointTests(IntegrationTestFixture fixture)
             var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
             var target = await userManager.FindByEmailAsync(email);
 
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var member = await db.Members.AsNoTracking().SingleAsync(m => m.UserId == target!.Id);
+
             var admin = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveAdminEmail);
             var response = await admin.PostAsync(
-                $"/api/admin/members/{target!.Id}/roles/trainer", content: null);
+                $"/api/admin/members/{member.Id}/roles/trainer", content: null);
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         }
@@ -296,20 +313,20 @@ public class MemberAdminEndpointTests(IntegrationTestFixture fixture)
     [Fact]
     public async Task Revoking_trainer_removes_the_role()
     {
-        var (id, _) = await CreateMemberAsync(AccountStatus.Active);
+        var (id, userId, _) = await CreateMemberAsync(AccountStatus.Active);
         var admin = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveAdminEmail);
         await admin.PostAsync($"/api/admin/members/{id}/roles/trainer", content: null);
 
         var response = await admin.DeleteAsync($"/api/admin/members/{id}/roles/trainer");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.False(await HoldsTrainerAsync(id));
+        Assert.False(await HoldsTrainerAsync(userId));
     }
 
     [Fact]
     public async Task Granting_trainer_twice_is_idempotent()
     {
-        var (id, email) = await CreateMemberAsync(AccountStatus.Active);
+        var (id, userId, email) = await CreateMemberAsync(AccountStatus.Active);
         var admin = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveAdminEmail);
 
         await admin.PostAsync($"/api/admin/members/{id}/roles/trainer", content: null);
@@ -322,13 +339,13 @@ public class MemberAdminEndpointTests(IntegrationTestFixture fixture)
     [Fact]
     public async Task Revoking_a_role_the_member_does_not_hold_is_idempotent()
     {
-        var (id, _) = await CreateMemberAsync(AccountStatus.Active);
+        var (id, userId, _) = await CreateMemberAsync(AccountStatus.Active);
         var admin = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveAdminEmail);
 
         var response = await admin.DeleteAsync($"/api/admin/members/{id}/roles/trainer");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.False(await HoldsTrainerAsync(id));
+        Assert.False(await HoldsTrainerAsync(userId));
     }
 
     [Theory]
@@ -336,7 +353,7 @@ public class MemberAdminEndpointTests(IntegrationTestFixture fixture)
     [InlineData(AccountStatus.Blocked)]
     public async Task Granting_trainer_to_a_non_active_account_is_409(AccountStatus status)
     {
-        var (id, _) = await CreateMemberAsync(status);
+        var (id, userId, _) = await CreateMemberAsync(status);
         var admin = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveAdminEmail);
 
         var response = await admin.PostAsync($"/api/admin/members/{id}/roles/trainer", content: null);
@@ -345,7 +362,7 @@ public class MemberAdminEndpointTests(IntegrationTestFixture fixture)
         Assert.Equal(
             "not_active",
             (await response.Content.ReadFromJsonAsync<TrainerRoleFailureBody>())!.Reason);
-        Assert.False(await HoldsTrainerAsync(id));
+        Assert.False(await HoldsTrainerAsync(userId));
     }
 
     /// <summary>
@@ -356,7 +373,7 @@ public class MemberAdminEndpointTests(IntegrationTestFixture fixture)
     [Fact]
     public async Task Revoking_trainer_from_a_non_active_account_is_409()
     {
-        var (id, _) = await CreateMemberAsync(AccountStatus.Active);
+        var (id, userId, _) = await CreateMemberAsync(AccountStatus.Active);
         var admin = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveAdminEmail);
         await admin.PostAsync($"/api/admin/members/{id}/roles/trainer", content: null);
         await admin.PostAsync($"/api/admin/members/{id}/block", content: null);
@@ -369,7 +386,7 @@ public class MemberAdminEndpointTests(IntegrationTestFixture fixture)
             (await response.Content.ReadFromJsonAsync<TrainerRoleFailureBody>())!.Reason);
 
         // The role survives the refusal — that is the documented consequence, not a side effect.
-        Assert.True(await HoldsTrainerAsync(id));
+        Assert.True(await HoldsTrainerAsync(userId));
     }
 
     [Fact]
@@ -420,7 +437,7 @@ public class MemberAdminEndpointTests(IntegrationTestFixture fixture)
     [Fact]
     public async Task Member_list_reports_a_granted_trainer_role()
     {
-        var (id, email) = await CreateMemberAsync(AccountStatus.Active);
+        var (id, userId, email) = await CreateMemberAsync(AccountStatus.Active);
         var admin = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveAdminEmail);
         await admin.PostAsync($"/api/admin/members/{id}/roles/trainer", content: null);
 

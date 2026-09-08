@@ -1,5 +1,19 @@
 // Layout only — .card/.button/.alert/.notice/.field-error/.hint/.badge come from src/styles.scss.
 
+// The title and the "add a member" action share a line on a wide screen and stack on a phone, which
+// is where this screen is actually used.
+.members-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+
+  h1 {
+    margin: 0;
+  }
+}
+
 .members-controls {
   display: flex;
   flex-wrap: wrap;
@@ -102,6 +116,14 @@
   color: var(--danger, #b3261e);
 }
 
+// A member the club keeps records for who has never registered (S-14). Quiet on purpose: it is a
+// statement about their LOGIN, not a problem with their membership — they train here like anyone
+// else, they simply cannot sign in.
+.badge-no-account {
+  color: var(--muted);
+  border-style: dashed;
+}
+
 // Roles read as a second, quieter channel than status: an account's status is what gates access, a
 // role is what it may do once inside. Dashed so the two are distinguishable without relying on hue.
 .badge-role {
@@ -136,7 +158,11 @@
   box-shadow: var(--shadow-card);
 }
 
+// Shared by the buttons and by the one entry that is a real link (Edit). The anchor needs
+// display/text-decoration resets the buttons do not, so that the two are indistinguishable in the
+// menu — a link that looked different would read as a different kind of action.
 .row-menu-item {
+  display: block;
   padding: var(--space-2) var(--space-3);
   border: 0;
   border-radius: var(--radius);
@@ -144,6 +170,7 @@
   color: inherit;
   font: inherit;
   text-align: left;
+  text-decoration: none;
   white-space: nowrap;
   cursor: pointer;
 

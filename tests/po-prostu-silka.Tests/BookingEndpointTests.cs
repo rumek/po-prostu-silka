@@ -47,7 +47,11 @@ public class BookingEndpointTests(IntegrationTestFixture fixture)
     private sealed record ClassTypeBody(Guid Id, string Name);
 
     /// <summary>Mirrors MemberSummary — only what these tests read from it.</summary>
-    private sealed record MemberBody(string Id, string Email);
+    /// <summary>
+    /// Mirrors MemberSummary — only what these tests read from it. Since S-14 that includes
+    /// <c>UserId</c>: <c>Id</c> is now the MEMBER, and these tests want the account behind them.
+    /// </summary>
+    private sealed record MemberBody(Guid Id, string? UserId, string Email);
 
     /// <summary>Mirrors MyBooking.</summary>
     private sealed record MyBookingBody(
@@ -126,7 +130,7 @@ public class BookingEndpointTests(IntegrationTestFixture fixture)
 
         var members = await admin.GetFromJsonAsync<List<MemberBody>>("/api/admin/members");
 
-        return members!.Single(m => m.Email == email).Id;
+        return members!.Single(m => m.Email == email).UserId!;
     }
 
     /// <summary>A brand-new active member, signed in. Every booking test needs one nobody else holds.</summary>
@@ -817,7 +821,7 @@ public class BookingEndpointTests(IntegrationTestFixture fixture)
         await BookAsync(member, upcoming.Id);
 
         var memberId = (await admin.GetFromJsonAsync<List<MemberBody>>("/api/admin/members"))!
-            .Single(m => m.Email == email).Id;
+            .Single(m => m.Email == email).UserId!;
 
         await using (var db = NewContext())
         {
@@ -833,7 +837,9 @@ public class BookingEndpointTests(IntegrationTestFixture fixture)
             await db.SaveChangesAsync();
         }
 
-        var blocked = await admin.PostAsync($"/api/admin/members/{memberId}/block", content: null);
+        // Addressed by MEMBER since S-14, while the booking still carries the account id.
+        var blocked = await admin.PostAsync(
+            $"/api/admin/members/{await fixture.MemberIdOfAsync(memberId)}/block", content: null);
         Assert.Equal(HttpStatusCode.OK, blocked.StatusCode);
 
         Assert.Equal(

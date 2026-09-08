@@ -1,7 +1,14 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import { Member, MemberStatus, PendingMember, TrainerSummary } from './member-admin.models';
+import {
+  Member,
+  MemberDetail,
+  MemberFilter,
+  MemberRequest,
+  PendingMember,
+  TrainerSummary,
+} from './member-admin.models';
 
 /**
  * The admin's member surface: the pending queue and approve (S-01), plus the full member list and
@@ -23,19 +30,45 @@ export class MemberAdminService {
   }
 
   /**
-   * The full member list, optionally narrowed to one status (FR-005). Admins are INCLUDED since
+   * The full member list, optionally narrowed to one filter position (FR-005). Since S-14 it also
+   * carries the people who have no account at all. Admins are INCLUDED since
    * S-04 — the Trainer role is granted from this list, and an owner who teaches has to be reachable
    * there. The screen decides which actions a row offers; the API refuses a block on an admin
    * regardless.
    *
-   * When no status is given the parameter is OMITTED rather than sent empty: the endpoint binds it
-   * as a nullable enum and refuses an unparseable value with a 400, so `?status=` would be a broken
+   * When no filter is given the parameter is OMITTED rather than sent empty: the endpoint binds it
+   * as a nullable enum and refuses an unparseable value with a 400, so `?filter=` would be a broken
    * request rather than "no filter".
    */
-  getMembers(status?: MemberStatus): Promise<Member[]> {
-    const options = status ? { params: new HttpParams().set('status', status) } : {};
+  getMembers(filter?: MemberFilter): Promise<Member[]> {
+    const options = filter ? { params: new HttpParams().set('filter', filter) } : {};
 
     return firstValueFrom(this.http.get<Member[]>('/api/admin/members', options));
+  }
+
+  /** One member, with the contact details the edit form needs. */
+  getMember(id: string): Promise<MemberDetail> {
+    return firstValueFrom(
+      this.http.get<MemberDetail>(`/api/admin/members/${encodeURIComponent(id)}`),
+    );
+  }
+
+  /**
+   * Records a person who has no account (S-14). Creates a member and nothing else — no login, no
+   * password, no invitation; they get one only if they later register with a member code.
+   */
+  async create(request: MemberRequest): Promise<string> {
+    const created = await firstValueFrom(
+      this.http.post<{ id: string }>('/api/admin/members', request),
+    );
+
+    return created.id;
+  }
+
+  async update(id: string, request: MemberRequest): Promise<void> {
+    await firstValueFrom(
+      this.http.put<void>(`/api/admin/members/${encodeURIComponent(id)}`, request),
+    );
   }
 
   /**

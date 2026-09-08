@@ -46,7 +46,13 @@ public class MyPlanEndpointTests(IntegrationTestFixture fixture)
 
     private sealed record ExerciseBody(Guid Id, string Name, string? Execution, string? VideoId, bool IsActive);
 
-    private sealed record AdminMemberRow(string Id, string Email, string DisplayName, string Status);
+    /// <summary>
+    /// Mirrors MemberSummary. Since S-14 <c>Id</c> is the MEMBER and <c>UserId</c> the account
+    /// behind them; training plans still key on the account at this phase, so these tests read
+    /// <c>UserId</c>.
+    /// </summary>
+    private sealed record AdminMemberRow(
+        Guid Id, string? UserId, string Email, string DisplayName, string MembershipStatus);
 
     private const string Mine = "/api/plans/mine";
 
@@ -64,7 +70,7 @@ public class MyPlanEndpointTests(IntegrationTestFixture fixture)
 
         var admin = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveAdminEmail);
         var all = await admin.GetFromJsonAsync<List<AdminMemberRow>>("/api/admin/members");
-        var id = all!.Single(x => string.Equals(x.Email, email, StringComparison.OrdinalIgnoreCase)).Id;
+        var id = all!.Single(x => string.Equals(x.Email, email, StringComparison.OrdinalIgnoreCase)).UserId!;
 
         return (id, await fixture.CreateAuthenticatedClientAsync(email));
     }
@@ -339,7 +345,10 @@ public class MyPlanEndpointTests(IntegrationTestFixture fixture)
 
         var admin = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveAdminEmail);
 
-        var blocked = await admin.PostAsync($"/api/admin/members/{memberId}/block", null);
+        // The admin surface is addressed by MEMBER since S-14; the plan still keys on the account.
+        var adminMemberId = await fixture.MemberIdOfAsync(memberId);
+
+        var blocked = await admin.PostAsync($"/api/admin/members/{adminMemberId}/block", null);
         Assert.Equal(HttpStatusCode.OK, blocked.StatusCode);
 
         // The trainer's list is the view onto stored state: the plan is still active, untouched.
@@ -347,7 +356,7 @@ public class MyPlanEndpointTests(IntegrationTestFixture fixture)
         var rows = await trainer.GetFromJsonAsync<List<PlanRowBody>>(Plans);
         Assert.Equal(assigned.Id, rows!.Single(x => x.MemberUserId == memberId).Id);
 
-        var unblocked = await admin.PostAsync($"/api/admin/members/{memberId}/unblock", null);
+        var unblocked = await admin.PostAsync($"/api/admin/members/{adminMemberId}/unblock", null);
         Assert.Equal(HttpStatusCode.OK, unblocked.StatusCode);
 
         // A fresh sign-in, because blocking rotated the security stamp and killed the old cookie.
@@ -368,6 +377,6 @@ public class MyPlanEndpointTests(IntegrationTestFixture fixture)
         var admin = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveAdminEmail);
         var all = await admin.GetFromJsonAsync<List<AdminMemberRow>>("/api/admin/members");
 
-        return all!.Single(x => x.Id == memberId).Email;
+        return all!.Single(x => x.UserId == memberId).Email!;
     }
 }

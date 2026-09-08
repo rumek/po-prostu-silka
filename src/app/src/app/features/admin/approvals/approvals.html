@@ -20,7 +20,7 @@
   </div>
 } @else {
   <ul class="approvals">
-    @for (member of pending(); track member.id) {
+    @for (member of pending(); track member.memberId) {
       <li class="card approvals-row">
         <div class="approvals-identity">
           <p class="approvals-name">{{ member.displayName }}</p>
@@ -32,13 +32,13 @@
           <button
             type="button"
             class="button"
-            [disabled]="isApproving(member.id)"
+            [disabled]="isApproving(member.memberId)"
             (click)="approve(member)"
           >
-            {{ isApproving(member.id) ? 'Zatwierdzanie…' : 'Zatwierdź' }}
+            {{ isApproving(member.memberId) ? 'Zatwierdzanie…' : 'Zatwierdź' }}
           </button>
 
-          @if (failedId() === member.id) {
+          @if (failedId() === member.memberId) {
             <p class="field-error" role="alert">Nie udało się zatwierdzić. Spróbuj ponownie.</p>
           }
         </div>

@@ -1,54 +1,83 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { Member } from '../../../core/admin/member-admin.models';
 import { Members } from './members';
 
 const ANNA: Member = {
   id: 'm1',
+  userId: 'u1',
   email: 'anna@test.local',
   displayName: 'Anna Kowalska',
-  status: 'Active',
+  membershipStatus: 'Active',
+  accountStatus: 'Active',
   roles: ['User'],
+  hasAccessCode: false,
   createdAt: '2026-09-01T08:00:00+00:00',
 };
 
 const BARTEK: Member = {
   id: 'm2',
+  userId: 'u2',
   email: 'bartek@test.local',
   displayName: 'Bartek Nowak',
-  status: 'Blocked',
+  membershipStatus: 'Blocked',
+  accountStatus: 'Blocked',
   roles: ['User'],
+  hasAccessCode: false,
   createdAt: '2026-09-01T09:00:00+00:00',
 };
 
 const CELINA: Member = {
   id: 'm3',
+  userId: 'u3',
   email: 'celina@test.local',
   displayName: 'Celina Wiśniewska',
-  status: 'Pending',
+  membershipStatus: 'Active',
+  accountStatus: 'Pending',
   roles: ['User'],
+  hasAccessCode: false,
   createdAt: '2026-09-01T10:00:00+00:00',
 };
 
 /** An active member who already holds the Trainer role — the revoke direction. */
 const DOROTA: Member = {
   id: 'm4',
+  userId: 'u4',
   email: 'dorota@test.local',
   displayName: 'Dorota Lis',
-  status: 'Active',
+  membershipStatus: 'Active',
+  accountStatus: 'Active',
   roles: ['User', 'Trainer'],
+  hasAccessCode: false,
   createdAt: '2026-09-01T11:00:00+00:00',
 };
 
 /** The club's admin. S-04 stopped excluding admins from this list so FR-003's grant can reach them. */
 const EWA: Member = {
   id: 'm5',
+  userId: 'u5',
   email: 'ewa@test.local',
   displayName: 'Ewa Zając',
-  status: 'Active',
+  membershipStatus: 'Active',
+  accountStatus: 'Active',
   roles: ['Admin'],
+  hasAccessCode: false,
   createdAt: '2026-09-01T12:00:00+00:00',
+};
+
+/** A person the club recorded who has never registered — the case S-14 exists for. */
+const FILIP: Member = {
+  id: 'm6',
+  userId: null,
+  email: null,
+  displayName: 'Filip Bez Konta',
+  membershipStatus: 'Active',
+  accountStatus: null,
+  roles: [],
+  hasAccessCode: false,
+  createdAt: '2026-09-01T13:00:00+00:00',
 };
 
 describe('Members', () => {
@@ -59,7 +88,9 @@ describe('Members', () => {
   async function createWith(rows: Member[]) {
     TestBed.configureTestingModule({
       imports: [Members],
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      // provideRouter, because the row menu's "Edytuj dane" entry is a real RouterLink (S-14) and
+      // the directive needs an ActivatedRoute to resolve its href.
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
     });
 
     controller = TestBed.inject(HttpTestingController);
@@ -121,6 +152,28 @@ describe('Members', () => {
     expect(html()).toContain('Zablokowany');
   });
 
+  /**
+   * The S-14 row. "Bez konta" is a statement about their LOGIN, not a problem with their membership —
+   * and approve must not be offered, because there is nothing to approve.
+   */
+  it('marks a member with no account and offers them no approval', async () => {
+    await createWith([FILIP]);
+
+    expect(html()).toContain('Filip Bez Konta');
+    expect(html()).toContain('Bez konta');
+
+    // A record kept at the desk may have no address; saying so beats an empty line.
+    expect(html()).toContain('Brak adresu e-mail');
+
+    const labels = menuLabels(rows()[0]);
+    expect(labels).not.toContain('Zatwierdź');
+
+    // Editing and blocking DO apply — they are the two things the club can do for someone whether or
+    // not they ever sign in.
+    expect(labels).toContain('Edytuj dane');
+    expect(labels).toContain('Zablokuj');
+  });
+
   // An empty list and a failed load must not look the same to the admin.
   it('renders an explicit empty state rather than a blank page', async () => {
     await createWith([]);
@@ -158,8 +211,8 @@ describe('Members', () => {
     expect(html()).toContain('Anna Kowalska');
   });
 
-  // The status filter maps onto the API's indexed query, so unlike search it DOES refetch.
-  it('refetches with a status parameter when the filter changes', async () => {
+  // The filter maps onto the API's own query, so unlike search it DOES refetch.
+  it('refetches with a filter parameter when the filter changes', async () => {
     await createWith([ANNA, BARTEK]);
 
     const chip = Array.from(
@@ -167,7 +220,7 @@ describe('Members', () => {
     ).find((b) => (b.textContent ?? '').includes('Zablokowani'))!;
     chip.click();
 
-    (await vi.waitFor(() => controller.expectOne('/api/admin/members?status=Blocked'))).flush([
+    (await vi.waitFor(() => controller.expectOne('/api/admin/members?filter=Blocked'))).flush([
       BARTEK,
     ]);
     await settle();
@@ -189,9 +242,9 @@ describe('Members', () => {
     chips.find((b) => (b.textContent ?? '').includes('Aktywni'))!.click();
     chips.find((b) => (b.textContent ?? '').includes('Zablokowani'))!.click();
 
-    const active = await vi.waitFor(() => controller.expectOne('/api/admin/members?status=Active'));
+    const active = await vi.waitFor(() => controller.expectOne('/api/admin/members?filter=Active'));
     const blocked = await vi.waitFor(() =>
-      controller.expectOne('/api/admin/members?status=Blocked'),
+      controller.expectOne('/api/admin/members?filter=Blocked'),
     );
 
     // The NEWER request answers first, the older one second — the out-of-order case.
@@ -220,15 +273,15 @@ describe('Members', () => {
     Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('.chip'))
       .find((b) => (b.textContent ?? '').includes('Zablokowani'))!
       .click();
-    (await vi.waitFor(() => controller.expectOne('/api/admin/members?status=Blocked'))).flush([]);
+    (await vi.waitFor(() => controller.expectOne('/api/admin/members?filter=Blocked'))).flush([]);
     await settle();
 
     block.flush(null);
     await settle();
 
     // A refetch, not a silent no-op against a list this mutation never saw.
-    (await vi.waitFor(() => controller.expectOne('/api/admin/members?status=Blocked'))).flush([
-      { ...ANNA, status: 'Blocked' },
+    (await vi.waitFor(() => controller.expectOne('/api/admin/members?filter=Blocked'))).flush([
+      { ...ANNA, membershipStatus: 'Blocked', accountStatus: 'Blocked' },
     ]);
     await settle();
 
@@ -311,7 +364,7 @@ describe('Members', () => {
     await settle();
 
     (await vi.waitFor(() => controller.expectOne('/api/admin/members'))).flush([
-      { ...ANNA, status: 'Blocked' },
+      { ...ANNA, membershipStatus: 'Blocked', accountStatus: 'Blocked' },
     ]);
     await settle();
 
@@ -348,7 +401,7 @@ describe('Members', () => {
   it('reports a failed load and offers a retry', async () => {
     TestBed.configureTestingModule({
       imports: [Members],
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
     });
 
     controller = TestBed.inject(HttpTestingController);
@@ -462,7 +515,7 @@ describe('Members', () => {
     await settle();
 
     (await vi.waitFor(() => controller.expectOne('/api/admin/members'))).flush([
-      { ...ANNA, status: 'Blocked' },
+      { ...ANNA, membershipStatus: 'Blocked', accountStatus: 'Blocked' },
     ]);
     await settle();
 

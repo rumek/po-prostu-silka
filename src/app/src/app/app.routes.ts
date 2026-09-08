@@ -49,6 +49,19 @@ export const routes: Routes = [
   { path: '', component: Dashboard, canActivate: [authGuard, activeMemberGuard] },
   { path: 'admin/approvals', component: Approvals, canActivate: [authGuard, adminGuard] },
   { path: 'admin/members', component: Members, canActivate: [authGuard, adminGuard] },
+  // 'new' BEFORE ':id', or the literal would be matched as an id and the form would try to load a
+  // member called "new". Lazy, like every admin form: only an admin creating or editing a record
+  // ever downloads it.
+  {
+    path: 'admin/members/new',
+    loadComponent: () => import('./features/admin/members/member-form').then((m) => m.MemberForm),
+    canActivate: [authGuard, adminGuard],
+  },
+  {
+    path: 'admin/members/:id',
+    loadComponent: () => import('./features/admin/members/member-form').then((m) => m.MemberForm),
+    canActivate: [authGuard, adminGuard],
+  },
   // LAZY, both of them, and deliberately (S-07). They are the only routes that pull in
   // angular-calendar plus date-fns and its two drag/resize peers; eagerly loaded that lands in the
   // initial bundle, which already sits at ~424 kB against a 500 kB budget. It also means login,

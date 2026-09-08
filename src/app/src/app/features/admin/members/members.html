@@ -1,8 +1,11 @@
-<h1>Członkowie</h1>
+<div class="members-header">
+  <h1>Członkowie</h1>
+  <a class="button" routerLink="/admin/members/new">Dodaj członka</a>
+</div>
 <p class="hint">
-  Wszystkie konta, łącznie z administratorami — rola Trenera nadawana jest właśnie tutaj.
-  Administratora nie da się zablokować. Odblokowanie przywraca pełny dostęp — także kontu, które
-  przed zablokowaniem czekało na zatwierdzenie.
+  Wszyscy członkowie klubu — także ci bez konta, których zapisujesz tutaj sam. Rola Trenera nadawana
+  jest w tym miejscu i wymaga konta. Administratora nie da się zablokować. Odblokowanie przywraca
+  pełny dostęp — także kontu, które przed zablokowaniem czekało na zatwierdzenie.
 </p>
 
 <div class="members-controls">
@@ -38,6 +41,14 @@
       (click)="setFilter('Blocked')"
     >
       Zablokowani
+    </button>
+    <button
+      type="button"
+      class="chip"
+      [class.chip-active]="filter() === 'WithoutAccount'"
+      (click)="setFilter('WithoutAccount')"
+    >
+      Bez konta
     </button>
   </div>
 
@@ -82,24 +93,16 @@
         <div class="members-identity">
           <p class="members-name">
             {{ member.displayName }}
-            <span class="badge" [class]="'badge-' + member.status.toLowerCase()">
-              @switch (member.status) {
-                @case ('Pending') {
-                  Oczekuje
-                }
-                @case ('Active') {
-                  Aktywny
-                }
-                @case ('Blocked') {
-                  Zablokowany
-                }
-              }
-            </span>
+            <span class="badge" [class]="'badge-' + statusKind(member)">{{
+              statusLabel(member)
+            }}</span>
             @for (role of notableRoles(member); track role) {
               <span class="badge badge-role">{{ roleLabel(role) }}</span>
             }
           </p>
-          <p class="members-email">{{ member.email }}</p>
+          <!-- A record kept at the desk may have no address at all; saying so beats an empty line
+               that reads like a rendering bug. -->
+          <p class="members-email">{{ member.email ?? 'Brak adresu e-mail' }}</p>
           <p class="members-since">Od {{ member.createdAt | date: 'd MMMM y' }}</p>
         </div>
 
@@ -128,7 +131,16 @@
                 [attr.aria-label]="'Akcje — ' + member.displayName"
                 (keydown)="onMenuKeydown($event)"
               >
-                @if (member.status === 'Pending') {
+                <a
+                  role="menuitem"
+                  class="row-menu-item"
+                  [routerLink]="['/admin/members', member.id]"
+                  (click)="closeMenu()"
+                >
+                  Edytuj dane
+                </a>
+
+                @if (canApprove(member)) {
                   <button
                     type="button"
                     role="menuitem"
@@ -153,7 +165,7 @@
                 <!-- An admin administers the club and is not a member; the API refuses the block
                      anyway (is_admin), so offering it here would only produce a 409. -->
                 @if (!isAdmin(member)) {
-                  @if (member.status === 'Blocked') {
+                  @if (canUnblock(member)) {
                     <button
                       type="button"
                       role="menuitem"

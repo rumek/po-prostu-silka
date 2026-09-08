@@ -10,21 +10,28 @@ namespace po_prostu_silka.Infrastructure.Members;
 /// the pending queue without Application referencing EF Core, which AGENTS.md reserves for
 /// Infrastructure.
 ///
-/// Filtered on Status, which ApplicationUserConfiguration already indexes, and projected in the
-/// database — the admin queue needs four columns, not whole Identity rows.
+/// <para>
+/// DRIVEN FROM MEMBERS, not from accounts, even though the queue is accounts-only by definition — a
+/// pending account has a login awaiting approval, so it necessarily has a member row too. Starting
+/// here is what lets the projection hand back the member id every route on this surface is addressed
+/// by. The inner join to the account is what applies the "pending" part.
+/// </para>
+///
+/// Projected in the database — the admin queue needs five columns, not whole rows.
 /// </summary>
 public class PendingMemberQuery(AppDbContext db) : IPendingMemberQuery
 {
     public async Task<IReadOnlyList<PendingMember>> GetPendingAsync(CancellationToken cancellationToken) =>
-        await db.Users
+        await db.Members
             .AsNoTracking()
-            .Where(u => u.Status == AccountStatus.Pending)
+            .Where(m => m.User != null && m.User.Status == AccountStatus.Pending)
             // Oldest first: the person who has waited longest is the one to approve next.
-            .OrderBy(u => u.CreatedAt)
-            .Select(u => new PendingMember(
-                u.Id,
-                u.Email ?? string.Empty,
-                u.DisplayName,
-                u.CreatedAt))
+            .OrderBy(m => m.CreatedAt)
+            .Select(m => new PendingMember(
+                m.Id,
+                m.UserId!,
+                m.Email ?? m.User!.Email ?? string.Empty,
+                m.DisplayName,
+                m.CreatedAt))
             .ToListAsync(cancellationToken);
 }

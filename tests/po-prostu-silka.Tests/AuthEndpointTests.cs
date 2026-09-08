@@ -18,7 +18,7 @@ public class AuthEndpointTests(IntegrationTestFixture fixture)
         string Id, string Email, string DisplayName, string Status, string[] Roles);
 
     private sealed record PendingMemberBody(
-        string Id, string Email, string DisplayName, DateTimeOffset CreatedAt);
+        Guid MemberId, string UserId, string Email, string DisplayName, DateTimeOffset CreatedAt);
 
     private static object Credentials(string email) =>
         new { email, password = TestUsers.Password };
@@ -261,7 +261,7 @@ public class AuthEndpointTests(IntegrationTestFixture fixture)
 
         var admin = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveAdminEmail);
         var pending = await admin.GetFromJsonAsync<PendingMemberBody[]>("/api/admin/members/pending");
-        var id = Assert.Single(pending!, p => p.Email == email).Id;
+        var id = Assert.Single(pending!, p => p.Email == email).MemberId;
 
         var approve = await admin.PostAsync($"/api/admin/members/{id}/approve", content: null);
         Assert.Equal(HttpStatusCode.OK, approve.StatusCode);
