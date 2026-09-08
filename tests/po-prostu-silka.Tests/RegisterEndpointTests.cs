@@ -227,9 +227,11 @@ public class RegisterEndpointTests(IntegrationTestFixture fixture)
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
+        // ON THE MEMBER since S-14 Phase 8. The account keeps only the phone number, which is
+        // Identity's own column and survives the drop the address columns do not.
         using var scope = fixture.Factory.Services.CreateScope();
-        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
-        var stored = await userManager.FindByEmailAsync(email);
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var stored = await db.Members.AsNoTracking().SingleOrDefaultAsync(m => m.Email == email);
 
         Assert.NotNull(stored);
         Assert.Equal("123456789", stored.PhoneNumber);
@@ -237,6 +239,10 @@ public class RegisterEndpointTests(IntegrationTestFixture fixture)
         Assert.Equal("12A/3", stored.HouseNumber);
         Assert.Equal("31-042", stored.PostalCode);
         Assert.Equal("Kraków", stored.City);
+
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var account = await userManager.FindByEmailAsync(email);
+        Assert.Equal("123456789", account!.PhoneNumber);
     }
 
     /// <summary>

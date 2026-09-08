@@ -148,7 +148,7 @@ public class Class
     public string? InstructorUserId { get; set; }
 
     /// <summary>
-    /// Who runs it, as a member (S-14). Nullable only for the length of the transition.
+    /// Who runs it, as a member (S-14). REQUIRED — every class names an instructor.
     ///
     /// <para>
     /// Moving this key makes an accountless instructor REPRESENTABLE; it does not make one allowed.
@@ -157,7 +157,7 @@ public class Class
     /// branch rather than a schema change.
     /// </para>
     /// </summary>
-    public Guid? InstructorMemberId { get; set; }
+    public Guid InstructorMemberId { get; set; }
 
     /// <summary>
     /// The instructor's account. READ SIDE ONLY, same contract as <see cref="ClassType"/>: it exists

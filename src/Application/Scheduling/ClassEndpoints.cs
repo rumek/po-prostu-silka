@@ -383,7 +383,7 @@ public static class ClassEndpoints
             : Results.Ok(ToDto(
                 found,
                 found.ClassType,
-                found.InstructorAccount,
+                found.Instructor!.DisplayName,
                 await bookings.CountActiveAsync(id, cancellationToken)));
     }
 
@@ -456,9 +456,6 @@ public static class ClassEndpoints
             Capacity = request.Capacity,
 
             InstructorMemberId = request.InstructorMemberId,
-
-            // Still written for one more release, resolved from the member the request names.
-            InstructorUserId = instructor!.Id,
             Status = ClassStatus.Scheduled,
             CreatedAt = now,
         };
@@ -475,7 +472,7 @@ public static class ClassEndpoints
         // create would produce a duplicate class.
         // Zero bookings, by construction: the occurrence was created this instant, and there is no
         // route by which anything could have booked it before the response is written.
-        return Results.Ok(ToDto(created, classType, instructor!, bookedCount: 0));
+        return Results.Ok(ToDto(created, classType, instructor!.DisplayName, bookedCount: 0));
     }
 
     private static async Task<IResult> UpdateAsync(
@@ -507,7 +504,7 @@ public static class ClassEndpoints
             existing.ClassType.Name,
             existing.StartsAt,
             existing.DurationMinutes,
-            existing.InstructorAccount.DisplayName);
+            existing.Instructor!.DisplayName);
 
         var previousInstructorMemberId = existing.InstructorMemberId;
 
@@ -565,7 +562,6 @@ public static class ClassEndpoints
         existing.DurationMinutes = request.DurationMinutes;
         existing.Capacity = request.Capacity;
         existing.InstructorMemberId = request.InstructorMemberId;
-        existing.InstructorUserId = instructor!.Id;
 
         // AND THIS EDIT ROTATES THE STAMP TOO. IsConcurrencyToken only puts the column in the WHERE
         // clause; it does not generate a new value the way a SQL rowversion would. So without this
@@ -593,7 +589,7 @@ public static class ClassEndpoints
         //
         // The instructor is compared on the ID, not the display name — the id is what the admin
         // changed, and two trainers may share a name. The NAME for the message comes from the
-        // account ValidateInstructorAsync already resolved, never from existing.InstructorAccount, which
+        // instructor ValidateInstructorAsync already resolved, never from existing.Instructor, which
         // still points at the previous account.
         var current = new ClassDescription(
             existing.ClassType.Name,
@@ -637,7 +633,7 @@ public static class ClassEndpoints
         // by FindAsync) is still correct; the instructor may have just changed, which is exactly why
         // the validated account is used rather than the tracked entity's navigation - that one still
         // points at the PREVIOUS account and would render a stale display name.
-        return Results.Ok(ToDto(existing, existing.ClassType, instructor!, bookedCount));
+        return Results.Ok(ToDto(existing, existing.ClassType, instructor!.DisplayName, bookedCount));
     }
 
     /// <summary>
@@ -774,7 +770,7 @@ public static class ClassEndpoints
                 // From the tracked entity's navigation, which is correct HERE and would not be on the
                 // edit path: this handler changes no instructor, so FindAsync's Instructor is still
                 // the class's own.
-                existing.InstructorAccount.DisplayName),
+                existing.Instructor!.DisplayName),
             recipients,
             cancellationToken);
 
@@ -792,7 +788,8 @@ public static class ClassEndpoints
         // tile from the response. The recipient count IS the active booking count as of the commit:
         // the save succeeded, so no booking write landed in between — any that had tried would have
         // rotated the stamp and taken this save down with it.
-        return Results.Ok(ToDto(existing, existing.ClassType, existing.InstructorAccount, recipients.Count));
+        return Results.Ok(
+            ToDto(existing, existing.ClassType, existing.Instructor!.DisplayName, recipients.Count));
     }
 
     /// <summary>
@@ -860,7 +857,6 @@ public static class ClassEndpoints
                 ClassTypeId = source.ClassTypeId,
                 StartsAt = startsAt,
                 DurationMinutes = source.DurationMinutes,
-                InstructorUserId = source.InstructorUserId,
                 InstructorMemberId = source.InstructorMemberId,
                 Capacity = source.Capacity,
                 Status = ClassStatus.Scheduled,
@@ -998,6 +994,13 @@ public static class ClassEndpoints
     /// freshly created one has none, and an edited one still points at the PREVIOUS instructor.
     /// Taking them as parameters makes the caller state where each came from.
     /// </para>
+    ///
+    /// <para>
+    /// The instructor arrives as a NAME rather than as an entity (S-14 Phase 8). The callers no
+    /// longer hold the same type: the write paths have just validated an account, while the booking
+    /// paths hold a tracked occurrence whose instructor is a Member. A string is the only thing this
+    /// projection ever wanted from either.
+    /// </para>
     /// </summary>
     /// <remarks>
     /// INTERNAL rather than private since S-08: BookingEndpoints answers with the class as it now
@@ -1011,15 +1014,15 @@ public static class ClassEndpoints
     /// passes 0; every other caller counts.
     /// </param>
     internal static ScheduledClass ToDto(
-        Class entity, ClassType classType, ApplicationUser instructor, int bookedCount) =>
+        Class entity, ClassType classType, string instructorName, int bookedCount) =>
         new(entity.Id,
             entity.ClassTypeId,
             classType.Name,
             classType.Description,
             entity.StartsAt,
             entity.DurationMinutes,
-            entity.InstructorMemberId!.Value,
-            instructor.DisplayName,
+            entity.InstructorMemberId,
+            instructorName,
             entity.Capacity,
             // Same construction as the read query, and unclamped for the same reason - see
             // ClassScheduleQuery.

@@ -215,7 +215,6 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
 
             // Both keys, because the legacy column is still NOT NULL and still carries a foreign key.
             // A direct insert bypasses the endpoint that would have filled it in.
-            InstructorUserId = await fixture.UserIdOfMemberAsync(trainerId),
             StartsAt = startsAt,
             DurationMinutes = 60,
             Capacity = 12,
@@ -810,7 +809,7 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
             {
                 Id = Guid.NewGuid(),
                 ClassId = refusedId,
-                MemberUserId = bookedId,
+                MemberId = await fixture.MemberIdOfAsync(bookedId),
                 Status = BookingStatus.Active,
                 CreatedAt = DateTimeOffset.UtcNow,
             });

@@ -312,11 +312,13 @@ public static class AuthEndpoints
             DisplayName = displayName,
             Status = AccountStatus.Pending,
             CreatedAt = timeProvider.GetUtcNow(),
+
+            // THE ADDRESS IS NOT WRITTEN HERE ANY MORE (S-14 Phase 8). It lives on the Member, which
+            // is the only place it can live once a person may exist without an account at all; the
+            // four columns on AspNetUsers go in the next release. PhoneNumber stays because it is
+            // Identity's own column and does not go anywhere — see ProfileEndpoints for why keeping
+            // it in step is worth one assignment.
             PhoneNumber = contact.PhoneNumber,
-            Street = contact.Street,
-            HouseNumber = contact.HouseNumber,
-            PostalCode = contact.PostalCode,
-            City = contact.City,
         };
 
         var created = await userManager.CreateAsync(user, request.Password);
@@ -754,11 +756,15 @@ public static class AuthEndpoints
             user.DisplayName,
             user.Status.ToString(),
             roles,
-            user.PhoneNumber,
-            user.Street,
-            user.HouseNumber,
-            user.PostalCode,
-            user.City,
+
+            // FROM THE MEMBER SINCE S-14 PHASE 8. The account's copies are frozen and the columns go
+            // in the next release; reading them here would resurrect an address the member corrected
+            // through their profile.
+            member?.PhoneNumber,
+            member?.Street,
+            member?.HouseNumber,
+            member?.PostalCode,
+            member?.City,
             member?.Id,
             member?.Status.ToString()));
     }
@@ -790,11 +796,13 @@ public static class AuthEndpoints
             user.DisplayName,
             user.Status.ToString(),
             [.. roles],
-            user.PhoneNumber,
-            user.Street,
-            user.HouseNumber,
-            user.PostalCode,
-            user.City,
+
+            // From the MEMBER since S-14 Phase 8 — see GetCurrentUser for why.
+            member?.PhoneNumber,
+            member?.Street,
+            member?.HouseNumber,
+            member?.PostalCode,
+            member?.City,
             member?.Id,
             member?.Status.ToString());
     }

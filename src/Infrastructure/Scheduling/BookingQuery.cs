@@ -45,7 +45,7 @@ public class BookingQuery(AppDbContext db) : IBookingQuery
                 b.Class.ClassType.Description,
                 b.Class.StartsAt,
                 b.Class.DurationMinutes,
-                b.Class.InstructorAccount.DisplayName,
+                b.Class.Instructor!.DisplayName,
                 b.CreatedAt))
             .ToListAsync(cancellationToken);
 
@@ -64,7 +64,7 @@ public class BookingQuery(AppDbContext db) : IBookingQuery
             .OrderBy(b => b.CreatedAt)
             .Select(b => new ClassBooking(
                 b.Id,
-                b.MemberId!.Value,
+                b.MemberId,
                 b.Member!.UserId,
                 b.Member!.DisplayName,
                 b.Member!.Email ?? string.Empty,

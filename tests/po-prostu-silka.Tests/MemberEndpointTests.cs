@@ -242,9 +242,14 @@ public class MemberEndpointTests(IntegrationTestFixture fixture)
     }
 
     /// <summary>
-    /// Editing a member who HAS an account writes the account's copies too, while both rows still
-    /// carry them. Letting them diverge would have the profile screen and the admin screen disagree
-    /// about a phone number with no way to tell which was right.
+    /// Editing a member who HAS an account carries the display name and the phone number onto it,
+    /// and leaves the login address alone.
+    ///
+    /// <para>
+    /// THE ADDRESS IS NOT COPIED ANY MORE (S-14 Phase 8): it lives on the member and the account's
+    /// four columns are dropped in the next release. The phone number still is, because it is
+    /// Identity's own column and survives.
+    /// </para>
     /// </summary>
     [Fact]
     public async Task Editing_a_member_with_an_account_updates_the_accounts_copies()
@@ -264,7 +269,9 @@ public class MemberEndpointTests(IntegrationTestFixture fixture)
 
         Assert.Equal("Nowa Nazwa", user.DisplayName);
         Assert.Equal("601202303", user.PhoneNumber);
-        Assert.Equal("Kraków", user.City);
+
+        // Frozen since Phase 8 — the member's row is the one the club and the member both read.
+        Assert.Null(user.City);
 
         // The LOGIN ADDRESS IS UNTOUCHED. It is the username, Identity indexes a normalised copy of
         // it, and renaming somebody's login as a side effect of fixing a phone number is not what the

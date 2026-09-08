@@ -65,10 +65,10 @@ public class Booking
     public string? MemberUserId { get; set; }
 
     /// <summary>
-    /// Who holds the spot (S-14). Nullable only for the length of the transition — the column is made
-    /// required once every row has one and no code writes the old one any more.
+    /// Who holds the spot (S-14). REQUIRED — a booking with nobody in it is not a booking, and the
+    /// transition that let this be null is over.
     /// </summary>
-    public Guid? MemberId { get; set; }
+    public Guid MemberId { get; set; }
 
     /// <summary>
     /// The member's account. READ SIDE ONLY — it exists so the admin's booking list can project

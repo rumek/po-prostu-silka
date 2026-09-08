@@ -1,8 +1,11 @@
 using System.Net;
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using po_prostu_silka.Domain;
+using po_prostu_silka.Domain.Members;
+using po_prostu_silka.Infrastructure.Persistence;
 
 namespace po_prostu_silka.Tests;
 
@@ -42,6 +45,12 @@ public class ProfileEndpointTests(IntegrationTestFixture fixture)
     /// these tests WRITE - reusing one would make this file's results depend on execution order.
     /// Created through UserManager rather than /register so the contact columns start NULL, which is
     /// what an account registered before this slice actually looks like.
+    ///
+    /// <para>
+    /// The MEMBER row is created here too (S-14). Going around /register means going around the one
+    /// producer that would have made it, and since Phase 8 the contact details live there — an
+    /// account without a member row would report nulls for ever and save nothing.
+    /// </para>
     /// </summary>
     private async Task<string> CreateMemberWithoutContactDetailsAsync(AccountStatus status)
     {
@@ -64,10 +73,38 @@ public class ProfileEndpointTests(IntegrationTestFixture fixture)
         Assert.True(created.Succeeded, string.Join("; ", created.Errors.Select(e => e.Description)));
         await userManager.AddToRoleAsync(user, ApplicationRoles.User);
 
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        db.Members.Add(new Member
+        {
+            Id = Guid.NewGuid(),
+            UserId = user.Id,
+            DisplayName = user.DisplayName,
+            Email = email,
+            Status = MembershipStatus.Active,
+            CreatedAt = user.CreatedAt,
+            ClaimedAt = user.CreatedAt,
+        });
+
+        await db.SaveChangesAsync();
+
         return email;
     }
 
-    private async Task<ApplicationUser> ReadBackAsync(string email)
+    /// <summary>
+    /// The stored contact details — read off the MEMBER since Phase 8, which is where they live now.
+    /// </summary>
+    private async Task<Member> ReadBackAsync(string email)
+    {
+        using var scope = fixture.Factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var stored = await db.Members.AsNoTracking().SingleOrDefaultAsync(m => m.Email == email);
+        Assert.NotNull(stored);
+        return stored;
+    }
+
+    /// <summary>The account behind an email, for the two assertions that are about the login.</summary>
+    private async Task<ApplicationUser> ReadBackAccountAsync(string email)
     {
         using var scope = fixture.Factory.Services.CreateScope();
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
@@ -132,7 +169,7 @@ public class ProfileEndpointTests(IntegrationTestFixture fixture)
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
-        var stored = await ReadBackAsync(email);
+        var stored = await ReadBackAccountAsync(email);
         Assert.Equal("Anna Kowalska", stored.DisplayName);
         Assert.Equal(email, stored.Email);
     }

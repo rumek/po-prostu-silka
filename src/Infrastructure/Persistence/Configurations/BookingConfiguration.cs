@@ -45,25 +45,23 @@ public class BookingConfiguration : IEntityTypeConfiguration<Booking>
             .OnDelete(DeleteBehavior.Restrict);
 
         // S-14's replacement key. NULLABLE FOR NOW, and only for the length of the transition: the
-        // column is backfilled by the migration that adds it, written in parallel with MemberUserId
-        // by every write path, and made required once the reads have moved and the old column is
-        // gone. Restrict for the same reason the account key is - a booking is the evidence that
-        // someone signed up, and no delete may erase it silently.
+        // column was backfilled by the migration that added it and became REQUIRED in Phase 8, once
+        // every read had moved and nothing wrote the old one. Restrict for the same reason the
+        // account key is - a booking is the evidence that someone signed up, and no delete may erase
+        // it silently.
         builder.HasOne(x => x.Member)
             .WithMany()
             .HasForeignKey(x => x.MemberId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        // The new-key twins of the two indexes above. Created ALONGSIDE them rather than replacing
-        // them, because the reads still use the old column for one release.
+        // The new-key twins of the two indexes above. They still stand alongside the legacy pair for
+        // one more release, so a rollback finds the indexes its artifact expects.
         //
-        // "[MemberId] IS NOT NULL" is in the filter on top of the status term, and it has to be while
-        // the column is nullable: SQL Server treats NULLs as EQUAL for uniqueness, so without it the
-        // second row written by any code path that has not moved over yet would be rejected. Phase 8
-        // rebuilds this with the plain "[Status] = 0" filter once the column is NOT NULL.
+        // The filter is the PLAIN status term again since Phase 8: MemberId is NOT NULL now, so the
+        // "IS NOT NULL" clause the transition needed would only narrow the index to every row.
         builder.HasIndex(x => new { x.ClassId, x.MemberId })
             .IsUnique()
-            .HasFilter("[Status] = 0 AND [MemberId] IS NOT NULL")
+            .HasFilter("[Status] = 0")
             .HasDatabaseName("IX_Bookings_Class_MemberId_Active");
 
         builder.HasIndex(x => new { x.MemberId, x.Status })

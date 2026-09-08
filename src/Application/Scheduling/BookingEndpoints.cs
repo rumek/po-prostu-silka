@@ -214,7 +214,6 @@ public static class BookingEndpoints
     private static async Task<IResult> BookAsync(
         Guid classId,
         ClaimsPrincipal principal,
-        UserManager<ApplicationUser> userManager,
         IClassStore classes,
         IBookingStore bookings,
         IUnitOfWork unitOfWork,
@@ -223,19 +222,14 @@ public static class BookingEndpoints
     {
         // FROM THE COOKIE, NEVER FROM THE BODY. A booking belongs to its caller by construction, and
         // that is the whole of the authorization story on the member side.
-        //
-        // The account id is still written beside the member id for one more release — see the entity —
-        // so both are resolved here.
-        var memberUserId = userManager.GetUserId(principal);
         var memberId = principal.GetMemberId();
-        if (memberUserId is null || memberId is null)
+        if (memberId is null)
         {
             return Results.Unauthorized();
         }
 
         return await TryBookAsync(
-            classId, memberId.Value, memberUserId, classes, bookings, unitOfWork, timeProvider,
-            cancellationToken);
+            classId, memberId.Value, classes, bookings, unitOfWork, timeProvider, cancellationToken);
     }
 
     /// <summary>
@@ -256,14 +250,9 @@ public static class BookingEndpoints
     /// stay a pure mechanism.
     /// </para>
     /// </summary>
-    /// <param name="memberUserId">
-    /// The member's account, written beside <paramref name="memberId"/> for one more release. NULL
-    /// for a member with no login — the case this slice exists for.
-    /// </param>
     private static async Task<IResult> TryBookAsync(
         Guid classId,
         Guid memberId,
-        string? memberUserId,
         IClassStore classes,
         IBookingStore bookings,
         IUnitOfWork unitOfWork,
@@ -310,7 +299,6 @@ public static class BookingEndpoints
             {
                 Id = Guid.NewGuid(),
                 ClassId = entity.Id,
-                MemberUserId = memberUserId,
                 MemberId = memberId,
                 Status = BookingStatus.Active,
                 CreatedAt = now,
@@ -338,7 +326,7 @@ public static class BookingEndpoints
                 // window makes the number one too low - never too high - so it can only understate
                 // the spots available, which is the direction that cannot overbook.
                 return Results.Ok(ClassEndpoints.ToDto(
-                    entity, entity.ClassType, entity.InstructorAccount, bookedCount + 1));
+                    entity, entity.ClassType, entity.Instructor!.DisplayName, bookedCount + 1));
             }
 
             // ConcurrencyConflict: someone else's booking or cancellation rotated the stamp first.
@@ -396,8 +384,7 @@ public static class BookingEndpoints
         }
 
         return await TryBookAsync(
-            classId, member.Id, member.UserId, classes, bookings, unitOfWork, timeProvider,
-            cancellationToken);
+            classId, member.Id, classes, bookings, unitOfWork, timeProvider, cancellationToken);
     }
 
     /// <summary>
@@ -461,7 +448,7 @@ public static class BookingEndpoints
                 // same single exception, the block cascade, whose effect can only be to free further
                 // spots this number does not yet know about.
                 return Results.Ok(ClassEndpoints.ToDto(
-                    entity, entity.ClassType, entity.InstructorAccount, bookedCount - 1));
+                    entity, entity.ClassType, entity.Instructor!.DisplayName, bookedCount - 1));
             }
 
             unitOfWork.DiscardChanges();

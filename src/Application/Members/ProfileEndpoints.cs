@@ -81,17 +81,13 @@ public static class ProfileEndpoints
             return Results.Json(new ProfileFailure(failure), statusCode: 400);
         }
 
+        // THE ADDRESS LIVES ON THE MEMBER (S-14 Phase 8). The account's four columns are frozen and
+        // go in the next release, so writing them here would only be maintaining a copy nothing
+        // reads. PhoneNumber is the exception and stays in step: it is Identity's OWN column, it
+        // survives the drop, and letting it drift from the number the member just typed would leave
+        // a lie in the table Identity itself works from.
         user.PhoneNumber = contact.PhoneNumber;
-        user.Street = contact.Street;
-        user.HouseNumber = contact.HouseNumber;
-        user.PostalCode = contact.PostalCode;
-        user.City = contact.City;
 
-        // THE MEMBER'S COPIES MOVE WITH THE ACCOUNT'S (S-14). Both rows carry contact details until
-        // the read flips to Members, and updating only one of them would leave the club's record of
-        // this person quietly stale — invisible right up until the flip resurrects an address the
-        // member corrected months earlier. The admin's edit surface writes both for the same reason.
-        //
         // Staged here and committed by the same UpdateAsync below: UserManager's save goes through
         // the SAME scoped DbContext, so the two land in one SaveChangesAsync rather than two writes
         // that can half-fail.

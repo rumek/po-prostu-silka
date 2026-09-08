@@ -22,7 +22,7 @@ public class TrainingPlanQuery(AppDbContext db) : ITrainingPlanQuery
             .Select(x => new TrainingPlanSummary(
                 x.Id,
                 x.Name,
-                x.MemberId!.Value,
+                x.MemberId,
                 x.Member!.DisplayName,
                 x.AssignedBy!.DisplayName,
                 x.CreatedAt,
@@ -126,7 +126,7 @@ public class TrainingPlanQuery(AppDbContext db) : ITrainingPlanQuery
             .Select(x => new TrainingPlanDetail(
                 x.Id,
                 x.Name,
-                x.MemberId!.Value,
+                x.MemberId,
                 x.Member!.DisplayName,
                 x.AssignedBy!.DisplayName,
                 x.CreatedAt,

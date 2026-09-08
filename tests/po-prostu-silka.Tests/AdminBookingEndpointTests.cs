@@ -159,9 +159,6 @@ public class AdminBookingEndpointTests(IntegrationTestFixture fixture)
         var booking = Assert.Single(await BookingsForAsync(scheduled.Id));
         Assert.Equal(memberId, booking.MemberId);
         Assert.Equal(BookingStatus.Active, booking.Status);
-
-        // The legacy account column stays NULL, which is exactly why it had to stop being required.
-        Assert.Null(booking.MemberUserId);
     }
 
     /// <summary>
@@ -204,8 +201,8 @@ public class AdminBookingEndpointTests(IntegrationTestFixture fixture)
         var booking = Assert.Single(await BookingsForAsync(scheduled.Id));
         Assert.Equal(memberId, booking.MemberId);
 
-        // Dual-write: the legacy column is still populated while the member has a login to name.
-        Assert.NotNull(booking.MemberUserId);
+        // The legacy account column is not written any more (Phase 8) — the member key is the key.
+        Assert.Null(booking.MemberUserId);
     }
 
     // --- the refusals ----------------------------------------------------------

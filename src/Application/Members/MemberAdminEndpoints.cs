@@ -393,11 +393,10 @@ public static class MemberAdminEndpoints
                 // somebody's username as a side effect of an admin fixing a typo in a phone number.
                 // Changing a login address is its own operation and nobody has asked for it.
                 user.DisplayName = displayName;
+                // Only the phone, since S-14 Phase 8: the address is the member's and the account's
+                // four columns go in the next release. PhoneNumber is Identity's own and survives,
+                // so it is kept in step — the same rule ProfileEndpoints follows.
                 user.PhoneNumber = contact?.PhoneNumber;
-                user.Street = contact?.Street;
-                user.HouseNumber = contact?.HouseNumber;
-                user.PostalCode = contact?.PostalCode;
-                user.City = contact?.City;
                 user.ConcurrencyStamp = Guid.NewGuid().ToString();
             }
         }

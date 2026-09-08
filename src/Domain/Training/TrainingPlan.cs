@@ -41,9 +41,9 @@ public class TrainingPlan
     public string? MemberUserId { get; set; }
 
     /// <summary>
-    /// Whose plan it is (S-14). Nullable only for the length of the transition.
+    /// Whose plan it is (S-14). REQUIRED — the transition that let this be null is over.
     /// </summary>
-    public Guid? MemberId { get; set; }
+    public Guid MemberId { get; set; }
 
     /// <summary>
     /// The member's account. READ SIDE ONLY - it exists so the trainer's plan list can project
@@ -68,9 +68,9 @@ public class TrainingPlan
     public string? AssignedByUserId { get; set; }
 
     /// <summary>
-    /// The author, as a member (S-14). Nullable only for the length of the transition.
+    /// The author, as a member (S-14). REQUIRED, like <see cref="MemberId"/>.
     /// </summary>
-    public Guid? AssignedByMemberId { get; set; }
+    public Guid AssignedByMemberId { get; set; }
 
     /// <summary>The author's account. READ SIDE ONLY, same contract as <see cref="MemberAccount"/>.</summary>
     public ApplicationUser AssignedByAccount { get; set; } = null!;

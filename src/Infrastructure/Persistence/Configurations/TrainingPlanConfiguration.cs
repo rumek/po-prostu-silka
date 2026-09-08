@@ -75,9 +75,9 @@ public class TrainingPlanConfiguration : IEntityTypeConfiguration<TrainingPlan>
             .HasFilter("[Status] = 0 AND [MemberUserId] IS NOT NULL")
             .HasDatabaseName("IX_TrainingPlans_Member_Active");
 
-        // S-14's replacement keys, nullable for the length of the transition. Both are Restrict, for
-        // the reason the account keys above give: deleting a person must never silently erase the
-        // plans written for them or by them.
+        // S-14's replacement keys, REQUIRED since Phase 8. Both are Restrict, for the reason the
+        // account keys above give: deleting a person must never silently erase the plans written for
+        // them or by them.
         builder
             .HasOne(x => x.Member)
             .WithMany()
@@ -90,15 +90,15 @@ public class TrainingPlanConfiguration : IEntityTypeConfiguration<TrainingPlan>
             .HasForeignKey(x => x.AssignedByMemberId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        // The new-key twin of the one-active-plan index, created ALONGSIDE it while the reads still
-        // use the old column. The "[MemberId] IS NOT NULL" term is mandatory while the column is
-        // nullable — SQL Server treats NULLs as equal for uniqueness, so without it the second plan
-        // written by any path that has not moved over would be rejected outright. Phase 8 rebuilds
-        // this with the plain "[Status] = 0" filter once the column is NOT NULL.
+        // The new-key twin of the one-active-plan index. It stands alongside the legacy one for one
+        // more release, so a rollback finds what its artifact expects.
+        //
+        // Back to the PLAIN status filter since Phase 8: MemberId is NOT NULL, so the transitional
+        // "IS NOT NULL" term would narrow the index to every row.
         builder
             .HasIndex(x => x.MemberId)
             .IsUnique()
-            .HasFilter("[Status] = 0 AND [MemberId] IS NOT NULL")
+            .HasFilter("[Status] = 0")
             .HasDatabaseName("IX_TrainingPlans_MemberId_Active");
     }
 }

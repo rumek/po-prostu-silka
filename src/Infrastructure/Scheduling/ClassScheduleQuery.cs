@@ -86,7 +86,7 @@ public class ClassScheduleQuery(AppDbContext db) : IClassScheduleQuery
                 r.ClassTypeDescription,
                 r.StartsAt,
                 r.DurationMinutes,
-                r.InstructorMemberId!.Value,
+                r.InstructorMemberId,
                 r.InstructorDisplayName,
                 r.Capacity,
                 // NOT CLAMPED AT ZERO. With the capacity_below_bookings guard on the edit path a

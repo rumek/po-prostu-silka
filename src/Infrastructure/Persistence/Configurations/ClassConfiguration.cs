@@ -86,8 +86,8 @@ public class ClassConfiguration : IEntityTypeConfiguration<Class>
         builder.HasIndex(x => x.InstructorUserId)
             .HasDatabaseName("IX_Classes_InstructorUserId");
 
-        // S-14's replacement key, nullable for the length of the transition — see BookingConfiguration
-        // for the full shape of the swap.
+        // S-14's replacement key, REQUIRED since Phase 8 — see BookingConfiguration for the full
+        // shape of the swap.
         builder.HasOne(x => x.Instructor)
             .WithMany()
             .HasForeignKey(x => x.InstructorMemberId)

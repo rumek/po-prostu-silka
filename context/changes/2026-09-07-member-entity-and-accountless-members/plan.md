@@ -361,6 +361,45 @@ columns `NOT NULL`, **make the four legacy columns nullable** (easy to forget, a
 INSERT fails the moment the code stops writing them), and rebuild the two filtered unique indexes with
 the plain `[Status] = 0` filter.
 
+**Adapted during implementation (Phase 8).**
+
+- **`DualWriteTests` had to be deleted HERE, not in Phase 9.** The plan parked it a phase too late:
+  the file exists to assert that both keys are written, so it goes red the moment the dual write
+  stops, which is the entire content of this phase. `IntegrationTestFixture.UserIdOfMemberAsync`
+  went with it for the same reason — it existed only to populate a column nothing writes any more.
+- **"Make the legacy columns nullable" was already done**, in Phase 6, because assigning a plan to
+  an accountless member was impossible without it. Nothing left for this migration but the four
+  member keys and the two index filters.
+- **`ClassEndpoints.ToDto` now takes the instructor's NAME, not an `ApplicationUser`.** Its callers
+  stopped agreeing on a type: the write paths hold an account they have just validated, while the
+  booking paths hold a tracked occurrence whose instructor is a `Member`. A string is the only
+  thing the projection ever wanted from either, and the change surfaced the four remaining reads of
+  `Class.InstructorAccount` — which returned NULL the moment classes stopped writing the legacy
+  column, as a wave of NullReferenceExceptions across three test files.
+- **`ClassStore.FindAsync` includes `Instructor` instead of `InstructorAccount`**, which is what
+  makes those reads resolve.
+- **The migration re-runs Phase 4's backfill before the ALTERs**, which the plan did not ask for. It
+  is idempotent and costs one scan, and it covers the one case the plan's reasoning missed: a
+  rollback to the Phase 3 artifact at any point since would have inserted rows carrying only the
+  account key, and the `ALTER ... NOT NULL` would then fail in production rather than in a test.
+- **No `defaultValue` on any of the four `AlterColumn` calls**, against what EF scaffolds. A default
+  of `00000000-...` does not backfill existing NULLs — so it buys nothing — and it would arm a future
+  INSERT to point at a member id that cannot exist, against a `Restrict` foreign key. If a NULL
+  survives the backfill, the migration should fail rather than invent a key.
+- **The account keeps `PhoneNumber` in step; the address is frozen.** `PhoneNumber` is Identity's
+  own column and survives Phase 9, so letting it drift from the number the member just typed would
+  leave a lie in the table Identity itself works from. The four address columns are written by
+  nothing from this phase on.
+- **`ProfileEndpointTests` had to start creating a `Member`.** Its fixture goes around `/register`
+  on purpose — to get an account with NULL contact columns — and that means going around the one
+  producer that makes the member row. Since the details live there now, the account alone would
+  report nulls for ever and save nothing.
+- **Verified by hand on a scratch database** (`pps-phase8-check`): seeded a class, booking and plan
+  carrying ONLY the legacy account keys, applied the migration, and confirmed all four member keys
+  resolved to the right member; then rolled back (columns nullable again, both filters back to
+  `IS NOT NULL`) and rolled forward, ending with `[Status] = 0` on the new indexes,
+  `IS NOT NULL` retained on the legacy pair, and the four member columns NOT NULL.
+
 ### Phase 9 — The destructive drops, one release later
 
 Migration 17 `DropLegacyUserColumns`: drop the four legacy FK columns and

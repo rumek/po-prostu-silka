@@ -199,10 +199,6 @@ public class BookingEndpointTests(IntegrationTestFixture fixture)
             Id = Guid.NewGuid(),
             ClassTypeId = typeId,
             InstructorMemberId = trainerId,
-
-            // Both keys, because the legacy column is still NOT NULL and still carries a foreign key.
-            // A direct insert bypasses the endpoint that would have filled it in.
-            InstructorUserId = await fixture.UserIdOfMemberAsync(trainerId),
             StartsAt = startsAt,
             DurationMinutes = 60,
             Capacity = capacity,
@@ -481,10 +477,10 @@ public class BookingEndpointTests(IntegrationTestFixture fixture)
             {
                 Id = Guid.NewGuid(),
                 ClassId = past,
-                MemberUserId = (await db.Bookings
+                MemberId = (await db.Bookings
                     .AsNoTracking()
                     .Where(b => b.ClassId == upcoming.Id)
-                    .Select(b => b.MemberUserId)
+                    .Select(b => b.MemberId)
                     .SingleAsync()),
                 Status = BookingStatus.Active,
                 CreatedAt = DateTimeOffset.UtcNow.AddDays(-1),
@@ -825,7 +821,7 @@ public class BookingEndpointTests(IntegrationTestFixture fixture)
         await BookAsync(member, upcoming.Id);
 
         var memberId = (await admin.GetFromJsonAsync<List<MemberBody>>("/api/admin/members"))!
-            .Single(m => m.Email == email).UserId!;
+            .Single(m => m.Email == email).Id;
 
         await using (var db = NewContext())
         {
@@ -833,7 +829,7 @@ public class BookingEndpointTests(IntegrationTestFixture fixture)
             {
                 Id = Guid.NewGuid(),
                 ClassId = past,
-                MemberUserId = memberId,
+                MemberId = memberId,
                 Status = BookingStatus.Active,
                 CreatedAt = DateTimeOffset.UtcNow.AddDays(-3),
             });
@@ -841,9 +837,9 @@ public class BookingEndpointTests(IntegrationTestFixture fixture)
             await db.SaveChangesAsync();
         }
 
-        // Addressed by MEMBER since S-14, while the booking still carries the account id.
+        // Addressed by MEMBER since S-14, which is also the only key the booking carries now.
         var blocked = await admin.PostAsync(
-            $"/api/admin/members/{await fixture.MemberIdOfAsync(memberId)}/block", content: null);
+            $"/api/admin/members/{memberId}/block", content: null);
         Assert.Equal(HttpStatusCode.OK, blocked.StatusCode);
 
         Assert.Equal(
