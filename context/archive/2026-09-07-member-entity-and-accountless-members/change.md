@@ -1,8 +1,9 @@
 ---
 change_id: member-entity-and-accountless-members
 title: Member as a first-class entity, independent of the Identity account
-status: impl_reviewed
+status: archived
 created: 2026-09-07
+archived_at: 2026-09-08T18:10:30Z
 updated: 2026-09-08
 ---
 

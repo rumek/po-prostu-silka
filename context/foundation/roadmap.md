@@ -3,7 +3,7 @@ project: "Po Prostu Siłka"
 version: 2
 status: draft
 created: 2026-08-31
-updated: 2026-09-07
+updated: 2026-09-08
 prd_version: 1, 2
 main_goal: speed
 top_blocker: decisions
@@ -351,7 +351,7 @@ What's already in place in the codebase as of `2026-09-02` (auto-researched + us
   including `Admin`, which is how a club locks itself out of its own app. Sequenced expand/contract
   across releases because CI applies migrations before the artifact ships, so the previous artifact
   must keep running against the new schema.
-- **Status:** planned
+- **Status:** done
 
 ## Backlog Handoff
 
@@ -439,3 +439,4 @@ Resolved since the previous roadmap: the sender-domain question that gated F-03 
 - **S-11: user (admin) can create a training plan (ordered exercise list with sets, reps, weight, rest time, note) and assign it to a member — a new assignment replaces the old, so each member has at most one active plan; the member sees their current plan and opens any exercise's details from within it.** — Archived 2026-09-06 → `context/archive/2026-09-04-training-plans/`. Lesson: —.
 - **S-13: member sees their name and email, edits their contact details (phone and address), changes their password while signed in, and resets a forgotten password by emailed link before login. The display name is deliberately NOT editable — the gym owns how a member appears on its lists.** — Archived 2026-09-06 → `context/archive/2026-09-05-member-profile-edit/`. Lesson: Verify a prerequisite against the code, not against an archived plan (`context/foundation/lessons.md`).
 - **S-12: user (member) lands on a dashboard showing their nearest upcoming classes and active training plan; the admin lands on a dashboard of items needing attention — pending approvals, today's and upcoming classes.** — Archived 2026-09-07 → `context/archive/2026-09-06-member-and-admin-dashboards/`. Lesson: —.
+- **S-14: the admin creates a member record for someone who has never registered, edits and blocks it, assigns them a training plan and books them into a class; the admin issues a single-use code, and the person registers with it and lands on that record — their existing bookings and their active plan already there.** — Archived 2026-09-08 → `context/archive/2026-09-07-member-entity-and-accountless-members/`. Lesson: —.
