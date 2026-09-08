@@ -103,13 +103,13 @@
     </div>
 
     <div class="field">
-      <label for="instructorUserId">Prowadzący</label>
+      <label for="instructorMemberId">Prowadzący</label>
       <span class="select">
         <select
-          id="instructorUserId"
-          formControlName="instructorUserId"
+          id="instructorMemberId"
+          formControlName="instructorMemberId"
           [attr.aria-invalid]="
-            form.controls.instructorUserId.touched && form.controls.instructorUserId.invalid
+            form.controls.instructorMemberId.touched && form.controls.instructorMemberId.invalid
           "
         >
           <option value="" disabled>Wybierz prowadzącego…</option>
@@ -118,8 +118,8 @@
           }
         </select>
       </span>
-      @if (form.controls.instructorUserId.touched && form.controls.instructorUserId.invalid) {
-        @if (form.controls.instructorUserId.hasError('notATrainer')) {
+      @if (form.controls.instructorMemberId.touched && form.controls.instructorMemberId.invalid) {
+        @if (form.controls.instructorMemberId.hasError('notATrainer')) {
           <p class="field-error">
             Ta osoba nie jest już aktywnym prowadzącym. Odśwież stronę i wybierz kogoś innego.
           </p>

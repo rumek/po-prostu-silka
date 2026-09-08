@@ -15,7 +15,7 @@ function at(local: string, over: Partial<ScheduledClass> = {}): ScheduledClass {
     description: over.description ?? null,
     startsAt: new Date(local).toISOString(),
     durationMinutes: over.durationMinutes ?? 60,
-    instructorUserId: over.instructorUserId ?? 'u1',
+    instructorMemberId: over.instructorMemberId ?? 'u1',
     instructor: over.instructor ?? 'Ola',
     capacity: over.capacity ?? 20,
     freeSpots: over.freeSpots ?? 20,

@@ -63,7 +63,7 @@ export class ClassCreateOverlay implements OnInit {
   protected readonly error = signal<string | null>(null);
 
   protected readonly classTypeId = signal('');
-  protected readonly instructorUserId = signal('');
+  protected readonly instructorMemberId = signal('');
   protected readonly durationMinutes = signal(0);
   protected readonly capacity = signal(0);
 
@@ -88,7 +88,7 @@ export class ClassCreateOverlay implements OnInit {
   protected readonly canSubmit = computed(
     () =>
       !!this.classTypeId() &&
-      !!this.instructorUserId() &&
+      !!this.instructorMemberId() &&
       inRange(this.durationMinutes(), MIN_DURATION, MAX_DURATION) &&
       inRange(this.capacity(), MIN_CAPACITY, MAX_CAPACITY) &&
       !this.saving(),
@@ -144,7 +144,7 @@ export class ClassCreateOverlay implements OnInit {
         classTypeId: this.classTypeId(),
         startsAt: this.drawn().startsAt.toISOString(),
         durationMinutes: this.durationMinutes(),
-        instructorUserId: this.instructorUserId(),
+        instructorMemberId: this.instructorMemberId(),
         capacity: this.capacity(),
       });
 

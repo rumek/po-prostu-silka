@@ -71,7 +71,7 @@ export class ClassForm implements OnInit {
       60,
       [Validators.required, Validators.min(MIN_DURATION), Validators.max(MAX_DURATION)],
     ],
-    instructorUserId: ['', [Validators.required]],
+    instructorMemberId: ['', [Validators.required]],
     capacity: [
       12,
       [Validators.required, Validators.min(MIN_CAPACITY), Validators.max(MAX_CAPACITY)],
@@ -181,9 +181,9 @@ export class ClassForm implements OnInit {
     // Class.cs documents the stale reference itself as an accepted risk of this slice; what is not
     // acceptable is hiding it until save. Same fallback trick as the class type above, flagged in the
     // label so the admin sees they must pick someone else.
-    if (!this.trainers().some((trainer) => trainer.id === existing.instructorUserId)) {
+    if (!this.trainers().some((trainer) => trainer.id === existing.instructorMemberId)) {
       this.trainers.update((trainers) => [
-        { id: existing.instructorUserId, displayName: `${existing.instructor} (nieaktywny)` },
+        { id: existing.instructorMemberId, displayName: `${existing.instructor} (nieaktywny)` },
         ...trainers,
       ]);
     }
@@ -195,7 +195,7 @@ export class ClassForm implements OnInit {
       // UTC instant -> the local wall clock the input displays.
       startsAt: toLocalInputValue(existing.startsAt),
       durationMinutes: existing.durationMinutes,
-      instructorUserId: existing.instructorUserId,
+      instructorMemberId: existing.instructorMemberId,
       capacity: existing.capacity,
     });
 
@@ -244,7 +244,7 @@ export class ClassForm implements OnInit {
       // The local wall clock the admin typed -> the UTC instant the API stores.
       startsAt: fromLocalInputValue(value.startsAt),
       durationMinutes: value.durationMinutes,
-      instructorUserId: value.instructorUserId,
+      instructorMemberId: value.instructorMemberId,
       capacity: value.capacity,
     };
 
@@ -297,7 +297,7 @@ export class ClassForm implements OnInit {
         return;
       case 'unknown_instructor':
       case 'instructor_not_trainer':
-        this.reject(this.form.controls.instructorUserId, { notATrainer: true });
+        this.reject(this.form.controls.instructorMemberId, { notATrainer: true });
         return;
       case 'missing_field':
         this.form.markAllAsTouched();

@@ -236,6 +236,31 @@ Wire contracts break here (`ClassBooking.MemberUserId`, `TrainingPlan*.MemberUse
 commit. That is safe only because the SPA ships inside the API's own `wwwroot` as one artifact — do
 not split this phase across two deploys. Dual-write stays on.
 
+**Adapted during implementation (Phase 5).**
+
+- **The class's instructor is submitted as a MEMBER id, not an account id.** The plan named
+  `ScheduledClass.InstructorUserId` as a contract that breaks, but stopped short of the request side
+  and of `/api/admin/trainers`. Leaving those on account ids would have made the scheduling surface
+  the one place where the SPA still speaks Identity. `TrainerSummary.Id`, `ClassRequest`, and
+  `ScheduledClass` all carry member ids now, and `ValidateInstructorAsync` resolves the account behind
+  the member. **The rule is unchanged** — an instructor still needs an active account holding Trainer,
+  and an accountless member is refused as `unknown_instructor`.
+- **The assignable-member rule is "active membership AND, if there is a login, an approved one".** The
+  plan said to drop the `AccountStatus.Active` filter outright. Applied literally that also let a plan
+  be assigned to an account that self-registered minutes ago and has not been vetted — a loosening
+  nobody asked for and which a test caught. The predicate now lives in one place
+  (`TrainingPlanQuery.Assignable`) shared by the picker and by the write-side validation, so the two
+  cannot drift into disagreeing about who is eligible. `FindMemberStatusAsync` became
+  `IsAssignableAsync` for the same reason.
+- **`ClassBooking` carries `UserId` beside `MemberId`**, as planned, and the fan-out now `continue`s
+  past a member with no account rather than looking up push subscriptions that cannot exist.
+- **The blocked-member booking cascade is keyed on the member**, so it finally covers an accountless
+  member — the case it could not reach while bookings were keyed on the login.
+- **`IntegrationTestFixture.UserIdOfMemberAsync` was added and is deliberately temporary.** Tests that
+  insert entities directly must still populate the legacy account column, because it is still
+  NOT NULL with a live foreign key. It says in its own doc comment that it goes away with those
+  columns.
+
 ### Phase 6 — Access code and the claim at registration
 
 `src/Application/Members/MemberAccessCode.cs`, pure BCL beside `ContactDetails`: 8 characters from an

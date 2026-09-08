@@ -27,8 +27,8 @@ export interface ScheduledClass {
    */
   durationMinutes: number;
 
-  /** The instructor's account id. What the form's trainer select submits. */
-  instructorUserId: string;
+  /** The instructor's MEMBER id (S-14). What the form's trainer select submits. */
+  instructorMemberId: string;
 
   /**
    * RESOLVED — the instructor's display name, not a typed string. Free text until S-06, when the
@@ -68,8 +68,8 @@ export interface ClassRequest {
 
   durationMinutes: number;
 
-  /** An account id from `/api/admin/trainers`. Unlike the type, this IS editable. */
-  instructorUserId: string;
+  /** A member id from `/api/admin/trainers`. Unlike the type, this IS editable. */
+  instructorMemberId: string;
 
   capacity: number;
 }

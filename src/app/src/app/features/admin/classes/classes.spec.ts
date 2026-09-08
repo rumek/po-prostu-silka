@@ -29,7 +29,7 @@ const JOGA: ScheduledClass = {
   description: 'Dla poczatkujacych',
   startsAt: todayAt(18),
   durationMinutes: 60,
-  instructorUserId: 'u1',
+  instructorMemberId: 'u1',
   instructor: 'Ola',
   capacity: 20,
   freeSpots: 20,
@@ -329,7 +329,7 @@ describe('Classes', () => {
 
     // The update endpoint takes a whole ClassRequest — omitting these would blank them.
     expect(body.classTypeId).toBe('t1');
-    expect(body.instructorUserId).toBe('u1');
+    expect(body.instructorMemberId).toBe('u1');
     expect(body.capacity).toBe(20);
     expect(body.durationMinutes).toBe(90);
     expect(new Date(body.startsAt).getHours()).toBe(21);
@@ -373,7 +373,7 @@ describe('Classes', () => {
 
   const SIGNUP = {
     bookingId: 'b1',
-    memberUserId: 'm1',
+    memberId: 'm1',
     displayName: 'Ala Kowalska',
     email: 'ala@example.test',
     bookedAt: todayAt(9),

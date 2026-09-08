@@ -41,7 +41,15 @@ export interface MyBooking {
  */
 export interface ClassBooking {
   bookingId: string;
-  memberUserId: string;
+
+  /** Who holds the spot. A MEMBER id since S-14 — the person, not their login. */
+  memberId: string;
+
+  /**
+   * Their account, or null when they have none (S-14). Present because push notifications are
+   * account-keyed; the screen itself has no use for it.
+   */
+  userId: string | null;
   displayName: string;
   email: string;
   bookedAt: string;

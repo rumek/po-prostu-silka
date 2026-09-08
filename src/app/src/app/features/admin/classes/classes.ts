@@ -207,7 +207,7 @@ export class Classes {
         classTypeId: row.classTypeId,
         startsAt,
         durationMinutes: change.durationMinutes,
-        instructorUserId: row.instructorUserId,
+        instructorMemberId: row.instructorMemberId,
         capacity: row.capacity,
       });
     } catch (failure) {

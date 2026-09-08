@@ -98,14 +98,14 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
         return (await response.Content.ReadFromJsonAsync<ClassTypeBody>())!;
     }
 
-    private Task<string> CreateTrainerAsync(HttpClient admin) =>
+    private Task<Guid> CreateTrainerAsync(HttpClient admin) =>
         CreateNamedTrainerAsync(admin, displayName: null);
 
     /// <summary>
     /// A trainer with a chosen display name, so a test asserting that a message carries the RIGHT
     /// name means something - every trainer is otherwise called "Test Trainer".
     /// </summary>
-    private async Task<string> CreateNamedTrainerAsync(HttpClient admin, string? displayName)
+    private async Task<Guid> CreateNamedTrainerAsync(HttpClient admin, string? displayName)
     {
         var email = $"trainer-{Guid.NewGuid():N}@test.local";
         await fixture.CreateUserAsync(
@@ -113,10 +113,10 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
 
         var members = await admin.GetFromJsonAsync<List<MemberBody>>("/api/admin/members");
 
-        return members!.Single(m => m.Email == email).UserId!;
+        return members!.Single(m => m.Email == email).Id;
     }
 
-    private async Task<(HttpClient Admin, ClassTypeBody Type, string TrainerId)> ArrangeAsync()
+    private async Task<(HttpClient Admin, ClassTypeBody Type, Guid TrainerId)> ArrangeAsync()
     {
         var admin = await AdminAsync();
 
@@ -124,13 +124,13 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
     }
 
     private static async Task<ClassBody> PostClassAsync(
-        HttpClient admin, Guid typeId, string trainerId, DateTimeOffset startsAt, int capacity = 12)
+        HttpClient admin, Guid typeId, Guid trainerId, DateTimeOffset startsAt, int capacity = 12)
     {
         var response = await admin.PostAsJsonAsync(Endpoint, new
         {
             classTypeId = typeId,
             startsAt,
-            instructorUserId = trainerId,
+            instructorMemberId = trainerId,
             durationMinutes = 60,
             capacity,
         });
@@ -147,7 +147,7 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
         HttpClient admin,
         Guid classId,
         Guid typeId,
-        string trainerId,
+        Guid trainerId,
         DateTimeOffset startsAt,
         int duration = 60,
         int capacity = 12) =>
@@ -155,7 +155,7 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
         {
             classTypeId = typeId,
             startsAt,
-            instructorUserId = trainerId,
+            instructorMemberId = trainerId,
             durationMinutes = duration,
             capacity,
         });
@@ -203,7 +203,7 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
     /// class in the PAST, which <c>starts_in_past</c> refuses at creation.
     /// </summary>
     private async Task<Guid> InsertClassAsync(
-        Guid typeId, string trainerId, DateTimeOffset startsAt, ClassStatus status)
+        Guid typeId, Guid trainerId, DateTimeOffset startsAt, ClassStatus status)
     {
         await using var db = NewContext();
 
@@ -211,7 +211,11 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
         {
             Id = Guid.NewGuid(),
             ClassTypeId = typeId,
-            InstructorUserId = trainerId,
+            InstructorMemberId = trainerId,
+
+            // Both keys, because the legacy column is still NOT NULL and still carries a foreign key.
+            // A direct insert bypasses the endpoint that would have filled it in.
+            InstructorUserId = await fixture.UserIdOfMemberAsync(trainerId),
             StartsAt = startsAt,
             DurationMinutes = 60,
             Capacity = 12,

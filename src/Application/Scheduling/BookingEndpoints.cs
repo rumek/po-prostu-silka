@@ -43,9 +43,25 @@ public record MyBooking(
 /// <see cref="ScheduledClass"/>: the client needs a stable key, and it grants nothing on its own.
 /// </para>
 /// </summary>
+/// <param name="MemberId">Who holds the spot.</param>
+/// <param name="UserId">
+/// Their account, or null when they have none (S-14).
+///
+/// <para>
+/// IT TRAVELS BESIDE THE MEMBER ID BECAUSE PUSH IS ACCOUNT-KEYED and stays that way — a device
+/// belongs to a login, not to a person, so the notification fan-out needs this to find the
+/// subscriptions. Do not "simplify" it away by keying push on the member.
+/// </para>
+/// </param>
+/// <param name="Email">
+/// Where to reach them, or empty when the club has no address for them. Empty is a REAL case since
+/// S-14 rather than the theoretical one it used to be: a person recorded at the desk may never have
+/// given one, and they simply receive nothing.
+/// </param>
 public record ClassBooking(
     Guid BookingId,
-    string MemberUserId,
+    Guid MemberId,
+    string? UserId,
     string DisplayName,
     string Email,
     DateTimeOffset BookedAt);
@@ -184,17 +200,17 @@ public static class BookingEndpoints
         TimeProvider timeProvider,
         CancellationToken cancellationToken)
     {
+        // FROM THE COOKIE, NEVER FROM THE BODY. A booking belongs to its caller by construction, and
+        // that is the whole of the authorization story on the member side.
+        //
+        // The account id is still written beside the member id for one more release — see the entity —
+        // so both are resolved here.
         var memberUserId = userManager.GetUserId(principal);
-        if (memberUserId is null)
+        var memberId = principal.GetMemberId();
+        if (memberUserId is null || memberId is null)
         {
             return Results.Unauthorized();
         }
-
-        // BOTH IDS, and both from the cookie — never from the body. The member id is what the booking
-        // will key on once the reads move; until then it is written beside the account id so that a
-        // rollback to the previous artifact still finds a populated column, which is the whole point
-        // of the parallel write.
-        var memberId = principal.GetMemberId();
 
         for (var attempt = 1; attempt <= MaxAttempts; attempt++)
         {
@@ -219,7 +235,7 @@ public static class BookingEndpoints
                 return Refuse("class_started");
             }
 
-            if (await bookings.FindActiveAsync(classId, memberUserId, cancellationToken) is not null)
+            if (await bookings.FindActiveAsync(classId, memberId.Value, cancellationToken) is not null)
             {
                 return Refuse("already_booked");
             }
@@ -237,7 +253,7 @@ public static class BookingEndpoints
                 Id = Guid.NewGuid(),
                 ClassId = entity.Id,
                 MemberUserId = memberUserId,
-                MemberId = memberId,
+                MemberId = memberId.Value,
                 Status = BookingStatus.Active,
                 CreatedAt = now,
             });
@@ -304,8 +320,8 @@ public static class BookingEndpoints
         TimeProvider timeProvider,
         CancellationToken cancellationToken)
     {
-        var memberUserId = userManager.GetUserId(principal);
-        if (memberUserId is null)
+        var memberId = principal.GetMemberId();
+        if (memberId is null)
         {
             return Results.Unauthorized();
         }
@@ -318,7 +334,7 @@ public static class BookingEndpoints
                 return Results.NotFound();
             }
 
-            var booking = await bookings.FindActiveAsync(classId, memberUserId, cancellationToken);
+            var booking = await bookings.FindActiveAsync(classId, memberId.Value, cancellationToken);
             if (booking is null)
             {
                 return Refuse("not_booked");
@@ -364,14 +380,14 @@ public static class BookingEndpoints
         TimeProvider timeProvider,
         CancellationToken cancellationToken)
     {
-        var memberUserId = userManager.GetUserId(principal);
-        if (memberUserId is null)
+        var memberId = principal.GetMemberId();
+        if (memberId is null)
         {
             return Results.Unauthorized();
         }
 
         return Results.Ok(await query.GetUpcomingForMemberAsync(
-            memberUserId, timeProvider.GetUtcNow(), cancellationToken));
+            memberId.Value, timeProvider.GetUtcNow(), cancellationToken));
     }
 
     /// <summary>
@@ -484,7 +500,7 @@ public interface IBookingStore
     /// this returns and expects the change tracker to notice.
     /// </summary>
     Task<Booking?> FindActiveAsync(
-        Guid classId, string memberUserId, CancellationToken cancellationToken);
+        Guid classId, Guid memberId, CancellationToken cancellationToken);
 
     /// <summary>
     /// One booking by id, TRACKED, for the admin's release. Returns it whatever its status and
@@ -535,7 +551,7 @@ public interface IBookingStore
     /// </para>
     /// </summary>
     Task CancelActiveFutureForMemberAsync(
-        string memberUserId, DateTimeOffset asOf, CancellationToken cancellationToken);
+        Guid memberId, DateTimeOffset asOf, CancellationToken cancellationToken);
 }
 
 /// <summary>
@@ -555,7 +571,7 @@ public interface IBookingQuery
     /// </para>
     /// </summary>
     Task<IReadOnlyList<MyBooking>> GetUpcomingForMemberAsync(
-        string memberUserId, DateTimeOffset from, CancellationToken cancellationToken);
+        Guid memberId, DateTimeOffset from, CancellationToken cancellationToken);
 
     /// <summary>
     /// Everyone actively signed up for a class, in the order they booked — so the club can see who

@@ -15,7 +15,7 @@ public class BookingStore(AppDbContext db) : IBookingStore
     public void Add(Booking entity) => db.Bookings.Add(entity);
 
     public async Task<Booking?> FindActiveAsync(
-        Guid classId, string memberUserId, CancellationToken cancellationToken) =>
+        Guid classId, Guid memberId, CancellationToken cancellationToken) =>
         // Tracked, not AsNoTracking: the cancel path mutates what this returns.
         //
         // No Include. The two navigations exist for the read projections next door; a write path
@@ -23,7 +23,7 @@ public class BookingStore(AppDbContext db) : IBookingStore
         // the one mistake Booking's doc comment names.
         await db.Bookings.FirstOrDefaultAsync(
             b => b.ClassId == classId
-                 && b.MemberUserId == memberUserId
+                 && b.MemberId == memberId
                  && b.Status == BookingStatus.Active,
             cancellationToken);
 
@@ -35,7 +35,7 @@ public class BookingStore(AppDbContext db) : IBookingStore
         await db.Bookings.FirstOrDefaultAsync(b => b.Id == bookingId, cancellationToken);
 
     public Task<int> CountActiveAsync(Guid classId, CancellationToken cancellationToken) =>
-        // Seeks IX_Bookings_Class_Member_Active, whose filter is exactly this predicate's Status
+        // Seeks IX_Bookings_Class_MemberId_Active, whose filter is exactly this predicate's Status
         // term, so the count is an index seek rather than a table scan.
         db.Bookings.CountAsync(
             b => b.ClassId == classId && b.Status == BookingStatus.Active, cancellationToken);
@@ -44,7 +44,7 @@ public class BookingStore(AppDbContext db) : IBookingStore
         db.Bookings.AnyAsync(b => b.ClassId == classId, cancellationToken);
 
     public async Task CancelActiveFutureForMemberAsync(
-        string memberUserId, DateTimeOffset asOf, CancellationToken cancellationToken)
+        Guid memberId, DateTimeOffset asOf, CancellationToken cancellationToken)
     {
         // TRACKED and materialised rather than an ExecuteUpdate: the caller (blocking a member) is
         // mid-way through its own unit of work, and the status flip, the outbox message and these
@@ -59,7 +59,7 @@ public class BookingStore(AppDbContext db) : IBookingStore
         // is translated. Reading through it is safe here for the reason CancelActiveFutureForMember-
         // Async documents - cancelling only frees spots, so no stamp rotation is owed.
         var future = await db.Bookings
-            .Where(b => b.MemberUserId == memberUserId
+            .Where(b => b.MemberId == memberId
                         && b.Status == BookingStatus.Active
                         && b.Class.StartsAt > asOf)
             .ToListAsync(cancellationToken);

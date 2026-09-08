@@ -3,6 +3,7 @@ using po_prostu_silka.Application.Notifications;
 using po_prostu_silka.Application.Members;
 using po_prostu_silka.Application.Persistence;
 using po_prostu_silka.Domain;
+using po_prostu_silka.Domain.Members;
 using po_prostu_silka.Domain.Scheduling;
 
 namespace po_prostu_silka.Application.Scheduling;
@@ -37,13 +38,15 @@ namespace po_prostu_silka.Application.Scheduling;
 /// </para>
 ///
 /// <para>
-/// <see cref="InstructorUserId"/> REACHES MEMBERS, and that is a considered decision rather than an
+/// <see cref="InstructorMemberId"/> REACHES MEMBERS, and that is a considered decision rather than an
 /// oversight. ClassScheduleQuery projects one shape for both the admin list and the member schedule,
-/// so every active member receives the trainer's Identity id. The member SPA never reads it — the
-/// field exists for the admin form's trainer select — and it grants nothing on its own, since every
-/// admin surface is policy-gated. Splitting the projection in two was weighed and declined: it would
-/// hand S-07 and S-08 a branch to maintain for a field with no exploit path. Revisit if the id ever
-/// becomes guessable-to-useful, e.g. if a member-facing endpoint ever accepts a user id.
+/// so every active member receives the trainer's member id. The member SPA never reads it — the field
+/// exists for the admin form's trainer select — and it grants nothing on its own, since every admin
+/// surface is policy-gated. Splitting the projection in two was weighed and declined: it would hand
+/// S-07 and S-08 a branch to maintain for a field with no exploit path.
+///
+/// SINCE S-14 IT IS A MEMBER ID RATHER THAN AN IDENTITY ID, which narrows this further: it no longer
+/// leaks a login identifier to every member of the club.
 /// </para>
 /// </summary>
 public record ScheduledClass(
@@ -53,7 +56,7 @@ public record ScheduledClass(
     string? Description,
     DateTimeOffset StartsAt,
     int DurationMinutes,
-    string InstructorUserId,
+    Guid InstructorMemberId,
     string Instructor,
     int Capacity,
     int FreeSpots,
@@ -64,7 +67,7 @@ public record ScheduledClass(
 ///
 /// <para>
 /// A FORM OF SELECTIONS, NOT OF TEXT (prd-v2 US-01). There is no name and no room to type;
-/// <see cref="ClassTypeId"/> and <see cref="InstructorUserId"/> are references the client picked from
+/// <see cref="ClassTypeId"/> and <see cref="InstructorMemberId"/> are references the client picked from
 /// two lists. What remains typed are the two numbers — and they arrive here PREFILLED from the type's
 /// defaults, which the admin may have overridden for this session.
 /// </para>
@@ -78,7 +81,7 @@ public record ClassRequest(
     Guid ClassTypeId,
     DateTimeOffset StartsAt,
     int DurationMinutes,
-    string InstructorUserId,
+    Guid InstructorMemberId,
     int Capacity);
 
 /// <summary>How many following weeks to copy a class into.</summary>
@@ -424,9 +427,9 @@ public static class ClassEndpoints
             return Results.Json(new ClassFailure("inactive_class_type"), statusCode: 400);
         }
 
-        var (instructorFailure, instructor, instructorMemberId) =
+        var (instructorFailure, instructor) =
             await ValidateInstructorAsync(
-                request.InstructorUserId, userManager, members, cancellationToken);
+                request.InstructorMemberId, userManager, members, cancellationToken);
         if (instructorFailure is not null)
         {
             return instructorFailure;
@@ -452,8 +455,10 @@ public static class ClassEndpoints
             DurationMinutes = request.DurationMinutes,
             Capacity = request.Capacity,
 
-            InstructorUserId = request.InstructorUserId,
-            InstructorMemberId = instructorMemberId,
+            InstructorMemberId = request.InstructorMemberId,
+
+            // Still written for one more release, resolved from the member the request names.
+            InstructorUserId = instructor.Id,
             Status = ClassStatus.Scheduled,
             CreatedAt = now,
         };
@@ -504,7 +509,7 @@ public static class ClassEndpoints
             existing.DurationMinutes,
             existing.InstructorAccount.DisplayName);
 
-        var previousInstructorUserId = existing.InstructorUserId;
+        var previousInstructorMemberId = existing.InstructorMemberId;
 
         var invalid = Validate(request);
         if (invalid is not null)
@@ -525,9 +530,9 @@ public static class ClassEndpoints
 
         // The instructor, unlike the type, IS mutable - reassigning a class to another trainer is
         // ordinary admin work - so it is re-validated on every edit.
-        var (instructorFailure, instructor, instructorMemberId) =
+        var (instructorFailure, instructor) =
             await ValidateInstructorAsync(
-                request.InstructorUserId, userManager, members, cancellationToken);
+                request.InstructorMemberId, userManager, members, cancellationToken);
         if (instructorFailure is not null)
         {
             return instructorFailure;
@@ -559,8 +564,8 @@ public static class ClassEndpoints
         existing.StartsAt = request.StartsAt;
         existing.DurationMinutes = request.DurationMinutes;
         existing.Capacity = request.Capacity;
-        existing.InstructorUserId = request.InstructorUserId;
-        existing.InstructorMemberId = instructorMemberId;
+        existing.InstructorMemberId = request.InstructorMemberId;
+        existing.InstructorUserId = instructor.Id;
 
         // AND THIS EDIT ROTATES THE STAMP TOO. IsConcurrencyToken only puts the column in the WHERE
         // clause; it does not generate a new value the way a SQL rowversion would. So without this
@@ -598,7 +603,7 @@ public static class ClassEndpoints
 
         var moved = previous.StartsAt != current.StartsAt
                     || previous.DurationMinutes != current.DurationMinutes
-                    || previousInstructorUserId != request.InstructorUserId;
+                    || previousInstructorMemberId != request.InstructorMemberId;
 
         // A CANCELLED class notifies nothing. Its members were already told it is not happening;
         // correcting its record afterwards is bookkeeping, and there is no live appointment to
@@ -879,8 +884,7 @@ public static class ClassEndpoints
     {
         // A reference that is absent, not a field that is blank: the client picks these from two
         // lists, so the only way they arrive empty is a form submitted without a selection.
-        if (request.ClassTypeId == Guid.Empty
-            || string.IsNullOrWhiteSpace(request.InstructorUserId))
+        if (request.ClassTypeId == Guid.Empty || request.InstructorMemberId == Guid.Empty)
         {
             return Results.Json(new ClassFailure("missing_field"), statusCode: 400);
         }
@@ -935,35 +939,53 @@ public static class ClassEndpoints
     /// <c>Failure</c> set and <c>Instructor</c> null when the account may not be assigned; the
     /// reverse when it may. Exactly one of the two is ever non-null.
     /// </returns>
-    private static async Task<(IResult? Failure, ApplicationUser? Instructor, Guid? MemberId)>
+    /// <summary>
+    /// Resolves and vets the instructor the request names.
+    ///
+    /// <para>
+    /// TAKES A MEMBER ID AND CHECKS THE ACCOUNT BEHIND IT (S-14). The rule itself is unchanged — an
+    /// instructor must hold an active account with the Trainer role — but the identifier the client
+    /// submits is now a member, like every other identifier on this surface. A member with no account
+    /// is refused as <c>unknown_instructor</c>: moving the foreign key made an accountless instructor
+    /// representable, not permitted, and closing roadmap Open Question 3 is a deliberate later
+    /// decision rather than a side effect of this migration.
+    /// </para>
+    ///
+    /// <para>
+    /// The refusal is ONE code for every reason — no such member, no account, blocked, not a trainer's
+    /// account — because this surface must not become a way to probe which member ids exist or what
+    /// state somebody's login is in.
+    /// </para>
+    /// </summary>
+    private static async Task<(IResult? Failure, ApplicationUser? Instructor)>
         ValidateInstructorAsync(
-            string instructorUserId,
+            Guid instructorMemberId,
             UserManager<ApplicationUser> userManager,
             IMemberStore members,
             CancellationToken cancellationToken)
     {
-        var instructor = await userManager.FindByIdAsync(instructorUserId);
+        var member = await members.FindAsync(instructorMemberId, cancellationToken);
+
+        if (member is null
+            || member.Status != MembershipStatus.Active
+            || member.UserId is null)
+        {
+            return (Results.Json(new ClassFailure("unknown_instructor"), statusCode: 400), null);
+        }
+
+        var instructor = await userManager.FindByIdAsync(member.UserId);
 
         if (instructor is null || instructor.Status != AccountStatus.Active)
         {
-            return (Results.Json(new ClassFailure("unknown_instructor"), statusCode: 400), null, null);
+            return (Results.Json(new ClassFailure("unknown_instructor"), statusCode: 400), null);
         }
 
         if (!await userManager.IsInRoleAsync(instructor, ApplicationRoles.Trainer))
         {
-            return (Results.Json(new ClassFailure("instructor_not_trainer"), statusCode: 400), null, null);
+            return (Results.Json(new ClassFailure("instructor_not_trainer"), statusCode: 400), null);
         }
 
-        // The member behind the account, so the write paths can populate the key that is replacing
-        // InstructorUserId (S-14) without a second lookup each.
-        //
-        // THE RULE ITSELF IS UNCHANGED: an instructor must still hold an active account with the
-        // Trainer role. Moving the foreign key makes an accountless instructor representable, not
-        // permitted — roles live in Identity, and closing roadmap Open Question 3 is a later,
-        // deliberate decision rather than a side effect of this migration.
-        var member = await members.FindByUserIdAsync(instructor.Id, cancellationToken);
-
-        return (null, instructor, member?.Id);
+        return (null, instructor);
     }
 
     /// <summary>
@@ -996,7 +1018,7 @@ public static class ClassEndpoints
             classType.Description,
             entity.StartsAt,
             entity.DurationMinutes,
-            entity.InstructorUserId,
+            entity.InstructorMemberId!.Value,
             instructor.DisplayName,
             entity.Capacity,
             // Same construction as the read query, and unclamped for the same reason - see

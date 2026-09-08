@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using po_prostu_silka.Application.Members;
 using po_prostu_silka.Application.Persistence;
 using po_prostu_silka.Domain;
+using po_prostu_silka.Domain.Members;
 using po_prostu_silka.Domain.Training;
 
 namespace po_prostu_silka.Application.Training;
@@ -21,7 +22,7 @@ namespace po_prostu_silka.Application.Training;
 public record TrainingPlanSummary(
     Guid Id,
     string Name,
-    string MemberUserId,
+    Guid MemberId,
     string MemberDisplayName,
     string AssignedByDisplayName,
     DateTimeOffset CreatedAt,
@@ -56,7 +57,7 @@ public record TrainingPlanItemView(
 public record TrainingPlanDetail(
     Guid Id,
     string Name,
-    string MemberUserId,
+    Guid MemberId,
     string MemberDisplayName,
     string AssignedByDisplayName,
     DateTimeOffset CreatedAt,
@@ -67,7 +68,13 @@ public record TrainingPlanDetail(
 /// and an id, and nothing else on this surface should expose emails or account status to an account
 /// that is not an admin.
 /// </summary>
-public record AssignableMember(string Id, string DisplayName);
+/// <param name="Id">The MEMBER's id (S-14), not an account's — which is what lets a person the club
+/// recorded but who never registered be offered here at all.</param>
+/// <param name="HasAccount">
+/// Whether they can sign in. The picker says so, because a plan assigned to someone with no login is
+/// real work the member will never see in the app until they claim their record.
+/// </param>
+public record AssignableMember(Guid Id, string DisplayName, bool HasAccount);
 
 /// <summary>
 /// One exercise inside a create/edit payload.
@@ -91,14 +98,14 @@ public record TrainingPlanItemRequest(
 /// Create/edit payload. Same shape for both - an edit replaces the name and the ENTIRE item list.
 ///
 /// <para>
-/// <see cref="MemberUserId"/> is carried on edit too, and is validated to match the plan being
+/// <see cref="MemberId"/> is carried on edit too, and is validated to match the plan being
 /// edited rather than ignored. Silently ignoring it would let a stale browser tab move a plan between
 /// members and see the write succeed; refusing tells the client its state is old.
 /// </para>
 /// </summary>
 public record TrainingPlanRequest(
     string Name,
-    string MemberUserId,
+    Guid MemberId,
     IReadOnlyList<TrainingPlanItemRequest> Items);
 
 /// <summary>
@@ -301,7 +308,8 @@ public static class TrainingPlanEndpoints
         CancellationToken cancellationToken)
     {
         var authorUserId = userManager.GetUserId(principal);
-        if (authorUserId is null)
+        var authorMemberId = principal.GetMemberId();
+        if (authorUserId is null || authorMemberId is null)
         {
             return Results.Unauthorized();
         }
@@ -312,9 +320,9 @@ public static class TrainingPlanEndpoints
             return invalid;
         }
 
-        var memberUserId = request.MemberUserId.Trim();
+        var memberId = request.MemberId;
 
-        var memberRefused = await ValidateMemberAsync(memberUserId, query, cancellationToken);
+        var memberRefused = await ValidateMemberAsync(memberId, query, cancellationToken);
         if (memberRefused is not null)
         {
             return memberRefused;
@@ -330,7 +338,7 @@ public static class TrainingPlanEndpoints
         {
             var now = timeProvider.GetUtcNow();
 
-            var current = await store.FindActiveForMemberAsync(memberUserId, cancellationToken);
+            var current = await store.FindActiveForMemberAsync(memberId, cancellationToken);
             if (current is not null)
             {
                 current.Status = TrainingPlanStatus.Archived;
@@ -347,14 +355,14 @@ public static class TrainingPlanEndpoints
             {
                 Id = Guid.NewGuid(),
                 Name = request.Name.Trim(),
-                MemberUserId = memberUserId,
-                AssignedByUserId = authorUserId,
+                MemberId = memberId,
+                AssignedByMemberId = authorMemberId.Value,
 
-                // Written beside the account keys for one release (S-14). The ASSIGNEE is resolved
-                // from the account the request names, because the request still speaks account ids;
-                // the AUTHOR comes from the cookie, like every other identity in this file.
-                MemberId = (await members.FindByUserIdAsync(memberUserId, cancellationToken))?.Id,
-                AssignedByMemberId = principal.GetMemberId(),
+                // The account keys are still written beside them for one more release, resolved from
+                // the members the request and the cookie name. They disappear with the columns.
+                MemberUserId = (await members.FindAsync(memberId, cancellationToken))?.UserId
+                               ?? string.Empty,
+                AssignedByUserId = authorUserId,
                 Status = TrainingPlanStatus.Active,
                 CreatedAt = now,
                 Items = BuildItems(request),
@@ -420,7 +428,7 @@ public static class TrainingPlanEndpoints
             return Results.NotFound();
         }
 
-        if (!string.Equals(entity.MemberUserId, request.MemberUserId.Trim(), StringComparison.Ordinal))
+        if (entity.MemberId != request.MemberId)
         {
             return Refuse("member_changed", 409);
         }
@@ -482,7 +490,7 @@ public static class TrainingPlanEndpoints
     /// </summary>
     private static IResult? ValidateShape(TrainingPlanRequest request)
     {
-        if (string.IsNullOrWhiteSpace(request.Name) || string.IsNullOrWhiteSpace(request.MemberUserId))
+        if (string.IsNullOrWhiteSpace(request.Name) || request.MemberId == Guid.Empty)
         {
             return Refuse("missing_field", 400);
         }
@@ -547,22 +555,30 @@ public static class TrainingPlanEndpoints
     }
 
     /// <summary>
-    /// The target must exist and be approved. 409 rather than 400 on both: the payload is well formed
-    /// and was true when the trainer's screen loaded - the account changed underneath it.
+    /// The target must exist and be eligible. 409 rather than 400 on both: the payload is well formed
+    /// and was true when the trainer's screen loaded — the member changed underneath it.
+    ///
+    /// <para>
+    /// ELIGIBLE MEANS "MAY USE THE CLUB", which since S-14 is an active membership AND, if they have a
+    /// login at all, an approved one. A person the admin recorded who never registered is eligible —
+    /// that is AM-006, and the point of the slice. A self-registered account still waiting for
+    /// approval is NOT, exactly as before: nothing about splitting the entity was meant to let a plan
+    /// be assigned to somebody nobody has vetted.
+    /// </para>
     /// </summary>
     private static async Task<IResult?> ValidateMemberAsync(
-        string memberUserId,
+        Guid memberId,
         ITrainingPlanQuery query,
         CancellationToken cancellationToken)
     {
-        var status = await query.FindMemberStatusAsync(memberUserId, cancellationToken);
+        var assignable = await query.IsAssignableAsync(memberId, cancellationToken);
 
-        if (status is null)
+        if (assignable is null)
         {
             return Refuse("member_not_found", 409);
         }
 
-        return status == AccountStatus.Active ? null : Refuse("member_not_active", 409);
+        return assignable.Value ? null : Refuse("member_not_active", 409);
     }
 
     /// <summary>
@@ -627,14 +643,24 @@ public interface ITrainingPlanQuery
     Task<TrainingPlanDetail?> FindDetailAsync(Guid id, CancellationToken cancellationToken);
 
     /// <summary>The member's active plan with its items, or null when they have none.</summary>
-    Task<TrainingPlanDetail?> FindActiveForMemberAsync(string memberUserId, CancellationToken cancellationToken);
+    Task<TrainingPlanDetail?> FindActiveForMemberAsync(Guid memberId, CancellationToken cancellationToken);
 
     /// <summary>
     /// The account's status, or null when no such account exists. A status rather than the row: the
     /// caller only needs to know whether a plan may be assigned, and returning ApplicationUser here
     /// would invite a write path to mutate an account through a read seam.
     /// </summary>
-    Task<AccountStatus?> FindMemberStatusAsync(string memberUserId, CancellationToken cancellationToken);
+    /// <summary>
+    /// Whether this member may be assigned a plan, or null when no such member exists — so the caller
+    /// can tell "no such member" from "not eligible" without a second round trip.
+    ///
+    /// <para>
+    /// ONE QUESTION RATHER THAN A STATUS, because since S-14 the answer depends on two of them and the
+    /// read side and the write side must not be able to disagree: <see cref="GetAssignableMembersAsync"/>
+    /// offers exactly the members this returns true for.
+    /// </para>
+    /// </summary>
+    Task<bool?> IsAssignableAsync(Guid memberId, CancellationToken cancellationToken);
 
     /// <summary>
     /// One exercise, but ONLY if it appears in the given member's active plan. Null otherwise -
@@ -647,7 +673,7 @@ public interface ITrainingPlanQuery
     /// </para>
     /// </summary>
     Task<ExerciseSummary?> FindPlanExerciseAsync(
-        string memberUserId,
+        Guid memberId,
         Guid exerciseId,
         CancellationToken cancellationToken);
 }
@@ -671,7 +697,7 @@ public interface ITrainingPlanStore
     /// row's status and rotates its stamp, and loading a plan's items to archive it would be reading
     /// rows to ignore them.
     /// </summary>
-    Task<TrainingPlan?> FindActiveForMemberAsync(string memberUserId, CancellationToken cancellationToken);
+    Task<TrainingPlan?> FindActiveForMemberAsync(Guid memberId, CancellationToken cancellationToken);
 
     void Add(TrainingPlan entity);
 

@@ -59,8 +59,8 @@ public class ClassScheduleQuery(AppDbContext db) : IClassScheduleQuery
                 ClassTypeDescription = c.ClassType.Description,
                 c.StartsAt,
                 c.DurationMinutes,
-                c.InstructorUserId,
-                InstructorDisplayName = c.InstructorAccount.DisplayName,
+                c.InstructorMemberId,
+                InstructorDisplayName = c.Instructor!.DisplayName,
                 c.Capacity,
                 c.Status,
 
@@ -71,7 +71,7 @@ public class ClassScheduleQuery(AppDbContext db) : IClassScheduleQuery
                 //
                 // This costs nothing to avoid it. EF translates the subquery into the same single
                 // statement a navigation would have produced, seeking
-                // IX_Bookings_Class_Member_Active - whose filter is exactly this predicate's Status
+                // IX_Bookings_Class_MemberId_Active - whose filter is exactly this predicate's Status
                 // term - so the whole window is still ONE round trip.
                 BookedCount = db.Bookings.Count(
                     b => b.ClassId == c.Id && b.Status == BookingStatus.Active),
@@ -86,7 +86,7 @@ public class ClassScheduleQuery(AppDbContext db) : IClassScheduleQuery
                 r.ClassTypeDescription,
                 r.StartsAt,
                 r.DurationMinutes,
-                r.InstructorUserId,
+                r.InstructorMemberId!.Value,
                 r.InstructorDisplayName,
                 r.Capacity,
                 // NOT CLAMPED AT ZERO. With the capacity_below_bookings guard on the edit path a

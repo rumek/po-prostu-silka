@@ -169,16 +169,26 @@ public class ClassChangeNotification(
     {
         foreach (var recipient in recipients)
         {
-            // Email may be blank only in theory — registration is by email — but ClassBooking
-            // coalesces a null away, so an empty string is what would arrive. Enqueuing a row with no
-            // recipient would fail delivery repeatedly and burn the retry budget for nothing.
+            // A BLANK EMAIL IS A REAL CASE SINCE S-14, not the theoretical one this used to guard
+            // against. Registration is by email, so every account has one — but a person the admin
+            // recorded at the desk may never have given an address, and the club can still book them
+            // into classes. Enqueuing a row with no recipient would fail delivery repeatedly and burn
+            // the retry budget for nothing, so they are skipped.
             if (!string.IsNullOrWhiteSpace(recipient.Email))
             {
                 enqueuer.Enqueue(NotificationChannel.Email, recipient.Email, subject, body);
             }
 
-            var devices = await subscriptions.GetForUserAsync(
-                recipient.MemberUserId, cancellationToken);
+            // PUSH STAYS ACCOUNT-KEYED, deliberately: a subscription is a browser on a device, and a
+            // device is reached through a login. A member with no account has no device to reach, so
+            // there is nothing to look up — and re-keying PushSubscriptions onto the member would be
+            // claiming otherwise.
+            if (recipient.UserId is null)
+            {
+                continue;
+            }
+
+            var devices = await subscriptions.GetForUserAsync(recipient.UserId, cancellationToken);
 
             foreach (var device in devices)
             {

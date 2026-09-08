@@ -13,7 +13,7 @@ namespace po_prostu_silka.Infrastructure.Scheduling;
 public class BookingQuery(AppDbContext db) : IBookingQuery
 {
     public async Task<IReadOnlyList<MyBooking>> GetUpcomingForMemberAsync(
-        string memberUserId, DateTimeOffset from, CancellationToken cancellationToken) =>
+        Guid memberId, DateTimeOffset from, CancellationToken cancellationToken) =>
         // Ordered by the CLASS's start, not by when the booking was made: this is a list of what the
         // member still has to attend, so chronology means the gym's clock.
         //
@@ -30,10 +30,10 @@ public class BookingQuery(AppDbContext db) : IBookingQuery
         // in front of members who were emailed that they are not happening. See
         // ClassEndpoints.CancelAsync.
         //
-        // Seeks IX_Bookings_Member_Status for the member's rows, then joins.
+        // Seeks IX_Bookings_MemberId_Status for the member's rows, then joins.
         await db.Bookings
             .AsNoTracking()
-            .Where(b => b.MemberUserId == memberUserId
+            .Where(b => b.MemberId == memberId
                         && b.Status == BookingStatus.Active
                         && b.Class.Status == ClassStatus.Scheduled
                         && b.Class.StartsAt >= from)
@@ -64,9 +64,10 @@ public class BookingQuery(AppDbContext db) : IBookingQuery
             .OrderBy(b => b.CreatedAt)
             .Select(b => new ClassBooking(
                 b.Id,
-                b.MemberUserId,
-                b.MemberAccount.DisplayName,
-                b.MemberAccount.Email ?? string.Empty,
+                b.MemberId!.Value,
+                b.Member!.UserId,
+                b.Member!.DisplayName,
+                b.Member!.Email ?? string.Empty,
                 b.CreatedAt))
             .ToListAsync(cancellationToken);
 }

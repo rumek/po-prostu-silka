@@ -68,7 +68,7 @@ type ItemGroup = FormGroup<{
  * alone, and a plan saved in any order is still a valid plan.
  *
  * THE MEMBER CANNOT BE CHANGED WHILE EDITING. A plan does not move between people; it is superseded.
- * The server refuses a mismatched memberUserId with `member_changed` rather than ignoring it, and the
+ * The server refuses a mismatched memberId with `member_changed` rather than ignoring it, and the
  * control is disabled here so that refusal is something only a stale tab can trigger.
  */
 @Component({
@@ -97,7 +97,7 @@ export class PlanBuilder implements OnInit {
 
   protected readonly form = this.fb.nonNullable.group({
     name: ['', [Validators.required, Validators.maxLength(MAX_NAME)]],
-    memberUserId: ['', [Validators.required]],
+    memberId: ['', [Validators.required]],
   });
 
   /**
@@ -178,10 +178,10 @@ export class PlanBuilder implements OnInit {
     try {
       const existing = await this.plans.getById(id);
 
-      this.form.setValue({ name: existing.name, memberUserId: existing.memberUserId });
+      this.form.setValue({ name: existing.name, memberId: existing.memberId });
 
       // The member is fixed for the life of a plan; see the class docblock.
-      this.form.controls.memberUserId.disable();
+      this.form.controls.memberId.disable();
       this.memberName.set(existing.memberDisplayName);
 
       // Already ordered by the API. Nothing here re-sorts, and nothing reads `position`.
@@ -293,13 +293,13 @@ export class PlanBuilder implements OnInit {
     this.submitting.set(true);
 
     // getRawValue, not value: the member control is DISABLED while editing, and `value` omits
-    // disabled controls. The server validates memberUserId on edit rather than ignoring it, so
+    // disabled controls. The server validates memberId on edit rather than ignoring it, so
     // sending an empty one would be refused with `member_changed`.
     const header = this.form.getRawValue();
 
     const request = {
       name: header.name.trim(),
-      memberUserId: header.memberUserId,
+      memberId: header.memberId,
       items: this.items.controls.map((control) => toItemRequest(control.getRawValue())),
     };
 
@@ -373,7 +373,7 @@ export class PlanBuilder implements OnInit {
         return;
       case 'member_not_found':
       case 'member_not_active':
-        this.reject(this.form.controls.memberUserId, { memberUnavailable: true });
+        this.reject(this.form.controls.memberId, { memberUnavailable: true });
         this.error.set('To konto nie jest już aktywne. Wybierz innego członka.');
         return;
       case 'member_changed':

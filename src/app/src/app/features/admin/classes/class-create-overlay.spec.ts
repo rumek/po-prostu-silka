@@ -151,7 +151,7 @@ describe('ClassCreateOverlay', () => {
     await create();
 
     await choose('classTypeId', 't1');
-    await choose('instructorUserId', 'u1');
+    await choose('instructorMemberId', 'u1');
 
     button('Dodaj zajęcia').click();
     await settle();
@@ -162,7 +162,7 @@ describe('ClassCreateOverlay', () => {
       classTypeId: 't1',
       startsAt: DRAWN.startsAt.toISOString(),
       durationMinutes: 45,
-      instructorUserId: 'u1',
+      instructorMemberId: 'u1',
       capacity: 12,
     });
 
@@ -180,14 +180,14 @@ describe('ClassCreateOverlay', () => {
     await choose('classTypeId', 't1');
     expect(button('Dodaj zajęcia').disabled).toBe(true);
 
-    await choose('instructorUserId', 'u1');
+    await choose('instructorMemberId', 'u1');
     expect(button('Dodaj zajęcia').disabled).toBe(false);
   });
 
   it('will not submit a duration or a capacity outside the bounds the class form enforces', async () => {
     await create();
     await choose('classTypeId', 't1');
-    await choose('instructorUserId', 'u1');
+    await choose('instructorMemberId', 'u1');
 
     // An emptied number input reads as 0. `min` on the input stops the spinner, not a submit — so
     // without a bound here the only feedback would be the server's invalid_duration.
@@ -213,7 +213,7 @@ describe('ClassCreateOverlay', () => {
     await create();
 
     await choose('classTypeId', 't1');
-    await choose('instructorUserId', 'u1');
+    await choose('instructorMemberId', 'u1');
 
     button('Dodaj zajęcia').click();
     await settle();
@@ -235,7 +235,7 @@ describe('ClassCreateOverlay', () => {
     await create();
 
     await choose('classTypeId', 't1');
-    await choose('instructorUserId', 'u1');
+    await choose('instructorMemberId', 'u1');
 
     button('Dodaj zajęcia').click();
     await settle();

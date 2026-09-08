@@ -26,10 +26,10 @@ public class TrainingPlanStore(AppDbContext db) : ITrainingPlanStore
     /// stamp; loading its items would be fetching rows to ignore them.
     /// </summary>
     public Task<TrainingPlan?> FindActiveForMemberAsync(
-        string memberUserId,
+        Guid memberId,
         CancellationToken cancellationToken) =>
         db.TrainingPlans.FirstOrDefaultAsync(
-            x => x.MemberUserId == memberUserId && x.Status == TrainingPlanStatus.Active,
+            x => x.MemberId == memberId && x.Status == TrainingPlanStatus.Active,
             cancellationToken);
 
     public void Add(TrainingPlan entity) => db.TrainingPlans.Add(entity);

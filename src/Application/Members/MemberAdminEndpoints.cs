@@ -554,20 +554,16 @@ public static class MemberAdminEndpoints
         // Queued into the SAME unit of work as the status flips, so a member is never blocked with
         // their bookings still held, nor released while still Active.
         //
-        // KEYED ON THE ACCOUNT AND SKIPPED ENTIRELY WITHOUT ONE, because bookings still carry a user
-        // id at this phase. That is not a gap: a member with no account cannot have booked anything
-        // yet either. When the booking foreign key moves onto the member, this call moves with it and
-        // the accountless case starts mattering - it must not be left keyed on the account then.
+        // KEYED ON THE MEMBER, so it now covers someone the admin blocked who has no account at all —
+        // which is the case the whole slice exists for, and the one this call could not reach while
+        // bookings were keyed on the login.
         //
         // FUTURE ONLY. Past bookings are attendance history and rewriting them would falsify it.
         //
         // NO CLASS STAMP IS ROTATED, and none is owed: cancelling only ever FREES spots, so a booker
         // racing this cascade reads a count that is conservative rather than permissive.
-        if (member.UserId is not null)
-        {
-            await bookings.CancelActiveFutureForMemberAsync(
-                member.UserId, timeProvider.GetUtcNow(), cancellationToken);
-        }
+        await bookings.CancelActiveFutureForMemberAsync(
+            member.Id, timeProvider.GetUtcNow(), cancellationToken);
 
         if (!await unitOfWork.TrySaveChangesAsync(cancellationToken))
         {

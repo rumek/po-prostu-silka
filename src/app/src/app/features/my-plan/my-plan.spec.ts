@@ -10,7 +10,7 @@ const URL = '/api/plans/mine';
 const PLAN: TrainingPlanDetail = {
   id: 'p1',
   name: 'Masa - jesień',
-  memberUserId: 'm1',
+  memberId: 'm1',
   memberDisplayName: 'Anna Kowalska',
   assignedByDisplayName: 'Marek Trener',
   createdAt: new Date('2026-09-01T10:00').toISOString(),

@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Identity;
+using po_prostu_silka.Application.Members;
 using po_prostu_silka.Domain;
 
 namespace po_prostu_silka.Application.Training;
@@ -56,13 +57,13 @@ public static class MyPlanEndpoints
         ITrainingPlanQuery query,
         CancellationToken cancellationToken)
     {
-        var memberUserId = userManager.GetUserId(principal);
-        if (memberUserId is null)
+        var memberId = principal.GetMemberId();
+        if (memberId is null)
         {
             return Results.Unauthorized();
         }
 
-        var plan = await query.FindActiveForMemberAsync(memberUserId, cancellationToken);
+        var plan = await query.FindActiveForMemberAsync(memberId.Value, cancellationToken);
 
         return plan is null ? Results.NoContent() : Results.Ok(plan);
     }
@@ -89,13 +90,13 @@ public static class MyPlanEndpoints
         ITrainingPlanQuery query,
         CancellationToken cancellationToken)
     {
-        var memberUserId = userManager.GetUserId(principal);
-        if (memberUserId is null)
+        var memberId = principal.GetMemberId();
+        if (memberId is null)
         {
             return Results.Unauthorized();
         }
 
-        var exercise = await query.FindPlanExerciseAsync(memberUserId, exerciseId, cancellationToken);
+        var exercise = await query.FindPlanExerciseAsync(memberId.Value, exerciseId, cancellationToken);
 
         return exercise is null ? Results.NotFound() : Results.Ok(exercise);
     }

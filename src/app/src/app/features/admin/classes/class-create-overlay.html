@@ -44,9 +44,9 @@
     <label class="field">
       <span class="field-label">Prowadzący</span>
       <select
-        [ngModel]="instructorUserId()"
-        (ngModelChange)="instructorUserId.set($event)"
-        name="instructorUserId"
+        [ngModel]="instructorMemberId()"
+        (ngModelChange)="instructorMemberId.set($event)"
+        name="instructorMemberId"
       >
         <option value="" disabled>Wybierz prowadzącego</option>
         @for (trainer of trainers(); track trainer.id) {

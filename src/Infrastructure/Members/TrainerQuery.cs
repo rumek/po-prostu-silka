@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using po_prostu_silka.Application.Members;
 using po_prostu_silka.Domain;
+using po_prostu_silka.Domain.Members;
 using po_prostu_silka.Infrastructure.Persistence;
 
 namespace po_prostu_silka.Infrastructure.Members;
@@ -21,18 +22,23 @@ public class TrainerQuery(AppDbContext db) : ITrainerQuery
         // break the day a role is created through any path that cases it differently.
         var normalized = ApplicationRoles.Trainer.ToUpperInvariant();
 
-        var rows = await db.Users
+        // DRIVEN FROM MEMBERS since S-14, because that is what the selection submits — but the RULE
+        // is unchanged and still runs through the account: an instructor needs an active login holding
+        // the Trainer role. A member with no account is filtered out here by the inner join, which is
+        // the read-side half of the refusal ClassEndpoints gives on write.
+        //
+        // Both statuses are checked. Either one can bar a person on its own since S-14, and offering a
+        // name the server would then refuse is exactly what this filter exists to prevent.
+        var rows = await db.Members
             .AsNoTracking()
-            // The active filter is the read-side half of the rule ClassEndpoints enforces on write:
-            // offering a blocked trainer would let the admin pick a name the server then refuses.
-            // Indexed by ApplicationUserConfiguration's Status index.
-            .Where(u => u.Status == AccountStatus.Active)
-            .Where(u => db.UserRoles.Any(userRole =>
-                userRole.UserId == u.Id
+            .Where(m => m.Status == MembershipStatus.Active)
+            .Where(m => m.User != null && m.User.Status == AccountStatus.Active)
+            .Where(m => db.UserRoles.Any(userRole =>
+                userRole.UserId == m.UserId
                 && db.Roles.Any(role =>
                     role.Id == userRole.RoleId && role.NormalizedName == normalized)))
-            .OrderBy(u => u.DisplayName)
-            .Select(u => new TrainerSummary(u.Id, u.DisplayName))
+            .OrderBy(m => m.DisplayName)
+            .Select(m => new TrainerSummary(m.Id, m.DisplayName))
             .ToListAsync(cancellationToken);
 
         return rows;

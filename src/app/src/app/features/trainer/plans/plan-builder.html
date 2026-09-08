@@ -49,10 +49,14 @@
             Planu nie przenosi się między osobami — przypisz nowy plan zamiast tego.
           </p>
         } @else {
-          <select id="plan-member" formControlName="memberUserId">
+          <select id="plan-member" formControlName="memberId">
             <option value="">— wybierz —</option>
             @for (member of members(); track member.id) {
-              <option [value]="member.id">{{ member.displayName }}</option>
+              <!-- The suffix is not decoration: a plan assigned to someone with no login is work
+                   they will not see in the app until they claim their record. -->
+              <option [value]="member.id">
+                {{ member.displayName }}{{ member.hasAccount ? '' : ' — bez konta' }}
+              </option>
             }
           </select>
           <p class="hint">
@@ -63,9 +67,9 @@
         @if (membersFailed()) {
           <p class="field-error" role="alert">Nie udało się wczytać listy członków.</p>
         }
-        @if (form.controls.memberUserId.touched && form.controls.memberUserId.invalid) {
+        @if (form.controls.memberId.touched && form.controls.memberId.invalid) {
           <p class="field-error" role="alert">
-            @if (form.controls.memberUserId.hasError('memberUnavailable')) {
+            @if (form.controls.memberId.hasError('memberUnavailable')) {
               To konto nie jest już aktywne.
             } @else {
               Wybierz osobę, dla której układasz plan.

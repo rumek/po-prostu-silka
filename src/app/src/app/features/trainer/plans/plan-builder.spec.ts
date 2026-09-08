@@ -15,8 +15,10 @@ import {
 import { PlanBuilder } from './plan-builder';
 
 const MEMBERS: AssignableMember[] = [
-  { id: 'm1', displayName: 'Anna Kowalska' },
-  { id: 'm2', displayName: 'Piotr Nowak' },
+  { id: 'm1', displayName: 'Anna Kowalska', hasAccount: true },
+
+  // A person the club recorded who never registered (S-14) — assignable, and labelled as such.
+  { id: 'm2', displayName: 'Piotr Nowak', hasAccount: false },
 ];
 
 function exercise(id: string, name: string, isActive = true): ExerciseSummary {
@@ -46,7 +48,7 @@ const LIBRARY: ExerciseSummary[] = [
 const PLAN: TrainingPlanDetail = {
   id: 'p1',
   name: 'Masa - jesień',
-  memberUserId: 'm1',
+  memberId: 'm1',
   memberDisplayName: 'Anna Kowalska',
   assignedByDisplayName: 'Marek Trener',
   createdAt: new Date('2026-09-01T10:00').toISOString(),
@@ -163,6 +165,21 @@ describe('PlanBuilder', () => {
    * A retired exercise must not be prescribed anew — the server refuses `inactive_exercise`. The
    * library endpoint serves the admin's list, which needs the retired rows, so the filter is here.
    */
+  /**
+   * A plan assigned to someone with no login is real work they will not see in the app until they
+   * claim their record with a member code — so the picker has to say which is which.
+   */
+  it('marks a member with no account in the picker', async () => {
+    await create(null);
+
+    const options = Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll('#plan-member option'),
+    ).map((o) => (o.textContent ?? '').trim());
+
+    expect(options).toContain('Anna Kowalska');
+    expect(options.some((o) => o.includes('Piotr Nowak') && o.includes('bez konta'))).toBe(true);
+  });
+
   it('offers only active exercises', async () => {
     await create(null);
 
@@ -220,7 +237,7 @@ describe('PlanBuilder', () => {
     const body = sentBody(request);
 
     expect(body.name).toBe('Masa - jesień');
-    expect(body.memberUserId).toBe('m1');
+    expect(body.memberId).toBe('m1');
     expect(body.items.map((i) => i.exerciseId)).toEqual(['e1', 'e3']);
     expect(body.items[0]).toMatchObject({ sets: 4, reps: '8-12' });
     // Untouched optional fields go as null, not as 0 or "".
@@ -244,8 +261,8 @@ describe('PlanBuilder', () => {
     );
 
     // getRawValue, not value: the member control is disabled while editing, and an omitted
-    // memberUserId would be refused with `member_changed`.
-    expect(sentBody(request).memberUserId).toBe('m1');
+    // memberId would be refused with `member_changed`.
+    expect(sentBody(request).memberId).toBe('m1');
     expect(sentBody(request).items).toHaveLength(2);
 
     request.flush(PLAN);

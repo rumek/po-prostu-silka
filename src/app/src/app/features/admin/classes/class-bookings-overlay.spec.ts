@@ -13,7 +13,7 @@ const JOGA: ScheduledClass = {
   description: null,
   startsAt: new Date(Date.now() + 86_400_000).toISOString(),
   durationMinutes: 60,
-  instructorUserId: 'u1',
+  instructorMemberId: 'u1',
   instructor: 'Ola',
   capacity: 20,
   freeSpots: 18,
@@ -23,7 +23,8 @@ const JOGA: ScheduledClass = {
 function signup(over: Partial<ClassBooking> = {}): ClassBooking {
   return {
     bookingId: over.bookingId ?? 'b1',
-    memberUserId: over.memberUserId ?? 'm1',
+    memberId: over.memberId ?? 'm1',
+    userId: over.userId ?? 'u1',
     displayName: over.displayName ?? 'Ala Kowalska',
     email: over.email ?? 'ala@example.test',
     bookedAt: over.bookedAt ?? new Date().toISOString(),

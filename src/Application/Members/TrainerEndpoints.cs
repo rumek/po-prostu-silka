@@ -12,7 +12,11 @@ namespace po_prostu_silka.Application.Members;
 /// that needs neither. What a selection needs is the value it submits and the label it shows.
 /// </para>
 /// </summary>
-public record TrainerSummary(string Id, string DisplayName);
+/// <param name="Id">
+/// The MEMBER's id (S-14). Everything the SPA submits speaks member ids; the server resolves the
+/// account behind it when it validates the assignment.
+/// </param>
+public record TrainerSummary(Guid Id, string DisplayName);
 
 /// <summary>
 /// The people an occurrence may name as its instructor (prd-v2 FR-009).

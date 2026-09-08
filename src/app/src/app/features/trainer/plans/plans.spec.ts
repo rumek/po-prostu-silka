@@ -11,7 +11,7 @@ const ROWS: TrainingPlanSummary[] = [
   {
     id: 'p1',
     name: 'Masa - jesień',
-    memberUserId: 'm1',
+    memberId: 'm1',
     memberDisplayName: 'Anna Kowalska',
     assignedByDisplayName: 'Marek Trener',
     createdAt: new Date('2026-09-01T10:00').toISOString(),
@@ -20,7 +20,7 @@ const ROWS: TrainingPlanSummary[] = [
   {
     id: 'p2',
     name: 'Redukcja',
-    memberUserId: 'm2',
+    memberId: 'm2',
     memberDisplayName: 'Piotr Nowak',
     assignedByDisplayName: 'Marek Trener',
     createdAt: new Date('2026-09-02T10:00').toISOString(),

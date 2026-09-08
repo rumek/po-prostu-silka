@@ -36,7 +36,7 @@ const EXISTING: ScheduledClass = {
   description: 'Dla początkujących',
   startsAt: new Date('2026-09-04T22:00').toISOString(),
   durationMinutes: 60,
-  instructorUserId: 'u1',
+  instructorMemberId: 'u1',
   instructor: 'Ola',
   // Deliberately DIFFERENT from YOGA's defaults (75/18) — several tests below turn on the fact that
   // an occurrence keeps its own numbers rather than re-deriving them from the type.
@@ -134,7 +134,7 @@ describe('ClassForm', () => {
   async function fillValid() {
     pick('classTypeId', 't1');
     set('startsAt', '2026-12-01T18:00');
-    pick('instructorUserId', 'u1');
+    pick('instructorMemberId', 'u1');
     await settle();
   }
 
@@ -143,7 +143,7 @@ describe('ClassForm', () => {
 
     expect(el().textContent).toContain('Nowe zajęcia');
     expect(select('classTypeId').value).toBe('');
-    expect(select('instructorUserId').value).toBe('');
+    expect(select('instructorMemberId').value).toBe('');
   });
 
   it('offers only active class types when creating', async () => {
@@ -198,7 +198,7 @@ describe('ClassForm', () => {
 
     expect(el().textContent).toContain('Edytuj zajęcia');
     expect(select('classTypeId').value).toBe('t1');
-    expect(select('instructorUserId').value).toBe('u1');
+    expect(select('instructorMemberId').value).toBe('u1');
   });
 
   /**
@@ -261,12 +261,12 @@ describe('ClassForm', () => {
   it('keeps the stored instructor selectable when they are no longer an active trainer', async () => {
     await create('c1', { trainers: [{ id: 'u2', displayName: 'Marek' }] });
 
-    const options = [...select('instructorUserId').querySelectorAll('option')];
+    const options = [...select('instructorMemberId').querySelectorAll('option')];
     const stale = options.find((o) => o.getAttribute('value') === 'u1');
 
     expect(stale).toBeDefined();
     expect(stale!.textContent).toContain('(nieaktywny)');
-    expect(select('instructorUserId').value).toBe('u1');
+    expect(select('instructorMemberId').value).toBe('u1');
   });
 
   it('still renders the edit form when every class type was retired', async () => {
@@ -298,7 +298,7 @@ describe('ClassForm', () => {
     const request = await vi.waitFor(() => controller.expectOne('/api/admin/classes'));
     expect(request.request.method).toBe('POST');
     expect(request.request.body.classTypeId).toBe('t1');
-    expect(request.request.body.instructorUserId).toBe('u1');
+    expect(request.request.body.instructorMemberId).toBe('u1');
 
     // Round-trips to the same wall clock the admin typed.
     const sent = new Date(request.request.body.startsAt as string);
@@ -364,7 +364,7 @@ describe('ClassForm', () => {
     );
     await settle();
 
-    expect(select('instructorUserId').getAttribute('aria-invalid')).toBe('true');
+    expect(select('instructorMemberId').getAttribute('aria-invalid')).toBe('true');
     expect(el().textContent).toContain('nie jest już aktywnym prowadzącym');
   });
 

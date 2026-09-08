@@ -109,7 +109,7 @@ public class DualWriteTests(IntegrationTestFixture fixture)
                 startsAt = NextSlot(),
                 durationMinutes = 60,
                 capacity = 10,
-                instructorUserId = trainerUserId,
+                instructorMemberId = await fixture.MemberIdOfAsync(trainerUserId),
             });
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -152,7 +152,7 @@ public class DualWriteTests(IntegrationTestFixture fixture)
                 startsAt = NextSlot(),
                 durationMinutes = 60,
                 capacity = 10,
-                instructorUserId = replacementUserId,
+                instructorMemberId = await fixture.MemberIdOfAsync(replacementUserId),
             });
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -209,7 +209,7 @@ public class DualWriteTests(IntegrationTestFixture fixture)
             new
             {
                 name = "Masa",
-                memberUserId,
+                memberId = await fixture.MemberIdOfAsync(memberUserId),
                 items = new[] { new { exerciseId, order = 1 } },
             });
 

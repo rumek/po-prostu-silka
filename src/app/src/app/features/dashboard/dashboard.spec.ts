@@ -26,7 +26,7 @@ const MEMBER: CurrentUser = { ...ADMIN, id: 'm1', displayName: 'Ala', roles: ['U
 const PLAN: TrainingPlanDetail = {
   id: 'p1',
   name: 'Masa - jesień',
-  memberUserId: 'm1',
+  memberId: 'm1',
   memberDisplayName: 'Ala',
   assignedByDisplayName: 'Marek Trener',
   createdAt: new Date('2026-09-01T10:00').toISOString(),
@@ -54,7 +54,7 @@ function scheduled(over: Partial<ScheduledClass> = {}): ScheduledClass {
     description: null,
     startsAt: over.startsAt ?? new Date().toISOString(),
     durationMinutes: over.durationMinutes ?? 60,
-    instructorUserId: 'i1',
+    instructorMemberId: 'i1',
     instructor: over.instructor ?? 'Marek',
     capacity: 10,
     freeSpots: 5,

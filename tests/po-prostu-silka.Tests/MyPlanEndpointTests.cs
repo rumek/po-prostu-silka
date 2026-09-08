@@ -38,7 +38,7 @@ public class MyPlanEndpointTests(IntegrationTestFixture fixture)
     private sealed record PlanBody(
         Guid Id,
         string Name,
-        string MemberUserId,
+        Guid MemberId,
         string MemberDisplayName,
         string AssignedByDisplayName,
         DateTimeOffset CreatedAt,
@@ -63,14 +63,14 @@ public class MyPlanEndpointTests(IntegrationTestFixture fixture)
     private static string Unique(string prefix) => $"{prefix}-{Guid.NewGuid():N}";
 
     /// <summary>A fresh approved member, and a signed-in client for them.</summary>
-    private async Task<(string Id, HttpClient Client)> NewMemberAsync()
+    private async Task<(Guid Id, HttpClient Client)> NewMemberAsync()
     {
         var email = $"myplan-{Guid.NewGuid():N}@test.local";
         await fixture.CreateUserAsync(email, AccountStatus.Active, ApplicationRoles.User);
 
         var admin = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveAdminEmail);
         var all = await admin.GetFromJsonAsync<List<AdminMemberRow>>("/api/admin/members");
-        var id = all!.Single(x => string.Equals(x.Email, email, StringComparison.OrdinalIgnoreCase)).UserId!;
+        var id = all!.Single(x => string.Equals(x.Email, email, StringComparison.OrdinalIgnoreCase)).Id;
 
         return (id, await fixture.CreateAuthenticatedClientAsync(email));
     }
@@ -94,14 +94,14 @@ public class MyPlanEndpointTests(IntegrationTestFixture fixture)
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
-    private async Task<PlanBody> AssignAsync(string memberId, params Guid[] exerciseIds)
+    private async Task<PlanBody> AssignAsync(Guid memberId, params Guid[] exerciseIds)
     {
         var trainer = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveTrainerEmail);
 
         var response = await trainer.PostAsJsonAsync(Plans, new
         {
             name = Unique("Plan"),
-            memberUserId = memberId,
+            memberId = memberId,
             items = exerciseIds.Select(id => new
             {
                 exerciseId = id,
@@ -345,18 +345,15 @@ public class MyPlanEndpointTests(IntegrationTestFixture fixture)
 
         var admin = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveAdminEmail);
 
-        // The admin surface is addressed by MEMBER since S-14; the plan still keys on the account.
-        var adminMemberId = await fixture.MemberIdOfAsync(memberId);
-
-        var blocked = await admin.PostAsync($"/api/admin/members/{adminMemberId}/block", null);
+        var blocked = await admin.PostAsync($"/api/admin/members/{memberId}/block", null);
         Assert.Equal(HttpStatusCode.OK, blocked.StatusCode);
 
         // The trainer's list is the view onto stored state: the plan is still active, untouched.
         var trainer = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveTrainerEmail);
         var rows = await trainer.GetFromJsonAsync<List<PlanRowBody>>(Plans);
-        Assert.Equal(assigned.Id, rows!.Single(x => x.MemberUserId == memberId).Id);
+        Assert.Equal(assigned.Id, rows!.Single(x => x.MemberId == memberId).Id);
 
-        var unblocked = await admin.PostAsync($"/api/admin/members/{adminMemberId}/unblock", null);
+        var unblocked = await admin.PostAsync($"/api/admin/members/{memberId}/unblock", null);
         Assert.Equal(HttpStatusCode.OK, unblocked.StatusCode);
 
         // A fresh sign-in, because blocking rotated the security stamp and killed the old cookie.
@@ -370,13 +367,13 @@ public class MyPlanEndpointTests(IntegrationTestFixture fixture)
         client.Dispose();
     }
 
-    private sealed record PlanRowBody(Guid Id, string MemberUserId, int ItemCount);
+    private sealed record PlanRowBody(Guid Id, Guid MemberId, int ItemCount);
 
-    private async Task<string> EmailOfAsync(string memberId)
+    private async Task<string> EmailOfAsync(Guid memberId)
     {
         var admin = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveAdminEmail);
         var all = await admin.GetFromJsonAsync<List<AdminMemberRow>>("/api/admin/members");
 
-        return all!.Single(x => x.UserId == memberId).Email!;
+        return all!.Single(x => x.Id == memberId).Email!;
     }
 }

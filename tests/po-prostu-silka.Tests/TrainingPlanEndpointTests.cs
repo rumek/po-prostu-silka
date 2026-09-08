@@ -48,7 +48,7 @@ public class TrainingPlanEndpointTests(IntegrationTestFixture fixture)
     private sealed record PlanBody(
         Guid Id,
         string Name,
-        string MemberUserId,
+        Guid MemberId,
         string MemberDisplayName,
         string AssignedByDisplayName,
         DateTimeOffset CreatedAt,
@@ -58,14 +58,14 @@ public class TrainingPlanEndpointTests(IntegrationTestFixture fixture)
     private sealed record PlanRow(
         Guid Id,
         string Name,
-        string MemberUserId,
+        Guid MemberId,
         string MemberDisplayName,
         string AssignedByDisplayName,
         DateTimeOffset CreatedAt,
         int ItemCount);
 
     /// <summary>Mirrors AssignableMember.</summary>
-    private sealed record MemberRow(string Id, string DisplayName);
+    private sealed record MemberRow(Guid Id, string DisplayName, bool HasAccount);
 
     /// <summary>Mirrors ExerciseSummary, for the exercises these plans are built from.</summary>
     private sealed record ExerciseBody(Guid Id, string Name, bool IsActive);
@@ -87,8 +87,8 @@ public class TrainingPlanEndpointTests(IntegrationTestFixture fixture)
         string? note = null) =>
         new { exerciseId, sets, reps, weightKg, restSeconds, note };
 
-    private static object Request(string name, string memberUserId, params object[] items) =>
-        new { name, memberUserId, items };
+    private static object Request(string name, Guid memberId, params object[] items) =>
+        new { name, memberId, items };
 
     private async Task<Guid> CreateExerciseAsync(bool active = true)
     {
@@ -108,14 +108,14 @@ public class TrainingPlanEndpointTests(IntegrationTestFixture fixture)
         return created.Id;
     }
 
-    private async Task<(HttpClient Trainer, string MemberId, Guid ExerciseId)> ArrangeAsync()
+    private async Task<(HttpClient Trainer, Guid MemberId, Guid ExerciseId)> ArrangeAsync()
     {
         var trainer = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveTrainerEmail);
         return (trainer, await NewMemberIdAsync(), await CreateExerciseAsync());
     }
 
     /// <summary>Creates an approved member and returns their id, via the admin member list.</summary>
-    private async Task<string> NewMemberIdAsync(AccountStatus status = AccountStatus.Active)
+    private async Task<Guid> NewMemberIdAsync(AccountStatus status = AccountStatus.Active)
     {
         var email = $"plan-member-{Guid.NewGuid():N}@test.local";
         await fixture.CreateUserAsync(email, status, ApplicationRoles.User);
@@ -123,7 +123,7 @@ public class TrainingPlanEndpointTests(IntegrationTestFixture fixture)
         var admin = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveAdminEmail);
         var all = await admin.GetFromJsonAsync<List<AdminMemberRow>>("/api/admin/members");
 
-        return all!.Single(x => string.Equals(x.Email, email, StringComparison.OrdinalIgnoreCase)).UserId!;
+        return all!.Single(x => string.Equals(x.Email, email, StringComparison.OrdinalIgnoreCase)).Id;
     }
 
     /// <summary>
@@ -135,7 +135,7 @@ public class TrainingPlanEndpointTests(IntegrationTestFixture fixture)
         Guid Id, string? UserId, string Email, string DisplayName, string MembershipStatus);
 
     private async Task<PlanBody> AssignAsync(
-        HttpClient trainer, string memberId, params object[] items)
+        HttpClient trainer, Guid memberId, params object[] items)
     {
         var response = await trainer.PostAsJsonAsync(
             Endpoint, Request(Unique("Masa"), memberId, items));
@@ -168,7 +168,7 @@ public class TrainingPlanEndpointTests(IntegrationTestFixture fixture)
         var response = await client.SendAsync(
             new HttpRequestMessage(new HttpMethod(method), url)
             {
-                Content = JsonContent.Create(Request("x", "y")),
+                Content = JsonContent.Create(Request("x", Guid.NewGuid())),
             });
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
@@ -187,7 +187,7 @@ public class TrainingPlanEndpointTests(IntegrationTestFixture fixture)
         var response = await client.SendAsync(
             new HttpRequestMessage(new HttpMethod(method), url)
             {
-                Content = JsonContent.Create(Request("x", "y")),
+                Content = JsonContent.Create(Request("x", Guid.NewGuid())),
             });
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
@@ -220,7 +220,7 @@ public class TrainingPlanEndpointTests(IntegrationTestFixture fixture)
             trainer, memberId, Item(exerciseId, 4, "6-8", 82.5m, 120, "tempo 3-1-1"));
 
         var item = Assert.Single(plan.Items);
-        Assert.Equal(memberId, plan.MemberUserId);
+        Assert.Equal(memberId, plan.MemberId);
         Assert.Equal("Test Active Trainer", plan.AssignedByDisplayName);
         Assert.Equal(0, item.Position);
         Assert.Equal(4, item.Sets);
@@ -294,7 +294,7 @@ public class TrainingPlanEndpointTests(IntegrationTestFixture fixture)
         var second = await AssignAsync(trainer, memberId, Item(exerciseId));
 
         var active = await trainer.GetFromJsonAsync<List<PlanRow>>(Endpoint);
-        var mine = active!.Where(x => x.MemberUserId == memberId).ToList();
+        var mine = active!.Where(x => x.MemberId == memberId).ToList();
 
         Assert.NotEqual(first.Id, second.Id);
         Assert.Equal(second.Id, Assert.Single(mine).Id);
@@ -348,7 +348,7 @@ public class TrainingPlanEndpointTests(IntegrationTestFixture fixture)
         var reader = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveTrainerEmail);
         var active = await reader.GetFromJsonAsync<List<PlanRow>>(Endpoint);
 
-        Assert.Single(active!, x => x.MemberUserId == memberId);
+        Assert.Single(active!, x => x.MemberId == memberId);
     }
 
     // --- editing --------------------------------------------------------------
@@ -427,7 +427,7 @@ public class TrainingPlanEndpointTests(IntegrationTestFixture fixture)
         var (trainer, _, exerciseId) = await ArrangeAsync();
 
         var response = await trainer.PostAsJsonAsync(
-            Endpoint, Request("x", Guid.NewGuid().ToString(), Item(exerciseId)));
+            Endpoint, Request("x", Guid.NewGuid(), Item(exerciseId)));
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
         Assert.Equal("member_not_found", (await response.Content.ReadFromJsonAsync<FailureBody>())!.Reason);
@@ -550,7 +550,7 @@ public class TrainingPlanEndpointTests(IntegrationTestFixture fixture)
         var (trainer, memberId, _) = await ArrangeAsync();
 
         var body = new StringContent(
-            $"{{\"name\":\"Masa\",\"memberUserId\":\"{memberId}\"}}",
+            $"{{\"name\":\"Masa\",\"memberId\":\"{memberId}\"}}",
             Encoding.UTF8,
             "application/json");
 
@@ -690,7 +690,7 @@ public class TrainingPlanEndpointTests(IntegrationTestFixture fixture)
 
         var rows = await trainer.GetFromJsonAsync<List<PlanRow>>(Endpoint);
 
-        Assert.Equal(2, rows!.Single(x => x.MemberUserId == memberId).ItemCount);
+        Assert.Equal(2, rows!.Single(x => x.MemberId == memberId).ItemCount);
     }
 
     [Fact]

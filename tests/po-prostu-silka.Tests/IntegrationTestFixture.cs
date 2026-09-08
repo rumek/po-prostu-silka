@@ -215,6 +215,25 @@ public class IntegrationTestFixture : IAsyncLifetime
         return await db.Members.AsNoTracking().Where(m => m.UserId == userId).Select(m => m.Id).SingleAsync();
     }
 
+    /// <summary>
+    /// The account behind a member. The reverse of <see cref="MemberIdOfAsync"/>, and needed only while
+    /// the legacy account columns are still NOT NULL: a test that inserts an entity directly has to
+    /// populate both keys, because the database still enforces the old foreign key.
+    ///
+    /// <para>
+    /// GOES AWAY WITH THOSE COLUMNS. If this is still here after the contract migration, something was
+    /// missed.
+    /// </para>
+    /// </summary>
+    public async Task<string> UserIdOfMemberAsync(Guid memberId)
+    {
+        using var scope = Factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        return (await db.Members.AsNoTracking().Where(m => m.Id == memberId).Select(m => m.UserId)
+            .SingleAsync())!;
+    }
+
     /// <summary>Logs in and returns a client carrying the resulting auth cookie.</summary>
     public async Task<HttpClient> CreateAuthenticatedClientAsync(string email)
     {

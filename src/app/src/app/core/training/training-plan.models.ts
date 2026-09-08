@@ -7,7 +7,7 @@
 export interface TrainingPlanSummary {
   id: string;
   name: string;
-  memberUserId: string;
+  memberId: string;
   memberDisplayName: string;
   assignedByDisplayName: string;
   createdAt: string;
@@ -44,7 +44,7 @@ export interface TrainingPlanItemView {
 export interface TrainingPlanDetail {
   id: string;
   name: string;
-  memberUserId: string;
+  memberId: string;
   memberDisplayName: string;
   assignedByDisplayName: string;
   createdAt: string;
@@ -53,8 +53,16 @@ export interface TrainingPlanDetail {
 
 /** Mirrors AssignableMember: the minimal read of who a plan may be assigned to. */
 export interface AssignableMember {
+  /** The MEMBER's id (S-14) — which is what lets someone with no login be offered here at all. */
   id: string;
+
   displayName: string;
+
+  /**
+   * Whether they can sign in. The picker says so, because a plan assigned to someone with no account
+   * is real work they will not see in the app until they claim their record with a member code.
+   */
+  hasAccount: boolean;
 }
 
 /**
@@ -77,14 +85,14 @@ export interface TrainingPlanItemRequest {
  * Mirrors TrainingPlanRequest. Create and edit take the same shape; an edit replaces the name and
  * the ENTIRE item list.
  *
- * `memberUserId` is VALIDATED on edit, not ignored: the server compares it against the plan and
+ * `memberId` is VALIDATED on edit, not ignored: the server compares it against the plan and
  * refuses a mismatch with 409 `member_changed`. A plan cannot change hands — it is superseded — and
  * refusing tells a stale tab its state is old instead of silently accepting a write it misunderstood.
  * The builder therefore sends the id even though the control is disabled while editing.
  */
 export interface TrainingPlanRequest {
   name: string;
-  memberUserId: string;
+  memberId: string;
   items: TrainingPlanItemRequest[];
 }
 
