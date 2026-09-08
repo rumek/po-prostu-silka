@@ -26,18 +26,18 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   gap: var(--space-3);
   padding: var(--space-4) var(--space-5);
-  border-bottom: 1px solid var(--line);
-  background: var(--section-warm);
+
+  &:has(.shell-nav) {
+    justify-content: space-between;
+  }
 }
 
 .shell-brand {
   font-family: var(--font-display);
-  font-size: 1.375rem;
-  font-weight: 600;
-  letter-spacing: -0.01em;
+  width: 140px;
   text-decoration: none;
 }
 

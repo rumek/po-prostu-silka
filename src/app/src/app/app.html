@@ -1,7 +1,7 @@
 <a class="skip-link" href="#main">Przejdź do treści</a>
 
 <header class="shell-header">
-  <a class="shell-brand" routerLink="/">Po Prostu Siłka</a>
+  <img src="logo.png" alt="Po Prostu Siłka Logo" class="shell-brand" routerLink="/" />
 
   @if (auth.isAuthenticated()) {
     <nav class="shell-nav">
@@ -22,11 +22,11 @@
            member sees neither, which matches what those routes would do to them anyway. -->
       @if (auth.isActive()) {
         <a routerLink="/schedule" routerLinkActive="is-active">Grafik</a>
-        <a routerLink="/my-classes" routerLinkActive="is-active">Moje zajęcia</a>
+        <a routerLink="/my-classes" routerLinkActive="is-active">Zajęcia</a>
         <!-- Gated on isActive() alone like its neighbours: every approved account has a plan
              surface, whether or not one has been assigned yet. The screen says so itself when
              there is no plan, which is a better answer than a missing link. -->
-        <a routerLink="/my-plan" routerLinkActive="is-active">Mój plan</a>
+        <a routerLink="/my-plan" routerLinkActive="is-active">Plan</a>
       }
 
       @if (auth.isAdmin() && auth.isActive()) {

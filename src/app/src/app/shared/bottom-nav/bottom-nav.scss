@@ -20,9 +20,8 @@ $bottom-nav-z: 5;
   right: 0;
   bottom: 0;
   left: 0;
-  z-index: $bottom-nav-z;
-  border-top: 1px solid var(--line);
-  background: var(--section-warm);
+  z-index: 5;
+  margin: 12px 20px;
   // The home indicator on a notched iPhone sits over the bottom of the viewport. This resolves to 0px
   // everywhere else — and would resolve to 0px there too without viewport-fit=cover in index.html.
   padding-bottom: env(safe-area-inset-bottom);
@@ -44,8 +43,10 @@ $bottom-nav-z: 5;
   grid-auto-columns: 1fr;
   grid-auto-flow: column;
   margin: 0;
-  padding: 0;
+  padding: 4px;
+  border-radius: 32px;
   list-style: none;
+  background: var(--section-warm);
 }
 
 // 44px is the tap-target floor .button sets in styles.scss; a tab that misses it is the one control
@@ -55,16 +56,27 @@ $bottom-nav-z: 5;
   position: relative;
   display: flex;
   align-items: center;
-  justify-content: center;
-  // From styles.scss, shared with .shell-main's bottom padding — see the note on the token.
+  gap: 8px;
   min-height: var(--bottom-nav-tab-height);
-  // The icon sizes itself in em, so this is what actually sets it: 1.5em of 1rem = 24px.
-  font-size: 1rem;
-  color: var(--muted);
+  font-size: 0.7rem;
   text-decoration: none;
+  flex-direction: row;
+  justify-content: center;
+
+  .bottom-nav-tab-label {
+    display: none;
+  }
 
   &.is-active {
-    color: var(--accent);
+    color: white;
+    background: var(--accent);
+    border-radius: 32px;
+    padding: 0 24px;
+    justify-content: flex-start;
+
+    .bottom-nav-tab-label {
+      display: block;
+    }
   }
 
   // Colour alone is doing too much work on an icon-only bar — there is no label to embolden, and a
