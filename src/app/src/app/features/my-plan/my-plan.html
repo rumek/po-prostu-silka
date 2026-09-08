@@ -39,19 +39,34 @@
         @if (hasParameters(item)) {
           <ul class="my-plan-params">
             @if (item.sets !== null) {
-              <li><span class="my-plan-label">Serie</span>{{ item.sets }}</li>
+              <li class="my-plan-param">
+                <app-icon name="repeat" />
+                {{ item.sets }} <span class="my-plan-label">Serie</span>
+              </li>
             }
             @if (item.reps !== null) {
-              <li><span class="my-plan-label">Powtórzenia</span>{{ item.reps }}</li>
+              <li class="my-plan-param">
+                <app-icon name="repeat" />
+                {{ item.reps }} <span class="my-plan-label">Powtórzenia</span>
+              </li>
             }
             @if (item.weightKg !== null) {
-              <li><span class="my-plan-label">Ciężar</span>{{ item.weightKg }} kg</li>
+              <li class="my-plan-param">
+                <app-icon name="hantle" />
+                {{ item.weightKg }} kg<span class="my-plan-label">Ciężar</span>
+              </li>
             }
             @if (item.durationSeconds !== null) {
-              <li><span class="my-plan-label">Czas</span>{{ item.durationSeconds }} s</li>
+              <li class="my-plan-param">
+                <app-icon name="time" />
+                {{ item.durationSeconds }} s<span class="my-plan-label">Czas</span>
+              </li>
             }
             @if (item.restSeconds !== null) {
-              <li><span class="my-plan-label">Przerwa</span>{{ item.restSeconds }} s</li>
+              <li class="my-plan-param">
+                <app-icon name="clock" />
+                {{ item.restSeconds }} s<span class="my-plan-label">Przerwa</span>
+              </li>
             }
           </ul>
         }

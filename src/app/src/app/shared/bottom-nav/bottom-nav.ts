@@ -26,8 +26,8 @@ export interface BottomNavTab {
 export const BOTTOM_NAV_TABS: readonly BottomNavTab[] = [
   { route: '/', label: 'Start', icon: 'home', exact: true },
   { route: '/schedule', label: 'Grafik', icon: 'calendar', exact: false },
-  { route: '/my-classes', label: 'Moje zajęcia', icon: 'booking', exact: false },
-  { route: '/my-plan', label: 'Mój plan', icon: 'plan', exact: false },
+  { route: '/my-classes', label: 'Zajęcia', icon: 'booking', exact: false },
+  { route: '/my-plan', label: 'Plan', icon: 'plan', exact: false },
   { route: '/more', label: 'Więcej', icon: 'more', exact: false },
 ];
 

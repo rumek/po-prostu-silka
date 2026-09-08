@@ -52,7 +52,12 @@ app-plan-summary {
 .my-plan-muscle {
   margin: var(--space-1) 0 0;
   color: var(--muted);
-  font-size: 0.8125rem;
+  font-weight: 600;
+  font-size: 0.65rem;
+  background: var(--section-warm);
+  border-radius: 23px;
+  padding: 4px 8px;
+  width: fit-content;
 }
 
 .my-plan-params {
@@ -61,7 +66,8 @@ app-plan-summary {
   margin: var(--space-3) 0 0;
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-2) var(--space-6);
+  justify-content: center;
+  align-items: center;
 }
 
 .my-plan-label {
@@ -70,19 +76,30 @@ app-plan-summary {
   font-size: 0.8125rem;
 }
 
+.my-plan-param {
+  flex: 1;
+  border-right: solid 1px var(--section-warm);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  & + .my-plan-param {
+    border-left: solid 1px var(--section-warm);
+  }
+}
+
 // A callout, so the trainer's remark stops reading as a continuation of the numbers above it. The
 // icon is aligned to the first line rather than centred: a three-line note with a centred icon
 // points at nothing in particular.
 .my-plan-note {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: var(--space-2);
+  font-size: 0.8rem;
   margin: var(--space-3) 0 0;
   padding: var(--space-3);
   border-radius: var(--radius-sm);
-  // Derived from --ink like --line and --muted are, so the callout does not introduce a grey that
-  // is not part of the identity.
-  background: color-mix(in srgb, var(--ink) 5%, transparent);
+  background: var(--section-cool);
 
   app-icon {
     flex-shrink: 0;

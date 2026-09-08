@@ -49,8 +49,8 @@ describe('BottomNav', () => {
     expect(tabs(element).map((a) => a.getAttribute('aria-label'))).toEqual([
       'Start',
       'Grafik',
-      'Moje zajęcia',
-      'Mój plan',
+      'Zajęcia',
+      'Plan',
       'Więcej',
     ]);
     expect(tabs(element).length).toBe(BOTTOM_NAV_TABS.length);
