@@ -6,9 +6,9 @@ created: 2026-08-31
 updated: 2026-09-08
 prd_version: 1, 2
 main_goal: speed
-top_blocker: decisions
-milestone_id: accountless-members
-milestone_seq: 2
+top_blocker: none
+milestone_id: plan-card-prescription
+milestone_seq: 3
 milestone_status: open
 ---
 
@@ -20,14 +20,27 @@ milestone_status: open
 
 ## Milestone
 
-**M-2: The club's records outlive the login** — Status: open
+**M-3: The plan card carries the whole prescription** — Status: open
 
-- **Intent:** A person is a member of the club whether or not they ever create an account. The admin
-  keeps a record for someone who signed up at the desk, assigns them a plan and books them into
-  classes; when that person later wants an account, they create one with a code from the admin and
-  land on the history the club already recorded for them.
-- **Source materials:** `context/foundation/prd.md` (v1), `context/foundation/prd-v2.md` (v2), and the
-  addendum in `## PRD addendum (M-2)` below. Neither PRD describes a person without an account — this
+- **Intent:** A member opens their training plan and the card for each exercise tells them everything
+  the trainer prescribed — including exercises measured in time rather than in weight — and tells it
+  legibly. M-1 made plans exist and M-2 made them assignable to anyone; this milestone is about the
+  one screen the member actually reads.
+- **Source materials:** the user's own description, recorded as the `MS-NN` anchors below. Neither PRD
+  describes a timed exercise or the shape of the plan card, so there is nothing upstream to trace to.
+- **Done when:** every S-NN in this milestone is `done`.
+- **Scope anchors:**
+  - MS-01: A prescribed exercise can carry a duration, for movements measured in time rather than in
+    load — a plank needs "45 seconds", not "how many kilograms". It is a per-plan prescription that
+    sits beside the existing weight and rest, NOT a property of the exercise definition: the same
+    plank is 45 s in one member's plan and 60 s in another's, exactly as weight already varies.
+  - MS-02: The member's plan card shows which muscle group the exercise trains.
+  - MS-03: The exercise name on the plan card is no longer itself the link to the exercise details. A
+    separate info icon carries that navigation.
+  - MS-04: The trainer's note on the plan card is set off by a lightly rounded background and an info
+    icon, in the form `(i) Treść uwagi`.
+
+## PRD addendum (M-2)` below. Neither PRD describes a person without an account — this
   is new product scope, which is why it opens a milestone rather than joining M-1.
 - **Done when:** every S-NN in this milestone is `done`.
 - **Scope anchors:** the addendum's AM-001–AM-006. Everything M-1 delivered is preserved: the
@@ -66,14 +79,14 @@ Mid-milestone, a second decision landed: a class stops being retyped text and be
 
 ## North star
 
-**S-14: A person who never registered can be booked into a class by the admin, and later claims that
-record with a code** — M-2 has one slice, and it is the whole hypothesis: that the club's records are
-about people, not about logins. Delivering the claim path end-to-end is what proves the split was
-real rather than a rename, because it is the only thing that exercises both halves at once.
+**S-15: A member's plan card shows the whole prescription, including exercises measured in time** —
+M-3 has one slice, so it is the north star by construction. It still earns the name: the milestone's
+hypothesis is that the plan screen is where a training plan either works or does not, and the only way
+to test that is to put a real prescription in front of a real member.
 
 > "North star" here means the smallest end-to-end slice whose successful delivery would prove the core
-> product hypothesis. M-1's north star was S-09 (email + push on class changes); it shipped, and the
-> entry for it now lives in `## Milestone History`.
+> product hypothesis. M-1's was S-09 (email + push on class changes) and M-2's was S-14 (the claim
+> path); both shipped, and their entries live in `## Milestone History`.
 
 ## At a glance
 
@@ -96,6 +109,7 @@ real rather than a rename, because it is the only thing that exercises both halv
 | S-12 | member-and-admin-dashboards      | member and admin land on their at-a-glance home screens                  | S-01, S-07, S-08, S-11 | v1 FR-023, v1 FR-024                                            | done        |
 | S-13 | member-profile-edit              | member edits contact details, changes password, resets a forgotten one   | F-02, S-01             | v1 FR-006, v1 FR-025, v1 FR-026                                 | done        |
 | S-14 | member-entity-and-accountless-members | admin keeps a record for someone with no account; that person later claims it with a code | S-02, S-08, S-11, S-13 | M-2 AM-001–AM-006 | done |
+| S-15 | plan-card-prescription-detail | member reads their plan card with the muscle group, a prescribed duration where the trainer set one, an info icon to the exercise, and the note set off as a callout | S-10, S-11 | M-3 MS-001–MS-004 | ready |
 
 ## Streams
 
@@ -106,7 +120,7 @@ Navigation aid — groups items that share a Prerequisites chain. Canonical orde
 | A      | Access & identity     | `F-01` → `F-02` → `S-01` → `S-02` → `S-04` → `S-13` → `S-14` | The spine. Through M-1 everything hung off an approved account; `S-14` is where that stops being true and a member outlives the login. |
 | B      | Notification delivery | `F-03` → `S-09`                                    | Carries the north star; `S-09` joins Stream C at `S-08`, which produces the bookings to notify against. |
 | C      | Scheduling & booking  | `S-03` → `S-05` → `S-06` → `S-07` → `S-08` → `S-12` | The longest chain and the milestone's critical path; `S-12` also joins from Stream D at `S-11`.  |
-| D      | Training domain       | `S-10` → `S-11`                                    | Independent bounded context — a separate agent run can build it alongside the whole of Stream C. |
+| D      | Training domain       | `S-10` → `S-11` → `S-15`                           | Independent bounded context — a separate agent run can build it alongside the whole of Stream C. `S-15` extends the plan surface `S-11` created; it is M-3's only slice. |
 
 ## Baseline
 
@@ -353,6 +367,27 @@ What's already in place in the codebase as of `2026-09-02` (auto-researched + us
   must keep running against the new schema.
 - **Status:** done
 
+### S-15: The plan card carries the whole prescription
+
+- **Outcome:** user (member) opens their plan and each exercise card shows which muscle group it
+  trains, the duration the trainer prescribed where the exercise is measured in time, a distinct info
+  icon leading to the exercise details, and the trainer's note set off as a callout.
+- **Change ID:** plan-card-prescription-detail
+- **PRD refs:** M-3 MS-001, MS-002, MS-003, MS-004
+- **Prerequisites:** S-11 (the plan screen and the trainer's builder this extends), S-10 (the muscle
+  group is a field on the exercise library's entity)
+- **Parallel with:** — (M-3's only slice)
+- **Blockers:** —
+- **Unknowns:** — (the one design question, where the duration lives, was settled before this slice
+  opened: on the plan item, beside weight and rest, not on the exercise definition — see MS-001)
+- **Risk:** The schema change is additive and nullable, so the migration itself is the easy part. The
+  real risk is contract drift: one shape, `TrainingPlanItemView`, deliberately serves BOTH the
+  trainer's edit load and the member's read, so the two new fields touch both screens at once — and a
+  field added to the record but missed in the query projection surfaces as a silently empty cell
+  rather than as an error. The second risk is scope: three of the four anchors are presentation, and
+  a plan card is exactly the kind of surface where "while we're in here" turns one slice into four.
+- **Status:** ready
+
 ## Backlog Handoff
 
 | Roadmap ID | Change ID                        | Suggested issue title                                        | Ready for `/10x-plan` | Notes                                              |
@@ -373,7 +408,8 @@ What's already in place in the codebase as of `2026-09-02` (auto-researched + us
 | S-11       | training-plans                   | Training plan creation, assignment, and member view          | no                    | Done — archived 2026-09-06                          |
 | S-12       | member-and-admin-dashboards      | Member and admin dashboards                                  | no                    | Needs S-01, S-07, S-08, S-11                        |
 | S-13       | member-profile-edit              | Member profile, password change, and password reset          | no                    | Done — archived 2026-09-06                          |
-| S-14       | member-entity-and-accountless-members | Member entity split from the account; accountless members and the claim code | yes                   | M-2's only slice; plan approved 2026-09-07          |
+| S-14       | member-entity-and-accountless-members | Member entity split from the account; accountless members and the claim code | no                    | Done — archived 2026-09-08                          |
+| S-15       | plan-card-prescription-detail    | Prescribed duration, muscle group, info icon and note callout on the plan card | yes                   | Run `/10x-plan plan-card-prescription-detail` — M-3's only slice |
 
 ## Open Roadmap Questions
 
@@ -420,6 +456,14 @@ Resolved since the previous roadmap: the sender-domain question that gated F-03 
   `prd-v2` (class types, the Trainer role, the room's removal, the calendar) rather than opening a
   milestone for it, because that change restructured how M-1's own slices were built without altering
   its intent.
+
+- **M-2: The club's records outlive the login** (`accountless-members`) — seq 2, opened 2026-09-07,
+  closed 2026-09-08. Delivered S-14, its only slice: `Member` split from the Identity account as a
+  first-class entity, the club's four foreign keys repointed onto it, membership status added to the
+  authorization contract, an admin surface for a person with no login, a single-use member code that
+  attaches a new account to an existing record, and admin booking on a member's behalf. Closed with
+  its "Done when" satisfied. Its scope anchors AM-001–AM-006 are preserved in `## PRD addendum (M-2)`
+  below, which stays in this document because no PRD version describes the accountless model.
 
 ## Done
 
