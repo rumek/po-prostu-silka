@@ -473,3 +473,59 @@ plan; single-use, expired, revoked, already-linked), `MemberAdminEndpointTests` 
 - **One extra indexed read per claims mint**, at sign-in and every 2 minutes per signed-in user. Same
   order as the security-stamp check already running there, but it is the second thing in this app that
   scales with concurrent users rather than member count.
+
+## Progress
+
+> Convention: `- [ ]` pending, `- [x]` done. Append ` — <commit sha>` when a step lands. Do not rename
+> step titles. See `references/progress-format.md`.
+>
+> Written retrospectively during `/10x-impl-review` on 2026-09-08 — the nine phases had shipped
+> without one, so completion state existed only as commit messages and the per-phase "Adapted during
+> implementation" notes. Shas are read from those commits; the verification block records what was
+> actually observed, not what was intended.
+
+### Phases
+
+- [x] 0. Change folder, roadmap M-1 → M-2, PRD addendum — 8f5bea1
+- [x] 1. `Member` exists and is backfilled; nothing reads it — 8f5bea1
+- [x] 2. Admin manages an accountless member — 1787f6f
+- [x] 3. `Member.Status` enters the authorization contract — 9e6a3c0
+- [x] 4. Repoint the FKs, dual-write — 4d72d71
+- [x] 5. Reads flip to `MemberId` — bd2f5f8
+- [x] 6. Access code and the claim at registration — 099b23c
+- [x] 7. Admin books on a member's behalf — 1c20c63
+- [x] 8. Contact details flip, schema tightens — 8a6b1af
+- [x] 9. The destructive drops, one release later — 675ed43
+
+### Verification
+
+Numbered as in `## Verification` above.
+
+#### Automated
+
+- [x] 1a. `dotnet build` from `src/` — 0 errors, 0 warnings (impl review, 2026-09-08)
+- [x] 2. `dotnet test` from the repo root against real SQL Server via Testcontainers — 482/482 before
+  the review's fixes (impl review, 2026-09-08)
+- [x] 3a. `npm test` from `src/app/` on Node 24.15.0 — 431/431 across 44 files (impl review,
+  2026-09-08)
+- [x] 3b. `npm run quality:check` from `src/app/` — passes both halves (impl review, 2026-09-08).
+  It did NOT at review time: it failed on 49 files, working-tree CRLF under `core.autocrlf=true`
+  rather than style drift, and because Prettier is the first half `ng lint` had never run on this
+  slice at all. Fixed by the root `.gitattributes` — see impl review F7.
+- [x] 4. Migration reversibility, each new migration down and forward against the docker database —
+  `RequireMemberForeignKeys` and `DropLegacyUserColumns` verified by hand during Phases 8 and 9;
+  `AllowLegacyUserColumnsToBeNull` was NOT, and was broken. Fixed and verified during the impl review
+  (scratch `pps-f1-check`, two accountless members holding bookings in one class plus plans, rolled
+  back and forward clean). See impl review F1.
+
+#### Manual
+
+- [x] 1b. `dotnet run` from `src/`, `GET /health` → 200 Healthy against the docker SQL Server (impl
+  review, 2026-09-08)
+- [ ] 5. **Before Phase 3 deploys**: run the Phase 1 backfill against a restored copy of production
+  and assert zero accounts without a `Member`. Not done, and not doable from a dev machine — the
+  plan's own Phase 3 note says so. This is the one step that stands between the slice and the
+  lockout it designs against.
+- [ ] 6. End-to-end by hand: admin creates a member with no account → assigns a plan → books them
+  into a class → generates a code → register in a private window with that code → the new account
+  lands on that member's history, with the booking and the plan both there.
