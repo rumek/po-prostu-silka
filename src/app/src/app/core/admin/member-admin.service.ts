@@ -2,6 +2,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import {
+  AccessCodeView,
   Member,
   MemberDetail,
   MemberFilter,
@@ -114,6 +115,46 @@ export class MemberAdminService {
   async revokeTrainer(id: string): Promise<void> {
     await firstValueFrom(
       this.http.delete<void>(`/api/admin/members/${encodeURIComponent(id)}/roles/trainer`),
+    );
+  }
+
+  /**
+   * The member's outstanding code, or `null` when there is none (S-14, AM-004).
+   *
+   * A SEPARATE REQUEST from the list on purpose: `Member.hasAccessCode` says whether one exists, and
+   * that is all a table of rows needs. Folding the code itself into the list would ship every live
+   * credential the club holds to the browser every time the screen opens.
+   *
+   * The API answers 204 for "none", which Angular surfaces as `null` — an expired code is reported
+   * that way too, since reading out a code that will be refused is worse than reading out nothing.
+   */
+  async getAccessCode(id: string): Promise<AccessCodeView | null> {
+    const view = await firstValueFrom(
+      this.http.get<AccessCodeView | null>(
+        `/api/admin/members/${encodeURIComponent(id)}/access-code`,
+      ),
+    );
+
+    return view ?? null;
+  }
+
+  /**
+   * Issues a code, REPLACING any outstanding one — the admin pressing this again is someone who
+   * mislaid the code they wrote down, and making them revoke first would be ceremony.
+   */
+  issueAccessCode(id: string): Promise<AccessCodeView> {
+    return firstValueFrom(
+      this.http.post<AccessCodeView>(
+        `/api/admin/members/${encodeURIComponent(id)}/access-code`,
+        null,
+      ),
+    );
+  }
+
+  /** Kills the outstanding code. Idempotent — revoking nothing is a no-op, not an error. */
+  async revokeAccessCode(id: string): Promise<void> {
+    await firstValueFrom(
+      this.http.delete<void>(`/api/admin/members/${encodeURIComponent(id)}/access-code`),
     );
   }
 }

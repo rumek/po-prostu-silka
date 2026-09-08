@@ -6,3 +6,12 @@
   font-size: 0.9375rem;
   text-align: center;
 }
+
+// Marks the one field on this form the member may legitimately leave empty (S-14). Quiet, and part
+// of the label rather than a line under it: someone filling in a registration form should be able to
+// see at a glance which box they can skip.
+.optional {
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-weight: 400;
+}

@@ -6,6 +6,8 @@ import { RouterLink } from '@angular/router';
 import { MemberAdminService } from '../../../core/admin/member-admin.service';
 import { ROLES } from '../../../core/auth/roles';
 import {
+  AccessCodeFailure,
+  AccessCodeView,
   BlockFailure,
   Member,
   MemberFilter,
@@ -59,6 +61,25 @@ export class Members implements OnInit {
 
   /** Id of the row whose action menu is open, or null. At most one is ever open. */
   protected readonly openMenuId = signal<string | null>(null);
+
+  // --- member code ----------------------------------------------------------
+
+  /**
+   * The row whose code panel is open, and the code itself. Two signals rather than one object so
+   * the panel can render "sprawdzam…" against the right row before the answer arrives.
+   *
+   * At most one is ever open, and nothing caches: leaving the panel would drop the code, which is
+   * the behaviour worth having for a credential the admin has already written down or read out.
+   */
+  protected readonly codeMemberId = signal<string | null>(null);
+  protected readonly code = signal<AccessCodeView | null>(null);
+
+  /** Set when a lookup came back empty — "there is no code" is an answer, not a failure. */
+  protected readonly codeMissing = signal(false);
+
+  /** Clipboard outcome for the open panel. Both cleared whenever the panel changes. */
+  protected readonly codeCopied = signal(false);
+  protected readonly codeCopyFailed = signal(false);
 
   /**
    * Incremented on every load. Nothing cancels an in-flight request, so without this the LAST
@@ -129,6 +150,10 @@ export class Members implements OnInit {
     this.filter.set(next);
     this.notice.set(null);
     this.failedId.set(null);
+
+    // The panel belongs to a row that may not survive the new filter, and a code left floating over
+    // a list it no longer matches is worse than one the admin has to reveal again.
+    this.closeCode();
     await this.load();
   }
 
@@ -292,6 +317,134 @@ export class Members implements OnInit {
     );
   }
 
+  // --- member code ----------------------------------------------------------
+
+  /**
+   * The code exists to attach a NEW account to this record, so it is offered only where that is
+   * possible: no login yet, and a membership that is not blocked. Issuing one for a blocked member
+   * would produce a code that registration refuses anyway.
+   */
+  protected canIssueCode(member: Member): boolean {
+    return this.hasNoAccount(member) && member.membershipStatus === 'Active';
+  }
+
+  /** Reveals the outstanding code. A 204 (none, or expired) is reported as "no code", not an error. */
+  protected async showCode(member: Member): Promise<void> {
+    this.closeMenu();
+    await this.withCodePanel(member, () => this.members.getAccessCode(member.id));
+  }
+
+  /** Issues a fresh code, replacing any outstanding one, and shows it. */
+  protected async issueCode(member: Member): Promise<void> {
+    this.closeMenu();
+    await this.withCodePanel(member, () => this.members.issueAccessCode(member.id));
+  }
+
+  /**
+   * Kills the outstanding code and closes the panel. The row's `hasAccessCode` is patched in place,
+   * exactly as the status actions patch their fields.
+   */
+  protected async revokeCode(member: Member): Promise<void> {
+    this.closeMenu();
+    this.closeCode();
+    this.failedId.set(null);
+    this.notice.set(null);
+    this.setBusy(member.id, true);
+
+    try {
+      await this.members.revokeAccessCode(member.id);
+      this.patchRow(member.id, (row) => ({ ...row, hasAccessCode: false }));
+      this.notice.set(`Kod dla ${member.displayName} został unieważniony.`);
+    } catch (failure) {
+      await this.handleCodeFailure(member, failure);
+    } finally {
+      this.setBusy(member.id, false);
+    }
+  }
+
+  /**
+   * Copies the code as it is displayed. The Clipboard API needs a secure context and a permission
+   * that can simply be refused, so the failure is SHOWN rather than swallowed — an admin who thinks
+   * they copied a code and pastes something else is the outcome worth avoiding, and the code stays
+   * on screen to be typed out.
+   */
+  protected async copyCode(): Promise<void> {
+    const view = this.code();
+    if (!view) {
+      return;
+    }
+
+    this.codeCopied.set(false);
+    this.codeCopyFailed.set(false);
+
+    try {
+      await navigator.clipboard.writeText(view.code);
+      this.codeCopied.set(true);
+    } catch {
+      this.codeCopyFailed.set(true);
+    }
+  }
+
+  protected closeCode(): void {
+    this.codeMemberId.set(null);
+    this.code.set(null);
+    this.codeMissing.set(false);
+    this.codeCopied.set(false);
+    this.codeCopyFailed.set(false);
+  }
+
+  /**
+   * Shared shape for reveal and issue: open the panel on this row, run the request, show what came
+   * back. One method for both because the only difference is the request — including what happens on
+   * an empty answer, since a reveal that finds nothing means the row's `hasAccessCode` was already
+   * wrong and should be corrected rather than trusted.
+   */
+  private async withCodePanel(
+    member: Member,
+    action: () => Promise<AccessCodeView | null>,
+  ): Promise<void> {
+    this.closeCode();
+    this.failedId.set(null);
+    this.notice.set(null);
+    this.codeMemberId.set(member.id);
+    this.setBusy(member.id, true);
+
+    try {
+      const view = await action();
+
+      this.code.set(view);
+      this.codeMissing.set(view === null);
+      this.patchRow(member.id, (row) => ({ ...row, hasAccessCode: view !== null }));
+    } catch (failure) {
+      this.closeCode();
+      await this.handleCodeFailure(member, failure);
+    } finally {
+      this.setBusy(member.id, false);
+    }
+  }
+
+  /**
+   * 409 means the list is stale — the member registered in the meantime (`has_account`) or somebody
+   * changed the row underneath us — so it is refetched rather than patched, as everywhere else here.
+   */
+  private async handleCodeFailure(member: Member, failure: unknown): Promise<void> {
+    const response = failure as HttpErrorResponse;
+
+    if (response?.status === 409) {
+      const reason = (response.error as AccessCodeFailure | undefined)?.reason;
+
+      this.notice.set(
+        reason === 'has_account'
+          ? `${member.displayName} ma już konto — kod nie jest potrzebny.`
+          : 'Lista była nieaktualna — odświeżono.',
+      );
+      await this.load();
+      return;
+    }
+
+    this.failedId.set(member.id);
+  }
+
   // --- row menu -------------------------------------------------------------
   //
   // The first menu in this SPA; nothing else here had one, so open/close, outside-click and keyboard
@@ -406,7 +559,7 @@ export class Members implements OnInit {
         return;
       }
 
-      this.rows.update((rows) => rows.map((row) => (row.id === member.id ? patch(row) : row)));
+      this.patchRow(member.id, patch);
     } catch (failure) {
       const response = failure as HttpErrorResponse;
 
@@ -425,6 +578,11 @@ export class Members implements OnInit {
     } finally {
       this.setBusy(member.id, false);
     }
+  }
+
+  /** Replaces one row in place. Never removes it — see `mutate`. */
+  private patchRow(id: string, patch: (row: Member) => Member): void {
+    this.rows.update((rows) => rows.map((row) => (row.id === id ? patch(row) : row)));
   }
 
   protected isBusy(id: string): boolean {

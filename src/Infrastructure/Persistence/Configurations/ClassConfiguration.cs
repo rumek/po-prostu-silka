@@ -76,7 +76,7 @@ public class ClassConfiguration : IEntityTypeConfiguration<Class>
         //
         // RESTRICT for the same reason as above, plus one of its own: a trainer's account must never
         // be deletable out from under a scheduled class.
-        builder.Property(x => x.InstructorUserId).IsRequired().HasMaxLength(450);
+        builder.Property(x => x.InstructorUserId).HasMaxLength(450);
 
         builder.HasOne(x => x.InstructorAccount)
             .WithMany()

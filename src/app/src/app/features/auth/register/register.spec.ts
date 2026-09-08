@@ -108,6 +108,10 @@ describe('Register', () => {
       houseNumber: '12A/3',
       postalCode: '00-001',
       city: 'Warszawa',
+
+      // Null rather than absent: the field is optional to the MEMBER, not to the contract, and an
+      // empty string would be a code the API has to refuse rather than "I have none" (S-14).
+      memberCode: null,
     });
 
     request.flush(PENDING);
@@ -178,6 +182,75 @@ describe('Register', () => {
 
   // The API's Identity error codes are an open set, so the UI needs a branch that does not silently
   // report the wrong field.
+  // --- member code (S-14) ---------------------------------------------------
+
+  /**
+   * The field is optional and most people leave it empty; sending "" would make the API resolve a
+   * code that was never typed.
+   */
+  it('sends the member code as null when the field is left empty', async () => {
+    fill();
+    submit();
+
+    const request = await expectRegister();
+    expect(request.request.body.memberCode).toBeNull();
+
+    request.flush(PENDING);
+    await fixture.whenStable();
+  });
+
+  /**
+   * Sent AS TYPED, dash and all — normalisation (case, separators) belongs to the API, which owns
+   * the alphabet. Only the surrounding whitespace a paste brings along is stripped.
+   */
+  it('sends the member code as typed, trimmed', async () => {
+    fill({ memberCode: '  abcd-2345  ' });
+    submit();
+
+    const request = await expectRegister();
+    expect(request.request.body.memberCode).toBe('abcd-2345');
+
+    request.flush(PENDING);
+    await fixture.whenStable();
+  });
+
+  /**
+   * On the control, not as a banner: the one field the member can fix is the one the message has to
+   * sit under. Same rule the email and postal-code failures already follow.
+   */
+  it('surfaces unknown_member_code on the code control', async () => {
+    fill({ memberCode: 'ABCD-2345' });
+    submit();
+
+    (await expectRegister()).flush(
+      { reason: 'unknown_member_code' },
+      { status: 409, statusText: 'Conflict' },
+    );
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('#memberCode')?.getAttribute('aria-invalid')).toBe('true');
+    expect(compiled.textContent).toContain('Ten kod już nie działa');
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it('surfaces invalid_member_code on the code control', async () => {
+    fill({ memberCode: 'ZZ' });
+    submit();
+
+    (await expectRegister()).flush(
+      { reason: 'invalid_member_code' },
+      { status: 400, statusText: 'Bad Request' },
+    );
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('#memberCode')?.getAttribute('aria-invalid')).toBe('true');
+    expect(compiled.textContent).toContain('osiem znaków');
+  });
+
   it('falls back to a banner for an unrecognised failure', async () => {
     fill();
     submit();

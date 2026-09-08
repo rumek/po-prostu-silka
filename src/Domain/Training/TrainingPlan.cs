@@ -36,9 +36,9 @@ public class TrainingPlan
     /// <summary>
     /// Whose plan it is, as an ACCOUNT id. BEING REPLACED BY <see cref="MemberId"/> (S-14) and written
     /// in parallel with it for one release — a plan belongs to a person, and since S-14 that person
-    /// may have no account.
+    /// may have no account, which is why this is nullable.
     /// </summary>
-    public string MemberUserId { get; set; } = string.Empty;
+    public string? MemberUserId { get; set; }
 
     /// <summary>
     /// Whose plan it is (S-14). Nullable only for the length of the transition.
@@ -65,7 +65,7 @@ public class TrainingPlan
     /// ...", and a field nothing reads would not have earned its migration.
     /// </para>
     /// </summary>
-    public string AssignedByUserId { get; set; } = string.Empty;
+    public string? AssignedByUserId { get; set; }
 
     /// <summary>
     /// The author, as a member (S-14). Nullable only for the length of the transition.

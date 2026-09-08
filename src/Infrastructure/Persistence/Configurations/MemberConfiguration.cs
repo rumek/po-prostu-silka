@@ -43,9 +43,9 @@ public class MemberConfiguration : IEntityTypeConfiguration<Member>
 
         builder.Property(x => x.CreatedAt).IsRequired();
 
-        // Long enough for the 8-character code plus the separator a future format might want; short
-        // enough that the unique index below stays narrow.
-        builder.Property(x => x.AccessCode).HasMaxLength(12);
+        // The width MemberAccessCode declares — one source, so the column and the generator cannot
+        // disagree about what fits.
+        builder.Property(x => x.AccessCode).HasMaxLength(MemberAccessCode.MaxLength);
 
         // 36 is a Guid's string form, matching TrainingPlanConfiguration's stamp.
         builder.Property(x => x.ConcurrencyStamp)

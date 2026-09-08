@@ -285,6 +285,39 @@ The claimed account is still created `Pending`; the code proves the club knows t
 approved. Account creation and the link are two saves, ordered so a failure leaves an unlinked account
 with the code still live and retryable, never a consumed code with no account.
 
+**Adapted during implementation (Phase 6).**
+
+- **The legacy account columns had to become nullable HERE, not in Phase 8.** The plan parked that
+  step five phases away, and it does not survive contact with the slice: `Bookings.MemberUserId`,
+  `TrainingPlans.MemberUserId`/`AssignedByUserId` and `Classes.InstructorUserId` were `NOT NULL` with
+  live foreign keys, so assigning a plan to an accountless member or booking one into a class threw
+  `FK_TrainingPlans_AspNetUsers_MemberUserId` — the two things this change exists to make possible.
+  Migration `20260908082943_AllowLegacyUserColumnsToBeNull` makes the four nullable and adds
+  `AND [X] IS NOT NULL` to the two legacy filtered unique indexes, for the NULL-equality reason the
+  plan already gives twice. The write paths now store `null` rather than `string.Empty`. Phase 8 keeps
+  the rest of its schema work; this part of it is done.
+- **The claim is ONE save, not two.** The plan ordered account creation and the link as two saves so a
+  failure would leave an unlinked account with the code still live. In practice the account and the
+  member row are written through the same `DbContext`, so splitting them would have been artificial —
+  and the single save is what lets `IX_Members_UserId` settle two people racing the same code: the
+  loser's write is rejected, and the compensating delete removes their account. That compensation
+  needs `unitOfWork.DiscardChanges()` and a re-fetch before `DeleteAsync`, because the context still
+  tracks the rejected change and would otherwise re-send it — a bug the race test caught.
+- **`Member.Email` is filled in, never overwritten, on a claim.** The plan said the submitted contact
+  details win. That is right for the phone and the address, and wrong for the email: it is the login
+  address now, and Identity holds the authoritative copy.
+- **`unblock` stayed idempotent.** An earlier pass made it answer 409 `not_blocked` on an already
+  active member while `block` remained a no-op — an asymmetry with no justification. Reverted; the
+  reason is gone from `UnblockFailure` and from the SPA's mapping.
+- **The code panel lives in the row, not in a dialog.** The admin reads the code out while looking at
+  the person's name, and a modal would cover the row that gives it meaning. Copy-to-clipboard reports
+  its own failure rather than swallowing it — the Clipboard API needs a secure context and a
+  permission that can simply be refused, and an admin who believes they copied a code is worse off
+  than one who is told to type it.
+- **A reveal that comes back empty corrects `hasAccessCode` on the row.** The API reports an expired
+  code as no code at all, so the flag the list loaded with was already wrong; trusting it would leave
+  a "Unieważnij kod" action pointing at nothing.
+
 ### Phase 7 — Admin books on a member's behalf
 
 Extract `BookAsync`'s body into `TryBookAsync(classId, memberId, …)` with `MaxAttempts = 10`, the

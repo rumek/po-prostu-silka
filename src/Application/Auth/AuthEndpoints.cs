@@ -15,6 +15,11 @@ public record LoginRequest(string Email, string Password);
 /// Registration input. The five contact fields land here with S-13 and are required: the columns
 /// behind them are nullable only so accounts created before that slice remain readable.
 /// </summary>
+/// <param name="MemberCode">
+/// Optional (S-14, AM-005). With a valid code the new account is attached to the member record the
+/// club already keeps, so the person arrives with their bookings and their plan already there.
+/// Without one, registration creates a fresh record exactly as it always has.
+/// </param>
 public record RegisterRequest(
     string Email,
     string Password,
@@ -23,7 +28,8 @@ public record RegisterRequest(
     string Street,
     string HouseNumber,
     string PostalCode,
-    string City);
+    string City,
+    string? MemberCode = null);
 
 /// <summary>
 /// Why the login failure is named: S-02's blocked members need a different message from a wrong
@@ -79,6 +85,14 @@ public record ChangePasswordFailure(string Reason);
 /// The <c>invalid_phone</c> / <c>invalid_street</c> / <c>invalid_house_number</c> /
 /// <c>invalid_postal_code</c> / <c>invalid_city</c> codes come from <see cref="ContactDetails"/>,
 /// which is also what <c>PUT /api/profile</c> answers with - one vocabulary, two endpoints.
+///
+/// <para>
+/// S-14 adds two. <c>invalid_member_code</c> (400) is a format failure - what was typed could not be
+/// a code at all. <c>unknown_member_code</c> (409) covers "no member holds it", "it expired" and "it
+/// was revoked" as ONE answer, deliberately: distinguishing them would confirm to a stranger that a
+/// code once existed, and the same reasoning already collapses ResetPasswordFailure's four causes
+/// into <c>invalid_token</c>.
+/// </para>
 /// </summary>
 public record RegisterFailure(string Reason);
 
@@ -261,6 +275,31 @@ public static class AuthEndpoints
             return Results.Json(new RegisterFailure(contactFailure), statusCode: 400);
         }
 
+        // THE CODE IS RESOLVED BEFORE ANYTHING IS CREATED. A bad one costs one round trip and leaves
+        // no account behind - the same ordering the contact-detail validation above follows.
+        Member? claimed = null;
+        if (!string.IsNullOrWhiteSpace(request.MemberCode))
+        {
+            if (!MemberAccessCode.TryNormalise(request.MemberCode, out var normalisedCode))
+            {
+                return Results.Json(new RegisterFailure("invalid_member_code"), statusCode: 400);
+            }
+
+            claimed = await members.FindByAccessCodeAsync(normalisedCode, CancellationToken.None);
+
+            // ONE ANSWER FOR EVERY CAUSE: no such code, already claimed, expired, revoked, or the
+            // member blocked since it was issued. Telling them apart would confirm to a stranger that
+            // a code once existed and what became of it - and a block must not be claimable around.
+            if (claimed is null
+                || claimed.UserId is not null
+                || claimed.AccessCodeExpiresAt is null
+                || claimed.AccessCodeExpiresAt <= timeProvider.GetUtcNow()
+                || claimed.Status != MembershipStatus.Active)
+            {
+                return Results.Json(new RegisterFailure("unknown_member_code"), statusCode: 409);
+            }
+        }
+
         if (await userManager.FindByEmailAsync(request.Email) is not null)
         {
             return Results.Json(new RegisterFailure("email_taken"), statusCode: 409);
@@ -335,30 +374,70 @@ public static class AuthEndpoints
         // here would have to run through Database.CreateExecutionStrategy().ExecuteAsync, because
         // EnableRetryOnFailure is on (Program.cs) and throws at RUNTIME otherwise. The compensation
         // below is the cheaper answer, and it mirrors what the role-assignment failure already does.
-        var member = new Member
+        if (claimed is not null)
         {
-            Id = Guid.NewGuid(),
-            UserId = user.Id,
-            DisplayName = displayName,
-            Email = request.Email,
-            PhoneNumber = contact.PhoneNumber,
-            Street = contact.Street,
-            HouseNumber = contact.HouseNumber,
-            PostalCode = contact.PostalCode,
-            City = contact.City,
+            // CLAIMING, NOT CREATING. The whole point of the code: this account attaches to the record
+            // the club has been keeping, so the bookings and the active plan already pointing at it
+            // are simply there when the member first signs in.
+            claimed.UserId = user.Id;
+            claimed.ClaimedAt = user.CreatedAt;
 
-            // Active even though the ACCOUNT is Pending. The two statuses answer different questions:
-            // approval gates the login, and it is AccountStatus that holds this person at the awaiting
-            // screen. See MembershipStatus for why there is no membership Pending.
-            Status = MembershipStatus.Active,
-            CreatedAt = user.CreatedAt,
-            ClaimedAt = user.CreatedAt,
-        };
+            // Consumed. Nulling the code is what makes it single-use - there is no separate "used"
+            // flag to forget to set - and the expiry goes with it, for the reason revoke gives.
+            claimed.AccessCode = null;
+            claimed.AccessCodeExpiresAt = null;
 
-        members.Add(member);
+            // THE CLUB KEEPS THE NAME IT GAVE THEM. Same rule as the profile screen (S-13, FR-006):
+            // the gym owns how a member appears on its lists, and a claim must not become the one way
+            // to rename yourself. The submitted display name is deliberately dropped.
+            //
+            // The contact details DO overwrite, because the person is the better source for their own
+            // phone and address - and the club's copy may be months old or absent entirely. The email
+            // is only filled IN, never replaced: it is the login address now, and Identity holds the
+            // authoritative copy.
+            claimed.Email ??= request.Email;
+            claimed.PhoneNumber = contact.PhoneNumber;
+            claimed.Street = contact.Street;
+            claimed.HouseNumber = contact.HouseNumber;
+            claimed.PostalCode = contact.PostalCode;
+            claimed.City = contact.City;
+            claimed.ConcurrencyStamp = Guid.NewGuid().ToString();
+
+            // The account carries the club's name too, so the two rows keep agreeing while both hold
+            // one. Written through the tracked entity rather than UserManager.UpdateAsync, which would
+            // issue its own save and split this into two writes.
+            user.DisplayName = claimed.DisplayName;
+        }
+        else
+        {
+            members.Add(new Member
+            {
+                Id = Guid.NewGuid(),
+                UserId = user.Id,
+                DisplayName = displayName,
+                Email = request.Email,
+                PhoneNumber = contact.PhoneNumber,
+                Street = contact.Street,
+                HouseNumber = contact.HouseNumber,
+                PostalCode = contact.PostalCode,
+                City = contact.City,
+
+                // Active even though the ACCOUNT is Pending. The two statuses answer different
+                // questions: approval gates the login, and it is AccountStatus that holds this person
+                // at the awaiting screen. See MembershipStatus for why there is no membership Pending.
+                Status = MembershipStatus.Active,
+                CreatedAt = user.CreatedAt,
+                ClaimedAt = user.CreatedAt,
+            });
+        }
 
         try
         {
+            // NOT TrySaveChangesAsync, which would swallow the one failure that matters here. The
+            // unique index on Members.UserId is what settles two people racing the same code: the
+            // loser's UPDATE is rejected, this throws, and the compensating delete below removes their
+            // account - leaving the code consumed by the winner and the loser free to register
+            // normally.
             await unitOfWork.SaveChangesAsync(CancellationToken.None);
         }
         catch (Exception ex)
@@ -370,9 +449,23 @@ public static class AuthEndpoints
             // still cannot do anything.
             var memberLogger = loggerFactory.CreateLogger(typeof(AuthEndpoints));
             memberLogger.LogError(
-                ex, "Member record creation failed for new user {UserId}; deleting the account.", user.Id);
+                ex,
+                "Member record could not be linked for new user {UserId}; deleting the account.",
+                user.Id);
 
-            await userManager.DeleteAsync(user);
+            // DISCARD FIRST, OR THE COMPENSATION SILENTLY FAILS. The failed save left the rejected
+            // change tracked, so DeleteAsync's own SaveChanges would re-send it, hit the same
+            // violation, and throw - leaving exactly the orphaned account this block exists to remove.
+            // The account itself is already committed (CreateAsync saved it), so it is re-read rather
+            // than reused: the instance we hold belongs to the graph just thrown away.
+            unitOfWork.DiscardChanges();
+
+            var orphan = await userManager.FindByIdAsync(user.Id);
+            if (orphan is not null)
+            {
+                await userManager.DeleteAsync(orphan);
+            }
+
             return Results.Problem("Registration could not be completed.", statusCode: 500);
         }
 

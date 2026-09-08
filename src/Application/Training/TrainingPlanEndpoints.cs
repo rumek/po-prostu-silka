@@ -359,9 +359,9 @@ public static class TrainingPlanEndpoints
                 AssignedByMemberId = authorMemberId.Value,
 
                 // The account keys are still written beside them for one more release, resolved from
-                // the members the request and the cookie name. They disappear with the columns.
-                MemberUserId = (await members.FindAsync(memberId, cancellationToken))?.UserId
-                               ?? string.Empty,
+                // the member the request names. NULL when that member has no login — which is exactly
+                // the case this slice adds, and why the column had to stop being required.
+                MemberUserId = (await members.FindAsync(memberId, cancellationToken))?.UserId,
                 AssignedByUserId = authorUserId,
                 Status = TrainingPlanStatus.Active,
                 CreatedAt = now,

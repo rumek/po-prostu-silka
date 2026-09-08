@@ -184,3 +184,26 @@ export interface BlockFailure {
 export interface UnblockFailure {
   reason: 'conflict';
 }
+
+/**
+ * Mirrors AccessCodeView — the member code as the admin reads it out (S-14, AM-004).
+ *
+ * `code` arrives ALREADY FORMATTED as `XXXX-XXXX`; the dash is presentation the API owns, so the
+ * screen never reassembles it. What is copied to the clipboard is this exact string, because the
+ * registration form normalises the dash away anyway.
+ */
+export interface AccessCodeView {
+  code: string;
+
+  /** ISO 8601 from the API — the moment the code stops working. */
+  expiresAt: string;
+}
+
+/**
+ * Mirrors AccessCodeFailure. `has_account` — the member already logs in, so there is nothing to
+ * claim; `conflict` — a lost optimistic race (or the generator lost every retry), which means the
+ * list is stale and must be refetched.
+ */
+export interface AccessCodeFailure {
+  reason: 'has_account' | 'conflict';
+}

@@ -145,7 +145,7 @@ public class Class
     /// a class to another trainer is ordinary admin work.
     /// </para>
     /// </summary>
-    public string InstructorUserId { get; set; } = string.Empty;
+    public string? InstructorUserId { get; set; }
 
     /// <summary>
     /// Who runs it, as a member (S-14). Nullable only for the length of the transition.

@@ -41,6 +41,11 @@ export class Register {
     houseNumber: ['', [Validators.required]],
     postalCode: ['', [Validators.required, Validators.pattern(POSTAL_CODE_PATTERN)]],
     city: ['', [Validators.required]],
+
+    // OPTIONAL, and no client-side format rule beyond a length bound: the server normalises what is
+    // typed (case, the dash it printed, stray spaces), so anything stricter here would reject codes
+    // the API would have accepted.
+    memberCode: ['', [Validators.maxLength(32)]],
   });
 
   protected readonly error = signal<string | null>(null);
@@ -68,6 +73,10 @@ export class Register {
         houseNumber: value.houseNumber.trim(),
         postalCode: value.postalCode.trim(),
         city: value.city.trim(),
+
+        // Omitted rather than sent empty. The server treats a blank code as "no code", but sending
+        // one would put an empty string into the request for every member who has never seen a code.
+        memberCode: value.memberCode.trim() || null,
       });
 
       await this.router.navigate(['/pending']);
@@ -121,6 +130,18 @@ export class Register {
 
       case 'invalid_city':
         this.reject(this.form.controls.city, { required: true });
+        return;
+
+      // Both land on the code field rather than in the page-level banner: the member typed something
+      // wrong in one specific box and that is where they will look. The MESSAGES differ (the template
+      // branches on which error is set) because "that is not a code" and "that code no longer works"
+      // ask for different things from the person reading them.
+      case 'invalid_member_code':
+        this.reject(this.form.controls.memberCode, { pattern: true });
+        return;
+
+      case 'unknown_member_code':
+        this.reject(this.form.controls.memberCode, { unknown: true });
         return;
 
       default:

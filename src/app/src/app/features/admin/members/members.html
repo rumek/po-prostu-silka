@@ -151,6 +151,41 @@
                   </button>
                 }
 
+                <!-- The code attaches a NEW account to this record, so it is offered only where
+                     there is no login yet — see canIssueCode. -->
+                @if (canIssueCode(member)) {
+                  @if (member.hasAccessCode) {
+                    <button
+                      type="button"
+                      role="menuitem"
+                      class="row-menu-item"
+                      (click)="showCode(member)"
+                    >
+                      Pokaż kod klubowicza
+                    </button>
+                  }
+
+                  <button
+                    type="button"
+                    role="menuitem"
+                    class="row-menu-item"
+                    (click)="issueCode(member)"
+                  >
+                    {{ member.hasAccessCode ? 'Wygeneruj nowy kod' : 'Wygeneruj kod klubowicza' }}
+                  </button>
+
+                  @if (member.hasAccessCode) {
+                    <button
+                      type="button"
+                      role="menuitem"
+                      class="row-menu-item"
+                      (click)="revokeCode(member)"
+                    >
+                      Unieważnij kod
+                    </button>
+                  }
+                }
+
                 @if (canChangeTrainer(member)) {
                   <button
                     type="button"
@@ -191,6 +226,36 @@
 
           @if (failedId() === member.id) {
             <p class="field-error" role="alert">Nie udało się. Spróbuj ponownie.</p>
+          }
+
+          @if (codeMemberId() === member.id) {
+            <div class="member-code" role="status">
+              @if (isBusy(member.id)) {
+                <p class="member-code-status">Sprawdzam…</p>
+              } @else if (code(); as view) {
+                <p class="member-code-value">{{ view.code }}</p>
+                <p class="member-code-status">
+                  Ważny do {{ view.expiresAt | date: 'd MMMM y, HH:mm' }}
+                </p>
+                <div class="member-code-actions">
+                  <button type="button" class="link-button" (click)="copyCode()">Kopiuj</button>
+                  <button type="button" class="link-button" (click)="closeCode()">Zamknij</button>
+                </div>
+                @if (codeCopied()) {
+                  <p class="member-code-status">Skopiowano.</p>
+                }
+                @if (codeCopyFailed()) {
+                  <p class="field-error" role="alert">
+                    Nie udało się skopiować — przepisz kod ręcznie.
+                  </p>
+                }
+              } @else if (codeMissing()) {
+                <p class="member-code-status">Brak ważnego kodu — wygeneruj nowy.</p>
+                <div class="member-code-actions">
+                  <button type="button" class="link-button" (click)="closeCode()">Zamknij</button>
+                </div>
+              }
+            </div>
           }
         </div>
       </li>

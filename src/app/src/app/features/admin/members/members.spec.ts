@@ -80,6 +80,19 @@ const FILIP: Member = {
   createdAt: '2026-09-01T13:00:00+00:00',
 };
 
+/** An accountless member who already has a code outstanding — the reveal and revoke directions. */
+const GRAZYNA: Member = {
+  id: 'm7',
+  userId: null,
+  email: null,
+  displayName: 'Grażyna Bez Konta',
+  membershipStatus: 'Active',
+  accountStatus: null,
+  roles: [],
+  hasAccessCode: true,
+  createdAt: '2026-09-01T14:00:00+00:00',
+};
+
 describe('Members', () => {
   let fixture: ComponentFixture<Members>;
   let controller: HttpTestingController;
@@ -557,5 +570,111 @@ describe('Members', () => {
 
     expect(menuTrigger(rows()[0]).getAttribute('aria-expanded')).toBe('false');
     expect(menuTrigger(rows()[1]).getAttribute('aria-expanded')).toBe('true');
+  });
+
+  // --- member code (S-14) ---------------------------------------------------
+
+  /**
+   * The code's only power is "attach the account being created to this record", so a person who
+   * already logs in has nothing to claim — and the API answers has_account. Offering it there would
+   * put an action on screen whose only outcome is a 409.
+   */
+  it('offers the code only to a member with no account', async () => {
+    await createWith([ANNA, FILIP]);
+
+    expect(menuLabels(rows()[0])).not.toContain('Wygeneruj kod klubowicza');
+    expect(menuLabels(rows()[1])).toContain('Wygeneruj kod klubowicza');
+  });
+
+  /** Nothing to reveal or revoke until one exists, so the row offers exactly one code action. */
+  it('offers only generation while no code is outstanding', async () => {
+    await createWith([FILIP]);
+
+    const labels = menuLabels(rows()[0]);
+    expect(labels).toContain('Wygeneruj kod klubowicza');
+    expect(labels).not.toContain('Pokaż kod klubowicza');
+    expect(labels).not.toContain('Unieważnij kod');
+  });
+
+  it('shows the issued code and turns the row into a reveal-and-revoke one', async () => {
+    await createWith([FILIP]);
+
+    menuItemIn(rows()[0], 'Wygeneruj kod klubowicza').click();
+
+    (await vi.waitFor(() => controller.expectOne('/api/admin/members/m6/access-code'))).flush({
+      code: 'ABCD-2345',
+      expiresAt: '2026-09-22T14:00:00+00:00',
+    });
+    await settle();
+
+    // The formatted form exactly as the API sent it — the dash is presentation the API owns.
+    expect(html()).toContain('ABCD-2345');
+    expect(html()).toContain('Ważny do');
+
+    const labels = menuLabels(rows()[0]);
+    expect(labels).toContain('Pokaż kod klubowicza');
+    expect(labels).toContain('Wygeneruj nowy kod');
+    expect(labels).toContain('Unieważnij kod');
+  });
+
+  /**
+   * An expired code is reported by the API as none at all, because reading out a code registration
+   * will refuse is worse than reading out nothing. The row corrects itself rather than keeping the
+   * stale flag.
+   */
+  it('reports an empty reveal as no code and clears the row flag', async () => {
+    await createWith([GRAZYNA]);
+
+    menuItemIn(rows()[0], 'Pokaż kod klubowicza').click();
+
+    (await vi.waitFor(() => controller.expectOne('/api/admin/members/m7/access-code'))).flush(
+      null,
+      {
+        status: 204,
+        statusText: 'No Content',
+      },
+    );
+    await settle();
+
+    expect(html()).toContain('Brak ważnego kodu');
+    expect(menuLabels(rows()[0])).not.toContain('Unieważnij kod');
+  });
+
+  it('clears the code from the row when it is revoked', async () => {
+    await createWith([GRAZYNA]);
+
+    menuItemIn(rows()[0], 'Unieważnij kod').click();
+
+    const request = await vi.waitFor(() =>
+      controller.expectOne('/api/admin/members/m7/access-code'),
+    );
+    expect(request.request.method).toBe('DELETE');
+    request.flush(null, { status: 204, statusText: 'No Content' });
+    await settle();
+
+    expect(html()).toContain('unieważniony');
+    expect(menuLabels(rows()[0])).not.toContain('Pokaż kod klubowicza');
+  });
+
+  /**
+   * The member registered between the list loading and the admin pressing the button. The list is
+   * stale, so it is refetched rather than patched from a guess — the rule every action here follows.
+   */
+  it('refetches and explains when the member turns out to have an account', async () => {
+    await createWith([FILIP]);
+
+    menuItemIn(rows()[0], 'Wygeneruj kod klubowicza').click();
+
+    (await vi.waitFor(() => controller.expectOne('/api/admin/members/m6/access-code'))).flush(
+      { reason: 'has_account' },
+      { status: 409, statusText: 'Conflict' },
+    );
+    await settle();
+
+    (await vi.waitFor(() => controller.expectOne('/api/admin/members'))).flush([ANNA]);
+    await settle();
+
+    expect(html()).toContain('ma już konto');
+    expect(html()).not.toContain('ABCD-2345');
   });
 });

@@ -171,6 +171,17 @@ public record TrainerRoleFailure(string Reason);
 public record MemberFailure(string Reason);
 
 /// <summary>
+/// A member code as the admin sees it: formatted for reading aloud, with the moment it stops working.
+/// </summary>
+public record AccessCodeView(string Code, DateTimeOffset ExpiresAt);
+
+/// <summary>
+/// Why issuing a code was refused. <c>has_account</c> — the member already has a login, so there is
+/// nothing to claim; <c>conflict</c> — a lost optimistic race, or the generator lost every retry.
+/// </summary>
+public record AccessCodeFailure(string Reason);
+
+/// <summary>
 /// The admin's member surface: the approval queue (S-01), the full member list S-02 added on top of
 /// it, and since S-14 the records of people who have never registered at all.
 ///
@@ -222,6 +233,13 @@ public static class MemberAdminEndpoints
         group.MapPost("/{memberId:guid}/unblock", UnblockAsync);
         group.MapPost("/{memberId:guid}/roles/trainer", GrantTrainerAsync);
         group.MapDelete("/{memberId:guid}/roles/trainer", RevokeTrainerAsync);
+
+        // A SEPARATE ROUTE FOR READING THE CODE, not a field on the member list. The list is loaded
+        // on every visit to the members screen; shipping every live code into it would put the whole
+        // set in the browser's memory and its network log for no reason. The list carries a boolean.
+        group.MapGet("/{memberId:guid}/access-code", GetAccessCodeAsync);
+        group.MapPost("/{memberId:guid}/access-code", IssueAccessCodeAsync);
+        group.MapDelete("/{memberId:guid}/access-code", RevokeAccessCodeAsync);
 
         return app;
     }
@@ -737,6 +755,150 @@ public static class MemberAdminEndpoints
         return result.Succeeded
             ? Results.Ok()
             : Results.Json(new TrainerRoleFailure("failed"), statusCode: 409);
+    }
+
+    /// <summary>
+    /// How many times generation retries after colliding with a live code.
+    ///
+    /// Three is plenty and is not a concurrency bound like the booking loop's: the collision it guards
+    /// against is 1-in-8.5×10¹¹ per attempt, so exhausting this means the random source is broken
+    /// rather than that the club is busy.
+    /// </summary>
+    private const int CodeAttempts = 3;
+
+    /// <summary>
+    /// Issues a member code (AM-004), replacing any outstanding one.
+    ///
+    /// <para>
+    /// REPLACING RATHER THAN REFUSING is deliberate: the admin pressing this again is someone who
+    /// could not find the code they wrote down, and making them revoke first would be ceremony. The
+    /// previous code stops working the moment this one is stored, which is the honest behaviour — one
+    /// live code per member, always.
+    /// </para>
+    /// </summary>
+    private static async Task<IResult> IssueAccessCodeAsync(
+        Guid memberId,
+        IMemberStore members,
+        IUnitOfWork unitOfWork,
+        TimeProvider timeProvider,
+        CancellationToken cancellationToken)
+    {
+        var member = await members.FindAsync(memberId, cancellationToken);
+        if (member is null)
+        {
+            return Results.NotFound();
+        }
+
+        // Nothing to claim. The code's entire power is "attach the account being created to this
+        // member", and this member already has one.
+        if (member.UserId is not null)
+        {
+            return Results.Json(new AccessCodeFailure("has_account"), statusCode: 409);
+        }
+
+        var expiresAt = timeProvider.GetUtcNow() + MemberAccessCode.Validity;
+
+        for (var attempt = 1; attempt <= CodeAttempts; attempt++)
+        {
+            var code = MemberAccessCode.Generate();
+
+            member.AccessCode = code;
+            member.AccessCodeExpiresAt = expiresAt;
+            member.ConcurrencyStamp = Guid.NewGuid().ToString();
+
+            // TrySaveAsync, not TrySaveChangesAsync: this write is guarded by a unique index
+            // (IX_Members_AccessCode) as well as a concurrency token, and the two mean different
+            // things here. A unique violation is a collision worth retrying with a new code; a
+            // concurrency conflict means somebody else changed this member and our view is stale.
+            var outcome = await unitOfWork.TrySaveAsync(cancellationToken);
+
+            if (outcome == SaveOutcome.Saved)
+            {
+                return Results.Ok(new AccessCodeView(MemberAccessCode.Format(code), expiresAt));
+            }
+
+            if (outcome == SaveOutcome.ConcurrencyConflict)
+            {
+                return Results.Json(new AccessCodeFailure("conflict"), statusCode: 409);
+            }
+
+            // A unique violation. Discard so the retry re-reads rather than re-sending the rejected
+            // value against a now-stale token — the same reason the booking loop discards.
+            unitOfWork.DiscardChanges();
+
+            member = await members.FindAsync(memberId, cancellationToken);
+            if (member is null)
+            {
+                return Results.NotFound();
+            }
+        }
+
+        return Results.Json(new AccessCodeFailure("conflict"), statusCode: 409);
+    }
+
+    /// <summary>
+    /// The member's outstanding code, or 204 when there is none.
+    ///
+    /// <para>
+    /// AN EXPIRED CODE IS REPORTED AS NONE. It is dead either way, and showing the admin a code that
+    /// will be refused is worse than showing them nothing — they would read it out and the member
+    /// would fail, which is the one outcome this screen exists to prevent.
+    /// </para>
+    /// </summary>
+    private static async Task<IResult> GetAccessCodeAsync(
+        Guid memberId,
+        IMemberStore members,
+        TimeProvider timeProvider,
+        CancellationToken cancellationToken)
+    {
+        var member = await members.FindAsync(memberId, cancellationToken);
+        if (member is null)
+        {
+            return Results.NotFound();
+        }
+
+        if (member.AccessCode is null
+            || member.AccessCodeExpiresAt is null
+            || member.AccessCodeExpiresAt <= timeProvider.GetUtcNow())
+        {
+            return Results.NoContent();
+        }
+
+        return Results.Ok(new AccessCodeView(
+            MemberAccessCode.Format(member.AccessCode),
+            member.AccessCodeExpiresAt.Value));
+    }
+
+    /// <summary>Revokes the outstanding code. Idempotent — revoking nothing is a no-op, not an error.</summary>
+    private static async Task<IResult> RevokeAccessCodeAsync(
+        Guid memberId,
+        IMemberStore members,
+        IUnitOfWork unitOfWork,
+        CancellationToken cancellationToken)
+    {
+        var member = await members.FindAsync(memberId, cancellationToken);
+        if (member is null)
+        {
+            return Results.NotFound();
+        }
+
+        if (member.AccessCode is null)
+        {
+            return Results.NoContent();
+        }
+
+        // BOTH FIELDS. The expiry is meaningless without the code and leaving it behind would make a
+        // revoked member look, to any future reader, like one whose code merely lapsed.
+        member.AccessCode = null;
+        member.AccessCodeExpiresAt = null;
+        member.ConcurrencyStamp = Guid.NewGuid().ToString();
+
+        if (!await unitOfWork.TrySaveChangesAsync(cancellationToken))
+        {
+            return Results.Json(new AccessCodeFailure("conflict"), statusCode: 409);
+        }
+
+        return Results.NoContent();
     }
 
     /// <summary>

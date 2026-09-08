@@ -19,8 +19,8 @@ public class TrainingPlanConfiguration : IEntityTypeConfiguration<TrainingPlan>
 
         // 450 is Identity's key length, so both FK columns match AspNetUsers.Id exactly rather than
         // relying on a convention default - the same reasoning as Booking.MemberUserId.
-        builder.Property(x => x.MemberUserId).IsRequired().HasMaxLength(450);
-        builder.Property(x => x.AssignedByUserId).IsRequired().HasMaxLength(450);
+        builder.Property(x => x.MemberUserId).HasMaxLength(450);
+        builder.Property(x => x.AssignedByUserId).HasMaxLength(450);
 
         // Stored as int, like BookingStatus. Defaulting to Active means a row inserted without an
         // explicit status is the member's current plan, never silently archived on arrival.
@@ -72,7 +72,7 @@ public class TrainingPlanConfiguration : IEntityTypeConfiguration<TrainingPlan>
         builder
             .HasIndex(x => x.MemberUserId)
             .IsUnique()
-            .HasFilter("[Status] = 0")
+            .HasFilter("[Status] = 0 AND [MemberUserId] IS NOT NULL")
             .HasDatabaseName("IX_TrainingPlans_Member_Active");
 
         // S-14's replacement keys, nullable for the length of the transition. Both are Restrict, for

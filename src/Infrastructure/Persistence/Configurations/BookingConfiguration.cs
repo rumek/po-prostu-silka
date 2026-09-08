@@ -26,7 +26,10 @@ public class BookingConfiguration : IEntityTypeConfiguration<Booking>
 
         // 450 is Identity's key length, so the FK column matches AspNetUsers.Id exactly rather than
         // relying on a convention default - the same reasoning as Class.InstructorUserId.
-        builder.Property(x => x.MemberUserId).IsRequired().HasMaxLength(450);
+        //
+        // NO LONGER REQUIRED (S-14): a member with no account has nothing to put here, and booking one
+        // into a class is what the slice exists for. Still written for everyone who has a login.
+        builder.Property(x => x.MemberUserId).HasMaxLength(450);
 
         // RESTRICT on both sides, following ClassConfiguration. A cascade here would be the worst
         // failure available: deleting a class or an account would silently erase the evidence that
@@ -78,9 +81,13 @@ public class BookingConfiguration : IEntityTypeConfiguration<Booking>
         //
         // "[Status] = 0" names BookingStatus.Active as a literal - the enum's numeric values are
         // pinned for exactly this kind of dependency.
+        // The "[MemberUserId] IS NOT NULL" term arrived with S-14 and is load-bearing now that the
+        // column is nullable: SQL Server treats NULLs as EQUAL for uniqueness, so without it the
+        // second accountless member booked into any class would be rejected. The index is kept at all
+        // only so a rollback to the artifact that still reads this column finds it.
         builder.HasIndex(x => new { x.ClassId, x.MemberUserId })
             .IsUnique()
-            .HasFilter("[Status] = 0")
+            .HasFilter("[Status] = 0 AND [MemberUserId] IS NOT NULL")
             .HasDatabaseName("IX_Bookings_Class_Member_Active");
 
         // The member's upcoming-bookings query: MemberUserId equality, then Status equality. Also the

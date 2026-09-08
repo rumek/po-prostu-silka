@@ -25,4 +25,13 @@ public interface IMemberStore
     /// The member linked to this account, tracked, or null. Seeks IX_Members_UserId.
     /// </summary>
     Task<Member?> FindByUserIdAsync(string userId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// The member holding this access code, tracked, or null. Seeks IX_Members_AccessCode.
+    /// </summary>
+    /// <param name="code">
+    /// NORMALISED, as MemberAccessCode.TryNormalise produces it. The stored form is the only form; a
+    /// caller passing raw input would match nothing and answer "unknown code" for a code that exists.
+    /// </param>
+    Task<Member?> FindByAccessCodeAsync(string code, CancellationToken cancellationToken);
 }

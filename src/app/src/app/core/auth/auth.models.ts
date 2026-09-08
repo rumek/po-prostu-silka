@@ -85,6 +85,15 @@ export interface RegisterRequest {
   houseNumber: string;
   postalCode: string;
   city: string;
+
+  /**
+   * The club's member code, when the person has one (S-14).
+   *
+   * With it, the new account attaches to the record the club already keeps and arrives with that
+   * person's bookings and plan already on it. Without it, registration behaves exactly as it always
+   * has — the field is optional, and most people will never see a code.
+   */
+  memberCode?: string | null;
 }
 
 /**
@@ -104,6 +113,12 @@ export type RegisterFailureReason =
   | 'invalid_email'
   | 'invalid_display_name'
   | ContactFailureReason
+
+  // S-14. `invalid_member_code` is a format failure — what was typed could not be a code at all.
+  // `unknown_member_code` collapses "no such code", "expired", "revoked" and "already used" into one
+  // answer on purpose: telling them apart would confirm to a stranger that a code once existed.
+  | 'invalid_member_code'
+  | 'unknown_member_code'
   | 'invalid_registration';
 
 /**
@@ -135,6 +150,15 @@ export interface ProfileRequest {
   houseNumber: string;
   postalCode: string;
   city: string;
+
+  /**
+   * The club's member code, when the person has one (S-14).
+   *
+   * With it, the new account attaches to the record the club already keeps and arrives with that
+   * person's bookings and plan already on it. Without it, registration behaves exactly as it always
+   * has — the field is optional, and most people will never see a code.
+   */
+  memberCode?: string | null;
 }
 
 /** Mirrors ProfileFailure — the same five codes registration answers with, same helper behind them. */

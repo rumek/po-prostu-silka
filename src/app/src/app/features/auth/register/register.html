@@ -138,6 +138,35 @@
         }
       </div>
 
+      <div class="field">
+        <label for="memberCode">Kod klubowicza <span class="optional">(opcjonalnie)</span></label>
+        <input
+          id="memberCode"
+          type="text"
+          inputmode="latin"
+          autocapitalize="characters"
+          autocomplete="off"
+          formControlName="memberCode"
+          placeholder="ABCD-2345"
+          [attr.aria-invalid]="form.controls.memberCode.touched && form.controls.memberCode.invalid"
+        />
+
+        <!-- Two messages, because they ask for different things: one says "check what you typed",
+             the other says "ask the club for a new one". -->
+        @if (form.controls.memberCode.errors?.['unknown']) {
+          <p class="field-error">
+            Ten kod już nie działa — mógł zostać użyty albo wygasnąć. Poproś obsługę o nowy.
+          </p>
+        } @else if (form.controls.memberCode.touched && form.controls.memberCode.invalid) {
+          <p class="field-error">Kod ma osiem znaków, na przykład ABCD-2345.</p>
+        }
+
+        <p class="hint">
+          Jeśli trenujesz już w klubie, obsługa mogła dać Ci kod. Wpisz go, a konto połączy się z
+          Twoją kartoteką razem z historią zajęć i planem. Nie masz kodu? Zostaw pole puste.
+        </p>
+      </div>
+
       <button type="submit" class="button button--block" [disabled]="submitting()">
         {{ submitting() ? 'Tworzenie konta…' : 'Załóż konto' }}
       </button>

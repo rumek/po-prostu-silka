@@ -54,8 +54,15 @@ public class Booking
     /// release. Do not add new readers: a spot belongs to a person, and since S-14 a person may have
     /// no account for this column to name. The reads move first, then this column goes.
     /// </para>
+    ///
+    /// <para>
+    /// NULLABLE, because a member with no account has nothing to put here — and booking one into a
+    /// class is the entire point of the slice. It stays populated for everyone who does have a login,
+    /// so a rollback to the artifact that still reads it finds what it expects for every row that
+    /// artifact could have created.
+    /// </para>
     /// </summary>
-    public string MemberUserId { get; set; } = string.Empty;
+    public string? MemberUserId { get; set; }
 
     /// <summary>
     /// Who holds the spot (S-14). Nullable only for the length of the transition — the column is made

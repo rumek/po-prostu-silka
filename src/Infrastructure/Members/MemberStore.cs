@@ -21,4 +21,7 @@ public class MemberStore(AppDbContext db) : IMemberStore
 
     public Task<Member?> FindByUserIdAsync(string userId, CancellationToken cancellationToken) =>
         db.Members.FirstOrDefaultAsync(x => x.UserId == userId, cancellationToken);
+
+    public Task<Member?> FindByAccessCodeAsync(string code, CancellationToken cancellationToken) =>
+        db.Members.FirstOrDefaultAsync(x => x.AccessCode == code, cancellationToken);
 }

@@ -458,7 +458,7 @@ public static class ClassEndpoints
             InstructorMemberId = request.InstructorMemberId,
 
             // Still written for one more release, resolved from the member the request names.
-            InstructorUserId = instructor.Id,
+            InstructorUserId = instructor!.Id,
             Status = ClassStatus.Scheduled,
             CreatedAt = now,
         };
@@ -565,7 +565,7 @@ public static class ClassEndpoints
         existing.DurationMinutes = request.DurationMinutes;
         existing.Capacity = request.Capacity;
         existing.InstructorMemberId = request.InstructorMemberId;
-        existing.InstructorUserId = instructor.Id;
+        existing.InstructorUserId = instructor!.Id;
 
         // AND THIS EDIT ROTATES THE STAMP TOO. IsConcurrencyToken only puts the column in the WHERE
         // clause; it does not generate a new value the way a SQL rowversion would. So without this

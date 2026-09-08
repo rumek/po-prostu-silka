@@ -209,6 +209,42 @@
   border: 0;
 }
 
+// The revealed member code (S-14). It sits inside the row rather than in a dialog: the admin is
+// reading it out or copying it while looking at the person's name, and a modal would hide exactly
+// the row that gives the code its meaning.
+.member-code {
+  margin-top: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--section-cool);
+  text-align: right;
+}
+
+// Monospace and spaced out, because this string is transcribed by hand at the counter — the
+// alphabet already avoids look-alike characters, and letter-spacing is what stops the eye losing
+// its place across eight of them.
+.member-code-value {
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+}
+
+.member-code-status {
+  margin: var(--space-1) 0 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.member-code-actions {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: flex-end;
+  margin-top: var(--space-2);
+}
+
 @media (max-width: 30rem) {
   .members-row {
     flex-direction: column;
@@ -225,5 +261,14 @@
     left: 0;
     right: 0;
     min-width: 0;
+  }
+
+  // Full width at phone size, and left-aligned with the rest of the row once the card stacks.
+  .member-code {
+    text-align: left;
+  }
+
+  .member-code-actions {
+    justify-content: flex-start;
   }
 }
