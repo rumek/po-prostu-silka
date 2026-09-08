@@ -246,9 +246,9 @@ public class MemberEndpointTests(IntegrationTestFixture fixture)
     /// and leaves the login address alone.
     ///
     /// <para>
-    /// THE ADDRESS IS NOT COPIED ANY MORE (S-14 Phase 8): it lives on the member and the account's
-    /// four columns are dropped in the next release. The phone number still is, because it is
-    /// Identity's own column and survives.
+    /// THE ADDRESS IS NOT COPIED ANY MORE (S-14): it lives on the member, and the account's four
+    /// address columns are gone. The phone number still is, because it is Identity's own column and
+    /// survives.
     /// </para>
     /// </summary>
     [Fact]
@@ -269,9 +269,6 @@ public class MemberEndpointTests(IntegrationTestFixture fixture)
 
         Assert.Equal("Nowa Nazwa", user.DisplayName);
         Assert.Equal("601202303", user.PhoneNumber);
-
-        // Frozen since Phase 8 — the member's row is the one the club and the member both read.
-        Assert.Null(user.City);
 
         // The LOGIN ADDRESS IS UNTOUCHED. It is the username, Identity indexes a normalised copy of
         // it, and renaming somebody's login as a side effect of fixing a phone number is not what the

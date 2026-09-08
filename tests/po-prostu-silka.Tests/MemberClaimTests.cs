@@ -191,10 +191,6 @@ public class MemberClaimTests(IntegrationTestFixture fixture)
                 Id = Guid.NewGuid(),
                 ClassId = classId,
                 MemberId = memberId,
-
-                // NULL, not "": this person has no account, which is the whole reason the legacy
-                // column stopped being required.
-                MemberUserId = null,
                 Status = BookingStatus.Active,
                 CreatedAt = DateTimeOffset.UtcNow,
             });

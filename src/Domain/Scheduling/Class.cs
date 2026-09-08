@@ -131,47 +131,39 @@ public class Class
     public ClassType ClassType { get; set; } = null!;
 
     /// <summary>
-    /// Who runs it (prd-v2 FR-009). An account, not a string.
+    /// Who runs it (prd-v2 FR-009). A member, not a string.
     ///
     /// <para>
     /// It used to be free text precisely because the product shipped without a Trainer role, so
     /// there was no person to point at. S-04 added the role and S-06 points at it: only an ACTIVE
     /// account holding <c>Trainer</c> may be assigned, so the schedule names someone the system
-    /// knows. The guest instructor without an account is unsupported (prd-v2 Open Question 1).
+    /// knows.
     /// </para>
     ///
     /// <para>
-    /// Identity's default string key. Unlike <see cref="ClassTypeId"/> this IS mutable - reassigning
-    /// a class to another trainer is ordinary admin work.
+    /// S-14 moved this key from the account onto the member, which makes an accountless instructor
+    /// REPRESENTABLE without making one allowed: validation still requires an active account holding
+    /// Trainer, because roles live in Identity. See roadmap Open Question 3 — what used to need a
+    /// schema change is now one column and one branch.
     /// </para>
-    /// </summary>
-    public string? InstructorUserId { get; set; }
-
-    /// <summary>
-    /// Who runs it, as a member (S-14). REQUIRED — every class names an instructor.
     ///
     /// <para>
-    /// Moving this key makes an accountless instructor REPRESENTABLE; it does not make one allowed.
-    /// The validation still requires an active account holding Trainer, because roles live in
-    /// Identity — see roadmap Open Question 3, which this brings within reach of one column and one
-    /// branch rather than a schema change.
+    /// Unlike <see cref="ClassTypeId"/> this IS mutable — reassigning a class to another trainer is
+    /// ordinary admin work.
     /// </para>
     /// </summary>
     public Guid InstructorMemberId { get; set; }
 
     /// <summary>
-    /// The instructor's account. READ SIDE ONLY, same contract as <see cref="ClassType"/>: it exists
-    /// so the read queries can project <c>DisplayName</c> in one statement. Assignment goes through
-    /// <see cref="InstructorUserId"/> after the endpoint has validated the role and status.
+    /// The instructor. READ SIDE ONLY, same contract as <see cref="ClassType"/>: it exists so the
+    /// read queries can project <c>DisplayName</c> in one statement. Assignment goes through
+    /// <see cref="InstructorMemberId"/> after the endpoint has validated the role and status.
     ///
     /// <para>
-    /// Note what this does NOT guarantee: an account referenced here may later be blocked, or have
-    /// its Trainer role revoked, and nothing refuses either action or flags the classes left behind
-    /// (an accepted risk of this slice). Validation happens on write, not on read.
+    /// Note what this does NOT guarantee: the person referenced here may later be blocked, or have
+    /// their Trainer role revoked, and nothing refuses either action or flags the classes left
+    /// behind (an accepted risk of this slice). Validation happens on write, not on read.
     /// </para>
     /// </summary>
-    public ApplicationUser InstructorAccount { get; set; } = null!;
-
-    /// <summary>The instructor. READ SIDE ONLY, replacing <see cref="InstructorAccount"/>.</summary>
     public Domain.Members.Member? Instructor { get; set; }
 }

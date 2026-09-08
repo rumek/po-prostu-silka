@@ -38,20 +38,8 @@ public class ApplicationUser : IdentityUser
     // PhoneNumberConfirmed stays deliberately unused: nothing in this milestone sends an SMS, and
     // confirming a number nobody verifies would be a lie in the schema.
     //
-    // All four are nullable because accounts registered before this slice have no values. The
-    // schema tolerates them; the API does not - both /register and PUT /api/profile require every
-    // field through ContactDetails, and the profile screen prompts an incomplete account to fill
-    // them in.
-
-    /// <summary>Street name, without the house number. Required by the API, nullable in the schema.</summary>
-    public string? Street { get; set; }
-
-    /// <summary>House number, optionally with a flat number ("12A/3"). One field, because that is how a Polish address is written.</summary>
-    public string? HouseNumber { get; set; }
-
-    /// <summary>Polish postal code in NN-NNN form.</summary>
-    public string? PostalCode { get; set; }
-
-    /// <summary>Town or city.</summary>
-    public string? City { get; set; }
+    // THE ADDRESS IS NOT HERE. It moved to Member in S-14 and the four columns were dropped, because
+    // a person may train at this club without ever having a login for an address to hang off. The
+    // phone number stays only because it is Identity's own inherited column; Member carries the copy
+    // everything actually reads.
 }

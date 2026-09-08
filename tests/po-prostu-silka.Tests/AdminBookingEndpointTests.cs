@@ -200,9 +200,6 @@ public class AdminBookingEndpointTests(IntegrationTestFixture fixture)
 
         var booking = Assert.Single(await BookingsForAsync(scheduled.Id));
         Assert.Equal(memberId, booking.MemberId);
-
-        // The legacy account column is not written any more (Phase 8) — the member key is the key.
-        Assert.Null(booking.MemberUserId);
     }
 
     // --- the refusals ----------------------------------------------------------

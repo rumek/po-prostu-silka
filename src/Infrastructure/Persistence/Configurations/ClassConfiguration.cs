@@ -71,23 +71,10 @@ public class ClassConfiguration : IEntityTypeConfiguration<Class>
             .HasForeignKey(x => x.ClassTypeId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        // Who runs it (prd-v2 FR-009). 450 is Identity's key length, so the FK column matches
-        // AspNetUsers.Id exactly rather than relying on a convention default.
+        // Who runs it (prd-v2 FR-009), as a MEMBER since S-14.
         //
-        // RESTRICT for the same reason as above, plus one of its own: a trainer's account must never
-        // be deletable out from under a scheduled class.
-        builder.Property(x => x.InstructorUserId).HasMaxLength(450);
-
-        builder.HasOne(x => x.InstructorAccount)
-            .WithMany()
-            .HasForeignKey(x => x.InstructorUserId)
-            .OnDelete(DeleteBehavior.Restrict);
-
-        builder.HasIndex(x => x.InstructorUserId)
-            .HasDatabaseName("IX_Classes_InstructorUserId");
-
-        // S-14's replacement key, REQUIRED since Phase 8 — see BookingConfiguration for the full
-        // shape of the swap.
+        // RESTRICT for the same reason as above, plus one of its own: a trainer must never be
+        // deletable out from under a scheduled class.
         builder.HasOne(x => x.Instructor)
             .WithMany()
             .HasForeignKey(x => x.InstructorMemberId)

@@ -47,38 +47,14 @@ public class Booking
     public Class Class { get; set; } = null!;
 
     /// <summary>
-    /// Who holds the spot, as an ACCOUNT id.
-    ///
-    /// <para>
-    /// BEING REPLACED BY <see cref="MemberId"/> (S-14) and written in parallel with it for one
-    /// release. Do not add new readers: a spot belongs to a person, and since S-14 a person may have
-    /// no account for this column to name. The reads move first, then this column goes.
-    /// </para>
-    ///
-    /// <para>
-    /// NULLABLE, because a member with no account has nothing to put here — and booking one into a
-    /// class is the entire point of the slice. It stays populated for everyone who does have a login,
-    /// so a rollback to the artifact that still reads it finds what it expects for every row that
-    /// artifact could have created.
-    /// </para>
-    /// </summary>
-    public string? MemberUserId { get; set; }
-
-    /// <summary>
-    /// Who holds the spot (S-14). REQUIRED — a booking with nobody in it is not a booking, and the
-    /// transition that let this be null is over.
+    /// Who holds the spot (S-14). A MEMBER, not an account: a spot belongs to a person, and a person
+    /// may train here without ever logging in.
     /// </summary>
     public Guid MemberId { get; set; }
 
     /// <summary>
-    /// The member's account. READ SIDE ONLY — it exists so the admin's booking list can project
+    /// The member. READ SIDE ONLY — it exists so the admin's booking list can project
     /// <c>DisplayName</c> and <c>Email</c> in one statement.
-    /// </summary>
-    public ApplicationUser MemberAccount { get; set; } = null!;
-
-    /// <summary>
-    /// The member. READ SIDE ONLY, same contract as <see cref="MemberAccount"/>, which it replaces as
-    /// the projections move over.
     /// </summary>
     public Domain.Members.Member? Member { get; set; }
 

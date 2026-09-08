@@ -27,26 +27,13 @@ public class ApplicationUserConfiguration : IEntityTypeConfiguration<Application
         builder.Property(x => x.CreatedAt)
             .IsRequired();
 
-        // Contact details (S-13). None is IsRequired: rows created before that slice have no values,
-        // and the API - not the schema - is what makes them mandatory going forward.
+        // The only contact column left on the account (S-14 dropped the address to Member).
         //
         // PhoneNumber is INHERITED from IdentityUser and gets no length from Identity's own
         // configuration, so without this line the reused column stays nvarchar(max). Do not delete
         // it on the grounds that the property is not declared on ApplicationUser.
         builder.Property(x => x.PhoneNumber)
             .HasMaxLength(ContactDetails.PhoneNumberMaxLength);
-
-        builder.Property(x => x.Street)
-            .HasMaxLength(ContactDetails.StreetMaxLength);
-
-        builder.Property(x => x.HouseNumber)
-            .HasMaxLength(ContactDetails.HouseNumberMaxLength);
-
-        builder.Property(x => x.PostalCode)
-            .HasMaxLength(ContactDetails.PostalCodeMaxLength);
-
-        builder.Property(x => x.City)
-            .HasMaxLength(ContactDetails.CityMaxLength);
 
         // S-02's member list filters by status (FR-005). Non-unique by construction.
         builder.HasIndex(x => x.Status);

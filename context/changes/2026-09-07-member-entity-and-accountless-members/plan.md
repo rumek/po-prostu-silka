@@ -408,6 +408,27 @@ re-adds them nullable and backfills from `Members`, lossy for accountless rows, 
 `20260902165516_DropDeadClassColumns` already set. No code change; this phase exists only so the
 rollback of Phase 8's artifact still finds its columns.
 
+**Adapted during implementation (Phase 9).**
+
+- **The entities and configurations were cleaned out too**, which the plan called "no code change".
+  Leaving `Booking.MemberUserId` and the three `*Account` navigations on the model after dropping
+  their columns would put EF's model and the schema in open disagreement — every query would name a
+  column that no longer exists. The drop is a schema change *and* a model change; only the endpoints
+  were untouched.
+- **`AdminSeeder` no longer copies an address onto the member it creates.** It read the four account
+  columns, and there is nothing left to read.
+- **`Down` backfills from `Members` before it rebuilds the indexes**, and it is lossy in exactly one
+  place: a booking, plan or class belonging to a member with no account has no account id to
+  restore and comes back NULL. That is safe only because every one of these columns was made
+  nullable a release before the write side stopped filling it — the precedent
+  `20260902165516_DropDeadClassColumns` set, applied to a slice whose whole point is people the old
+  columns cannot describe.
+- **Verified by hand on a scratch database** (`pps-phase9-check`): seeded a member with an account
+  and a member without, each holding a booking and a plan; applied the drop and confirmed all eight
+  columns gone with `AspNetUsers.PhoneNumber` intact; rolled back and confirmed the accounted rows
+  and the account's address restored from `Members` while the accountless rows came back NULL;
+  rolled forward again.
+
 ## Tests
 
 New: `MemberEndpointTests` (accountless create/edit/block, including "blocking an accountless member

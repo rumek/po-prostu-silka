@@ -126,10 +126,9 @@ public static class AdminSeeder
             DisplayName = user.DisplayName,
             Email = user.Email,
             PhoneNumber = user.PhoneNumber,
-            Street = user.Street,
-            HouseNumber = user.HouseNumber,
-            PostalCode = user.PostalCode,
-            City = user.City,
+
+            // No address: the seeded admin never had one to copy, and since S-14 dropped the four
+            // account columns there is nowhere left to copy one from.
 
             // Active regardless of the account's status, for the reason the migration's backfill gives:
             // Pending is a fact about a login awaiting approval and stays on the account. An admin is

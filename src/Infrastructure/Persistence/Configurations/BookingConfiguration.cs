@@ -24,48 +24,18 @@ public class BookingConfiguration : IEntityTypeConfiguration<Booking>
             .HasConversion<int>()
             .HasDefaultValue(BookingStatus.Active);
 
-        // 450 is Identity's key length, so the FK column matches AspNetUsers.Id exactly rather than
-        // relying on a convention default - the same reasoning as Class.InstructorUserId.
-        //
-        // NO LONGER REQUIRED (S-14): a member with no account has nothing to put here, and booking one
-        // into a class is what the slice exists for. Still written for everyone who has a login.
-        builder.Property(x => x.MemberUserId).HasMaxLength(450);
-
         // RESTRICT on both sides, following ClassConfiguration. A cascade here would be the worst
-        // failure available: deleting a class or an account would silently erase the evidence that
+        // failure available: deleting a class or a member would silently erase the evidence that
         // someone had signed up, and the delete of a booked class is refused outright anyway.
         builder.HasOne(x => x.Class)
             .WithMany()
             .HasForeignKey(x => x.ClassId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        builder.HasOne(x => x.MemberAccount)
-            .WithMany()
-            .HasForeignKey(x => x.MemberUserId)
-            .OnDelete(DeleteBehavior.Restrict);
-
-        // S-14's replacement key. NULLABLE FOR NOW, and only for the length of the transition: the
-        // column was backfilled by the migration that added it and became REQUIRED in Phase 8, once
-        // every read had moved and nothing wrote the old one. Restrict for the same reason the
-        // account key is - a booking is the evidence that someone signed up, and no delete may erase
-        // it silently.
         builder.HasOne(x => x.Member)
             .WithMany()
             .HasForeignKey(x => x.MemberId)
             .OnDelete(DeleteBehavior.Restrict);
-
-        // The new-key twins of the two indexes above. They still stand alongside the legacy pair for
-        // one more release, so a rollback finds the indexes its artifact expects.
-        //
-        // The filter is the PLAIN status term again since Phase 8: MemberId is NOT NULL now, so the
-        // "IS NOT NULL" clause the transition needed would only narrow the index to every row.
-        builder.HasIndex(x => new { x.ClassId, x.MemberId })
-            .IsUnique()
-            .HasFilter("[Status] = 0")
-            .HasDatabaseName("IX_Bookings_Class_MemberId_Active");
-
-        builder.HasIndex(x => new { x.MemberId, x.Status })
-            .HasDatabaseName("IX_Bookings_MemberId_Status");
 
         // FILTERED, not plain - the same shape and the same reasoning as IX_ClassTypes_Name_Active.
         // A member may hold at most ONE active booking per class, but cancelling must not hold the
@@ -79,18 +49,14 @@ public class BookingConfiguration : IEntityTypeConfiguration<Booking>
         //
         // "[Status] = 0" names BookingStatus.Active as a literal - the enum's numeric values are
         // pinned for exactly this kind of dependency.
-        // The "[MemberUserId] IS NOT NULL" term arrived with S-14 and is load-bearing now that the
-        // column is nullable: SQL Server treats NULLs as EQUAL for uniqueness, so without it the
-        // second accountless member booked into any class would be rejected. The index is kept at all
-        // only so a rollback to the artifact that still reads this column finds it.
-        builder.HasIndex(x => new { x.ClassId, x.MemberUserId })
+        builder.HasIndex(x => new { x.ClassId, x.MemberId })
             .IsUnique()
-            .HasFilter("[Status] = 0 AND [MemberUserId] IS NOT NULL")
-            .HasDatabaseName("IX_Bookings_Class_Member_Active");
+            .HasFilter("[Status] = 0")
+            .HasDatabaseName("IX_Bookings_Class_MemberId_Active");
 
-        // The member's upcoming-bookings query: MemberUserId equality, then Status equality. Also the
+        // The member's upcoming-bookings query: MemberId equality, then Status equality. Also the
         // index the block cascade seeks on when it releases a blocked member's future spots.
-        builder.HasIndex(x => new { x.MemberUserId, x.Status })
-            .HasDatabaseName("IX_Bookings_Member_Status");
+        builder.HasIndex(x => new { x.MemberId, x.Status })
+            .HasDatabaseName("IX_Bookings_MemberId_Status");
     }
 }

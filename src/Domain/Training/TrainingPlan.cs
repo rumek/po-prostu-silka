@@ -34,24 +34,15 @@ public class TrainingPlan
     public string Name { get; set; } = string.Empty;
 
     /// <summary>
-    /// Whose plan it is, as an ACCOUNT id. BEING REPLACED BY <see cref="MemberId"/> (S-14) and written
-    /// in parallel with it for one release — a plan belongs to a person, and since S-14 that person
-    /// may have no account, which is why this is nullable.
-    /// </summary>
-    public string? MemberUserId { get; set; }
-
-    /// <summary>
-    /// Whose plan it is (S-14). REQUIRED — the transition that let this be null is over.
+    /// Whose plan it is (S-14). A MEMBER, not an account — a plan belongs to a person, and that
+    /// person may have no login.
     /// </summary>
     public Guid MemberId { get; set; }
 
     /// <summary>
-    /// The member's account. READ SIDE ONLY - it exists so the trainer's plan list can project
+    /// The member. READ SIDE ONLY - it exists so the trainer's plan list can project
     /// <c>DisplayName</c> in one statement.
     /// </summary>
-    public ApplicationUser MemberAccount { get; set; } = null!;
-
-    /// <summary>The member. READ SIDE ONLY, replacing <see cref="MemberAccount"/>.</summary>
     public Domain.Members.Member? Member { get; set; }
 
     /// <summary>
@@ -65,17 +56,9 @@ public class TrainingPlan
     /// ...", and a field nothing reads would not have earned its migration.
     /// </para>
     /// </summary>
-    public string? AssignedByUserId { get; set; }
-
-    /// <summary>
-    /// The author, as a member (S-14). REQUIRED, like <see cref="MemberId"/>.
-    /// </summary>
     public Guid AssignedByMemberId { get; set; }
 
-    /// <summary>The author's account. READ SIDE ONLY, same contract as <see cref="MemberAccount"/>.</summary>
-    public ApplicationUser AssignedByAccount { get; set; } = null!;
-
-    /// <summary>The author. READ SIDE ONLY, replacing <see cref="AssignedByAccount"/>.</summary>
+    /// <summary>The author. READ SIDE ONLY, same contract as <see cref="Member"/>.</summary>
     public Domain.Members.Member? AssignedBy { get; set; }
 
     /// <summary>

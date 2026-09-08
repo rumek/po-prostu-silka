@@ -17,11 +17,6 @@ public class TrainingPlanConfiguration : IEntityTypeConfiguration<TrainingPlan>
         // 400 on the field.
         builder.Property(x => x.Name).IsRequired().HasMaxLength(120);
 
-        // 450 is Identity's key length, so both FK columns match AspNetUsers.Id exactly rather than
-        // relying on a convention default - the same reasoning as Booking.MemberUserId.
-        builder.Property(x => x.MemberUserId).HasMaxLength(450);
-        builder.Property(x => x.AssignedByUserId).HasMaxLength(450);
-
         // Stored as int, like BookingStatus. Defaulting to Active means a row inserted without an
         // explicit status is the member's current plan, never silently archived on arrival.
         builder
@@ -38,20 +33,20 @@ public class TrainingPlanConfiguration : IEntityTypeConfiguration<TrainingPlan>
         builder.Property(x => x.ConcurrencyStamp).IsRequired().HasMaxLength(36).IsConcurrencyToken();
 
         // RESTRICT ON BOTH, and not merely by preference. Two foreign keys from one table to
-        // AspNetUsers is exactly the shape SQL Server refuses when either of them cascades - it
-        // reports a multiple-cascade-path error and the migration will not apply. Restrict is also
-        // what we would want anyway: deleting an account must never silently erase the plans written
-        // for it or by it.
+        // Members is exactly the shape SQL Server refuses when either of them cascades - it reports
+        // a multiple-cascade-path error and the migration will not apply. Restrict is also what we
+        // would want anyway: deleting a person must never silently erase the plans written for them
+        // or by them.
         builder
-            .HasOne(x => x.MemberAccount)
+            .HasOne(x => x.Member)
             .WithMany()
-            .HasForeignKey(x => x.MemberUserId)
+            .HasForeignKey(x => x.MemberId)
             .OnDelete(DeleteBehavior.Restrict);
 
         builder
-            .HasOne(x => x.AssignedByAccount)
+            .HasOne(x => x.AssignedBy)
             .WithMany()
-            .HasForeignKey(x => x.AssignedByUserId)
+            .HasForeignKey(x => x.AssignedByMemberId)
             .OnDelete(DeleteBehavior.Restrict);
 
         // FILTERED, not plain - the same shape and reasoning as IX_Bookings_Class_Member_Active. A
@@ -69,32 +64,6 @@ public class TrainingPlanConfiguration : IEntityTypeConfiguration<TrainingPlan>
         //
         // "[Status] = 0" names TrainingPlanStatus.Active as a literal - the enum's numeric values are
         // pinned for exactly this dependency.
-        builder
-            .HasIndex(x => x.MemberUserId)
-            .IsUnique()
-            .HasFilter("[Status] = 0 AND [MemberUserId] IS NOT NULL")
-            .HasDatabaseName("IX_TrainingPlans_Member_Active");
-
-        // S-14's replacement keys, REQUIRED since Phase 8. Both are Restrict, for the reason the
-        // account keys above give: deleting a person must never silently erase the plans written for
-        // them or by them.
-        builder
-            .HasOne(x => x.Member)
-            .WithMany()
-            .HasForeignKey(x => x.MemberId)
-            .OnDelete(DeleteBehavior.Restrict);
-
-        builder
-            .HasOne(x => x.AssignedBy)
-            .WithMany()
-            .HasForeignKey(x => x.AssignedByMemberId)
-            .OnDelete(DeleteBehavior.Restrict);
-
-        // The new-key twin of the one-active-plan index. It stands alongside the legacy one for one
-        // more release, so a rollback finds what its artifact expects.
-        //
-        // Back to the PLAIN status filter since Phase 8: MemberId is NOT NULL, so the transitional
-        // "IS NOT NULL" term would narrow the index to every row.
         builder
             .HasIndex(x => x.MemberId)
             .IsUnique()
