@@ -47,7 +47,15 @@ public record TrainingPlanItemView(
     string? Reps,
     decimal? WeightKg,
     int? RestSeconds,
-    string? Note);
+    string? Note,
+    int? DurationSeconds,
+    /// <summary>
+    /// The exercise's muscle group, for the member's plan card. READ-ONLY AND DELIBERATELY ABSENT
+    /// FROM <see cref="TrainingPlanItemRequest"/>: it is a fact about the exercise, not part of the
+    /// prescription, so a write path that accepted it would be offering to edit the library through
+    /// a plan. Nullable because Exercise.MuscleGroup is.
+    /// </summary>
+    string? MuscleGroup);
 
 /// <summary>
 /// A full plan with its items in order. ONE SHAPE SERVES BOTH the trainer's edit load and the
@@ -92,7 +100,8 @@ public record TrainingPlanItemRequest(
     string? Reps,
     decimal? WeightKg,
     int? RestSeconds,
-    string? Note);
+    string? Note,
+    int? DurationSeconds);
 
 /// <summary>
 /// Create/edit payload. Same shape for both - an edit replaces the name and the ENTIRE item list.
@@ -114,7 +123,8 @@ public record TrainingPlanRequest(
 /// <para>
 /// 400 (bad input): <c>missing_field</c>, <c>name_too_long</c>, <c>no_items</c>,
 /// <c>too_many_items</c>, <c>invalid_sets</c>, <c>reps_too_long</c>, <c>invalid_weight</c>,
-/// <c>invalid_rest</c>, <c>note_too_long</c>, <c>unknown_exercise</c>, <c>inactive_exercise</c>,
+/// <c>invalid_rest</c>, <c>invalid_duration</c>, <c>note_too_long</c>, <c>unknown_exercise</c>,
+/// <c>inactive_exercise</c>,
 /// <c>duplicate_exercise</c>.
 /// </para>
 ///
@@ -185,6 +195,16 @@ public static class TrainingPlanEndpoints
 
     /// <summary>An hour. A longer "rest" is not a rest, it is a data-entry slip.</summary>
     private const int MaxRestSeconds = 3600;
+
+    /// <summary>
+    /// ONE, NOT ZERO, and that is the one place duration does not mirror rest. A zero-second REST is
+    /// a legitimate prescription - "straight into the next set" - which is why MinRestSeconds is 0.
+    /// A zero-second EXERCISE is not a prescription at all, it is a slip of the keyboard.
+    /// </summary>
+    private const int MinDurationSeconds = 1;
+
+    /// <summary>The same hour ceiling rest gets, and for the same reason.</summary>
+    private const int MaxDurationSeconds = 3600;
 
     private const decimal MinWeightKg = 0m;
 
@@ -478,6 +498,7 @@ public static class TrainingPlanEndpoints
             Reps = Normalize(item.Reps),
             WeightKg = item.WeightKg,
             RestSeconds = item.RestSeconds,
+            DurationSeconds = item.DurationSeconds,
             Note = Normalize(item.Note),
         })];
 
@@ -539,6 +560,12 @@ public static class TrainingPlanEndpoints
             if (item.RestSeconds is { } rest && (rest < MinRestSeconds || rest > MaxRestSeconds))
             {
                 return Refuse("invalid_rest", 400);
+            }
+
+            if (item.DurationSeconds is { } duration
+                && (duration < MinDurationSeconds || duration > MaxDurationSeconds))
+            {
+                return Refuse("invalid_duration", 400);
             }
 
             if (Normalize(item.Note) is { Length: > MaxNoteLength })

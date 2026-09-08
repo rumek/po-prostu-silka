@@ -33,7 +33,9 @@ public class MyPlanEndpointTests(IntegrationTestFixture fixture)
         string? Reps,
         decimal? WeightKg,
         int? RestSeconds,
-        string? Note);
+        string? Note,
+        int? DurationSeconds,
+        string? MuscleGroup);
 
     private sealed record PlanBody(
         Guid Id,
@@ -75,12 +77,15 @@ public class MyPlanEndpointTests(IntegrationTestFixture fixture)
         return (id, await fixture.CreateAuthenticatedClientAsync(email));
     }
 
-    private async Task<Guid> CreateExerciseAsync(string? execution = null, string? videoUrl = null)
+    private async Task<Guid> CreateExerciseAsync(
+        string? execution = null,
+        string? videoUrl = null,
+        string? muscleGroup = null)
     {
         var admin = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveAdminEmail);
 
         var response = await admin.PostAsJsonAsync(
-            Exercises, new { name = Unique("Martwy ciąg"), execution, videoUrl });
+            Exercises, new { name = Unique("Martwy ciąg"), execution, videoUrl, muscleGroup });
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         return (await response.Content.ReadFromJsonAsync<ExerciseBody>())!.Id;
@@ -178,6 +183,51 @@ public class MyPlanEndpointTests(IntegrationTestFixture fixture)
         Assert.Equal([0, 1, 2], plan.Items.Select(x => x.Position));
         Assert.Equal([third, first, second], plan.Items.Select(x => x.ExerciseId));
         Assert.Equal("Test Active Trainer", plan.AssignedByDisplayName);
+    }
+
+    /// <summary>
+    /// S-15: the member's own read carries the two fields the plan card needs. It is a DIFFERENT
+    /// endpoint from the trainer's edit load, through the same projection — which is exactly why it
+    /// is asserted separately: a field dropped from that projection returns null on both screens and
+    /// breaks neither build.
+    ///
+    /// <para>
+    /// The plank is prescribed with a duration and no weight, which is the shape the column exists
+    /// for and the one the card has to render without an empty weight row beside it.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public async Task A_member_reads_the_duration_and_the_muscle_group()
+    {
+        var (memberId, client) = await NewMemberAsync();
+        var exerciseId = await CreateExerciseAsync(muscleGroup: "Brzuch");
+
+        await AssignTimedAsync(memberId, exerciseId, durationSeconds: 45);
+
+        var plan = (await client.GetFromJsonAsync<PlanBody>(Mine))!;
+        var item = Assert.Single(plan.Items);
+
+        Assert.Equal(45, item.DurationSeconds);
+        Assert.Equal("Brzuch", item.MuscleGroup);
+        Assert.Null(item.WeightKg);
+    }
+
+    /// <summary>Assigns a plan whose one exercise is prescribed in time rather than in load.</summary>
+    private async Task AssignTimedAsync(Guid memberId, Guid exerciseId, int durationSeconds)
+    {
+        var trainer = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveTrainerEmail);
+
+        var response = await trainer.PostAsJsonAsync(Plans, new
+        {
+            name = Unique("Plan"),
+            memberId,
+            items = new[]
+            {
+                new { exerciseId, sets = 3, weightKg = (decimal?)null, durationSeconds },
+            },
+        });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
     /// <summary>

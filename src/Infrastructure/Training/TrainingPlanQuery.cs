@@ -146,6 +146,10 @@ public class TrainingPlanQuery(AppDbContext db) : ITrainingPlanQuery
                         i.Reps,
                         i.WeightKg,
                         i.RestSeconds,
-                        i.Note))
+                        i.Note,
+                        i.DurationSeconds,
+                        // A projection, not an Include - the same navigation this method already
+                        // traverses for i.Exercise.Name, so it costs no extra join.
+                        i.Exercise.MuscleGroup))
                     .ToList()));
 }

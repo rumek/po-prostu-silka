@@ -99,6 +99,29 @@ public class TrainingPlanItem
     /// TimeSpan because the form collects a number and nothing does arithmetic on it.</summary>
     public int? RestSeconds { get; set; }
 
+    /// <summary>
+    /// How long the exercise itself is held, in seconds, e.g. 45. OPTIONAL.
+    ///
+    /// <para>
+    /// THE COUNTERPART TO <see cref="WeightKg"/>, NOT TO <see cref="Reps"/>. A plank, a hollow hold or
+    /// a farmer's walk is prescribed in time rather than in load, and before this column there was
+    /// nowhere to put the seconds - the trainer had to write them into <see cref="Note"/>, where
+    /// nothing validates or displays them as a prescription.
+    /// </para>
+    ///
+    /// <para>
+    /// ON THE ITEM, NOT ON <see cref="Exercise"/>, and that is the whole design decision. The same
+    /// plank is 45 s in one member's plan and 60 s in another's, exactly as weight already varies per
+    /// prescription; a duration on the exercise definition would fix it library-wide for everyone.
+    /// </para>
+    ///
+    /// <para>
+    /// Nothing forbids prescribing a weight AND a duration - a loaded carry is both. The four
+    /// parameters have never constrained each other and this one does not start.
+    /// </para>
+    /// </summary>
+    public int? DurationSeconds { get; set; }
+
     /// <summary>Anything the trainer wants the member to read against this exercise. OPTIONAL.</summary>
     public string? Note { get; set; }
 }

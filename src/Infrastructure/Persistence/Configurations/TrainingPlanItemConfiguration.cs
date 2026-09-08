@@ -18,6 +18,7 @@ public class TrainingPlanItemConfiguration : IEntityTypeConfiguration<TrainingPl
         // validators mirror; the three must stay in step.
         builder.Property(x => x.Sets);
         builder.Property(x => x.RestSeconds);
+        builder.Property(x => x.DurationSeconds);
         builder.Property(x => x.Reps).HasMaxLength(50);
         builder.Property(x => x.Note).HasMaxLength(500);
 

@@ -42,7 +42,9 @@ public class TrainingPlanEndpointTests(IntegrationTestFixture fixture)
         string? Reps,
         decimal? WeightKg,
         int? RestSeconds,
-        string? Note);
+        string? Note,
+        int? DurationSeconds,
+        string? MuscleGroup);
 
     /// <summary>Mirrors TrainingPlanDetail.</summary>
     private sealed record PlanBody(
@@ -84,17 +86,19 @@ public class TrainingPlanEndpointTests(IntegrationTestFixture fixture)
         string? reps = "8-12",
         decimal? weightKg = 60.5m,
         int? restSeconds = 90,
-        string? note = null) =>
-        new { exerciseId, sets, reps, weightKg, restSeconds, note };
+        string? note = null,
+        int? durationSeconds = null) =>
+        new { exerciseId, sets, reps, weightKg, restSeconds, note, durationSeconds };
 
     private static object Request(string name, Guid memberId, params object[] items) =>
         new { name, memberId, items };
 
-    private async Task<Guid> CreateExerciseAsync(bool active = true)
+    private async Task<Guid> CreateExerciseAsync(bool active = true, string? muscleGroup = null)
     {
         var admin = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveAdminEmail);
 
-        var response = await admin.PostAsJsonAsync(Exercises, new { name = Unique("Przysiad") });
+        var response = await admin.PostAsJsonAsync(
+            Exercises, new { name = Unique("Przysiad"), muscleGroup });
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
         var created = (await response.Content.ReadFromJsonAsync<ExerciseBody>())!;
@@ -643,6 +647,97 @@ public class TrainingPlanEndpointTests(IntegrationTestFixture fixture)
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Equal(reason, (await response.Content.ReadFromJsonAsync<FailureBody>())!.Reason);
+    }
+
+    /// <summary>
+    /// ONE IS THE FLOOR, NOT ZERO, and that is the single place duration does not mirror rest: a
+    /// zero-second rest means "straight into the next set" and is allowed, while a zero-second
+    /// exercise is a slip. The ceiling is the same hour.
+    /// </summary>
+    [Theory]
+    [InlineData(0, HttpStatusCode.BadRequest)]
+    [InlineData(1, HttpStatusCode.OK)]
+    [InlineData(3600, HttpStatusCode.OK)]
+    [InlineData(3601, HttpStatusCode.BadRequest)]
+    public async Task The_duration_range_is_enforced(int duration, HttpStatusCode expected)
+    {
+        var (trainer, memberId, exerciseId) = await ArrangeAsync();
+
+        var response = await trainer.PostAsJsonAsync(
+            Endpoint, Request("x", memberId, Item(exerciseId, durationSeconds: duration)));
+
+        Assert.Equal(expected, response.StatusCode);
+
+        if (expected == HttpStatusCode.BadRequest)
+        {
+            Assert.Equal(
+                "invalid_duration",
+                (await response.Content.ReadFromJsonAsync<FailureBody>())!.Reason);
+        }
+    }
+
+    /// <summary>
+    /// THE POINT OF THE FIELD: a plank is prescribed in seconds and carries no weight at all. Reads
+    /// the plan back to prove the value survives the write path AND the projection - a field added to
+    /// the record but dropped from either one compiles fine and returns null.
+    /// </summary>
+    [Fact]
+    public async Task A_prescribed_duration_survives_the_round_trip()
+    {
+        var (trainer, memberId, exerciseId) = await ArrangeAsync();
+
+        var created = await trainer.PostAsJsonAsync(
+            Endpoint,
+            Request("Deska", memberId, Item(exerciseId, weightKg: null, durationSeconds: 45)));
+
+        Assert.Equal(HttpStatusCode.OK, created.StatusCode);
+
+        var plan = (await created.Content.ReadFromJsonAsync<PlanBody>())!;
+        var item = Assert.Single(plan.Items);
+
+        Assert.Equal(45, item.DurationSeconds);
+        Assert.Null(item.WeightKg);
+
+        // And again through the read the trainer's edit screen uses, which is a different endpoint
+        // through the same projection.
+        var reloaded = await trainer.GetFromJsonAsync<PlanBody>($"{Endpoint}/{plan.Id}");
+        Assert.Equal(45, Assert.Single(reloaded!.Items).DurationSeconds);
+    }
+
+    /// <summary>
+    /// The muscle group rides the item view so the member's card can show it without a second read.
+    /// It is deliberately absent from the REQUEST - a prescription may not edit the library - so this
+    /// asserts it arrives from the exercise rather than from anything the trainer submitted.
+    /// </summary>
+    [Fact]
+    public async Task The_item_view_carries_the_exercises_muscle_group()
+    {
+        var (trainer, memberId, _) = await ArrangeAsync();
+        var exerciseId = await CreateExerciseAsync(muscleGroup: "Brzuch");
+
+        var created = await trainer.PostAsJsonAsync(
+            Endpoint, Request("x", memberId, Item(exerciseId)));
+
+        var plan = (await created.Content.ReadFromJsonAsync<PlanBody>())!;
+
+        Assert.Equal("Brzuch", Assert.Single(plan.Items).MuscleGroup);
+    }
+
+    /// <summary>
+    /// An exercise with no muscle group reads back null rather than an empty string, so the card can
+    /// omit the caption on a truthiness check like every other absent field on that screen.
+    /// </summary>
+    [Fact]
+    public async Task An_exercise_without_a_muscle_group_reads_back_null()
+    {
+        var (trainer, memberId, exerciseId) = await ArrangeAsync();
+
+        var created = await trainer.PostAsJsonAsync(
+            Endpoint, Request("x", memberId, Item(exerciseId)));
+
+        var plan = (await created.Content.ReadFromJsonAsync<PlanBody>())!;
+
+        Assert.Null(Assert.Single(plan.Items).MuscleGroup);
     }
 
     /// <summary>
