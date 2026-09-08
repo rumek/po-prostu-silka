@@ -479,27 +479,27 @@ of reversing an additive column and should be stated in the migration's doc comm
 
 #### Automated
 
-- [x] 1.1 Backend builds warning-free: `dotnet build` from `src/`
-- [x] 1.2 Integration tests pass: `dotnet test` from the repo root
-- [x] 1.3 Migration is reversible: down to the previous migration and forward again
-- [x] 1.4 Generated SQL shows the column nullable, with no `defaultValue`
+- [x] 1.1 Backend builds warning-free: `dotnet build` from `src/` — eacacd1
+- [x] 1.2 Integration tests pass: `dotnet test` from the repo root — eacacd1
+- [x] 1.3 Migration is reversible: down to the previous migration and forward again — eacacd1
+- [x] 1.4 Generated SQL shows the column nullable, with no `defaultValue` — eacacd1
 
 #### Manual
 
-- [x] 1.5 `GET /health` returns healthy after the migration applies
+- [x] 1.5 `GET /health` returns healthy after the migration applies — eacacd1
 
 ### Phase 2: The trainer can prescribe a duration
 
 #### Automated
 
-- [ ] 2.1 Frontend unit tests pass: `npm test` from `src/app/`
-- [ ] 2.2 Formatting and linting pass: `npm run quality:check` from `src/app/`
-- [ ] 2.3 Production build succeeds within budget: `npm run build` from `src/app/`
+- [x] 2.1 Frontend unit tests pass: `npm test` from `src/app/`
+- [x] 2.2 Formatting and linting pass: `npm run quality:check` from `src/app/`
+- [x] 2.3 Production build succeeds within budget: `npm run build` from `src/app/`
 
 #### Manual
 
-- [ ] 2.4 A duration saves and reopens intact
-- [ ] 2.5 A blank duration saves as no duration, not a zero
+- [x] 2.4 A duration saves and reopens intact
+- [x] 2.5 A blank duration saves as no duration, not a zero
 
 ### Phase 3: The member's card carries the whole prescription
 

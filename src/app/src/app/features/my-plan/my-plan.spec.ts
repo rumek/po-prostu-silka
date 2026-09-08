@@ -25,6 +25,8 @@ const PLAN: TrainingPlanDetail = {
       weightKg: 60,
       restSeconds: 120,
       note: 'Kolana na zewnątrz.',
+      durationSeconds: null,
+      muscleGroup: 'Nogi',
     },
     {
       id: 'i2',
@@ -36,6 +38,8 @@ const PLAN: TrainingPlanDetail = {
       weightKg: null,
       restSeconds: null,
       note: null,
+      durationSeconds: null,
+      muscleGroup: null,
     },
   ],
 };

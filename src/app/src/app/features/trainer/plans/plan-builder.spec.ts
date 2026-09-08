@@ -63,6 +63,8 @@ const PLAN: TrainingPlanDetail = {
       weightKg: 60,
       restSeconds: 120,
       note: 'Kolana na zewnątrz.',
+      durationSeconds: null,
+      muscleGroup: 'Nogi',
     },
     {
       id: 'i2',
@@ -74,6 +76,9 @@ const PLAN: TrainingPlanDetail = {
       weightKg: null,
       restSeconds: null,
       note: null,
+      // Prescribed in time rather than in load — the shape S-15's column exists for.
+      durationSeconds: 45,
+      muscleGroup: 'Brzuch',
     },
   ],
 };
@@ -243,9 +248,50 @@ describe('PlanBuilder', () => {
     // Untouched optional fields go as null, not as 0 or "".
     expect(body.items[0].weightKg).toBeNull();
     expect(body.items[0].note).toBeNull();
+    expect(body.items[0].durationSeconds).toBeNull();
     expect(body.items[1]).toMatchObject({ sets: null, reps: null });
 
     request.flush(PLAN);
+  });
+
+  /**
+   * S-15. Two halves of one contract: a stored duration reaches the control, and an EDITED one
+   * reaches the request. The second half is what a missing `toRequest` mapping would break — the
+   * form would look right and silently drop the value on save.
+   */
+  it('loads a prescribed duration and sends it back on save', async () => {
+    await create('p1');
+
+    const stored = root().querySelector<HTMLInputElement>('#duration-1')!;
+    expect(stored.value).toBe('45');
+
+    await setValue('#duration-0', '30');
+    await submit();
+
+    const request = await vi.waitFor(() =>
+      controller.expectOne((r) => r.url === '/api/trainer/plans/p1' && r.method === 'PUT'),
+    );
+    const body = sentBody(request);
+
+    expect(body.items[0].durationSeconds).toBe(30);
+    expect(body.items[1].durationSeconds).toBe(45);
+
+    request.flush(PLAN);
+  });
+
+  /**
+   * The floor is 1, not 0 — the one place duration does not mirror rest. Asserted on the CONTROL
+   * because the server's matching refusal is already pinned in TrainingPlanEndpointTests; what this
+   * guards is the mirror drifting out of step with it.
+   */
+  it('refuses a zero duration in the form', async () => {
+    await create('p1');
+
+    await setValue('#duration-0', '0');
+
+    const control = root().querySelector<HTMLInputElement>('#duration-0')!;
+    expect(control.value).toBe('0');
+    expect(root().querySelector('form')!.checkValidity()).toBe(false);
   });
 
   it('loads an existing plan in its stored order and PUTs to the same id', async () => {

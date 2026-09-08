@@ -39,6 +39,11 @@ const MIN_SETS = 1;
 const MAX_SETS = 20;
 const MIN_REST = 0;
 const MAX_REST = 3600;
+// ONE, NOT ZERO — the single place duration does not mirror rest. A zero-second rest is a real
+// prescription ("straight into the next set"); a zero-second exercise is a slip. Mirrors
+// MinDurationSeconds/MaxDurationSeconds in TrainingPlanEndpoints.
+const MIN_DURATION = 1;
+const MAX_DURATION = 3600;
 const MIN_WEIGHT = 0;
 const MAX_WEIGHT = 999.99;
 
@@ -51,6 +56,7 @@ type ItemGroup = FormGroup<{
   reps: FormControl<string>;
   weightKg: FormControl<number | null>;
   restSeconds: FormControl<number | null>;
+  durationSeconds: FormControl<number | null>;
   note: FormControl<string>;
 }>;
 
@@ -92,6 +98,8 @@ export class PlanBuilder implements OnInit {
   protected readonly maxSets = MAX_SETS;
   protected readonly minRest = MIN_REST;
   protected readonly maxRest = MAX_REST;
+  protected readonly minDuration = MIN_DURATION;
+  protected readonly maxDuration = MAX_DURATION;
   protected readonly minWeight = MIN_WEIGHT;
   protected readonly maxWeight = MAX_WEIGHT;
 
@@ -192,6 +200,7 @@ export class PlanBuilder implements OnInit {
             reps: item.reps ?? '',
             weightKg: item.weightKg,
             restSeconds: item.restSeconds,
+            durationSeconds: item.durationSeconds,
             note: item.note ?? '',
           }),
         );
@@ -361,6 +370,9 @@ export class PlanBuilder implements OnInit {
       case 'invalid_rest':
         this.error.set(`Przerwa musi mieścić się w zakresie ${MIN_REST}–${MAX_REST} sekund.`);
         return;
+      case 'invalid_duration':
+        this.error.set(`Czas musi mieścić się w zakresie ${MIN_DURATION}–${MAX_DURATION} sekund.`);
+        return;
       case 'note_too_long':
         this.error.set(`Notatka może mieć najwyżej ${MAX_NOTE} znaków.`);
         return;
@@ -412,6 +424,7 @@ export class PlanBuilder implements OnInit {
       reps: string;
       weightKg: number | null;
       restSeconds: number | null;
+      durationSeconds: number | null;
       note: string;
     },
   ): ItemGroup {
@@ -433,6 +446,10 @@ export class PlanBuilder implements OnInit {
         Validators.min(MIN_REST),
         Validators.max(MAX_REST),
       ]),
+      durationSeconds: this.fb.control<number | null>(values?.durationSeconds ?? null, [
+        Validators.min(MIN_DURATION),
+        Validators.max(MAX_DURATION),
+      ]),
       note: this.fb.nonNullable.control(values?.note ?? '', [Validators.maxLength(MAX_NOTE)]),
     }) as ItemGroup;
   }
@@ -449,6 +466,7 @@ function toItemRequest(value: {
   reps: string;
   weightKg: number | null;
   restSeconds: number | null;
+  durationSeconds: number | null;
   note: string;
 }): TrainingPlanItemRequest {
   return {
@@ -457,6 +475,7 @@ function toItemRequest(value: {
     reps: textOrNull(value.reps),
     weightKg: numberOrNull(value.weightKg),
     restSeconds: numberOrNull(value.restSeconds),
+    durationSeconds: numberOrNull(value.durationSeconds),
     note: textOrNull(value.note),
   };
 }

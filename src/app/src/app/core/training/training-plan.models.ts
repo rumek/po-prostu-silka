@@ -38,6 +38,20 @@ export interface TrainingPlanItemView {
   weightKg: number | null;
   restSeconds: number | null;
   note: string | null;
+
+  /**
+   * How long the exercise itself is held, in seconds (S-15). The counterpart to `weightKg`, not to
+   * `reps`: a plank is prescribed in time rather than in load. Per-plan, like every other parameter
+   * here — the same exercise is 45 s in one plan and 60 s in another.
+   */
+  durationSeconds: number | null;
+
+  /**
+   * The exercise's muscle group, for the member's plan card. READ-ONLY — it is a fact about the
+   * exercise, not part of the prescription, which is why it has no counterpart on
+   * `TrainingPlanItemRequest`. Null when the library entry carries none.
+   */
+  muscleGroup: string | null;
 }
 
 /** Mirrors TrainingPlanDetail: one plan with its items, for the builder and the member's screen. */
@@ -79,6 +93,10 @@ export interface TrainingPlanItemRequest {
   weightKg: number | null;
   restSeconds: number | null;
   note: string | null;
+
+  /** Seconds the exercise is held (S-15). No `muscleGroup` counterpart: a prescription may not
+   * edit the library. */
+  durationSeconds: number | null;
 }
 
 /**
@@ -114,6 +132,7 @@ export interface TrainingPlanFailure {
     | 'reps_too_long'
     | 'invalid_weight'
     | 'invalid_rest'
+    | 'invalid_duration'
     | 'note_too_long'
     | 'unknown_exercise'
     | 'inactive_exercise'

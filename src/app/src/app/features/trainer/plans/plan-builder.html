@@ -160,6 +160,18 @@
                     [max]="maxRest"
                   />
                 </div>
+
+                <div class="field">
+                  <label [for]="'duration-' + index">Czas (s)</label>
+                  <input
+                    [id]="'duration-' + index"
+                    type="number"
+                    inputmode="numeric"
+                    formControlName="durationSeconds"
+                    [min]="minDuration"
+                    [max]="maxDuration"
+                  />
+                </div>
               </div>
 
               <div class="field">
