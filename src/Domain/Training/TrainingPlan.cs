@@ -6,7 +6,7 @@ namespace po_prostu_silka.Domain.Training;
 /// <para>
 /// AT MOST ONE ACTIVE PLAN PER MEMBER. Assigning a new plan archives the old one rather than editing
 /// it, which is what FR-016 asks for and what makes "the member's plan" a question with one answer.
-/// The rule is carried by TrainingPlanConfiguration's filtered unique index on (MemberUserId) WHERE
+/// The rule is carried by TrainingPlanConfiguration's filtered unique index on (MemberId) WHERE
 /// Status = 0, which makes two active rows for one member unrepresentable. TrainingPlanEndpoints
 /// archives-and-inserts inside a retry loop over <see cref="ConcurrencyStamp"/>, but that loop is a
 /// second line rather than the first - see the remarks on <see cref="ConcurrencyStamp"/>.

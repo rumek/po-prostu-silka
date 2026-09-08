@@ -75,11 +75,16 @@ public class TrainingPlanQuery(AppDbContext db) : ITrainingPlanQuery
         // as a list and read with FirstOrDefault so "no such member" comes back as null rather than as
         // false — the caller answers member_not_found and member_not_active differently, and a bool
         // alone could not tell them apart.
+        //
+        // THE ELIGIBILITY HALF GOES THROUGH Assignable, as a membership test rather than a restated
+        // predicate. Writing the same condition out again here would have made the "one definition"
+        // Assignable claims a comment rather than a fact, and left the picker free to drift from the
+        // validation that is supposed to agree with it. It costs a correlated EXISTS over the primary
+        // key, in the query that was already being issued.
         var rows = await db.Members
             .AsNoTracking()
             .Where(x => x.Id == memberId)
-            .Select(x => (bool?)(x.Status == MembershipStatus.Active
-                                 && (x.User == null || x.User.Status == AccountStatus.Active)))
+            .Select(x => (bool?)Assignable(db.Members).Any(a => a.Id == x.Id))
             .ToListAsync(cancellationToken);
 
         return rows.FirstOrDefault();

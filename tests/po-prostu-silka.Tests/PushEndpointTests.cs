@@ -119,6 +119,47 @@ public class PushEndpointTests(IntegrationTestFixture fixture)
         Assert.False(await db.PushSubscriptions.AnyAsync(s => s.Endpoint == endpoint));
     }
 
+    /// <summary>
+    /// A DEVICE BELONGS TO A LOGIN, NOT TO A MEMBER, and S-14 deliberately left it that way while it
+    /// moved every other club-shaped foreign key onto <c>Member</c>. Push is the one relationship
+    /// that genuinely keys on the account: an accountless member has no browser to send to, which is
+    /// why <c>ClassChangeNotification</c> skips them rather than looking up subscriptions that cannot
+    /// exist.
+    ///
+    /// <para>
+    /// This is the regression pin the plan asked for and the slice never wrote. The invariant is
+    /// invisible — nothing fails today if somebody "tidies" the column onto <c>MemberId</c> for
+    /// consistency with its neighbours — so it is asserted here rather than left to the schema.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public async Task A_subscription_is_stored_against_the_account_not_the_member()
+    {
+        var client = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveMemberEmail);
+        var endpoint = NewEndpoint();
+
+        Assert.Equal(
+            HttpStatusCode.NoContent,
+            (await client.PostAsJsonAsync("/api/push/subscribe", Subscription(endpoint))).StatusCode);
+
+        await using var db = NewContext();
+
+        var stored = await db.PushSubscriptions
+            .AsNoTracking()
+            .SingleAsync(s => s.Endpoint == endpoint);
+
+        // The account id, and an account id it is: it resolves through Identity.
+        var account = await db.Users.AsNoTracking().SingleAsync(u => u.Id == stored.UserId);
+        Assert.Equal(TestUsers.ActiveMemberEmail, account.Email);
+
+        // And NOT the member id, which is the value a well-meaning refactor would put here. Both are
+        // strings holding a Guid — Identity's default id generator is Guid.NewGuid().ToString() — so
+        // the shape proves nothing and only the identity does: this member HAS a member id, it is a
+        // different one, and the column holds the account's.
+        var memberId = await fixture.MemberIdOfAsync(stored.UserId);
+        Assert.NotEqual(memberId.ToString(), stored.UserId);
+    }
+
     [Fact]
     public async Task Vapid_key_endpoint_reports_503_when_push_is_unconfigured()
     {

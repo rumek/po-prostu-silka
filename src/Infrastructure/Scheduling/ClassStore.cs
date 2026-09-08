@@ -20,10 +20,10 @@ public class ClassStore(AppDbContext db) : IClassStore
         // display name (prd-v2 FR-007, FR-009, FR-010), so without these that DTO would dereference
         // null.
         //
-        // The WRITE paths do not rely on them. They pass the ClassType and ApplicationUser their own
-        // validation already resolved, because after an instructor is reassigned the tracked entity's
-        // Instructor navigation still points at the PREVIOUS account - projecting from it would give
-        // a correct id beside a stale name.
+        // The WRITE paths do not rely on them. They pass the ClassType and the instructor name their
+        // own validation already resolved, because after an instructor is reassigned the tracked
+        // entity's Instructor navigation still points at the PREVIOUS member - projecting from it
+        // would give a correct id beside a stale name.
         //
         // Include, not a projection, precisely because the result is tracked and mutable. That is the
         // one place in this codebase where Include is the right tool; the read queries next door stay

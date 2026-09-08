@@ -143,7 +143,7 @@ public record TrainingPlanFailure(string Reason);
 /// <para>
 /// THERE IS NO OWNERSHIP RULE. Any trainer may assign to any active member and edit any plan. This
 /// product has no trainer-to-member relationship to enforce one against, and inventing one here would
-/// be a data model nothing else uses. <see cref="TrainingPlan.AssignedByUserId"/> is recorded for
+/// be a data model nothing else uses. <see cref="TrainingPlan.AssignedByMemberId"/> is recorded for
 /// display, not for authorization - see its doc comment.
 /// </para>
 ///
@@ -299,7 +299,6 @@ public static class TrainingPlanEndpoints
     private static async Task<IResult> CreateAsync(
         TrainingPlanRequest request,
         ClaimsPrincipal principal,
-        UserManager<ApplicationUser> userManager,
         ITrainingPlanQuery query,
         ITrainingPlanStore store,
         IMemberStore members,
@@ -307,9 +306,11 @@ public static class TrainingPlanEndpoints
         TimeProvider timeProvider,
         CancellationToken cancellationToken)
     {
-        var authorUserId = userManager.GetUserId(principal);
+        // THE MEMBER ID IS THE ONLY ONE THIS HANDLER NEEDS. It also resolved the author's ACCOUNT id
+        // until S-14 Phase 9 dropped TrainingPlans.AssignedByUserId - which left a UserManager round
+        // trip per plan creation feeding a value nothing stored. The claim is enough, and it is free.
         var authorMemberId = principal.GetMemberId();
-        if (authorUserId is null || authorMemberId is null)
+        if (authorMemberId is null)
         {
             return Results.Unauthorized();
         }

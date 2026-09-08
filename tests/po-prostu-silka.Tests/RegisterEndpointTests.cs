@@ -115,6 +115,37 @@ public class RegisterEndpointTests(IntegrationTestFixture fixture)
     }
 
     /// <summary>
+    /// THE ADDRESS ON AN ACCOUNTLESS MEMBER IS TAKEN TOO, and the whole point is that Identity cannot
+    /// see it. The admin records a walk-in with their email at the desk; that person later registers
+    /// on their own, without a code. Before this was checked, the pre-check passed, the account was
+    /// created, and IX_Members_Email rejected the member row - so the caller got a 500 and the
+    /// compensating delete undid a real account on every retry, locking them out of their own
+    /// address. Answer the same 409 the account case answers, which the SPA already renders with its
+    /// "Zaloguj się" branch.
+    /// </summary>
+    [Fact]
+    public async Task An_address_held_by_an_accountless_member_is_disclosed_as_email_taken()
+    {
+        var email = $"walkin-{Guid.NewGuid():N}@test.local";
+        await fixture.CreateMemberAsync("Walk-in przy ladzie", email: email);
+
+        var client = fixture.CreateClient();
+
+        var response = await client.PostAsJsonAsync("/api/auth/register", Registration(email));
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+
+        var body = await response.Content.ReadFromJsonAsync<RegisterFailureBody>();
+        Assert.Equal("email_taken", body!.Reason);
+
+        // No account was created and rolled back - the refusal happens before CreateAsync, so there
+        // is nothing to undo. This is the half that a 500 plus compensation got wrong.
+        using var scope = fixture.Factory.Services.CreateScope();
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        Assert.Null(await userManager.FindByEmailAsync(email));
+    }
+
+    /// <summary>
     /// The record's strings are non-nullable, but that is a compile-time contract - a JSON null
     /// still arrives. Without a guard, FindByEmailAsync throws and an anonymous caller gets a 500.
     /// </summary>

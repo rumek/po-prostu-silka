@@ -553,6 +553,14 @@ public static class MemberAdminEndpoints
         member.Status = MembershipStatus.Blocked;
         member.ConcurrencyStamp = Guid.NewGuid().ToString();
 
+        // A LIVE CODE DIES WITH THE BLOCK. RegisterAsync already refuses a blocked member's code, so
+        // nothing can be claimed around this - but the refusal is a read-time check, and the code
+        // would come back the instant the member is unblocked. That is a code the admin issued
+        // under circumstances the club has since revisited, quietly reactivated by an unrelated act.
+        // Revoking here means unblocking restores membership and nothing else; issue a new one.
+        member.AccessCode = null;
+        member.AccessCodeExpiresAt = null;
+
         if (user is not null)
         {
             // Blockable from Active AND Pending: a junk registration should be stoppable without first
@@ -793,6 +801,15 @@ public static class MemberAdminEndpoints
         if (member.UserId is not null)
         {
             return Results.Json(new AccessCodeFailure("has_account"), statusCode: 409);
+        }
+
+        // THE SCREEN IS NOT THE BOUNDARY, same rule BlockAsync states about the is_admin refusal. The
+        // members list does hide this action on a blocked row, but a code minted for someone the club
+        // has blocked is a code that cannot work — RegisterAsync refuses it — and handing the admin
+        // one to read out is the same disservice GetAccessCodeAsync refuses to do for an expired code.
+        if (member.Status != MembershipStatus.Active)
+        {
+            return Results.Json(new AccessCodeFailure("member_blocked"), statusCode: 409);
         }
 
         var expiresAt = timeProvider.GetUtcNow() + MemberAccessCode.Validity;

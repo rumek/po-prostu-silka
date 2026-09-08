@@ -904,39 +904,8 @@ public static class ClassEndpoints
     }
 
     /// <summary>
-    /// Whether this account may be named as an instructor (prd-v2 FR-009): it must exist, be ACTIVE,
-    /// and hold the Trainer role.
-    ///
-    /// <para>
-    /// Through UserManager rather than a query seam, matching MemberAdminEndpoints.GrantTrainerAsync
-    /// — <c>IsInRoleAsync</c> normalises its argument, so the role name is compared the way Identity
-    /// stores it. A single lookup does not justify a third read seam.
-    /// </para>
-    ///
-    /// <para>
-    /// A blocked or pending account reports <c>unknown_instructor</c>, not a status of its own: the
-    /// selection only ever offers active trainers, so an inactive id means the client is working from
-    /// a stale list, and "pick someone else" is the whole of the useful advice. Telling the caller
-    /// which accounts exist but are blocked would leak account state onto a scheduling surface.
-    /// </para>
-    ///
-    /// <para>
-    /// RETURNS THE ACCOUNT, not just a verdict. The caller needs its DisplayName to build the
-    /// response, and this method has already fetched it - handing it back is what lets both write
-    /// paths answer without a second round-trip to the database after they have committed.
-    /// </para>
-    ///
-    /// <para>
-    /// No CancellationToken: UserManager exposes no token overload for either call, so an aborted
-    /// request still pays for both. A deliberate gap, not an omission.
-    /// </para>
-    /// </summary>
-    /// <returns>
-    /// <c>Failure</c> set and <c>Instructor</c> null when the account may not be assigned; the
-    /// reverse when it may. Exactly one of the two is ever non-null.
-    /// </returns>
-    /// <summary>
-    /// Resolves and vets the instructor the request names.
+    /// Resolves and vets the instructor the request names (prd-v2 FR-009): the member must exist,
+    /// hold an account, and that account must be ACTIVE and in the Trainer role.
     ///
     /// <para>
     /// TAKES A MEMBER ID AND CHECKS THE ACCOUNT BEHIND IT (S-14). The rule itself is unchanged — an
@@ -948,11 +917,30 @@ public static class ClassEndpoints
     /// </para>
     ///
     /// <para>
-    /// The refusal is ONE code for every reason — no such member, no account, blocked, not a trainer's
-    /// account — because this surface must not become a way to probe which member ids exist or what
-    /// state somebody's login is in.
+    /// The refusal is ONE code for every reason — no such member, no account, blocked or pending, not
+    /// a trainer's account — because this surface must not become a way to probe which member ids
+    /// exist or what state somebody's login is in. It is also the whole of the useful advice: the
+    /// picker only ever offers active trainers, so any of these means the client is working from a
+    /// stale list and should pick somebody else.
+    /// </para>
+    ///
+    /// <para>
+    /// The role check goes through UserManager rather than a query seam, matching
+    /// MemberAdminEndpoints.GrantTrainerAsync — <c>IsInRoleAsync</c> normalises its argument, so the
+    /// role name is compared the way Identity stores it. A single lookup does not justify a third
+    /// read seam.
+    /// </para>
+    ///
+    /// <para>
+    /// RETURNS THE ACCOUNT, not just a verdict. The caller needs its DisplayName to build the
+    /// response, and this method has already fetched it - handing it back is what lets both write
+    /// paths answer without a second round-trip to the database after they have committed.
     /// </para>
     /// </summary>
+    /// <returns>
+    /// <c>Failure</c> set and <c>Instructor</c> null when the member may not be assigned; the
+    /// reverse when they may. Exactly one of the two is ever non-null.
+    /// </returns>
     private static async Task<(IResult? Failure, ApplicationUser? Instructor)>
         ValidateInstructorAsync(
             Guid instructorMemberId,

@@ -98,6 +98,29 @@ namespace po_prostu_silka.Infrastructure.Persistence.Migrations
         }
 
         /// <inheritdoc />
+        /// <summary>
+        /// LOSSY, in exactly one place, and it has to be: a booking or a plan belonging to a member
+        /// with no account has no Identity id to put back, so it cannot exist in the schema this
+        /// reverses to. Those rows are DELETED rather than defaulted.
+        ///
+        /// <para>
+        /// NO <c>defaultValue</c> ON ANY OF THE FOUR ALTERS, against what EF scaffolds — the same
+        /// refusal <c>RequireMemberForeignKeys</c> makes, for a reason that bites harder here. EF's
+        /// <c>N''</c> default is not inert: it emits an <c>UPDATE … SET N'' WHERE … IS NULL</c> ahead
+        /// of the ALTER, and by the time this runs in a full unwind, <c>DropLegacyUserColumns.Down</c>
+        /// has already re-added the foreign keys to <c>AspNetUsers</c>. An empty string is not a valid
+        /// <c>AspNetUsers.Id</c>, so the UPDATE fails the constraint and the rollback aborts mid-chain.
+        /// Were it to survive, the two unique indexes rebuilt below would then see every accountless
+        /// row as the same <c>''</c> member and reject the second one.
+        /// </para>
+        ///
+        /// <para>
+        /// A class with no instructor account THROWS instead of being deleted. It is unreachable by
+        /// construction — <c>ValidateInstructorAsync</c> has always required an active account holding
+        /// Trainer — and a class cannot be removed without taking everyone's bookings with it. If one
+        /// is ever found here, stopping is the right answer.
+        /// </para>
+        /// </summary>
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropIndex(
@@ -108,13 +131,24 @@ namespace po_prostu_silka.Infrastructure.Persistence.Migrations
                 name: "IX_Bookings_Class_Member_Active",
                 table: "Bookings");
 
+            // BEFORE the ALTERs, or every one of them fails on the NULLs. Plan items go with their
+            // plan on the cascade TrainingPlanItemConfiguration declares.
+            migrationBuilder.Sql(
+                """
+                IF EXISTS (SELECT 1 FROM [Classes] WHERE [InstructorUserId] IS NULL)
+                    THROW 50000, N'Cannot roll back: a class is taught by a member with no account, and reverting would have to delete the class and every booking on it.', 1;
+
+                DELETE FROM [Bookings] WHERE [MemberUserId] IS NULL;
+
+                DELETE FROM [TrainingPlans] WHERE [MemberUserId] IS NULL OR [AssignedByUserId] IS NULL;
+                """);
+
             migrationBuilder.AlterColumn<string>(
                 name: "MemberUserId",
                 table: "TrainingPlans",
                 type: "nvarchar(450)",
                 maxLength: 450,
                 nullable: false,
-                defaultValue: "",
                 oldClrType: typeof(string),
                 oldType: "nvarchar(450)",
                 oldMaxLength: 450,
@@ -126,7 +160,6 @@ namespace po_prostu_silka.Infrastructure.Persistence.Migrations
                 type: "nvarchar(450)",
                 maxLength: 450,
                 nullable: false,
-                defaultValue: "",
                 oldClrType: typeof(string),
                 oldType: "nvarchar(450)",
                 oldMaxLength: 450,
@@ -138,7 +171,6 @@ namespace po_prostu_silka.Infrastructure.Persistence.Migrations
                 type: "nvarchar(450)",
                 maxLength: 450,
                 nullable: false,
-                defaultValue: "",
                 oldClrType: typeof(string),
                 oldType: "nvarchar(450)",
                 oldMaxLength: 450,
@@ -150,7 +182,6 @@ namespace po_prostu_silka.Infrastructure.Persistence.Migrations
                 type: "nvarchar(450)",
                 maxLength: 450,
                 nullable: false,
-                defaultValue: "",
                 oldClrType: typeof(string),
                 oldType: "nvarchar(450)",
                 oldMaxLength: 450,

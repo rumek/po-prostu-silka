@@ -424,8 +424,9 @@ export class Members implements OnInit {
   }
 
   /**
-   * 409 means the list is stale — the member registered in the meantime (`has_account`) or somebody
-   * changed the row underneath us — so it is refetched rather than patched, as everywhere else here.
+   * 409 means the list is stale — the member registered in the meantime (`has_account`), was blocked
+   * underneath us (`member_blocked`), or somebody else changed the row — so it is refetched rather
+   * than patched, as everywhere else here.
    */
   private async handleCodeFailure(member: Member, failure: unknown): Promise<void> {
     const response = failure as HttpErrorResponse;
@@ -433,16 +434,23 @@ export class Members implements OnInit {
     if (response?.status === 409) {
       const reason = (response.error as AccessCodeFailure | undefined)?.reason;
 
-      this.notice.set(
-        reason === 'has_account'
-          ? `${member.displayName} ma już konto — kod nie jest potrzebny.`
-          : 'Lista była nieaktualna — odświeżono.',
-      );
+      this.notice.set(this.codeFailureMessage(member, reason));
       await this.load();
       return;
     }
 
     this.failedId.set(member.id);
+  }
+
+  private codeFailureMessage(member: Member, reason: string | undefined): string {
+    switch (reason) {
+      case 'has_account':
+        return `${member.displayName} ma już konto — kod nie jest potrzebny.`;
+      case 'member_blocked':
+        return `${member.displayName} jest zablokowany — odblokuj, zanim wydasz kod.`;
+      default:
+        return 'Lista była nieaktualna — odświeżono.';
+    }
   }
 
   // --- row menu -------------------------------------------------------------

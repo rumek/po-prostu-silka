@@ -341,4 +341,83 @@ public class AdminBookingEndpointTests(IntegrationTestFixture fixture)
         var rows = await BookingsForAsync(scheduled.Id);
         Assert.Equal(Capacity, rows.Count(b => b.Status == BookingStatus.Active));
     }
+
+    // --- the block cascade, on someone with no account -------------------------
+
+    /// <summary>
+    /// THE CASCADE REACHES A MEMBER WITH NO LOGIN, which is the whole reason it was re-keyed onto the
+    /// member. Before S-14 it ran off <c>Bookings.MemberUserId</c>, so an accountless member had no
+    /// key to cascade on and their seats would have stayed held after the club blocked them —
+    /// the schedule promising spots to somebody who cannot attend while others are turned away full.
+    ///
+    /// <para>
+    /// It lives HERE rather than in MemberEndpointTests, where the plan named it, for the arrange:
+    /// this file already owns a class, a trainer and an accountless booker, and that file owns no
+    /// scheduling scaffolding at all. The behaviour under test is the same one either way.
+    /// </para>
+    ///
+    /// <para>
+    /// AND IT TOUCHES NO ACCOUNT — asserted by there being none to touch. The block path reaches for
+    /// an <c>ApplicationUser</c> in three places (the is_admin refusal, the status flip, the stamp
+    /// rotation) and every one of them has to be reachable with a null <c>UserId</c>; a regression
+    /// there is a 500, not a wrong answer.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public async Task Blocking_an_accountless_member_cancels_their_future_bookings()
+    {
+        var (admin, scheduled) = await ArrangeAsync();
+
+        var memberId = await AccountlessMemberAsync();
+        var other = await AccountlessMemberAsync();
+
+        Assert.Equal(HttpStatusCode.OK, (await BookAsync(admin, scheduled.Id, memberId)).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await BookAsync(admin, scheduled.Id, other)).StatusCode);
+
+        var blocked = await admin.PostAsync($"/api/admin/members/{memberId}/block", content: null);
+        Assert.Equal(HttpStatusCode.OK, blocked.StatusCode);
+
+        var rows = await BookingsForAsync(scheduled.Id);
+
+        var theirs = Assert.Single(rows, b => b.MemberId == memberId);
+        Assert.Equal(BookingStatus.Cancelled, theirs.Status);
+        Assert.NotNull(theirs.CancelledAt);
+
+        // FUTURE ONLY, and only THEIRS: the cascade is keyed on the member, so a second member's seat
+        // in the same class is untouched. A cascade keyed on the class would pass every assertion
+        // above and fail this one.
+        Assert.Equal(BookingStatus.Active, Assert.Single(rows, b => b.MemberId == other).Status);
+    }
+
+    /// <summary>
+    /// A BLOCK REVOKES A LIVE CODE. Registration already refuses a blocked member's code, but that is
+    /// a read-time check — the code itself would come back the moment the member is unblocked, which
+    /// makes an unrelated act quietly reissue a credential the club had reason to withdraw.
+    /// </summary>
+    [Fact]
+    public async Task Blocking_revokes_a_live_access_code_and_a_blocked_member_cannot_be_issued_one()
+    {
+        var admin = await AdminAsync();
+        var memberId = await AccountlessMemberAsync();
+
+        var issued = await admin.PostAsync($"/api/admin/members/{memberId}/access-code", content: null);
+        Assert.Equal(HttpStatusCode.OK, issued.StatusCode);
+
+        Assert.Equal(
+            HttpStatusCode.OK,
+            (await admin.PostAsync($"/api/admin/members/{memberId}/block", content: null)).StatusCode);
+
+        await using (var db = NewContext())
+        {
+            var member = await db.Members.AsNoTracking().SingleAsync(m => m.Id == memberId);
+            Assert.Null(member.AccessCode);
+            Assert.Null(member.AccessCodeExpiresAt);
+        }
+
+        // The screen hides this action on a blocked row; the endpoint refuses it regardless, which is
+        // the boundary the members surface states its own rules at.
+        var refused = await admin.PostAsync($"/api/admin/members/{memberId}/access-code", content: null);
+        Assert.Equal(HttpStatusCode.Conflict, refused.StatusCode);
+        Assert.Equal("member_blocked", await ReasonAsync(refused));
+    }
 }

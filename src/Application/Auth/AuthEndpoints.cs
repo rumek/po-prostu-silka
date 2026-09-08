@@ -238,6 +238,7 @@ public static class AuthEndpoints
         SignInManager<ApplicationUser> signInManager,
         UserManager<ApplicationUser> userManager,
         IMemberStore members,
+        IMemberQuery memberQuery,
         IUnitOfWork unitOfWork,
         TimeProvider timeProvider,
         ILoggerFactory loggerFactory)
@@ -300,7 +301,16 @@ public static class AuthEndpoints
             }
         }
 
-        if (await userManager.FindByEmailAsync(request.Email) is not null)
+        // BOTH TABLES, not just Identity's. Every branch below writes request.Email into a Member row
+        // guarded by IX_Members_Email, so an address the club already recorded for someone with no
+        // account is unavailable even though no ACCOUNT holds it. Asking userManager alone let that
+        // case through to SaveChangesAsync, where the unique violation surfaced as a 500 and the
+        // compensating delete undid a real account on every retry - shutting a walk-in out of
+        // registering with their own address, which is the flow this slice exists for.
+        //
+        // exceptMemberId is the member being claimed: their own address must not collide with itself
+        // when the code they typed belongs to the row that already holds it.
+        if (await memberQuery.EmailExistsAsync(request.Email, claimed?.Id, CancellationToken.None))
         {
             return Results.Json(new RegisterFailure("email_taken"), statusCode: 409);
         }

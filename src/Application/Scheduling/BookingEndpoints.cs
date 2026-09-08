@@ -40,7 +40,7 @@ public record MyBooking(
 /// <para>
 /// The email is here because the club's actual use for this list is reaching people — a class is
 /// moved, a trainer is ill — and it is admin-only surface, gated by the same policy as every other
-/// admin endpoint. <see cref="MemberUserId"/> travels for the same reason it does on
+/// admin endpoint. <see cref="MemberId"/> travels for the same reason it does on
 /// <see cref="ScheduledClass"/>: the client needs a stable key, and it grants nothing on its own.
 /// </para>
 /// </summary>

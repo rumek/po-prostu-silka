@@ -1,0 +1,26 @@
+# Line endings, pinned so the frontend quality gate is runnable on Windows.
+#
+# WHY THIS FILE EXISTS: `npm run quality:check` runs `prettier --check` first and `ng lint` only if
+# it passes. Prettier defaults to `endOfLine: "lf"`, so a working-tree file carrying CRLF fails the
+# check on every line - and under `core.autocrlf=true` that is what a Windows checkout produces. The
+# committed blobs were always LF and always Prettier-clean; the gate still failed, and because it
+# fails at the FIRST half, `ng lint` silently never ran at all.
+#
+# `text=auto eol=lf` normalises to LF in the repository AND in the working tree, on every platform,
+# regardless of each machine's `core.autocrlf`. That makes the gate mean the same thing everywhere,
+# which matters more here than usual: CI gates the deploy on it.
+*               text=auto eol=lf
+
+# Binary, so git never tries to translate them.
+*.png           binary
+*.jpg           binary
+*.jpeg          binary
+*.gif           binary
+*.ico           binary
+*.woff          binary
+*.woff2         binary
+*.ttf           binary
+*.eot           binary
+*.pdf           binary
+*.zip           binary
+*.dll           binary
