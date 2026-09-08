@@ -49,13 +49,24 @@ describe('App', () => {
     expect(TestBed.createComponent(App).componentInstance).toBeTruthy();
   });
 
-  it('renders the product name', async () => {
+  /**
+   * The brand is a LOGO IMAGE, not text, so the product name lives in its alt attribute rather than
+   * in textContent. That is what this asserts: the name must still be announced to a screen reader
+   * and still shown if the image fails to load. Reading textContent here would pass on an <img> with
+   * no alt at all, which is the regression worth catching.
+   */
+  it('renders the product name on the brand image', async () => {
     configure(anonymous());
 
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();
 
-    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Po Prostu Siłka');
+    const brand = (fixture.nativeElement as HTMLElement).querySelector<HTMLImageElement>(
+      'img.shell-brand',
+    );
+
+    expect(brand).not.toBeNull();
+    expect(brand!.alt).toContain('Po Prostu Siłka');
   });
 
   it('shows no session controls to an anonymous visitor', async () => {

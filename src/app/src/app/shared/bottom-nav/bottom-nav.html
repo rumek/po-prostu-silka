@@ -4,9 +4,10 @@
   <ul class="bottom-nav-list">
     @for (tab of tabs; track tab.route) {
       <li>
-        <!-- aria-label carries the name, because the icon is aria-hidden and there is no text: without
-             it a screen reader announces five empty links. title gives the same name on a long press
-             and on the rare pointer that reaches this bar. -->
+        <!-- The label is printed beside the icon, so aria-label no longer carries the name alone -
+             it must simply AGREE with the visible text, or a voice-control user asking for the tab by
+             the word they can see is refused (WCAG 2.5.3). Both read tab.label, so they cannot drift.
+             title gives the same name on a long press and on the rare pointer that reaches this bar. -->
         <a
           class="bottom-nav-tab"
           [routerLink]="tab.route"

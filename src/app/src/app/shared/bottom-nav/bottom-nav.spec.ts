@@ -57,16 +57,20 @@ describe('BottomNav', () => {
   });
 
   /**
-   * The icon-only bargain. Nothing on screen names a tab, so aria-label IS the accessible name — miss
-   * one and a screen reader announces an empty link. Nothing visual would reveal that, which is why it
-   * is asserted here rather than left to review.
+   * The tabs carry a VISIBLE label beside the icon, so the accessible name is no longer carried by
+   * aria-label alone. What matters now is that the two AGREE: a spoken name that differs from the
+   * printed one leaves a voice-control user asking for a tab by the word they can see and being
+   * refused (WCAG 2.5.3, Label in Name). The icon stays hidden either way — it would otherwise
+   * announce the tab twice.
    */
-  it('gives every icon-only tab an accessible name and hides the icon from it', async () => {
+  it('gives every tab an accessible name matching its visible label, and hides the icon', async () => {
     const element = await create();
 
     for (const tab of tabs(element)) {
-      expect(tab.getAttribute('aria-label')).toBeTruthy();
-      expect(tab.textContent?.trim()).toBe('');
+      const visible = tab.querySelector('.bottom-nav-tab-label')!.textContent!.trim();
+
+      expect(visible).toBeTruthy();
+      expect(tab.getAttribute('aria-label')).toBe(visible);
       expect(tab.querySelector('svg')!.getAttribute('aria-hidden')).toBe('true');
     }
   });
