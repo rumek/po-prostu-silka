@@ -5,6 +5,7 @@ using po_prostu_silka.Application.Members;
 using po_prostu_silka.Application.Notifications;
 using po_prostu_silka.Application.Persistence;
 using po_prostu_silka.Domain;
+using po_prostu_silka.Domain.Members;
 
 namespace po_prostu_silka.Application.Auth;
 
@@ -219,6 +220,8 @@ public static class AuthEndpoints
         [FromBody] RegisterRequest request,
         SignInManager<ApplicationUser> signInManager,
         UserManager<ApplicationUser> userManager,
+        IMemberStore members,
+        IUnitOfWork unitOfWork,
         TimeProvider timeProvider,
         ILoggerFactory loggerFactory)
     {
@@ -313,6 +316,58 @@ public static class AuthEndpoints
                 "Role assignment failed for new user {UserId}; deleting the account. Errors: {Errors}",
                 user.Id,
                 string.Join("; ", roleAssigned.Errors.Select(e => e.Description)));
+
+            await userManager.DeleteAsync(user);
+            return Results.Problem("Registration could not be completed.", statusCode: 500);
+        }
+
+        // THE CLUB'S OWN RECORD OF THIS PERSON (S-14), created alongside the account and linked to it.
+        //
+        // One of three producers that together make "an account with no member" unreachable - the other
+        // two are the AddMembers backfill and AdminSeeder. That guarantee is load-bearing rather than
+        // tidy: the membership claim refuses an account without one everywhere it is checked.
+        //
+        // A SECOND SAVE, not part of CreateAsync's. Identity commits the account itself, so there is no
+        // way to make these one write short of an explicit transaction - and an explicit transaction
+        // here would have to run through Database.CreateExecutionStrategy().ExecuteAsync, because
+        // EnableRetryOnFailure is on (Program.cs) and throws at RUNTIME otherwise. The compensation
+        // below is the cheaper answer, and it mirrors what the role-assignment failure already does.
+        var member = new Member
+        {
+            Id = Guid.NewGuid(),
+            UserId = user.Id,
+            DisplayName = displayName,
+            Email = request.Email,
+            PhoneNumber = contact.PhoneNumber,
+            Street = contact.Street,
+            HouseNumber = contact.HouseNumber,
+            PostalCode = contact.PostalCode,
+            City = contact.City,
+
+            // Active even though the ACCOUNT is Pending. The two statuses answer different questions:
+            // approval gates the login, and it is AccountStatus that holds this person at the awaiting
+            // screen. See MembershipStatus for why there is no membership Pending.
+            Status = MembershipStatus.Active,
+            CreatedAt = user.CreatedAt,
+            ClaimedAt = user.CreatedAt,
+        };
+
+        members.Add(member);
+
+        try
+        {
+            await unitOfWork.SaveChangesAsync(CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            // Same reasoning as the role-assignment rollback above: an account with no member record is
+            // unrecoverable through anything this endpoint ships - it would fail every policy, and
+            // nothing in the admin surface creates a member for an existing account. Undo the
+            // registration and let them retry rather than leave an account that can be approved and
+            // still cannot do anything.
+            var memberLogger = loggerFactory.CreateLogger(typeof(AuthEndpoints));
+            memberLogger.LogError(
+                ex, "Member record creation failed for new user {UserId}; deleting the account.", user.Id);
 
             await userManager.DeleteAsync(user);
             return Results.Problem("Registration could not be completed.", statusCode: 500);

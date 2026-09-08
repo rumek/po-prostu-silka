@@ -2,7 +2,10 @@ using System.Net;
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.EntityFrameworkCore;
 using po_prostu_silka.Domain;
+using po_prostu_silka.Domain.Members;
+using po_prostu_silka.Infrastructure.Persistence;
 
 namespace po_prostu_silka.Tests;
 
@@ -25,6 +28,43 @@ public class RegisterEndpointTests(IntegrationTestFixture fixture)
         string street = "Piłsudskiego", string houseNumber = "12A/3",
         string postalCode = "00-001", string city = "Warszawa") =>
         new { email, password, displayName, phoneNumber, street, houseNumber, postalCode, city };
+
+    [Fact]
+    public async Task Registration_creates_exactly_one_member_record_linked_to_the_new_account()
+    {
+        var client = fixture.CreateClient();
+        var email = NewEmail();
+
+        var response = await client.PostAsJsonAsync("/api/auth/register", Registration(email));
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        using var scope = fixture.Factory.Services.CreateScope();
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var user = await userManager.FindByEmailAsync(email);
+        Assert.NotNull(user);
+
+        // EXACTLY ONE, not "at least one". The whole guarantee the membership claim rests on is that an
+        // account maps to a single member; two would make "whose bookings are these" ambiguous, and the
+        // filtered unique index on UserId is what is being proven here.
+        var members = await db.Members.Where(m => m.UserId == user!.Id).ToListAsync();
+        var member = Assert.Single(members);
+
+        Assert.Equal("Nowy Członek", member.DisplayName);
+        Assert.Equal(email, member.Email);
+
+        // ACTIVE MEMBERSHIP ON A PENDING ACCOUNT - the two statuses answer different questions, and
+        // this is the assertion that pins that apart. Approval gates the login; it does not gate the
+        // club's record of the person.
+        Assert.Equal(MembershipStatus.Active, member.Status);
+        Assert.Equal(AccountStatus.Pending, user!.Status);
+
+        // Contact details are copied onto the member as well as the account, which is what lets the
+        // read flip to Members in a later phase without a second migration.
+        Assert.Equal("123456789", member.PhoneNumber);
+        Assert.Equal("Warszawa", member.City);
+    }
 
     [Fact]
     public async Task Registration_creates_a_pending_member_in_the_User_role_and_signs_them_in()

@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using po_prostu_silka.Domain;
+using po_prostu_silka.Domain.Members;
 using po_prostu_silka.Infrastructure.Persistence;
 using Testcontainers.MsSql;
 
@@ -149,6 +150,69 @@ public class IntegrationTestFixture : IAsyncLifetime
         {
             await userManager.AddToRoleAsync(user, additionalRole);
         }
+
+        // THE CLUB RECORD EVERY ACCOUNT MUST HAVE (S-14). This is the single chokepoint every test
+        // seeds accounts through, which is exactly why it belongs here: an account seeded without one
+        // fails the membership claim and every policy built on it, and the failure would look like a
+        // broken policy rather than a broken fixture.
+        //
+        // Mirrors what RegisterAsync does in production, including Active membership for a Pending
+        // account - approval gates the login, not the membership.
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        db.Members.Add(new Member
+        {
+            Id = Guid.NewGuid(),
+            UserId = user.Id,
+            DisplayName = user.DisplayName,
+            Email = user.Email,
+            Status = status == AccountStatus.Blocked ? MembershipStatus.Blocked : MembershipStatus.Active,
+            CreatedAt = user.CreatedAt,
+            ClaimedAt = user.CreatedAt,
+        });
+
+        await db.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Creates a member with NO account — the case S-14 exists for, and one no other helper can
+    /// produce, because every other path starts from Identity.
+    /// </summary>
+    /// <returns>The new member's id, which is how every S-14 endpoint addresses them.</returns>
+    public async Task<Guid> CreateMemberAsync(
+        string displayName,
+        MembershipStatus status = MembershipStatus.Active,
+        string? email = null)
+    {
+        using var scope = Factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var member = new Member
+        {
+            Id = Guid.NewGuid(),
+            UserId = null,
+            DisplayName = displayName,
+            Email = email,
+            Status = status,
+            CreatedAt = DateTimeOffset.UtcNow,
+        };
+
+        db.Members.Add(member);
+        await db.SaveChangesAsync();
+
+        return member.Id;
+    }
+
+    /// <summary>
+    /// The member id behind an account. Since S-14 the admin surface is addressed by member, while
+    /// most of these tests still hold an account id — this is the bridge, rather than each test
+    /// growing its own DbContext to look one up.
+    /// </summary>
+    public async Task<Guid> MemberIdOfAsync(string userId)
+    {
+        using var scope = Factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        return await db.Members.AsNoTracking().Where(m => m.UserId == userId).Select(m => m.Id).SingleAsync();
     }
 
     /// <summary>Logs in and returns a client carrying the resulting auth cookie.</summary>

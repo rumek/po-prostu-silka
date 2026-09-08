@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using po_prostu_silka.Domain;
+using po_prostu_silka.Domain.Members;
 using po_prostu_silka.Domain.Notifications;
 using po_prostu_silka.Domain.Scheduling;
 using po_prostu_silka.Domain.Training;
@@ -19,6 +20,12 @@ namespace po_prostu_silka.Infrastructure.Persistence;
 public class AppDbContext(DbContextOptions<AppDbContext> options)
     : IdentityDbContext<ApplicationUser>(options)
 {
+    /// <summary>
+    /// The club's own record of a person, which may have no account behind it (S-14). Distinct from
+    /// <see cref="IdentityDbContext{TUser}.Users"/>, which is logins.
+    /// </summary>
+    public DbSet<Member> Members => Set<Member>();
+
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
     public DbSet<PushSubscription> PushSubscriptions => Set<PushSubscription>();

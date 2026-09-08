@@ -248,6 +248,11 @@ builder.Services.AddScoped<IPendingMemberQuery, PendingMemberQuery>();
 // S-02's member list (FR-005). Scoped like the query above - it depends on the same DbContext.
 builder.Services.AddScoped<IMemberQuery, MemberQuery>();
 
+// S-14's write side for the club's own record of a person. Scoped, and it MUST share the request's
+// DbContext with Identity's stores - a claim that links an account to a member, and a block that
+// releases bookings while rotating the account's security stamp, both depend on landing in one commit.
+builder.Services.AddScoped<IMemberStore, MemberStore>();
+
 // S-06's instructor selection (prd-v2 FR-009). Separate from IMemberQuery on purpose: that one
 // browses accounts for the admin's management screen, this one answers "who may run a class".
 builder.Services.AddScoped<ITrainerQuery, TrainerQuery>();

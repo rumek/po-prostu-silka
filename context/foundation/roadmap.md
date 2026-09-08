@@ -7,8 +7,8 @@ updated: 2026-09-07
 prd_version: 1, 2
 main_goal: speed
 top_blocker: decisions
-milestone_id: first-usable-mvp
-milestone_seq: 1
+milestone_id: accountless-members
+milestone_seq: 2
 milestone_status: open
 ---
 
@@ -20,12 +20,43 @@ milestone_status: open
 
 ## Milestone
 
-**M-1: First usable MVP** — Status: open
+**M-2: The club's records outlive the login** — Status: open
 
-- **Intent:** The club runs on the app instead of Excel: a member can register, get approved, browse the schedule, book and cancel classes, follow their assigned training plan — and is reliably told by email + push when a booked class is cancelled or changed.
-- **Source materials:** `context/foundation/prd.md` (v1) and `context/foundation/prd-v2.md` (v2). The v2 change — class types, the Trainer role, the room's removal, and the calendar — was folded into this milestone rather than opening a new one: it restructures how M-1's own scheduling slices are built, and M-1's intent is unchanged by it.
-- **Done when:** every F-NN and S-NN below is `done`.
-- **Scope anchors:** from v1 — FR-001–FR-026 (all must-have; FR-022 removed by the PRD itself, FR-025 and FR-026 added by S-13), US-01, US-02, and the four NFRs. From v2 — FR-001–FR-018 and US-01, US-02. Both PRDs number from FR-001, so every reference below names its source (`prd.md FR-007` vs `prd-v2 FR-007`).
+- **Intent:** A person is a member of the club whether or not they ever create an account. The admin
+  keeps a record for someone who signed up at the desk, assigns them a plan and books them into
+  classes; when that person later wants an account, they create one with a code from the admin and
+  land on the history the club already recorded for them.
+- **Source materials:** `context/foundation/prd.md` (v1), `context/foundation/prd-v2.md` (v2), and the
+  addendum in `## PRD addendum (M-2)` below. Neither PRD describes a person without an account — this
+  is new product scope, which is why it opens a milestone rather than joining M-1.
+- **Done when:** every S-NN in this milestone is `done`.
+- **Scope anchors:** the addendum's AM-001–AM-006. Everything M-1 delivered is preserved: the
+  register → pending → active lifecycle, admin approval, block and unblock, and the seeded admin.
+
+## PRD addendum (M-2)
+
+Recorded here rather than in `prd.md`, which is versioned as shipped and describes the account-only
+model M-1 was built against.
+
+- **AM-001:** Admin can create a member record for a person who has no account, with a display name
+  and contact details. Priority: must-have
+- **AM-002:** Admin can edit and block such a record. A blocked member — with an account or without —
+  loses their future bookings, exactly as a blocked account does today. Priority: must-have
+- **AM-003:** A member record and a login are separate things. Bookings, training plans and the class
+  instructor belong to the member; devices and credentials belong to the login. Priority: must-have
+- **AM-004:** Admin can issue a single-use, expiring member code for a record that has no account, can
+  see it in order to hand it over, and can revoke it. Priority: must-have
+- **AM-005:** A person registering with a valid code gets an account attached to that existing record,
+  inheriting its bookings and its active plan, instead of a fresh one. Registering without a code
+  behaves exactly as it does today. The account is still created `pending` — the code proves the club
+  knows them, not that login is approved. Priority: must-have
+- **AM-006:** Admin can assign a training plan to a member with no account, and can book one into a
+  class on their behalf. The no-overbooking guarantee holds identically on that path. Priority:
+  must-have
+
+**Not in scope, deliberately:** a member with no account receives no email or push (there is no
+address and no device); an instructor still needs an account, because the Trainer role lives in
+Identity; and there is no self-service way to link an account to a record without the admin's code.
 
 ## Vision recap
 
@@ -35,9 +66,14 @@ Mid-milestone, a second decision landed: a class stops being retyped text and be
 
 ## North star
 
-**S-09: Booked member is notified by email and push when the admin cancels or changes their class** — the most-felt pain is that members can't be reached when plans change, and this slice is also the hardest to make reliable, so shipping it is what proves the product works.
+**S-14: A person who never registered can be booked into a class by the admin, and later claims that
+record with a code** — M-2 has one slice, and it is the whole hypothesis: that the club's records are
+about people, not about logins. Delivering the claim path end-to-end is what proves the split was
+real rather than a rename, because it is the only thing that exercises both halves at once.
 
-> "North star" here means the smallest end-to-end slice whose successful delivery would prove the core product hypothesis — placed as early as its Prerequisites allow, because everything else only matters if this works. It sits later in this regeneration than in the previous one: the class-model restructuring was deliberately sequenced ahead of booking, which the north star depends on.
+> "North star" here means the smallest end-to-end slice whose successful delivery would prove the core
+> product hypothesis. M-1's north star was S-09 (email + push on class changes); it shipped, and the
+> entry for it now lives in `## Milestone History`.
 
 ## At a glance
 
@@ -59,6 +95,7 @@ Mid-milestone, a second decision landed: a class stops being retyped text and be
 | S-11 | training-plans                   | admin builds and assigns a plan; member follows it with exercise details | S-01, S-10             | v1 FR-015, v1 FR-016, v1 FR-017, v1 FR-020                      | done        |
 | S-12 | member-and-admin-dashboards      | member and admin land on their at-a-glance home screens                  | S-01, S-07, S-08, S-11 | v1 FR-023, v1 FR-024                                            | done        |
 | S-13 | member-profile-edit              | member edits contact details, changes password, resets a forgotten one   | F-02, S-01             | v1 FR-006, v1 FR-025, v1 FR-026                                 | done        |
+| S-14 | member-entity-and-accountless-members | admin keeps a record for someone with no account; that person later claims it with a code | S-02, S-08, S-11, S-13 | M-2 AM-001–AM-006 | planned |
 
 ## Streams
 
@@ -66,7 +103,7 @@ Navigation aid — groups items that share a Prerequisites chain. Canonical orde
 
 | Stream | Theme                 | Chain                                              | Note                                                                                             |
 | ------ | --------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| A      | Access & identity     | `F-01` → `F-02` → `S-01` → `S-02` → `S-04` → `S-13` | The spine — everything hangs off an approved account. `S-04` adds the third role the scheduling stream needs. |
+| A      | Access & identity     | `F-01` → `F-02` → `S-01` → `S-02` → `S-04` → `S-13` → `S-14` | The spine. Through M-1 everything hung off an approved account; `S-14` is where that stops being true and a member outlives the login. |
 | B      | Notification delivery | `F-03` → `S-09`                                    | Carries the north star; `S-09` joins Stream C at `S-08`, which produces the bookings to notify against. |
 | C      | Scheduling & booking  | `S-03` → `S-05` → `S-06` → `S-07` → `S-08` → `S-12` | The longest chain and the milestone's critical path; `S-12` also joins from Stream D at `S-11`.  |
 | D      | Training domain       | `S-10` → `S-11`                                    | Independent bounded context — a separate agent run can build it alongside the whole of Stream C. |
@@ -295,6 +332,27 @@ What's already in place in the codebase as of `2026-09-02` (auto-researched + us
   registration, which touches the schema and every account created before this slice.
 - **Status:** done
 
+### S-14: A member without an account
+
+- **Outcome:** the admin creates a member record for someone who has never registered, edits and
+  blocks it, assigns them a training plan and books them into a class; the admin issues a single-use
+  code, and the person registers with it and lands on that record — their existing bookings and their
+  active plan already there.
+- **Change ID:** member-entity-and-accountless-members
+- **PRD refs:** M-2 AM-001, AM-002, AM-003, AM-004, AM-005, AM-006
+- **Prerequisites:** S-02 (the member list this extends), S-08 (bookings), S-11 (plans), S-13 (contact details)
+- **Parallel with:** — (it re-points the FKs every other context reads through)
+- **Blockers:** —
+- **Unknowns:** whether an instructor should eventually be allowed to have no account. Represented by
+  the schema after this slice, deliberately still refused by it — see Open Roadmap Question 3.
+- **Risk:** the highest of any slice so far, and structural rather than local. It splits the entity
+  every other bounded context points at, so it moves four foreign keys, and it puts a second claim
+  into the authorization contract — an account left without a member record would fail every policy,
+  including `Admin`, which is how a club locks itself out of its own app. Sequenced expand/contract
+  across releases because CI applies migrations before the artifact ships, so the previous artifact
+  must keep running against the new schema.
+- **Status:** planned
+
 ## Backlog Handoff
 
 | Roadmap ID | Change ID                        | Suggested issue title                                        | Ready for `/10x-plan` | Notes                                              |
@@ -315,12 +373,13 @@ What's already in place in the codebase as of `2026-09-02` (auto-researched + us
 | S-11       | training-plans                   | Training plan creation, assignment, and member view          | no                    | Done — archived 2026-09-06                          |
 | S-12       | member-and-admin-dashboards      | Member and admin dashboards                                  | no                    | Needs S-01, S-07, S-08, S-11                        |
 | S-13       | member-profile-edit              | Member profile, password change, and password reset          | no                    | Done — archived 2026-09-06                          |
+| S-14       | member-entity-and-accountless-members | Member entity split from the account; accountless members and the claim code | yes                   | M-2's only slice; plan approved 2026-09-07          |
 
 ## Open Roadmap Questions
 
 1. **What happens to a blocked member's existing bookings and assigned plan?** — Owner: user. RESOLVED. The booking half was answered by S-08 (cascade-cancel active future bookings). The plan half was answered during S-11 planning on 2026-09-04: the assigned plan is left untouched. (v1 Open Question 1, v2 Open Question 5.)
 2. **Who enters the initial exercise library content, and when?** — Owner: user. Block: none directly, but S-11 delivers no real value until dozens of exercises exist. (v1 Open Question 2, v2 Open Question 6.)
-3. **A guest instructor without an account runs one class — what then?** — Owner: user. Block: none; S-06 ships with the case unsupported. (v2 Open Question 1.)
+3. **A guest instructor without an account runs one class — what then?** — Owner: user. Block: none; S-06 shipped with the case unsupported and S-14 keeps refusing it. S-14 does make it *representable* — the instructor foreign key moves onto `Member`, so a record with no account can hold the slot — but the `Trainer` role lives in Identity and an accountless record can hold none, so the validation still requires an active account. Closing this is now one column and one branch, not a schema change. (v2 Open Question 1.)
 4. **How dense can the full-week view get before it stops working?** — Owner: user. Block: none; a design-time check inside S-07. (v2 Open Question 2.)
 5. **What does a trainer eventually see after signing in?** — Owner: user. Block: none — explicitly out of scope for this milestone; the additive role model keeps the path open. (v2 Open Question 3.)
 6. **Is best-effort push acceptable on recent iOS, with a home-screen install required and email as the guaranteed channel?** — Owner: user. Block: none; sets S-09's acceptance bar.
@@ -351,7 +410,16 @@ Resolved since the previous roadmap: the sender-domain question that gated F-03 
 
 ## Milestone History
 
-(Append-only. Empty on the first milestone.)
+(Append-only.)
+
+- **M-1: First usable MVP** — seq 1, opened 2026-08-31, closed 2026-09-07. Delivered F-01–F-03 and
+  S-01–S-13: registration with admin approval, member management, the class-type/occurrence model with
+  a calendar, booking and cancellation under a no-overbooking guarantee, email + push notification on
+  class changes, the exercise library, training plans, member profile editing, and both dashboards.
+  Closed with every F-NN and S-NN `done` and its "Done when" satisfied. Mid-milestone it absorbed
+  `prd-v2` (class types, the Trainer role, the room's removal, the calendar) rather than opening a
+  milestone for it, because that change restructured how M-1's own slices were built without altering
+  its intent.
 
 ## Done
 

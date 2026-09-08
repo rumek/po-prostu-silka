@@ -1,5 +1,8 @@
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using po_prostu_silka.Domain;
+using po_prostu_silka.Domain.Members;
+using po_prostu_silka.Infrastructure.Persistence;
 
 namespace po_prostu_silka.Infrastructure.Identity;
 
@@ -50,6 +53,13 @@ public static class AdminSeeder
         {
             // Deliberately does NOT reset the password. If it did, rotating the admin credential
             // would be silently reverted on the next App Service recycle.
+            //
+            // The member record IS still ensured, on every start, even though the account is untouched.
+            // That is not belt-and-braces: an admin without one fails the membership claim and loses the
+            // Admin policy, which locks the club out of its own app, and the account existing is exactly
+            // the case where nothing else would create it.
+            await EnsureMemberAsync(services, existing, logger);
+
             logger.LogInformation("Admin account already present; seeding skipped.");
             return;
         }
@@ -76,6 +86,60 @@ public static class AdminSeeder
         }
 
         await userManager.AddToRoleAsync(admin, ApplicationRoles.Admin);
+        await EnsureMemberAsync(services, admin, logger);
         logger.LogInformation("Seeded admin account.");
+    }
+
+    /// <summary>
+    /// Gives an account the club record every account must have (S-14), if it does not have one.
+    ///
+    /// <para>
+    /// ONE OF THREE PRODUCERS, and the one that covers the account nothing else creates. The others are
+    /// the backfill in the AddMembers migration (every account that predates the split) and
+    /// AuthEndpoints.RegisterAsync (every account created since). Together they are what makes "an
+    /// account with no member" unreachable — which matters because the membership claim refuses such an
+    /// account everywhere, the Admin policy included.
+    /// </para>
+    ///
+    /// <para>
+    /// Idempotent by the same rule the rest of this class follows: guarded on "does this account have a
+    /// member", never on "is the table empty".
+    /// </para>
+    /// </summary>
+    private static async Task EnsureMemberAsync(
+        IServiceProvider services,
+        ApplicationUser user,
+        ILogger logger)
+    {
+        var db = services.GetRequiredService<AppDbContext>();
+
+        // Seeks IX_Members_UserId.
+        if (await db.Members.AnyAsync(m => m.UserId == user.Id))
+        {
+            return;
+        }
+
+        db.Members.Add(new Member
+        {
+            Id = Guid.NewGuid(),
+            UserId = user.Id,
+            DisplayName = user.DisplayName,
+            Email = user.Email,
+            PhoneNumber = user.PhoneNumber,
+            Street = user.Street,
+            HouseNumber = user.HouseNumber,
+            PostalCode = user.PostalCode,
+            City = user.City,
+
+            // Active regardless of the account's status, for the reason the migration's backfill gives:
+            // Pending is a fact about a login awaiting approval and stays on the account. An admin is
+            // seeded Active anyway.
+            Status = MembershipStatus.Active,
+            CreatedAt = user.CreatedAt,
+            ClaimedAt = user.CreatedAt,
+        });
+
+        await db.SaveChangesAsync();
+        logger.LogInformation("Seeded the member record for the admin account.");
     }
 }
