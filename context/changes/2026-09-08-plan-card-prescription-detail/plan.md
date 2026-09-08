@@ -535,13 +535,13 @@ of reversing an additive column and should be stated in the migration's doc comm
 
 #### Automated
 
-- [x] 3.1 Frontend unit tests pass: `npm test` from `src/app/`
-- [x] 3.2 Formatting and linting pass: `npm run quality:check` from `src/app/`
-- [x] 3.3 Production build stays inside the initial-bundle budget: `npm run build` from `src/app/`
+- [x] 3.1 Frontend unit tests pass: `npm test` from `src/app/` — 94f6218
+- [x] 3.2 Formatting and linting pass: `npm run quality:check` from `src/app/` — 94f6218
+- [x] 3.3 Production build stays inside the initial-bundle budget: `npm run build` from `src/app/` — 94f6218
 
 #### Manual
 
-- [x] 3.4 The card reads cleanly at phone width
-- [x] 3.5 The info icon opens the right exercise's description
-- [x] 3.6 A duration-only prescription shows its duration
-- [x] 3.7 The note is visually distinct from the parameters
+- [x] 3.4 The card reads cleanly at phone width — 94f6218
+- [x] 3.5 The info icon opens the right exercise's description — 94f6218
+- [x] 3.6 A duration-only prescription shows its duration — 94f6218
+- [x] 3.7 The note is visually distinct from the parameters — 94f6218
