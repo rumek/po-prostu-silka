@@ -3,6 +3,7 @@ import { RouterLink } from '@angular/router';
 import { TrainingPlanService } from '../../core/training/training-plan.service';
 import { TrainingPlanDetail, TrainingPlanItemView } from '../../core/training/training-plan.models';
 import { PlanSummary } from '../../shared/plan-summary/plan-summary';
+import { Icon } from '../../shared/icons/icon';
 
 /**
  * The member's own training plan (prd.md FR-017).
@@ -20,7 +21,7 @@ import { PlanSummary } from '../../shared/plan-summary/plan-summary';
  * four empty labels would make it look broken.
  */
 @Component({
-  imports: [PlanSummary, RouterLink],
+  imports: [PlanSummary, RouterLink, Icon],
   selector: 'app-my-plan',
   styleUrl: './my-plan.scss',
   templateUrl: './my-plan.html',
@@ -60,7 +61,10 @@ export class MyPlan implements OnInit {
       item.sets !== null ||
       item.reps !== null ||
       item.weightKg !== null ||
-      item.restSeconds !== null
+      item.restSeconds !== null ||
+      // S-15. Miss this and a plank prescribed with ONLY a duration renders a card with a name and
+      // nothing else — the exact case the column was added for, failing silently.
+      item.durationSeconds !== null
     );
   }
 }

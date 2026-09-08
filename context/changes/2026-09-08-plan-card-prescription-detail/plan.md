@@ -296,6 +296,22 @@ after the `Przerwa (s)` field (:153-158) and following that field's markup exact
 **Contract**: A duration loaded from an existing plan appears in the control; a submitted plan carries
 `durationSeconds` in its payload; a blank field submits `null` rather than `0` or `NaN`.
 
+**Adapted during implementation (Phase 2).**
+
+- **The bounds convention is a QUADRUPLE, not a triple.** The plan named three places — server
+  constant, Angular validator, failure message. There is a fourth: `TrainingPlanFailureReason` in
+  `training-plan.models.ts` is a typed union of every reason string, and `tsc` refused
+  `invalid_duration` in the switch until it was added there. The compiler caught it; a plan that
+  only listed three would not have.
+- **`my-plan.spec.ts` fixtures were widened HERE, not in Phase 3.** Adding two required fields to
+  `TrainingPlanItemView` stopped that suite typechecking the moment the models changed, so Phase 2
+  could not be independently green without touching a Phase 3 file. Two `null`s and one muscle
+  group; no behaviour, and Phase 3 builds on them.
+- **Two shell specs unrelated to this slice were red on arrival** — `app.spec.ts` and
+  `bottom-nav.spec.ts`, stale since commit `529520f "UI fixes"` changed the brand to an image and
+  gave the nav tabs visible labels. They were fixed under a separate `fix(ui)` commit (`032ecdd`)
+  rather than folded into this phase, so the slice's history stays about the slice.
+
 ### Success Criteria:
 
 #### Automated Verification:
@@ -391,6 +407,20 @@ component's `imports`.
 renders in the parameter list; **a prescription carrying only a duration still renders its parameter
 list** (the `hasParameters` regression); the info anchor carries the exercise route and an
 exercise-specific accessible name; the note renders inside the callout with its icon.
+
+**Adapted during implementation (Phase 3).**
+
+- **The note callout's background is derived from `--ink`, not a new token.** The first pass reached
+  for `--surface-2` / `--radius-2`; neither exists. `styles.scss` builds `--line` and `--muted` with
+  `color-mix(... var(--ink) N%)` under a stated rule that the page "never picks up a grey that is
+  not part of the identity", so the callout follows it and uses `--radius-sm`.
+- **`itemNames()` in the spec now reads `.my-plan-name`.** It selected `.my-plan-link`, which this
+  phase deletes; two existing tests depended on it.
+- **Phone width was verified by constraining the container, not by resizing the window.** The
+  browser window is maximised at 2560 px and `resize_window` had no effect on it. The card carries
+  no media queries — its layout is pure flex — so the container was narrowed to 360 px, giving a
+  288 px card, narrower than any phone. Recorded because it is a substitute for the stated check,
+  not the check itself.
 
 ### Success Criteria:
 
@@ -492,26 +522,26 @@ of reversing an additive column and should be stated in the migration's doc comm
 
 #### Automated
 
-- [x] 2.1 Frontend unit tests pass: `npm test` from `src/app/`
-- [x] 2.2 Formatting and linting pass: `npm run quality:check` from `src/app/`
-- [x] 2.3 Production build succeeds within budget: `npm run build` from `src/app/`
+- [x] 2.1 Frontend unit tests pass: `npm test` from `src/app/` — ef03739
+- [x] 2.2 Formatting and linting pass: `npm run quality:check` from `src/app/` — ef03739
+- [x] 2.3 Production build succeeds within budget: `npm run build` from `src/app/` — ef03739
 
 #### Manual
 
-- [x] 2.4 A duration saves and reopens intact
-- [x] 2.5 A blank duration saves as no duration, not a zero
+- [x] 2.4 A duration saves and reopens intact — ef03739
+- [x] 2.5 A blank duration saves as no duration, not a zero — ef03739
 
 ### Phase 3: The member's card carries the whole prescription
 
 #### Automated
 
-- [ ] 3.1 Frontend unit tests pass: `npm test` from `src/app/`
-- [ ] 3.2 Formatting and linting pass: `npm run quality:check` from `src/app/`
-- [ ] 3.3 Production build stays inside the initial-bundle budget: `npm run build` from `src/app/`
+- [x] 3.1 Frontend unit tests pass: `npm test` from `src/app/`
+- [x] 3.2 Formatting and linting pass: `npm run quality:check` from `src/app/`
+- [x] 3.3 Production build stays inside the initial-bundle budget: `npm run build` from `src/app/`
 
 #### Manual
 
-- [ ] 3.4 The card reads cleanly at phone width
-- [ ] 3.5 The info icon opens the right exercise's description
-- [ ] 3.6 A duration-only prescription shows its duration
-- [ ] 3.7 The note is visually distinct from the parameters
+- [x] 3.4 The card reads cleanly at phone width
+- [x] 3.5 The info icon opens the right exercise's description
+- [x] 3.6 A duration-only prescription shows its duration
+- [x] 3.7 The note is visually distinct from the parameters

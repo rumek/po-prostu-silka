@@ -17,9 +17,24 @@
   <ol class="my-plan-items">
     @for (item of row.items; track item.id) {
       <li class="card my-plan-item">
-        <a class="my-plan-link" [routerLink]="['/my-plan/exercises', item.exerciseId]">
-          {{ item.exerciseName }}
-        </a>
+        <div class="my-plan-heading">
+          <p class="my-plan-name">{{ item.exerciseName }}</p>
+
+          <!-- The name is text; the NAVIGATION is this control. Icon-only, so it names itself, and
+               it names the exercise rather than saying "Opis ćwiczenia" ten times over — a screen
+               reader listing the links would otherwise read ten identical entries. -->
+          <a
+            class="my-plan-info"
+            [routerLink]="['/my-plan/exercises', item.exerciseId]"
+            [attr.aria-label]="'Opis ćwiczenia: ' + item.exerciseName"
+          >
+            <app-icon name="info" />
+          </a>
+        </div>
+
+        @if (item.muscleGroup) {
+          <p class="my-plan-muscle">{{ item.muscleGroup }}</p>
+        }
 
         @if (hasParameters(item)) {
           <ul class="my-plan-params">
@@ -32,6 +47,9 @@
             @if (item.weightKg !== null) {
               <li><span class="my-plan-label">Ciężar</span>{{ item.weightKg }} kg</li>
             }
+            @if (item.durationSeconds !== null) {
+              <li><span class="my-plan-label">Czas</span>{{ item.durationSeconds }} s</li>
+            }
             @if (item.restSeconds !== null) {
               <li><span class="my-plan-label">Przerwa</span>{{ item.restSeconds }} s</li>
             }
@@ -39,7 +57,12 @@
         }
 
         @if (item.note) {
-          <p class="my-plan-note">{{ item.note }}</p>
+          <!-- Decorative here, unlike the icon above: the note's text IS the content, so an icon
+               that named itself would announce before every remark the trainer wrote. -->
+          <p class="my-plan-note">
+            <app-icon name="info" />
+            <span>{{ item.note }}</span>
+          </p>
         }
       </li>
     }

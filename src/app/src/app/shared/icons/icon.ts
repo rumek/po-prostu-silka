@@ -1,7 +1,7 @@
 import { Component, input } from '@angular/core';
 
 /** Every icon the app knows. Adding one means adding a case to the template, and nothing else. */
-export type IconName = 'home' | 'calendar' | 'booking' | 'plan' | 'more';
+export type IconName = 'home' | 'calendar' | 'booking' | 'plan' | 'more' | 'info';
 
 /**
  * The app's icon primitive — the first one this codebase has had.

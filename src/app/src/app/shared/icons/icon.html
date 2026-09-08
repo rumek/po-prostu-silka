@@ -30,6 +30,14 @@
     @case ('plan') {
       <path d="M6.5 6.5v11M3.5 9.5v5M17.5 6.5v11M20.5 9.5v5M6.5 12h11" />
     }
+    <!-- The only icon here used for two different jobs (S-15): it labels the trainer's note on the
+         plan card, and it is the whole of the control that opens an exercise's description. Both are
+         "there is more to read about this", which is why one glyph serves both. -->
+    @case ('info') {
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 11v5" />
+      <circle cx="12" cy="7.75" r="0.9" fill="currentColor" stroke="none" />
+    }
     @case ('more') {
       <circle cx="5" cy="12" r="1.25" fill="currentColor" stroke="none" />
       <circle cx="12" cy="12" r="1.25" fill="currentColor" stroke="none" />

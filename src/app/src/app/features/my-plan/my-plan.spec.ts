@@ -83,7 +83,7 @@ describe('MyPlan', () => {
   }
 
   function itemNames(): string[] {
-    return Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.my-plan-link')).map(
+    return Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.my-plan-name')).map(
       (el) => el.textContent?.trim() ?? '',
     );
   }
@@ -118,14 +118,70 @@ describe('MyPlan', () => {
     expect(rows[1].querySelector('.my-plan-params')).toBeNull();
   });
 
-  it('links each item to its exercise inside the plan', async () => {
+  /**
+   * The name is plain text and the INFO ICON carries the navigation (S-15). Icon-only, so the label
+   * names the exercise: ten links all reading "Opis ćwiczenia" would be useless in a screen
+   * reader's element list, which is the only place they are read apart from each other.
+   */
+  it('links each item to its exercise through a named info control', async () => {
     await createWith(PLAN);
 
-    const first = (fixture.nativeElement as HTMLElement).querySelector<HTMLAnchorElement>(
-      '.my-plan-link',
-    );
+    const root = fixture.nativeElement as HTMLElement;
+    const info = root.querySelector<HTMLAnchorElement>('.my-plan-info');
 
-    expect(first!.getAttribute('href')).toBe('/my-plan/exercises/e1');
+    expect(info!.getAttribute('href')).toBe('/my-plan/exercises/e1');
+    expect(info!.getAttribute('aria-label')).toBe('Opis ćwiczenia: Przysiad ze sztangą');
+
+    // The name itself is no longer a link.
+    expect(root.querySelector('.my-plan-name')!.tagName).not.toBe('A');
+  });
+
+  /**
+   * The muscle group is a fact about the exercise, so it renders when the library carries one and is
+   * ABSENT from the DOM when it does not — not an empty line. The fixture's second item has none.
+   */
+  it('shows the muscle group only when the exercise has one', async () => {
+    await createWith(PLAN);
+
+    const rows = (fixture.nativeElement as HTMLElement).querySelectorAll('.my-plan-item');
+
+    expect(rows[0].querySelector('.my-plan-muscle')!.textContent!.trim()).toBe('Nogi');
+    expect(rows[1].querySelector('.my-plan-muscle')).toBeNull();
+  });
+
+  /**
+   * THE REGRESSION THIS PHASE IS MOST LIKELY TO SHIP. The whole parameter list sits behind
+   * hasParameters(); a plank prescribed with ONLY a duration is the case the column was added for,
+   * and if the guard does not know about duration the card renders a name and nothing else — with
+   * no error anywhere.
+   */
+  it('renders the parameter list for a prescription carrying only a duration', async () => {
+    await createWith({
+      ...PLAN,
+      items: [
+        {
+          ...PLAN.items[1],
+          exerciseName: 'Deska',
+          durationSeconds: 45,
+        },
+      ],
+    });
+
+    const params = (fixture.nativeElement as HTMLElement).querySelectorAll('.my-plan-params li');
+
+    expect(params).toHaveLength(1);
+    expect(params[0].textContent).toContain('45');
+    expect(html()).toContain('Czas');
+  });
+
+  /** The note is set off as a callout with its own icon, rather than reading as one more number. */
+  it('renders the trainer note as a callout with an icon', async () => {
+    await createWith(PLAN);
+
+    const note = (fixture.nativeElement as HTMLElement).querySelector('.my-plan-note');
+
+    expect(note!.querySelector('app-icon')).not.toBeNull();
+    expect(note!.querySelector('span')!.textContent).toBe('Kolana na zewnątrz.');
   });
 
   /**

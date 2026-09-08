@@ -21,13 +21,38 @@ app-plan-summary {
   padding: var(--space-5);
 }
 
-// The whole exercise name is the link, sized as a real target: this is read between sets, often
-// one-handed, and a small tap area is the difference between usable and not.
-.my-plan-link {
-  display: inline-block;
-  padding: var(--space-1) 0;
+// The name is TEXT now, and the navigation moved to the icon beside it (S-15). Until then the whole
+// name was the link, deliberately sized as a large target because this screen is read between sets,
+// often one-handed. That trade was reversed knowingly: the icon is a smaller target than the name
+// was, and it was chosen at its natural size rather than padded out to 44x44. If it proves awkward
+// in real one-handed use, padding on .my-plan-info is the whole fix — no markup change.
+.my-plan-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.my-plan-name {
+  margin: 0;
   font-weight: 600;
   overflow-wrap: anywhere;
+}
+
+.my-plan-info {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-self: center;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+// A fact about the exercise, not part of the prescription — so it sits under the name rather than
+// among the numbers the trainer chose, and borrows the parameter labels' size and colour.
+.my-plan-muscle {
+  margin: var(--space-1) 0 0;
+  color: var(--muted);
+  font-size: 0.8125rem;
 }
 
 .my-plan-params {
@@ -45,11 +70,33 @@ app-plan-summary {
   font-size: 0.8125rem;
 }
 
+// A callout, so the trainer's remark stops reading as a continuation of the numbers above it. The
+// icon is aligned to the first line rather than centred: a three-line note with a centred icon
+// points at nothing in particular.
 .my-plan-note {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
   margin: var(--space-3) 0 0;
-  // Preserves the line breaks the trainer typed, like exercise-detail's prose sections.
-  white-space: pre-line;
-  overflow-wrap: anywhere;
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  // Derived from --ink like --line and --muted are, so the callout does not introduce a grey that
+  // is not part of the identity.
+  background: color-mix(in srgb, var(--ink) 5%, transparent);
+
+  app-icon {
+    flex-shrink: 0;
+    color: var(--muted);
+    font-size: 0.875rem;
+    // Nudges the 1.5em glyph onto the first line's optical centre.
+    margin-top: 0.1em;
+  }
+
+  span {
+    // Preserves the line breaks the trainer typed, like exercise-detail's prose sections.
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+  }
 }
 
 .empty {
