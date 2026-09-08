@@ -46,14 +46,34 @@ public class Booking
     /// </summary>
     public Class Class { get; set; } = null!;
 
-    /// <summary>Who holds the spot. Identity's default string key, like <see cref="Class.InstructorUserId"/>.</summary>
+    /// <summary>
+    /// Who holds the spot, as an ACCOUNT id.
+    ///
+    /// <para>
+    /// BEING REPLACED BY <see cref="MemberId"/> (S-14) and written in parallel with it for one
+    /// release. Do not add new readers: a spot belongs to a person, and since S-14 a person may have
+    /// no account for this column to name. The reads move first, then this column goes.
+    /// </para>
+    /// </summary>
     public string MemberUserId { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Who holds the spot (S-14). Nullable only for the length of the transition — the column is made
+    /// required once every row has one and no code writes the old one any more.
+    /// </summary>
+    public Guid? MemberId { get; set; }
 
     /// <summary>
     /// The member's account. READ SIDE ONLY — it exists so the admin's booking list can project
     /// <c>DisplayName</c> and <c>Email</c> in one statement.
     /// </summary>
-    public ApplicationUser Member { get; set; } = null!;
+    public ApplicationUser MemberAccount { get; set; } = null!;
+
+    /// <summary>
+    /// The member. READ SIDE ONLY, same contract as <see cref="MemberAccount"/>, which it replaces as
+    /// the projections move over.
+    /// </summary>
+    public Domain.Members.Member? Member { get; set; }
 
     /// <summary>
     /// Whether this booking still holds the spot. Only <see cref="BookingStatus.Active"/> counts

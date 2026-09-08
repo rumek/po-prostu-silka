@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Identity;
+using po_prostu_silka.Application.Members;
 using po_prostu_silka.Application.Persistence;
 using po_prostu_silka.Domain;
 using po_prostu_silka.Domain.Training;
@@ -294,6 +295,7 @@ public static class TrainingPlanEndpoints
         UserManager<ApplicationUser> userManager,
         ITrainingPlanQuery query,
         ITrainingPlanStore store,
+        IMemberStore members,
         IUnitOfWork unitOfWork,
         TimeProvider timeProvider,
         CancellationToken cancellationToken)
@@ -347,6 +349,12 @@ public static class TrainingPlanEndpoints
                 Name = request.Name.Trim(),
                 MemberUserId = memberUserId,
                 AssignedByUserId = authorUserId,
+
+                // Written beside the account keys for one release (S-14). The ASSIGNEE is resolved
+                // from the account the request names, because the request still speaks account ids;
+                // the AUTHOR comes from the cookie, like every other identity in this file.
+                MemberId = (await members.FindByUserIdAsync(memberUserId, cancellationToken))?.Id,
+                AssignedByMemberId = principal.GetMemberId(),
                 Status = TrainingPlanStatus.Active,
                 CreatedAt = now,
                 Items = BuildItems(request),

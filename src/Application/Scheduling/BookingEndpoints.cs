@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Identity;
+using po_prostu_silka.Application.Members;
 using po_prostu_silka.Application.Persistence;
 using po_prostu_silka.Domain;
 using po_prostu_silka.Domain.Scheduling;
@@ -189,6 +190,12 @@ public static class BookingEndpoints
             return Results.Unauthorized();
         }
 
+        // BOTH IDS, and both from the cookie — never from the body. The member id is what the booking
+        // will key on once the reads move; until then it is written beside the account id so that a
+        // rollback to the previous artifact still finds a populated column, which is the whole point
+        // of the parallel write.
+        var memberId = principal.GetMemberId();
+
         for (var attempt = 1; attempt <= MaxAttempts; attempt++)
         {
             var entity = await classes.FindAsync(classId, cancellationToken);
@@ -230,6 +237,7 @@ public static class BookingEndpoints
                 Id = Guid.NewGuid(),
                 ClassId = entity.Id,
                 MemberUserId = memberUserId,
+                MemberId = memberId,
                 Status = BookingStatus.Active,
                 CreatedAt = now,
             });
@@ -256,7 +264,7 @@ public static class BookingEndpoints
                 // window makes the number one too low - never too high - so it can only understate
                 // the spots available, which is the direction that cannot overbook.
                 return Results.Ok(ClassEndpoints.ToDto(
-                    entity, entity.ClassType, entity.Instructor, bookedCount + 1));
+                    entity, entity.ClassType, entity.InstructorAccount, bookedCount + 1));
             }
 
             // ConcurrencyConflict: someone else's booking or cancellation rotated the stamp first.
@@ -331,7 +339,7 @@ public static class BookingEndpoints
                 // same single exception, the block cascade, whose effect can only be to free further
                 // spots this number does not yet know about.
                 return Results.Ok(ClassEndpoints.ToDto(
-                    entity, entity.ClassType, entity.Instructor, bookedCount - 1));
+                    entity, entity.ClassType, entity.InstructorAccount, bookedCount - 1));
             }
 
             unitOfWork.DiscardChanges();

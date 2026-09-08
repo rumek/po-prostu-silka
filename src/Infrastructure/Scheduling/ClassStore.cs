@@ -30,7 +30,7 @@ public class ClassStore(AppDbContext db) : IClassStore
         // projections.
         await db.Classes
             .Include(c => c.ClassType)
-            .Include(c => c.Instructor)
+            .Include(c => c.InstructorAccount)
             .FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
 
     public void Add(Class entity) => db.Classes.Add(entity);

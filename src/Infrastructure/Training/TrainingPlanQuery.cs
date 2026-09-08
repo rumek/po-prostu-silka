@@ -17,13 +17,13 @@ public class TrainingPlanQuery(AppDbContext db) : ITrainingPlanQuery
         await db.TrainingPlans
             .AsNoTracking()
             .Where(x => x.Status == TrainingPlanStatus.Active)
-            .OrderBy(x => x.Member.DisplayName)
+            .OrderBy(x => x.MemberAccount.DisplayName)
             .Select(x => new TrainingPlanSummary(
                 x.Id,
                 x.Name,
                 x.MemberUserId,
-                x.Member.DisplayName,
-                x.AssignedBy.DisplayName,
+                x.MemberAccount.DisplayName,
+                x.AssignedByAccount.DisplayName,
                 x.CreatedAt,
                 // A correlated count rather than loading the items to measure them - the list renders
                 // a number, not the rows.
@@ -107,8 +107,8 @@ public class TrainingPlanQuery(AppDbContext db) : ITrainingPlanQuery
                 x.Id,
                 x.Name,
                 x.MemberUserId,
-                x.Member.DisplayName,
-                x.AssignedBy.DisplayName,
+                x.MemberAccount.DisplayName,
+                x.AssignedByAccount.DisplayName,
                 x.CreatedAt,
                 x.Items
                     .OrderBy(i => i.Position)

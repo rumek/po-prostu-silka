@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 using po_prostu_silka.Application.Notifications;
+using po_prostu_silka.Application.Members;
 using po_prostu_silka.Application.Persistence;
 using po_prostu_silka.Domain;
 using po_prostu_silka.Domain.Scheduling;
@@ -379,7 +380,7 @@ public static class ClassEndpoints
             : Results.Ok(ToDto(
                 found,
                 found.ClassType,
-                found.Instructor,
+                found.InstructorAccount,
                 await bookings.CountActiveAsync(id, cancellationToken)));
     }
 
@@ -388,6 +389,7 @@ public static class ClassEndpoints
         IClassStore store,
         IClassTypeStore classTypes,
         UserManager<ApplicationUser> userManager,
+        IMemberStore members,
         IUnitOfWork unitOfWork,
         TimeProvider timeProvider,
         CancellationToken cancellationToken)
@@ -422,8 +424,9 @@ public static class ClassEndpoints
             return Results.Json(new ClassFailure("inactive_class_type"), statusCode: 400);
         }
 
-        var (instructorFailure, instructor) =
-            await ValidateInstructorAsync(request.InstructorUserId, userManager);
+        var (instructorFailure, instructor, instructorMemberId) =
+            await ValidateInstructorAsync(
+                request.InstructorUserId, userManager, members, cancellationToken);
         if (instructorFailure is not null)
         {
             return instructorFailure;
@@ -450,6 +453,7 @@ public static class ClassEndpoints
             Capacity = request.Capacity,
 
             InstructorUserId = request.InstructorUserId,
+            InstructorMemberId = instructorMemberId,
             Status = ClassStatus.Scheduled,
             CreatedAt = now,
         };
@@ -477,6 +481,7 @@ public static class ClassEndpoints
         IBookingQuery bookingQuery,
         IClassChangeNotification notification,
         UserManager<ApplicationUser> userManager,
+        IMemberStore members,
         IUnitOfWork unitOfWork,
         CancellationToken cancellationToken)
     {
@@ -497,7 +502,7 @@ public static class ClassEndpoints
             existing.ClassType.Name,
             existing.StartsAt,
             existing.DurationMinutes,
-            existing.Instructor.DisplayName);
+            existing.InstructorAccount.DisplayName);
 
         var previousInstructorUserId = existing.InstructorUserId;
 
@@ -520,8 +525,9 @@ public static class ClassEndpoints
 
         // The instructor, unlike the type, IS mutable - reassigning a class to another trainer is
         // ordinary admin work - so it is re-validated on every edit.
-        var (instructorFailure, instructor) =
-            await ValidateInstructorAsync(request.InstructorUserId, userManager);
+        var (instructorFailure, instructor, instructorMemberId) =
+            await ValidateInstructorAsync(
+                request.InstructorUserId, userManager, members, cancellationToken);
         if (instructorFailure is not null)
         {
             return instructorFailure;
@@ -554,6 +560,7 @@ public static class ClassEndpoints
         existing.DurationMinutes = request.DurationMinutes;
         existing.Capacity = request.Capacity;
         existing.InstructorUserId = request.InstructorUserId;
+        existing.InstructorMemberId = instructorMemberId;
 
         // AND THIS EDIT ROTATES THE STAMP TOO. IsConcurrencyToken only puts the column in the WHERE
         // clause; it does not generate a new value the way a SQL rowversion would. So without this
@@ -581,7 +588,7 @@ public static class ClassEndpoints
         //
         // The instructor is compared on the ID, not the display name — the id is what the admin
         // changed, and two trainers may share a name. The NAME for the message comes from the
-        // account ValidateInstructorAsync already resolved, never from existing.Instructor, which
+        // account ValidateInstructorAsync already resolved, never from existing.InstructorAccount, which
         // still points at the previous account.
         var current = new ClassDescription(
             existing.ClassType.Name,
@@ -762,7 +769,7 @@ public static class ClassEndpoints
                 // From the tracked entity's navigation, which is correct HERE and would not be on the
                 // edit path: this handler changes no instructor, so FindAsync's Instructor is still
                 // the class's own.
-                existing.Instructor.DisplayName),
+                existing.InstructorAccount.DisplayName),
             recipients,
             cancellationToken);
 
@@ -780,7 +787,7 @@ public static class ClassEndpoints
         // tile from the response. The recipient count IS the active booking count as of the commit:
         // the save succeeded, so no booking write landed in between — any that had tried would have
         // rotated the stamp and taken this save down with it.
-        return Results.Ok(ToDto(existing, existing.ClassType, existing.Instructor, recipients.Count));
+        return Results.Ok(ToDto(existing, existing.ClassType, existing.InstructorAccount, recipients.Count));
     }
 
     /// <summary>
@@ -849,6 +856,7 @@ public static class ClassEndpoints
                 StartsAt = startsAt,
                 DurationMinutes = source.DurationMinutes,
                 InstructorUserId = source.InstructorUserId,
+                InstructorMemberId = source.InstructorMemberId,
                 Capacity = source.Capacity,
                 Status = ClassStatus.Scheduled,
                 CreatedAt = now,
@@ -927,23 +935,35 @@ public static class ClassEndpoints
     /// <c>Failure</c> set and <c>Instructor</c> null when the account may not be assigned; the
     /// reverse when it may. Exactly one of the two is ever non-null.
     /// </returns>
-    private static async Task<(IResult? Failure, ApplicationUser? Instructor)> ValidateInstructorAsync(
-        string instructorUserId,
-        UserManager<ApplicationUser> userManager)
+    private static async Task<(IResult? Failure, ApplicationUser? Instructor, Guid? MemberId)>
+        ValidateInstructorAsync(
+            string instructorUserId,
+            UserManager<ApplicationUser> userManager,
+            IMemberStore members,
+            CancellationToken cancellationToken)
     {
         var instructor = await userManager.FindByIdAsync(instructorUserId);
 
         if (instructor is null || instructor.Status != AccountStatus.Active)
         {
-            return (Results.Json(new ClassFailure("unknown_instructor"), statusCode: 400), null);
+            return (Results.Json(new ClassFailure("unknown_instructor"), statusCode: 400), null, null);
         }
 
         if (!await userManager.IsInRoleAsync(instructor, ApplicationRoles.Trainer))
         {
-            return (Results.Json(new ClassFailure("instructor_not_trainer"), statusCode: 400), null);
+            return (Results.Json(new ClassFailure("instructor_not_trainer"), statusCode: 400), null, null);
         }
 
-        return (null, instructor);
+        // The member behind the account, so the write paths can populate the key that is replacing
+        // InstructorUserId (S-14) without a second lookup each.
+        //
+        // THE RULE ITSELF IS UNCHANGED: an instructor must still hold an active account with the
+        // Trainer role. Moving the foreign key makes an accountless instructor representable, not
+        // permitted — roles live in Identity, and closing roadmap Open Question 3 is a later,
+        // deliberate decision rather than a side effect of this migration.
+        var member = await members.FindByUserIdAsync(instructor.Id, cancellationToken);
+
+        return (null, instructor, member?.Id);
     }
 
     /// <summary>

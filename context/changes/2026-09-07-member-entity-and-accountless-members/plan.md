@@ -196,6 +196,26 @@ Entities and configurations gain the new properties while keeping the old. Write
 columns; reads still use the old ones. Wire contracts are unchanged, so the SPA is untouched. This
 phase exists solely so rollback across Phase 5 is safe.
 
+**Adapted during implementation (Phase 4).**
+
+- **The read-side navigations were renamed, not left alone.** `Booking.Member`, `TrainingPlan.Member`
+  / `AssignedBy` and `Class.Instructor` became `MemberAccount` / `AssignedByAccount` /
+  `InstructorAccount`, and the new names now hold the `Member` navigations. This was forced: both
+  entities carry a `DisplayName`, so leaving the old names on the new type let every projection
+  compile while silently reading from the wrong table. The compiler could not catch it and the tests
+  would not have either until the data diverged.
+- **`ClaimsPrincipalExtensions.GetMemberId` landed in Phase 4, not Phase 5.** The parallel write needs
+  the caller's member id at the same three places the reads will.
+- **`ValidateInstructorAsync` now returns the instructor's member id.** The alternative was a second
+  lookup per class write for a value the validation had already resolved. Its rule is unchanged — an
+  instructor still needs an active account holding Trainer.
+- **The backfill runs before the unique indexes are created**, which is ordering EF does not produce
+  on its own: an index built over a column that is still NULL everywhere sees every row as equal and
+  the CREATE fails.
+- **`DualWriteTests` was added and is deliberately temporary.** The parallel write is invisible —
+  nothing reads the new columns yet — so a path that forgot one would pass every other test in the
+  suite until the reads moved. The file says to delete it when the old columns go.
+
 ### Phase 5 — Reads flip to `MemberId`
 
 The principal already carries `member_id`, so add a `GetMemberId(this ClaimsPrincipal)` extension

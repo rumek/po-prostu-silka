@@ -36,10 +36,35 @@ public class BookingConfiguration : IEntityTypeConfiguration<Booking>
             .HasForeignKey(x => x.ClassId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        builder.HasOne(x => x.Member)
+        builder.HasOne(x => x.MemberAccount)
             .WithMany()
             .HasForeignKey(x => x.MemberUserId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        // S-14's replacement key. NULLABLE FOR NOW, and only for the length of the transition: the
+        // column is backfilled by the migration that adds it, written in parallel with MemberUserId
+        // by every write path, and made required once the reads have moved and the old column is
+        // gone. Restrict for the same reason the account key is - a booking is the evidence that
+        // someone signed up, and no delete may erase it silently.
+        builder.HasOne(x => x.Member)
+            .WithMany()
+            .HasForeignKey(x => x.MemberId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // The new-key twins of the two indexes above. Created ALONGSIDE them rather than replacing
+        // them, because the reads still use the old column for one release.
+        //
+        // "[MemberId] IS NOT NULL" is in the filter on top of the status term, and it has to be while
+        // the column is nullable: SQL Server treats NULLs as EQUAL for uniqueness, so without it the
+        // second row written by any code path that has not moved over yet would be rejected. Phase 8
+        // rebuilds this with the plain "[Status] = 0" filter once the column is NOT NULL.
+        builder.HasIndex(x => new { x.ClassId, x.MemberId })
+            .IsUnique()
+            .HasFilter("[Status] = 0 AND [MemberId] IS NOT NULL")
+            .HasDatabaseName("IX_Bookings_Class_MemberId_Active");
+
+        builder.HasIndex(x => new { x.MemberId, x.Status })
+            .HasDatabaseName("IX_Bookings_MemberId_Status");
 
         // FILTERED, not plain - the same shape and the same reasoning as IX_ClassTypes_Name_Active.
         // A member may hold at most ONE active booking per class, but cancelling must not hold the

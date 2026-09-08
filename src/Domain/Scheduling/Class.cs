@@ -148,6 +148,18 @@ public class Class
     public string InstructorUserId { get; set; } = string.Empty;
 
     /// <summary>
+    /// Who runs it, as a member (S-14). Nullable only for the length of the transition.
+    ///
+    /// <para>
+    /// Moving this key makes an accountless instructor REPRESENTABLE; it does not make one allowed.
+    /// The validation still requires an active account holding Trainer, because roles live in
+    /// Identity — see roadmap Open Question 3, which this brings within reach of one column and one
+    /// branch rather than a schema change.
+    /// </para>
+    /// </summary>
+    public Guid? InstructorMemberId { get; set; }
+
+    /// <summary>
     /// The instructor's account. READ SIDE ONLY, same contract as <see cref="ClassType"/>: it exists
     /// so the read queries can project <c>DisplayName</c> in one statement. Assignment goes through
     /// <see cref="InstructorUserId"/> after the endpoint has validated the role and status.
@@ -158,5 +170,8 @@ public class Class
     /// (an accepted risk of this slice). Validation happens on write, not on read.
     /// </para>
     /// </summary>
-    public ApplicationUser Instructor { get; set; } = null!;
+    public ApplicationUser InstructorAccount { get; set; } = null!;
+
+    /// <summary>The instructor. READ SIDE ONLY, replacing <see cref="InstructorAccount"/>.</summary>
+    public Domain.Members.Member? Instructor { get; set; }
 }

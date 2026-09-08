@@ -60,7 +60,7 @@ public class ClassScheduleQuery(AppDbContext db) : IClassScheduleQuery
                 c.StartsAt,
                 c.DurationMinutes,
                 c.InstructorUserId,
-                InstructorDisplayName = c.Instructor.DisplayName,
+                InstructorDisplayName = c.InstructorAccount.DisplayName,
                 c.Capacity,
                 c.Status,
 

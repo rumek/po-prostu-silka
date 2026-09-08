@@ -33,14 +33,26 @@ public class TrainingPlan
     /// </summary>
     public string Name { get; set; } = string.Empty;
 
-    /// <summary>Whose plan it is. Identity's default string key, like Booking.MemberUserId.</summary>
+    /// <summary>
+    /// Whose plan it is, as an ACCOUNT id. BEING REPLACED BY <see cref="MemberId"/> (S-14) and written
+    /// in parallel with it for one release — a plan belongs to a person, and since S-14 that person
+    /// may have no account.
+    /// </summary>
     public string MemberUserId { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Whose plan it is (S-14). Nullable only for the length of the transition.
+    /// </summary>
+    public Guid? MemberId { get; set; }
 
     /// <summary>
     /// The member's account. READ SIDE ONLY - it exists so the trainer's plan list can project
     /// <c>DisplayName</c> in one statement.
     /// </summary>
-    public ApplicationUser Member { get; set; } = null!;
+    public ApplicationUser MemberAccount { get; set; } = null!;
+
+    /// <summary>The member. READ SIDE ONLY, replacing <see cref="MemberAccount"/>.</summary>
+    public Domain.Members.Member? Member { get; set; }
 
     /// <summary>
     /// The trainer or admin who assigned it. Taken from the authenticated principal at write time,
@@ -55,8 +67,16 @@ public class TrainingPlan
     /// </summary>
     public string AssignedByUserId { get; set; } = string.Empty;
 
-    /// <summary>The author's account. READ SIDE ONLY, same contract as <see cref="Member"/>.</summary>
-    public ApplicationUser AssignedBy { get; set; } = null!;
+    /// <summary>
+    /// The author, as a member (S-14). Nullable only for the length of the transition.
+    /// </summary>
+    public Guid? AssignedByMemberId { get; set; }
+
+    /// <summary>The author's account. READ SIDE ONLY, same contract as <see cref="MemberAccount"/>.</summary>
+    public ApplicationUser AssignedByAccount { get; set; } = null!;
+
+    /// <summary>The author. READ SIDE ONLY, replacing <see cref="AssignedByAccount"/>.</summary>
+    public Domain.Members.Member? AssignedBy { get; set; }
 
     /// <summary>
     /// Whether this is the plan the member is following. Only <see cref="TrainingPlanStatus.Active"/>

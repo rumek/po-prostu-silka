@@ -78,12 +78,22 @@ public class ClassConfiguration : IEntityTypeConfiguration<Class>
         // be deletable out from under a scheduled class.
         builder.Property(x => x.InstructorUserId).IsRequired().HasMaxLength(450);
 
-        builder.HasOne(x => x.Instructor)
+        builder.HasOne(x => x.InstructorAccount)
             .WithMany()
             .HasForeignKey(x => x.InstructorUserId)
             .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasIndex(x => x.InstructorUserId)
             .HasDatabaseName("IX_Classes_InstructorUserId");
+
+        // S-14's replacement key, nullable for the length of the transition — see BookingConfiguration
+        // for the full shape of the swap.
+        builder.HasOne(x => x.Instructor)
+            .WithMany()
+            .HasForeignKey(x => x.InstructorMemberId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasIndex(x => x.InstructorMemberId)
+            .HasDatabaseName("IX_Classes_InstructorMemberId");
     }
 }
