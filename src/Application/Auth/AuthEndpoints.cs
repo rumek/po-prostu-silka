@@ -12,24 +12,27 @@ namespace po_prostu_silka.Application.Auth;
 public record LoginRequest(string Email, string Password);
 
 /// <summary>
-/// Registration input. The five contact fields land here with S-13 and are required: the columns
-/// behind them are nullable only so accounts created before that slice remain readable.
+/// Registration input. THREE FIELDS, and that is the whole slice (S-17, IR-04): an address to sign
+/// in with, a password, and the invitation code that says which member record this account attaches
+/// to.
+///
+/// <para>
+/// The display name, the phone number and the four address fields used to arrive here and no longer
+/// do. They come from the <see cref="Member"/> the code claims — the club entered that person into
+/// its records before handing the code over, so asking them to type it again would only produce a
+/// second, competing copy. What the club does not hold, the member fills in later through
+/// <c>PUT /api/profile</c>, which is where those five fields stay required.
+/// </para>
 /// </summary>
 /// <param name="MemberCode">
-/// Optional (S-14, AM-005). With a valid code the new account is attached to the member record the
-/// club already keeps, so the person arrives with their bookings and their plan already there.
-/// Without one, registration creates a fresh record exactly as it always has.
+/// REQUIRED since S-17 (IR-05). Registration is claim-only: there is no branch that creates a fresh
+/// member record any more, so a request without a code cannot produce an account at all. Not
+/// defaulted, so the compiler refuses a caller that forgets it.
 /// </param>
 public record RegisterRequest(
     string Email,
     string Password,
-    string DisplayName,
-    string PhoneNumber,
-    string Street,
-    string HouseNumber,
-    string PostalCode,
-    string City,
-    string? MemberCode = null);
+    string MemberCode);
 
 /// <summary>
 /// Why the login failure is named: S-02's blocked members need a different message from a wrong
@@ -83,16 +86,21 @@ public record ChangePasswordFailure(string Reason);
 /// <summary>
 /// Why registration failed. Never echoes Identity's raw error text to the client.
 ///
-/// The <c>invalid_phone</c> / <c>invalid_street</c> / <c>invalid_house_number</c> /
-/// <c>invalid_postal_code</c> / <c>invalid_city</c> codes come from <see cref="ContactDetails"/>,
-/// which is also what <c>PUT /api/profile</c> answers with - one vocabulary, two endpoints.
-///
 /// <para>
 /// S-14 adds two. <c>invalid_member_code</c> (400) is a format failure - what was typed could not be
 /// a code at all. <c>unknown_member_code</c> (409) covers "no member holds it", "it expired" and "it
 /// was revoked" as ONE answer, deliberately: distinguishing them would confirm to a stranger that a
 /// code once existed, and the same reasoning already collapses ResetPasswordFailure's four causes
-/// into <c>invalid_token</c>.
+/// into <c>invalid_token</c>. S-17 makes <c>invalid_member_code</c> the answer to a MISSING code too,
+/// which is the same thing now that registration is claim-only.
+/// </para>
+///
+/// <para>
+/// S-17 also RETIRES five. <c>invalid_display_name</c> and the <see cref="ContactDetails"/> codes -
+/// <c>invalid_phone</c> / <c>invalid_street</c> / <c>invalid_house_number</c> /
+/// <c>invalid_postal_code</c> / <c>invalid_city</c> - are unreachable from this endpoint, because the
+/// fields behind them stopped arriving. They remain the vocabulary of <c>PUT /api/profile</c>, which
+/// still requires all five; nothing here produces them.
 /// </para>
 /// </summary>
 public record RegisterFailure(string Reason);
@@ -266,12 +274,6 @@ public static class AuthEndpoints
         TimeProvider timeProvider,
         ILoggerFactory loggerFactory)
     {
-        var displayName = request.DisplayName?.Trim() ?? string.Empty;
-        if (displayName.Length == 0)
-        {
-            return Results.Json(new RegisterFailure("invalid_display_name"), statusCode: 400);
-        }
-
         // Same runtime-vs-compile-time gap as LoginAsync: a null in the JSON body reaches here
         // despite the non-nullable record, and FindByEmailAsync would throw. Answer in this
         // endpoint's own vocabulary instead of 500-ing.
@@ -285,43 +287,30 @@ public static class AuthEndpoints
             return Results.Json(new RegisterFailure("invalid_password"), statusCode: 400);
         }
 
-        // Contact details are validated BEFORE the duplicate-email lookup and long before
-        // CreateAsync, so a malformed submission creates nothing and costs one round trip.
-        if (!ContactDetails.TryCreate(
-                request.PhoneNumber,
-                request.Street,
-                request.HouseNumber,
-                request.PostalCode,
-                request.City,
-                out var contact,
-                out var contactFailure))
+        // THE CODE IS RESOLVED BEFORE ANYTHING IS CREATED, and since S-17 it is also REQUIRED: this
+        // block sits where the display-name and contact-detail validation used to, so a codeless
+        // request still costs one round trip and leaves no account behind.
+        //
+        // A missing code and a malformed one answer the same 400. They are the same failure now -
+        // "what you sent could not be an invitation" - and the register screen never lets either
+        // happen, because the field is prefilled from the link and readonly.
+        if (!MemberAccessCode.TryNormalise(request.MemberCode, out var normalisedCode))
         {
-            return Results.Json(new RegisterFailure(contactFailure), statusCode: 400);
+            return Results.Json(new RegisterFailure("invalid_member_code"), statusCode: 400);
         }
 
-        // THE CODE IS RESOLVED BEFORE ANYTHING IS CREATED. A bad one costs one round trip and leaves
-        // no account behind - the same ordering the contact-detail validation above follows.
-        Member? claimed = null;
-        if (!string.IsNullOrWhiteSpace(request.MemberCode))
+        var claimed = await members.FindByAccessCodeAsync(normalisedCode, CancellationToken.None);
+
+        // ONE ANSWER FOR EVERY CAUSE: no such code, already claimed, expired, revoked, or the
+        // member blocked since it was issued. Telling them apart would confirm to a stranger that
+        // a code once existed and what became of it - and a block must not be claimable around.
+        if (claimed is null
+            || claimed.UserId is not null
+            || claimed.AccessCodeExpiresAt is null
+            || claimed.AccessCodeExpiresAt <= timeProvider.GetUtcNow()
+            || claimed.Status != MembershipStatus.Active)
         {
-            if (!MemberAccessCode.TryNormalise(request.MemberCode, out var normalisedCode))
-            {
-                return Results.Json(new RegisterFailure("invalid_member_code"), statusCode: 400);
-            }
-
-            claimed = await members.FindByAccessCodeAsync(normalisedCode, CancellationToken.None);
-
-            // ONE ANSWER FOR EVERY CAUSE: no such code, already claimed, expired, revoked, or the
-            // member blocked since it was issued. Telling them apart would confirm to a stranger that
-            // a code once existed and what became of it - and a block must not be claimable around.
-            if (claimed is null
-                || claimed.UserId is not null
-                || claimed.AccessCodeExpiresAt is null
-                || claimed.AccessCodeExpiresAt <= timeProvider.GetUtcNow()
-                || claimed.Status != MembershipStatus.Active)
-            {
-                return Results.Json(new RegisterFailure("unknown_member_code"), statusCode: 409);
-            }
+            return Results.Json(new RegisterFailure("unknown_member_code"), statusCode: 409);
         }
 
         // BOTH TABLES, not just Identity's. Every branch below writes request.Email into a Member row
@@ -333,7 +322,7 @@ public static class AuthEndpoints
         //
         // exceptMemberId is the member being claimed: their own address must not collide with itself
         // when the code they typed belongs to the row that already holds it.
-        if (await memberQuery.EmailExistsAsync(request.Email, claimed?.Id, CancellationToken.None))
+        if (await memberQuery.EmailExistsAsync(request.Email, claimed.Id, CancellationToken.None))
         {
             return Results.Json(new RegisterFailure("email_taken"), statusCode: 409);
         }
@@ -342,7 +331,11 @@ public static class AuthEndpoints
         {
             UserName = request.Email,
             Email = request.Email,
-            DisplayName = displayName,
+
+            // THE CLUB'S NAME, NOT A TYPED ONE (S-17). The form stopped asking, so the record is the
+            // only source - and it always has one, because the admin surface refuses a blank display
+            // name on both create and edit (MemberAdminEndpoints).
+            DisplayName = claimed.DisplayName,
             // ACTIVE, not Pending (S-16, MP-03). AccountStatus.Pending is retired rather than
             // removed - its numeric value stays reserved - but nothing produces it any more.
             Status = AccountStatus.Active,
@@ -353,7 +346,10 @@ public static class AuthEndpoints
             // four columns on AspNetUsers go in the next release. PhoneNumber stays because it is
             // Identity's own column and does not go anywhere — see ProfileEndpoints for why keeping
             // it in step is worth one assignment.
-            PhoneNumber = contact.PhoneNumber,
+            //
+            // Copied FROM the claimed record since S-17, and null when the club never took one. The
+            // member supplies it through /profile, which is the one place that still asks.
+            PhoneNumber = claimed.PhoneNumber,
         };
 
         var created = await userManager.CreateAsync(user, request.Password);
@@ -400,73 +396,42 @@ public static class AuthEndpoints
             return Results.Problem("Registration could not be completed.", statusCode: 500);
         }
 
-        // THE CLUB'S OWN RECORD OF THIS PERSON (S-14), created alongside the account and linked to it.
+        // THE CLUB'S OWN RECORD OF THIS PERSON (S-14), linked to the account just created.
         //
-        // One of three producers that together make "an account with no member" unreachable - the other
-        // two are the AddMembers backfill and AdminSeeder. That guarantee is load-bearing rather than
-        // tidy: the membership claim refuses an account without one everywhere it is checked.
+        // Registration no longer PRODUCES a member - S-17 left it only able to link one - so the
+        // producers that keep "an account with no member" unreachable are now the admin surface, the
+        // AddMembers backfill and AdminSeeder. The guarantee itself is unchanged and still
+        // load-bearing: the membership claim refuses an account without a member everywhere it is
+        // checked, and the code required above is precisely what supplies one here.
         //
         // A SECOND SAVE, not part of CreateAsync's. Identity commits the account itself, so there is no
         // way to make these one write short of an explicit transaction - and an explicit transaction
         // here would have to run through Database.CreateExecutionStrategy().ExecuteAsync, because
         // EnableRetryOnFailure is on (Program.cs) and throws at RUNTIME otherwise. The compensation
         // below is the cheaper answer, and it mirrors what the role-assignment failure already does.
-        if (claimed is not null)
-        {
-            // CLAIMING, NOT CREATING. The whole point of the code: this account attaches to the record
-            // the club has been keeping, so the bookings and the active plan already pointing at it
-            // are simply there when the member first signs in.
-            claimed.UserId = user.Id;
-            claimed.ClaimedAt = user.CreatedAt;
+        // CLAIMING, NOT CREATING, and since S-17 there is no other branch: this account attaches to
+        // the record the club has been keeping, so the bookings and the active plan already pointing
+        // at it are simply there when the member first signs in. The branch that used to make a fresh
+        // Member for a codeless registration is gone with the codeless registration itself.
+        claimed.UserId = user.Id;
+        claimed.ClaimedAt = user.CreatedAt;
 
-            // Consumed. Nulling the code is what makes it single-use - there is no separate "used"
-            // flag to forget to set - and the expiry goes with it, for the reason revoke gives.
-            claimed.AccessCode = null;
-            claimed.AccessCodeExpiresAt = null;
+        // Consumed. Nulling the code is what makes it single-use - there is no separate "used"
+        // flag to forget to set - and the expiry goes with it, for the reason revoke gives.
+        claimed.AccessCode = null;
+        claimed.AccessCodeExpiresAt = null;
 
-            // THE CLUB KEEPS THE NAME IT GAVE THEM. Same rule as the profile screen (S-13, FR-006):
-            // the gym owns how a member appears on its lists, and a claim must not become the one way
-            // to rename yourself. The submitted display name is deliberately dropped.
-            //
-            // The contact details DO overwrite, because the person is the better source for their own
-            // phone and address - and the club's copy may be months old or absent entirely. The email
-            // is only filled IN, never replaced: it is the login address now, and Identity holds the
-            // authoritative copy.
-            claimed.Email ??= request.Email;
-            claimed.PhoneNumber = contact.PhoneNumber;
-            claimed.Street = contact.Street;
-            claimed.HouseNumber = contact.HouseNumber;
-            claimed.PostalCode = contact.PostalCode;
-            claimed.City = contact.City;
-            claimed.ConcurrencyStamp = Guid.NewGuid().ToString();
-
-            // The account carries the club's name too, so the two rows keep agreeing while both hold
-            // one. Written through the tracked entity rather than UserManager.UpdateAsync, which would
-            // issue its own save and split this into two writes.
-            user.DisplayName = claimed.DisplayName;
-        }
-        else
-        {
-            members.Add(new Member
-            {
-                Id = Guid.NewGuid(),
-                UserId = user.Id,
-                DisplayName = displayName,
-                Email = request.Email,
-                PhoneNumber = contact.PhoneNumber,
-                Street = contact.Street,
-                HouseNumber = contact.HouseNumber,
-                PostalCode = contact.PostalCode,
-                City = contact.City,
-
-                // Active even though the ACCOUNT is Pending. The two statuses answer different
-                // questions: approval gates the login, and it is AccountStatus that holds this person
-                // at the awaiting screen. See MembershipStatus for why there is no membership Pending.
-                Status = MembershipStatus.Active,
-                CreatedAt = user.CreatedAt,
-                ClaimedAt = user.CreatedAt,
-            });
-        }
+        // THE EMAIL IS FILLED IN, NEVER REPLACED, and this is the one contact field registration
+        // still writes. It is what gives a record entered at the desk without an address - the case
+        // this slice exists for - the login address as its contact; where the club already recorded
+        // one, Identity's copy is authoritative and the member's own stands.
+        //
+        // The phone and the four address fields USED TO OVERWRITE here, on the argument that the
+        // person is the better source for their own details. They stopped arriving with S-17, so the
+        // club's copy is now the only one there is. Anything it lacks the member supplies through
+        // /profile, which profile.html already prompts for.
+        claimed.Email ??= request.Email;
+        claimed.ConcurrencyStamp = Guid.NewGuid().ToString();
 
         try
         {

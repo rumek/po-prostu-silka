@@ -28,8 +28,12 @@ public static class MemberAccessCode
     /// Unambiguous uppercase alphabet: no <c>O</c>, <c>0</c>, <c>I</c>, <c>1</c>, <c>L</c>.
     ///
     /// 31 symbols over 8 characters is about 8.5 × 10¹¹ combinations, against a handful of live codes
-    /// at any moment — which is what makes guessing uneconomic even though <c>/register</c> carries no
-    /// rate limit.
+    /// at any moment — which is what makes guessing uneconomic. It is not the only control: since
+    /// S-16 <c>/register</c> carries a per-client-IP rate limit (RateLimitPolicies.Register), and with
+    /// S-17 making the code the ONLY way in, that limiter is load-bearing rather than incidental. An
+    /// earlier version of this comment argued the code space was large enough "even though /register
+    /// carries no rate limit"; it has carried one since S-16, and the pair together is why no further
+    /// hardening was added.
     /// </summary>
     private const string Alphabet = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 

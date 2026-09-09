@@ -51,23 +51,22 @@ public class MemberClaimTests(IntegrationTestFixture fixture)
 
     private static string NewEmail() => $"claim-{Guid.NewGuid():N}@test.local";
 
-    private static object Registration(string email, string? memberCode = null) =>
+    /// <summary>
+    /// THREE FIELDS since S-17. The display name and the five contact fields stopped arriving, and
+    /// the code stopped being optional — the payload here IS the contract.
+    /// </summary>
+    private static object Registration(string email, string? memberCode) =>
         new
         {
             email,
             password = TestUsers.Password,
-            displayName = "Imię Z Formularza",
-            phoneNumber = "601202303",
-            street = "Polna",
-            houseNumber = "7/2",
-            postalCode = "00-002",
-            city = "Kraków",
             memberCode,
         };
 
     /// <summary>An accountless member the club recorded, with a live code in the admin's hand.</summary>
     private async Task<(Guid MemberId, string Code, HttpClient Admin)> RecordedMemberAsync(
-        string? displayName = null)
+        string? displayName = null,
+        bool withContactDetails = false)
     {
         var admin = await AdminAsync();
 
@@ -77,11 +76,11 @@ public class MemberClaimTests(IntegrationTestFixture fixture)
             {
                 displayName = displayName ?? $"Klubowicz {Guid.NewGuid():N}",
                 email = (string?)null,
-                phoneNumber = (string?)null,
-                street = (string?)null,
-                houseNumber = (string?)null,
-                postalCode = (string?)null,
-                city = (string?)null,
+                phoneNumber = withContactDetails ? "501601701" : null,
+                street = withContactDetails ? "Kluczowa" : null,
+                houseNumber = withContactDetails ? "3" : null,
+                postalCode = withContactDetails ? "30-001" : null,
+                city = withContactDetails ? "Katowice" : null,
             });
 
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
@@ -177,7 +176,8 @@ public class MemberClaimTests(IntegrationTestFixture fixture)
     [Fact]
     public async Task Claiming_a_record_inherits_its_bookings_and_its_active_plan()
     {
-        var (memberId, code, admin) = await RecordedMemberAsync("Karol Klubowicz");
+        var (memberId, code, admin) = await RecordedMemberAsync(
+            "Karol Klubowicz", withContactDetails: true);
 
         // A booking and a plan, written straight onto the accountless member — which is only
         // expressible at all because both foreign keys point at Members now.
@@ -209,8 +209,8 @@ public class MemberClaimTests(IntegrationTestFixture fixture)
         // The SAME member, not a new one.
         Assert.Equal(memberId, session.MemberId);
 
-        // THE CLUB KEEPS THE NAME. The form said "Imię Z Formularza"; the record says otherwise, and
-        // the record wins — a claim must not become the one way to rename yourself.
+        // THE CLUB KEEPS THE NAME. The form has not asked for one since S-17, so the record is the
+        // only source — a claim must not become the one way to rename yourself.
         Assert.Equal("Karol Klubowicz", session.DisplayName);
 
         // Active from the first request (S-16). Claiming a record and registering fresh produce the
@@ -229,9 +229,17 @@ public class MemberClaimTests(IntegrationTestFixture fixture)
             Assert.Null(member.AccessCode);
             Assert.Null(member.AccessCodeExpiresAt);
 
-            // The submitted contact details overwrote the club's blanks.
-            Assert.Equal("601202303", member.PhoneNumber);
-            Assert.Equal("Kraków", member.City);
+            // THE CLUB'S OWN CONTACT DETAILS SURVIVE (S-17). Registration used to overwrite these
+            // from the form; the form stopped asking, so the record the club entered is the only
+            // copy and nothing about a claim may disturb it.
+            Assert.Equal("501601701", member.PhoneNumber);
+            Assert.Equal("Kluczowa", member.Street);
+            Assert.Equal("3", member.HouseNumber);
+            Assert.Equal("30-001", member.PostalCode);
+            Assert.Equal("Katowice", member.City);
+
+            // The record was entered with no address, so the login address became its contact.
+            Assert.Equal(email, member.Email);
 
             // EXACTLY ONE member for this account — the claim linked, it did not also create.
             Assert.Equal(1, await db.Members.CountAsync(m => m.UserId == member.UserId));
@@ -248,21 +256,94 @@ public class MemberClaimTests(IntegrationTestFixture fixture)
         Assert.Equal(planId, plan!.Id);
     }
 
-    [Fact]
-    public async Task Registering_without_a_code_still_creates_a_fresh_record()
+    /// <summary>
+    /// THE DOOR IS SHUT (S-17, IR-05). Registration is claim-only: without a code there is nothing to
+    /// attach an account to, and the refusal lives here rather than only in the SPA — the route guard
+    /// is a convenience, this is the rule.
+    /// </summary>
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task Registering_without_a_code_is_refused(string? memberCode)
     {
         var email = NewEmail();
         var client = fixture.CreateClient();
 
-        var registered = await client.PostAsJsonAsync("/api/auth/register", Registration(email));
-        Assert.Equal(HttpStatusCode.OK, registered.StatusCode);
+        var response = await client.PostAsJsonAsync(
+            "/api/auth/register", Registration(email, memberCode));
 
-        var session = (await registered.Content.ReadFromJsonAsync<CurrentUserBody>())!;
+        // The same 400 a malformed code answers. A missing code and an unparseable one are one
+        // failure now — "what you sent could not be an invitation".
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(
+            "invalid_member_code",
+            (await response.Content.ReadFromJsonAsync<FailureBody>())!.Reason);
 
-        Assert.NotNull(session.MemberId);
+        // NOTHING WAS WRITTEN — not an account, and not the member record the deleted branch used to
+        // create. The refusal sits before CreateAsync, so there is nothing to compensate.
+        await using var db = NewContext();
+        Assert.Equal(0, await db.Users.CountAsync(u => u.Email == email));
+        Assert.Equal(0, await db.Members.CountAsync(m => m.Email == email));
+    }
 
-        // No record was claimed, so the form's name stands — the rule only inverts on a claim.
-        Assert.Equal("Imię Z Formularza", session.DisplayName);
+    /// <summary>
+    /// A member the club recorded WITH an address of their own keeps it: the login address is filled
+    /// in only where there is nothing, never over the top. Identity holds the authoritative copy of
+    /// the login address, and the record's own is what the club will reach them at.
+    /// </summary>
+    [Fact]
+    public async Task A_records_own_email_is_not_replaced_by_the_login_address()
+    {
+        var admin = await AdminAsync();
+        var recorded = $"desk-{Guid.NewGuid():N}@test.local";
+
+        var created = await admin.PostAsJsonAsync(
+            Members,
+            new
+            {
+                displayName = "Klubowicz Z Adresem",
+                email = recorded,
+                phoneNumber = (string?)null,
+                street = (string?)null,
+                houseNumber = (string?)null,
+                postalCode = (string?)null,
+                city = (string?)null,
+            });
+
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var memberId = (await created.Content.ReadFromJsonAsync<CreatedBody>())!.Id;
+
+        var code = (await (await admin.PostAsync($"{Members}/{memberId}/access-code", content: null))
+            .Content.ReadFromJsonAsync<AccessCodeBody>())!.Code;
+
+        var login = NewEmail();
+        var response = await fixture.CreateClient()
+            .PostAsJsonAsync("/api/auth/register", Registration(login, code));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        await using var db = NewContext();
+        var member = await db.Members.AsNoTracking().SingleAsync(m => m.Id == memberId);
+        Assert.Equal(recorded, member.Email);
+    }
+
+    /// <summary>
+    /// The name on the account is the club's, and it is the club's from the moment the account exists
+    /// — there is no submitted name to drop any more, so this is the only place a name can come from.
+    /// </summary>
+    [Fact]
+    public async Task The_account_takes_its_display_name_from_the_claimed_record()
+    {
+        var (_, code, _) = await RecordedMemberAsync("Zofia Zapisana");
+
+        var response = await fixture.CreateClient()
+            .PostAsJsonAsync("/api/auth/register", Registration(NewEmail(), code));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(
+            "Zofia Zapisana",
+            (await response.Content.ReadFromJsonAsync<CurrentUserBody>())!.DisplayName);
     }
 
     [Fact]
