@@ -40,17 +40,50 @@ public class IntegrationTestFixture : IAsyncLifetime
     public WebApplicationFactory<Program> Factory =>
         _factory ?? throw new InvalidOperationException("Fixture not initialised.");
 
-    /// <summary>A client that does not follow redirects, so 401/403 assertions stay observable.</summary>
-    public HttpClient CreateClient() => Factory.CreateClient(new WebApplicationFactoryClientOptions
-    {
-        AllowAutoRedirect = false,
+    /// <summary>
+    /// A client that does not follow redirects, so 401/403 assertions stay observable.
+    ///
+    /// <para>
+    /// EACH CLIENT GETS ITS OWN CLIENT IP (S-16). Every request in this suite arrives over the same
+    /// in-memory connection, so without this they all share one rate-limiter partition — and once
+    /// /register became rate limited, the fourth registration ANY test performed started answering
+    /// 429, which surfaces as two dozen unrelated failures that look nothing like a rate limit. A
+    /// per-client X-Forwarded-For is what production sends anyway (App Service terminates at a
+    /// reverse proxy), so this exercises the real partitioning rather than bypassing it. A test that
+    /// wants to hit the limiter shares one address deliberately — see
+    /// <see cref="CreateClientFromAddress"/>.
+    /// </para>
+    /// </summary>
+    public HttpClient CreateClient() => CreateClientFromAddress(RandomClientAddress());
 
-        // https, not the default http. The auth cookie is issued with Secure=true (production is
-        // HTTPS-only), and CookieContainer silently refuses to store a Secure cookie received over
-        // http - every authenticated test would then fail as anonymous. TestServer does no real
-        // TLS; this only sets the request scheme.
-        BaseAddress = new Uri("https://localhost"),
-    });
+    /// <summary>
+    /// A client whose requests all appear to come from <paramref name="clientAddress"/> — the handle
+    /// a rate-limiter test needs, since the limiter partitions on exactly this.
+    /// </summary>
+    public HttpClient CreateClientFromAddress(string clientAddress)
+    {
+        var client = Factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false,
+
+            // https, not the default http. The auth cookie is issued with Secure=true (production is
+            // HTTPS-only), and CookieContainer silently refuses to store a Secure cookie received over
+            // http - every authenticated test would then fail as anonymous. TestServer does no real
+            // TLS; this only sets the request scheme.
+            BaseAddress = new Uri("https://localhost"),
+        });
+
+        client.DefaultRequestHeaders.Add("X-Forwarded-For", clientAddress);
+
+        return client;
+    }
+
+    /// <summary>
+    /// A distinct address per client. 198.51.100.0/24 and 203.0.113.0/24 are the documentation
+    /// ranges (RFC 5737) — they can never collide with anything real.
+    /// </summary>
+    private static string RandomClientAddress() =>
+        $"198.51.{Random.Shared.Next(0, 256)}.{Random.Shared.Next(1, 255)}";
 
     public async Task InitializeAsync()
     {

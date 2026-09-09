@@ -12,11 +12,33 @@ namespace po_prostu_silka.Application.Auth;
 public static class RateLimitPolicies
 {
     /// <summary>
-    /// Per-client-IP cap on <c>POST /api/auth/forgot-password</c>. The ONLY rate-limited endpoint in
-    /// this app: it is the only anonymous one that sends mail on demand. Adding a global limiter is
-    /// explicitly out of scope — see the plan.
+    /// Per-client-IP cap on <c>POST /api/auth/forgot-password</c>. The only anonymous endpoint in
+    /// this app that sends mail on demand, and therefore the only one where an unauthenticated caller
+    /// can spend a real resource. Adding a GLOBAL limiter is still out of scope — every other
+    /// endpoint is either authenticated or free.
     /// </summary>
     public const string ForgotPassword = "forgot-password";
+
+    /// <summary>
+    /// Per-client-IP cap on <c>POST /api/auth/register</c> (S-16, MP-03).
+    ///
+    /// <para>
+    /// THIS REPLACES A MITIGATION RATHER THAN ADDING ONE. Until S-16 the approval gate WAS the
+    /// anti-spam control on registration — <c>AuthEndpoints.RegisterAsync</c> said so in as many
+    /// words, and the accepted cost was junk accumulating as Pending rows an admin would never
+    /// approve. Registration now produces an ACTIVE account, so that cost changes shape completely:
+    /// junk would accumulate as accounts that work. The limiter is what takes approval's place.
+    /// </para>
+    ///
+    /// <para>
+    /// It is a cap on VOLUME, not an authorization control, for the reason
+    /// <see cref="PartitionKey"/> spells out — the header it partitions on is attacker-controlled.
+    /// What still stops a determined attacker from creating an account is nothing, and that is the
+    /// honest position: a registered account with no karnet can read the schedule and nothing else,
+    /// because the karnet is the gate now.
+    /// </para>
+    /// </summary>
+    public const string Register = "register";
 
     /// <summary>
     /// The partition key for <see cref="ForgotPassword"/>: the caller's IP address, without the port.

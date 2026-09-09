@@ -138,12 +138,12 @@ builder.Services.Configure<SecurityStampValidatorOptions>(options =>
 builder.Services.AddAuthorizationBuilder().AddApplicationPolicies();
 
 // ---------------------------------------------------------------------------
-// Rate limiting (S-13).
+// Rate limiting (S-13, widened in S-16).
 //
-// ONE policy, on ONE endpoint. /forgot-password is the only anonymous route in this app that causes
-// mail to be sent, which makes it the only one where an unauthenticated caller can spend a real
-// resource. A global limiter is explicitly out of scope: every other endpoint is either
-// authenticated or free.
+// TWO policies, on two endpoints. /forgot-password is the only anonymous route that causes mail to
+// be sent; /register is the only one that creates an account that WORKS, which it did not before
+// S-16 removed the approval gate. A global limiter is still out of scope: every other endpoint is
+// either authenticated or free.
 //
 // Partitioned on client IP. Behind App Service the socket address is the reverse proxy's, so
 // X-Forwarded-For is what distinguishes callers - and it is spoofable, which is why this is a
@@ -171,6 +171,25 @@ builder.Services.AddRateLimiter(options =>
 
                 // No queue: a throttled caller is refused immediately rather than held on a request
                 // thread. Queueing would turn the limiter into a way to occupy the server.
+                QueueLimit = 0,
+            });
+    });
+
+    // S-16's replacement for the approval gate. Same partition function and the same "courtesy cap
+    // on volume, not an authorization control" caveat - see RateLimitPolicies.Register.
+    options.AddPolicy(RateLimitPolicies.Register, context =>
+    {
+        return RateLimitPartition.GetFixedWindowLimiter(
+            RateLimitPolicies.PartitionKey(context),
+            _ => new FixedWindowRateLimiterOptions
+            {
+                // Three in five minutes. Deliberately tighter than the reset limiter's five per
+                // minute, because the shapes differ: mistyping your own address twice is ordinary,
+                // registering three separate accounts from one connection is not. A household or a
+                // gym's own wifi shares one address, which is why it is three and not one - a couple
+                // signing up together on the club's network must not be refused.
+                PermitLimit = 3,
+                Window = TimeSpan.FromMinutes(5),
                 QueueLimit = 0,
             });
     });

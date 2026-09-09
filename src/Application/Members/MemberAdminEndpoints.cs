@@ -144,9 +144,16 @@ public record BlockFailure(string Reason);
 public record UnblockFailure(string Reason);
 
 /// <summary>
-/// Why a Trainer-role change was refused. <c>not_active</c> — the target is Pending or Blocked, and
-/// FR-001 grants the role to an approved account only; letting it through would put an unvetted
-/// account into the instructor selection S-06 builds on top of this.
+/// Why a Trainer-role change was refused. <c>not_active</c> — the target's ACCOUNT is not Active.
+///
+/// <para>
+/// WHAT THIS GUARD NOW GUARANTEES, AND WHAT IT NO LONGER DOES. It was written as a vetting rule:
+/// FR-001 granted the role to an APPROVED account only, so refusing a non-Active account kept an
+/// unvetted one out of the instructor selection S-06 builds on. S-16 retired approval, so Pending is
+/// no longer produced and the only status this can still refuse is Blocked. The check stays correct
+/// and stays worth having — the club must not hand a blocked person a class to run — but it is no
+/// longer vetting anything, and nothing downstream may assume a trainer was ever reviewed by a human.
+/// </para>
 ///
 /// <c>no_account</c> — the member has no login, and roles live in Identity. S-14 makes an accountless
 /// instructor REPRESENTABLE (the class's instructor is a member now) but deliberately still refuses

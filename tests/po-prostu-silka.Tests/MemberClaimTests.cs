@@ -213,8 +213,10 @@ public class MemberClaimTests(IntegrationTestFixture fixture)
         // the record wins — a claim must not become the one way to rename yourself.
         Assert.Equal("Karol Klubowicz", session.DisplayName);
 
-        // Still pending: the code proves the club knows them, not that login is approved.
-        Assert.Equal(nameof(AccountStatus.Pending), session.Status);
+        // Active from the first request (S-16). Claiming a record and registering fresh produce the
+        // same account status now — the code proves the club knows this person, and it never had
+        // anything to do with approval.
+        Assert.Equal(nameof(AccountStatus.Active), session.Status);
 
         await using (var db = NewContext())
         {

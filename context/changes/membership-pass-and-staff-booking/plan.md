@@ -658,6 +658,16 @@ route; repeated registrations from one client are eventually refused by the limi
 asserting a Pending outcome are updated, not deleted — `TestUsers.PendingMemberEmail` stays seeded
 until Phase 8 so the policy tests that use it keep working.
 
+**Adapted during implementation.** The limiter forced a fixture change the plan did not anticipate:
+every request in the suite arrives over one in-memory connection, so all tests shared a single
+rate-limiter partition and the fourth registration *any* test performed answered 429 — surfacing as
+28 unrelated failures that looked nothing like a rate limit. `IntegrationTestFixture.CreateClient`
+now gives each client its own `X-Forwarded-For` from the RFC 5737 documentation range, which is the
+header production sends anyway; `CreateClientFromAddress` is the overload a test uses when it wants
+to share one address on purpose (the limiter test, and `PasswordEndpointTests`'
+ephemeral-port regression test, which had to move onto it — appending a second header value would
+have left it passing while proving nothing).
+
 ### Success Criteria:
 
 #### Automated Verification:
@@ -975,10 +985,10 @@ a later change, once no deployed artifact reads it.
 
 #### Automated
 
-- [x] 5.1 Frontend quality gate passes
-- [x] 5.2 Frontend unit tests pass
-- [x] 5.3 Backend suite passes
-- [x] 5.4 Production build emits no bundle-budget warning
+- [x] 5.1 Frontend quality gate passes — 2969ae2
+- [x] 5.2 Frontend unit tests pass — 2969ae2
+- [x] 5.3 Backend suite passes — 2969ae2
+- [x] 5.4 Production build emits no bundle-budget warning — 2969ae2
 
 #### Manual
 
@@ -991,10 +1001,10 @@ a later change, once no deployed artifact reads it.
 
 #### Automated
 
-- [ ] 6.1 Build is warning-free
-- [ ] 6.2 Full suite passes
-- [ ] 6.3 Data migration is idempotent when applied twice
-- [ ] 6.4 Migration script generates without error
+- [x] 6.1 Build is warning-free
+- [x] 6.2 Full suite passes
+- [x] 6.3 Data migration is idempotent when applied twice
+- [x] 6.4 Migration script generates without error
 
 #### Manual
 

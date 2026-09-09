@@ -137,7 +137,12 @@ public static class AuthEndpoints
         var group = app.MapGroup("/api/auth").WithTags("Auth");
 
         group.MapPost("/login", LoginAsync).AllowAnonymous();
-        group.MapPost("/register", RegisterAsync).AllowAnonymous();
+        // RATE LIMITED SINCE S-16, and the limiter is not optional garnish: it is what took the
+        // approval gate's place as the anti-spam control when registration started producing accounts
+        // that work. See RateLimitPolicies.Register.
+        group.MapPost("/register", RegisterAsync)
+            .AllowAnonymous()
+            .RequireRateLimiting(RateLimitPolicies.Register);
         group.MapPost("/logout", LogoutAsync).RequireAuthorization();
 
         // Bare RequireAuthorization(), NEVER the ActiveMember policy - a pending member has to be
@@ -220,18 +225,33 @@ public static class AuthEndpoints
     }
 
     /// <summary>
-    /// Creates a Pending account and signs it in immediately (D1).
+    /// Creates an ACTIVE account and signs it in immediately (S-16, MP-03).
     ///
+    /// <para>
+    /// THE ACCOUNT WORKS THE MOMENT IT EXISTS. Approval is gone: a new member reaches the dashboard
+    /// straight away and sees the schedule, their (empty) karnet and their (empty) plan. What they
+    /// cannot do is train, because being booked into a class requires a karnet the club issues at the
+    /// desk - see MembershipPass. The gate moved; it did not disappear.
+    /// </para>
+    ///
+    /// <para>
     /// ASYMMETRY, ON PURPOSE: this endpoint discloses that an email is already registered, while
-    /// /login deliberately refuses to distinguish a wrong password from an unknown address. The
-    /// trade is not an oversight. With no email-confirmation flow in scope, silence would strand a
-    /// real member who forgot they had signed up: they retry, see success, and wait forever for the
-    /// approval of an account that was never created - and nothing else would ever tell them. For a
+    /// /login deliberately refuses to distinguish a wrong password from an unknown address. The trade
+    /// SURVIVES S-16 but its justification had to be restated, because the old one no longer holds:
+    /// it used to be that silence would strand a member waiting forever for an approval that was
+    /// never coming, and there is no approval now. What remains is plainer and still decisive - with
+    /// no email-confirmation flow in scope, silence tells a member who forgot they had signed up to
+    /// keep retrying a password that will never work, with nothing anywhere to explain why. For a
     /// single gym, "this address belongs to a member here" is close to worthless to an attacker.
     /// Do not align the two endpoints without re-deciding that.
+    /// </para>
     ///
-    /// There is no rate limiting and no CAPTCHA either: FR-001 names the approval gate itself as the
-    /// mitigation. The accepted cost is that junk registrations accumulate as Pending rows.
+    /// <para>
+    /// RATE LIMITED, per client IP, and that is the anti-spam control now. It used to be the approval
+    /// gate itself, whose accepted cost was junk accumulating as Pending rows nobody would approve;
+    /// once registration produces a working account that cost changes shape entirely. See
+    /// RateLimitPolicies.Register for what the limiter does and does not promise.
+    /// </para>
     /// </summary>
     private static async Task<IResult> RegisterAsync(
         [FromBody] RegisterRequest request,
@@ -320,7 +340,9 @@ public static class AuthEndpoints
             UserName = request.Email,
             Email = request.Email,
             DisplayName = displayName,
-            Status = AccountStatus.Pending,
+            // ACTIVE, not Pending (S-16, MP-03). AccountStatus.Pending is retired rather than
+            // removed - its numeric value stays reserved - but nothing produces it any more.
+            Status = AccountStatus.Active,
             CreatedAt = timeProvider.GetUtcNow(),
 
             // THE ADDRESS IS NOT WRITTEN HERE ANY MORE (S-14 Phase 8). It lives on the Member, which

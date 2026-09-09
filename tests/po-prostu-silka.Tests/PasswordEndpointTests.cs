@@ -529,13 +529,12 @@ public class PasswordEndpointTests(IntegrationTestFixture fixture)
     {
         var email = await CreateMemberAsync();
 
-        async Task<HttpResponseMessage> FromPortAsync(int port)
-        {
-            var client = fixture.CreateClient();
-            client.DefaultRequestHeaders.Add("X-Forwarded-For", $"198.51.100.7:{port}");
-
-            return await ForgotAsync(client, email);
-        }
+        // CreateClientFromAddress, not CreateClient + Add: since S-16 every test client carries a
+        // per-client X-Forwarded-For of its own, so adding a second value here would leave the
+        // partition key reading whichever came first — and this test would pass while proving
+        // nothing. The fixture's overload REPLACES the address instead of appending to it.
+        async Task<HttpResponseMessage> FromPortAsync(int port) =>
+            await ForgotAsync(fixture.CreateClientFromAddress($"198.51.100.7:{port}"), email);
 
         for (var port = 51422; port < 51427; port++)
         {

@@ -10,8 +10,10 @@ using po_prostu_silka.Infrastructure.Persistence;
 namespace po_prostu_silka.Tests;
 
 /// <summary>
-/// Registration (FR-001). The invariants that matter here are that a new account lands Pending with
-/// a role, and that the failure vocabulary never leaks Identity's raw error text.
+/// Registration (FR-001, superseded in part by S-16 MP-03). The invariants that matter here are that
+/// a new account lands ACTIVE with a role, that it can immediately use the app, that the endpoint is
+/// rate limited — the control that replaced the approval gate — and that the failure vocabulary never
+/// leaks Identity's raw error text.
 /// </summary>
 [Collection(nameof(IntegrationCollection))]
 public class RegisterEndpointTests(IntegrationTestFixture fixture)
@@ -28,6 +30,53 @@ public class RegisterEndpointTests(IntegrationTestFixture fixture)
         string street = "Piłsudskiego", string houseNumber = "12A/3",
         string postalCode = "00-001", string city = "Warszawa") =>
         new { email, password, displayName, phoneNumber, street, houseNumber, postalCode, city };
+
+    /// <summary>
+    /// THE POINT OF MP-03: no approval step stands between registering and using the app. Asserted
+    /// against the ActiveMember policy probe rather than against the status field, because the status
+    /// is only interesting insofar as it opens the door — and this is the door.
+    /// </summary>
+    [Fact]
+    public async Task A_freshly_registered_account_immediately_passes_the_ActiveMember_policy()
+    {
+        var client = fixture.CreateClient();
+
+        var registered = await client.PostAsJsonAsync("/api/auth/register", Registration(NewEmail()));
+        Assert.Equal(HttpStatusCode.OK, registered.StatusCode);
+
+        // The same client, carrying the cookie registration just issued. No refresh, no second login.
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/test/active-member")).StatusCode);
+    }
+
+    /// <summary>
+    /// THE CONTROL THAT REPLACED APPROVAL (S-16). One client — therefore one rate-limiter partition —
+    /// registering in a burst is eventually refused with 429 rather than accepted.
+    ///
+    /// <para>
+    /// Every other test in this suite gets its own client address from the fixture precisely so it
+    /// does NOT hit this; here one address is shared on purpose, which is the only way to observe the
+    /// limiter at all.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public async Task A_burst_of_registrations_from_one_client_is_refused()
+    {
+        var client = fixture.CreateClientFromAddress("203.0.113.42");
+
+        var statuses = new List<HttpStatusCode>();
+        for (var i = 0; i < 6; i++)
+        {
+            var response = await client.PostAsJsonAsync("/api/auth/register", Registration(NewEmail()));
+            statuses.Add(response.StatusCode);
+        }
+
+        // 429, not 503: the caller is being told to slow down, not that the service is unavailable.
+        Assert.Contains(HttpStatusCode.TooManyRequests, statuses);
+
+        // And the cap is real rather than total — the first few genuinely went through, so a household
+        // or the club's own wifi is not locked out by one person signing up.
+        Assert.Contains(HttpStatusCode.OK, statuses);
+    }
 
     [Fact]
     public async Task Registration_creates_exactly_one_member_record_linked_to_the_new_account()
@@ -54,11 +103,11 @@ public class RegisterEndpointTests(IntegrationTestFixture fixture)
         Assert.Equal("Nowy Członek", member.DisplayName);
         Assert.Equal(email, member.Email);
 
-        // ACTIVE MEMBERSHIP ON A PENDING ACCOUNT - the two statuses answer different questions, and
-        // this is the assertion that pins that apart. Approval gates the login; it does not gate the
-        // club's record of the person.
+        // BOTH ACTIVE since S-16 — and the two statuses still answer DIFFERENT questions, which is
+        // why both are asserted rather than one. Approval used to make them disagree at registration;
+        // blocking still can, and the pair must stay distinguishable for that reason alone.
         Assert.Equal(MembershipStatus.Active, member.Status);
-        Assert.Equal(AccountStatus.Pending, user!.Status);
+        Assert.Equal(AccountStatus.Active, user!.Status);
 
         // Contact details are copied onto the member as well as the account, which is what lets the
         // read flip to Members in a later phase without a second migration.
@@ -67,7 +116,7 @@ public class RegisterEndpointTests(IntegrationTestFixture fixture)
     }
 
     [Fact]
-    public async Task Registration_creates_a_pending_member_in_the_User_role_and_signs_them_in()
+    public async Task Registration_creates_an_active_member_in_the_User_role_and_signs_them_in()
     {
         var client = fixture.CreateClient();
         var email = NewEmail();
@@ -76,12 +125,14 @@ public class RegisterEndpointTests(IntegrationTestFixture fixture)
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
-        // Signed in immediately (D1): the member waits for approval inside a session, not outside it.
+        // Signed in immediately, and since S-16 there is nothing to wait for inside that session:
+        // the account works the moment it exists. What the member still cannot do is train, because
+        // being booked requires a karnet — the gate moved, it did not disappear.
         Assert.Contains(response.Headers.GetValues("Set-Cookie"), c => c.Contains("Identity.Application"));
 
         var body = await response.Content.ReadFromJsonAsync<CurrentUserBody>();
         Assert.Equal(email, body!.Email);
-        Assert.Equal(nameof(AccountStatus.Pending), body.Status);
+        Assert.Equal(nameof(AccountStatus.Active), body.Status);
         Assert.Contains(ApplicationRoles.User, body.Roles);
 
         // A role-less account passes the ActiveMember status check and then fails its RequireRole,
@@ -91,7 +142,7 @@ public class RegisterEndpointTests(IntegrationTestFixture fixture)
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
         var stored = await userManager.FindByEmailAsync(email);
         Assert.NotNull(stored);
-        Assert.Equal(AccountStatus.Pending, stored.Status);
+        Assert.Equal(AccountStatus.Active, stored.Status);
         Assert.Contains(ApplicationRoles.User, await userManager.GetRolesAsync(stored));
     }
 
