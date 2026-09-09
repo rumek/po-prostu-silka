@@ -9,13 +9,15 @@ import {
   MemberFilter,
   MemberRequest,
   MembershipPassView,
-  PendingMember,
   TrainerSummary,
 } from './member-admin.models';
 
 /**
- * The admin's member surface: the pending queue and approve (S-01), plus the full member list and
- * block/unblock (S-02). Still no reject — FR-003 dropped it from the MVP.
+ * The admin's member surface: the full member list and block/unblock (S-02), the accountless records
+ * (S-14) and the karnet (S-16).
+ *
+ * The pending queue and approve are GONE (S-16, MP-03) — the API removed both routes, so re-adding
+ * methods for them would 404.
  *
  * Relative /api paths, like AuthService: the SPA is served from the API's own wwwroot, so these are
  * same-origin and the auth cookie rides along.
@@ -28,13 +30,11 @@ import {
 export class MemberAdminService {
   private readonly http = inject(HttpClient);
 
-  getPending(): Promise<PendingMember[]> {
-    return firstValueFrom(this.http.get<PendingMember[]>('/api/admin/members/pending'));
-  }
-
   /**
    * The full member list, optionally narrowed to one filter position (FR-005). Since S-14 it also
-   * carries the people who have no account at all. Admins are INCLUDED since
+   * carries the people who have no account at all. The `Pending` position is retired with the
+   * approval flow — nothing produces such an account, so the filter would always come back empty.
+   * Admins are INCLUDED since
    * S-04 — the Trainer role is granted from this list, and an owner who teaches has to be reachable
    * there. The screen decides which actions a row offers; the API refuses a block on an admin
    * regardless.
@@ -84,12 +84,6 @@ export class MemberAdminService {
    */
   getTrainers(): Promise<TrainerSummary[]> {
     return firstValueFrom(this.http.get<TrainerSummary[]>('/api/admin/trainers'));
-  }
-
-  async approve(id: string): Promise<void> {
-    await firstValueFrom(
-      this.http.post<void>(`/api/admin/members/${encodeURIComponent(id)}/approve`, null),
-    );
   }
 
   async block(id: string): Promise<void> {

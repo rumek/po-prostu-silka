@@ -64,7 +64,7 @@ public class PushEndpointTests(IntegrationTestFixture fixture)
     [Fact]
     public async Task Pending_member_can_also_subscribe()
     {
-        var client = await fixture.CreateAuthenticatedClientAsync(TestUsers.PendingMemberEmail);
+        var client = await fixture.CreateInactiveSessionAsync();
         var endpoint = NewEndpoint();
 
         var response = await client.PostAsJsonAsync("/api/push/subscribe", Subscription(endpoint));

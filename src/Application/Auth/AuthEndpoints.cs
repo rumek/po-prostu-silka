@@ -36,9 +36,10 @@ public record RegisterRequest(
 /// password. Callers must not treat <c>invalid_credentials</c> as "no such account" - it also covers
 /// a wrong password.
 ///
-/// <c>pending_approval</c> is no longer reachable from /login: S-01 inverted that rule and a pending
-/// member now receives a session (see LoginAsync). The literal is kept because the SPA's
-/// LoginFailureReason union still carries it and removing it is churn for no gain.
+/// <c>pending_approval</c> is unreachable and has been since S-01, which let a pending member sign in
+/// rather than refusing them; S-16 then removed the pending state entirely. The literal survives in
+/// the SPA's LoginFailureReason union, and removing it there is churn for no gain — nothing sends
+/// it.
 /// </summary>
 public record LoginFailure(string Reason);
 
@@ -126,9 +127,10 @@ public record CurrentUser(
 /// The authentication surface: create an account, establish a session, inspect it, refresh it,
 /// end it.
 ///
-/// Registration lands here with S-01 (registration-and-approval), which also owns the approval
-/// semantics that decide what a newly created account is allowed to do: nothing, until an admin
-/// approves it.
+/// Registration lands here with S-01 (registration-and-approval), whose approval half S-16 removed.
+/// What a newly created account may do is therefore everything a member may do — read the schedule,
+/// their classes and their karnet — and the one thing it cannot is be booked into a class, because
+/// that needs a karnet the club issues at the desk.
 /// </summary>
 public static class AuthEndpoints
 {
@@ -149,13 +151,14 @@ public static class AuthEndpoints
         // able to call the one endpoint that stops them being pending.
         group.MapPost("/refresh", RefreshAsync).RequireAuthorization();
 
-        // RequireAuthorization() and NOT the ActiveMember policy: a Pending member must be able to
-        // read their own status, or S-01 cannot tell the awaiting-approval screen from a logged-out
-        // visitor.
+        // RequireAuthorization() and NOT the ActiveMember policy. The original reason (a Pending
+        // member must be able to read their own status) died with approval; the rule still holds for
+        // a BLOCKED session that has not yet been refused a claim, and for /profile, which an account
+        // must reach to supply contact details it may not have.
         group.MapGet("/me", GetCurrentUser).RequireAuthorization();
 
-        // Bare RequireAuthorization() for the /refresh reason: a member awaiting approval owns their
-        // password like anyone else, and nothing about changing it depends on being approved.
+        // Bare RequireAuthorization(), not ActiveMember: a member owns their password whatever their
+        // membership says, and nothing about changing it depends on being able to train.
         group.MapPost("/change-password", ChangePasswordAsync).RequireAuthorization();
 
         // The only anonymous endpoint in this app that sends mail on demand, so it is the only one
@@ -208,9 +211,9 @@ public static class AuthEndpoints
             return Results.Json(new LoginFailure("invalid_credentials"), statusCode: 401);
         }
 
-        // Pending is deliberately NOT refused: the PRD's Access Control section and roadmap S-01 both
-        // specify that a pending member signs in and sees an awaiting-approval screen. Content is
-        // gated by the ActiveMember policy, not by refusing the session. Blocked stays refused -
+        // BLOCKED IS THE ONLY REFUSAL LEFT (S-16). There used to be a Pending branch here that let
+        // an unapproved member sign in and land on an awaiting-approval screen; nothing produces
+        // Pending any more, so the branch was unreachable and is gone. Blocked stays refused -
         // handing a 30-day cookie to someone whose access was revoked inverts what Blocked is for.
         if (user.Status == AccountStatus.Blocked)
         {
@@ -517,15 +520,18 @@ public static class AuthEndpoints
     /// Why this exists: the ActiveMember/Admin policies read the account_status CLAIM from the
     /// cookie, not the database (AuthorizationPolicies), and that claim is re-minted only when the
     /// security-stamp validator refreshes - on the interval set in Program.cs, which is the one
-    /// place that number is stated. So a member approved by the admin keeps a cookie that says
-    /// Pending until that interval elapses, while /me (which reads the
-    /// database) correctly reports Active. Without this endpoint the SPA routes them into the app on
-    /// the strength of /me and every ActiveMember call then returns 403.
+    /// place that number is stated. So a status or role change made by the admin does not reach the
+    /// cookie until that interval elapses, while /me (which reads the database) reports it at once —
+    /// and the two disagreeing is what this endpoint exists to resolve.
+    ///
+    /// Since S-16 the change that matters here is a BLOCK, and the staleness runs the dangerous way:
+    /// the cookie is PERMISSIVE while the database is not. A block through POST /{id}/block also
+    /// rotates the security stamp, which forces re-validation on its own — this endpoint is what
+    /// covers every other path, and what a client calls when it wants its claims current now.
     ///
     /// RefreshSignInAsync re-runs AppUserClaimsPrincipalFactory against the current entity, so status
-    /// and roles are both corrected in one round-trip. It is safe to call while still Pending - it
-    /// simply re-mints Pending claims - so the awaiting screen's button calls it unconditionally and
-    /// reads the status from the response.
+    /// and roles are both corrected in one round-trip. It is safe to call whatever the caller's
+    /// claims currently say, which is why it carries a bare RequireAuthorization().
     /// </summary>
     private static async Task<IResult> RefreshAsync(
         ClaimsPrincipal principal,

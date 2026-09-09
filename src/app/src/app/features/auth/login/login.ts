@@ -49,11 +49,15 @@ export class Login {
     this.submitting.set(true);
 
     try {
-      const user = await this.auth.login(this.form.getRawValue());
+      // The returned user is no longer read here: since S-16 there is only one destination, so
+      // nothing branches on the status. AuthService still holds it for the rest of the app.
+      await this.auth.login(this.form.getRawValue());
 
-      // Route by status, not by a login failure — since S-01 a pending member signs in successfully
-      // and simply belongs on a different screen.
-      await this.router.navigate([user.status === 'Active' ? '/' : '/pending']);
+      // Straight to the dashboard (S-16, MP-03). Login used to route by status, because a pending
+      // member signed in successfully and belonged on the awaiting-approval screen; approval is gone
+      // and so is that screen. A BLOCKED account never reaches this line at all — the API refuses
+      // the login itself rather than issuing a cookie.
+      await this.router.navigate(['/']);
     } catch (failure) {
       this.error.set(messageFor(failure));
     } finally {

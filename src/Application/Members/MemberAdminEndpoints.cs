@@ -9,25 +9,6 @@ using po_prostu_silka.Domain.Members;
 namespace po_prostu_silka.Application.Members;
 
 /// <summary>
-/// A member waiting for approval, as the admin's queue sees them. This is a CONTRACT the SPA's
-/// member-admin service mirrors — renaming a field breaks the approvals screen silently.
-///
-/// <para>
-/// Addressed by <see cref="MemberId"/> since S-14, like everything else on this surface, even though
-/// approval is an ACCOUNT action: the queue's rows are people, and a screen that addressed some of
-/// them by member and others by account would be one mix-up away from approving the wrong person.
-/// <see cref="UserId"/> travels too, because the queue is by definition accounts-only and the screen
-/// has legitimate uses for it.
-/// </para>
-/// </summary>
-public record PendingMember(
-    Guid MemberId,
-    string UserId,
-    string Email,
-    string DisplayName,
-    DateTimeOffset CreatedAt);
-
-/// <summary>
 /// A member as the admin's full list sees them (FR-005, and S-14's accountless records).
 ///
 /// This is a CONTRACT the SPA's member-admin service mirrors — renaming a field breaks the members
@@ -93,7 +74,13 @@ public record MemberDetail(
 /// </summary>
 public enum MemberListFilter
 {
-    /// <summary>Has an account that is awaiting approval.</summary>
+    /// <summary>
+    /// RETIRED (S-16, MP-03). This position selected accounts awaiting approval, and nothing produces
+    /// that state any more. The NUMERIC VALUE STAYS RESERVED for the same reason
+    /// <see cref="AccountStatus.Pending"/>'s does — the values are pinned, and re-using 0 for
+    /// something else would silently repoint any stored or bookmarked filter.
+    /// </summary>
+    [Obsolete("Approval was retired in S-16; nothing produces Pending accounts. Value reserved.")]
     Pending = 0,
 
     /// <summary>May use the club: active membership, and an active account if there is one at all.</summary>
@@ -123,8 +110,6 @@ public record MemberRequest(
     string? HouseNumber,
     string? PostalCode,
     string? City);
-
-public record ApproveFailure(string Reason);
 
 /// <summary>
 /// Why a block was refused. <c>is_admin</c> — the target holds the Admin role and is not a member;
@@ -189,15 +174,22 @@ public record AccessCodeView(string Code, DateTimeOffset ExpiresAt);
 public record AccessCodeFailure(string Reason);
 
 /// <summary>
-/// The admin's member surface: the approval queue (S-01), the full member list S-02 added on top of
-/// it, and since S-14 the records of people who have never registered at all.
+/// The admin's member surface: the full member list (S-02), the records of people who have never
+/// registered at all (S-14), and the karnet screen those rows link to (S-16).
+///
+/// <para>
+/// THE APPROVAL QUEUE THAT STARTED THIS FILE IS GONE (S-16, MP-03). S-01 built this surface around
+/// <c>GET /pending</c> and <c>POST /{id}/approve</c>; both were removed once registration began
+/// producing Active accounts, because the karnet — not a flag on the login — is what decides who may
+/// train. Blocking survives unchanged and is now the only status lever here.
+/// </para>
 ///
 /// <para>
 /// EVERY ROUTE HERE IS ADDRESSED BY MEMBER ID, including the ones that act on an account. That is a
 /// deliberate uniformity: this screen's rows are people, half of them may have no account id to be
 /// addressed by, and a surface where the identifier in the URL depended on which action you were
-/// taking would be a mix-up waiting to happen. The account-shaped actions — approve, and the Trainer
-/// role — resolve the member first and answer 409 <c>no_account</c> when there is nothing to act on.
+/// taking would be a mix-up waiting to happen. The account-shaped action that remains — the Trainer
+/// role — resolves the member first and answers 409 <c>no_account</c> when there is nothing to act on.
 /// </para>
 ///
 /// <para>
@@ -212,9 +204,9 @@ public record AccessCodeFailure(string Reason);
 /// </para>
 ///
 /// <para>
-/// There is still no reject — FR-003 dropped it from the MVP. The PRD's open question about a blocked
-/// member's existing bookings is ANSWERED as of S-08: blocking silently cancels the member's FUTURE
-/// bookings and leaves past ones alone. Unblocking restores nothing.
+/// The PRD's open question about a blocked member's existing bookings is ANSWERED as of S-08:
+/// blocking silently cancels the member's FUTURE bookings and leaves past ones alone. Since S-16 it
+/// also returns the karnet entries those bookings were holding. Unblocking restores nothing.
 /// </para>
 ///
 /// The policy name comes from Domain (AuthorizationPolicyNames), not from Infrastructure's
@@ -230,12 +222,13 @@ public static class MemberAdminEndpoints
             .WithTags("Members")
             .RequireAuthorization(AuthorizationPolicyNames.Admin);
 
-        group.MapGet("/pending", GetPendingAsync);
+        // GET /pending and POST /{id}/approve are GONE (S-16, MP-03). Approval no longer gates
+        // anything: registration produces an Active account, and what decides whether somebody may
+        // train is the karnet. Blocking is untouched and remains the admin's lever.
         group.MapGet("/", GetMembersAsync);
         group.MapGet("/{memberId:guid}", GetMemberAsync);
         group.MapPost("/", CreateAsync);
         group.MapPut("/{memberId:guid}", UpdateAsync);
-        group.MapPost("/{memberId:guid}/approve", ApproveAsync);
         group.MapPost("/{memberId:guid}/block", BlockAsync);
         group.MapPost("/{memberId:guid}/unblock", UnblockAsync);
         group.MapPost("/{memberId:guid}/roles/trainer", GrantTrainerAsync);
@@ -250,17 +243,6 @@ public static class MemberAdminEndpoints
 
         return app;
     }
-
-    /// <summary>
-    /// Oldest waiting first — the admin works a queue, not a list.
-    ///
-    /// No pagination: a single gym's pending queue is small, and D5 rules out the search/filter UI
-    /// that would make paging meaningful.
-    /// </summary>
-    private static async Task<IResult> GetPendingAsync(
-        IPendingMemberQuery query,
-        CancellationToken cancellationToken) =>
-        Results.Ok(await query.GetPendingAsync(cancellationToken));
 
     /// <summary>
     /// Every member, or one filter position of them (FR-005). Admins ARE included since S-04 — prd-v2
@@ -417,88 +399,6 @@ public static class MemberAdminEndpoints
     }
 
     /// <summary>
-    /// Approves the member's ACCOUNT (FR-003). Addressed by member, acts on the login.
-    /// </summary>
-    private static async Task<IResult> ApproveAsync(
-        Guid memberId,
-        IMemberStore members,
-        UserManager<ApplicationUser> userManager,
-        IAccountApprovedNotification notification,
-        IUnitOfWork unitOfWork,
-        CancellationToken cancellationToken)
-    {
-        var member = await members.FindAsync(memberId, cancellationToken);
-        if (member is null)
-        {
-            return Results.NotFound();
-        }
-
-        // Nothing to approve: approval is about a login, and this person has none. Not a 404 - the
-        // member exists, the action does not apply to them.
-        if (member.UserId is null)
-        {
-            return Results.Json(new ApproveFailure("no_account"), statusCode: 409);
-        }
-
-        var user = await userManager.FindByIdAsync(member.UserId);
-        if (user is null)
-        {
-            return Results.NotFound();
-        }
-
-        // Idempotent: two admins clicking Approve on the same row must not send two emails. The
-        // second call reports success and enqueues nothing. This check alone is NOT enough when the
-        // two calls overlap - see the concurrency-stamp rotation below, which closes that window.
-        if (user.Status == AccountStatus.Active)
-        {
-            return Results.Ok();
-        }
-
-        // With Active handled above, the only status left to refuse is Blocked. Letting a blocked
-        // member in through the approvals queue would be a second, quieter way to unblock — one that
-        // skips the members screen entirely. POST /{id}/unblock is the action for that.
-        if (user.Status != AccountStatus.Pending)
-        {
-            return Results.Json(new ApproveFailure("not_pending"), statusCode: 409);
-        }
-
-        user.Status = AccountStatus.Active;
-
-        // Rotate the concurrency stamp, so the status check above is atomic rather than merely
-        // logical.
-        //
-        // ConcurrencyStamp is a concurrency token, so EF's UPDATE carries
-        // WHERE ConcurrencyStamp = <the value we read>. Nothing rotates it here on its own: this
-        // handler deliberately bypasses UserManager.UpdateAsync (which normally does) to keep the
-        // flip and the outbox rows inside ONE SaveChangesAsync. Without this line two admins
-        // approving the same row at the same moment both read Pending, both pass the check above,
-        // and both UPDATEs match - so the member is emailed twice, which is exactly what the
-        // idempotency rule exists to prevent.
-        user.ConcurrencyStamp = Guid.NewGuid().ToString();
-
-        // Enqueue does NOT save (IOutboxEnqueuer), and the user entity above is tracked by the same
-        // scoped DbContext that Identity uses — so the single save below writes the status flip and
-        // the outbox rows in one transaction. Either the member is approved and the email is queued,
-        // or neither happened.
-        await notification.NotifyAsync(user, cancellationToken);
-
-        // NO explicit transaction here, deliberately. A single SaveChangesAsync is already atomic,
-        // and EnableRetryOnFailure (Program.cs) means an explicit transaction must go through
-        // Database.CreateExecutionStrategy().ExecuteAsync(...) or it throws at RUNTIME.
-        if (!await unitOfWork.TrySaveChangesAsync(cancellationToken))
-        {
-            // We lost the race: someone approved this member between our read and our write. They
-            // enqueued the email; nothing of ours was committed, so reporting success is accurate
-            // and still sends exactly one email in total.
-            return Results.Ok();
-        }
-
-        // The member's cookie still carries account_status=Pending until they call
-        // POST /api/auth/refresh or the security-stamp validation interval fires.
-        return Results.Ok();
-    }
-
-    /// <summary>
     /// Blocks a member (FR-004, and S-14's AM-002): bar them from the club, refuse them at login if
     /// they have one, and cut the session they may already hold.
     ///
@@ -570,8 +470,10 @@ public static class MemberAdminEndpoints
 
         if (user is not null)
         {
-            // Blockable from Active AND Pending: a junk registration should be stoppable without first
-            // approving it, which would be an absurd thing to make the admin do.
+            // Blockable from any status. This used to say "Active AND Pending", so that a junk
+            // registration could be stopped without first approving it; since S-16 every account is
+            // Active from the moment it exists, and stopping a junk one is the ordinary case rather
+            // than the awkward one.
             user.Status = AccountStatus.Blocked;
             user.ConcurrencyStamp = Guid.NewGuid().ToString();
             user.SecurityStamp = Guid.NewGuid().ToString();
@@ -617,8 +519,10 @@ public static class MemberAdminEndpoints
     /// their stamp and their claim is refused either way. There is nothing to revoke, so revoking
     /// would only sign out a member we just let back in.
     ///
-    /// No approval email either: IAccountApprovedNotification fires on approve, and an account being
-    /// unblocked was approved once already - a second welcome would be a lie about what happened.
+    /// No email either. There was never a notification for this and S-16 removed the only one that
+    /// was adjacent to it (the approval welcome, which went with the approval flow itself). Telling
+    /// somebody they have been unblocked would also mean telling them they had been blocked, which is
+    /// a conversation the club has in person rather than by machine.
     /// </summary>
     private static async Task<IResult> UnblockAsync(
         Guid memberId,
@@ -993,14 +897,6 @@ public static class MemberAdminEndpoints
     }
 }
 
-/// <summary>
-/// Narrow read seam over the member table, so Application does not reference EF Core
-/// (AGENTS.md layering). Implemented in Infrastructure.
-/// </summary>
-public interface IPendingMemberQuery
-{
-    Task<IReadOnlyList<PendingMember>> GetPendingAsync(CancellationToken cancellationToken);
-}
 
 /// <summary>
 /// The same seam for the full member list (FR-005). Separate from

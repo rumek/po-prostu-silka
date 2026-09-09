@@ -144,7 +144,7 @@ public class MyPlanEndpointTests(IntegrationTestFixture fixture)
     [MemberData(nameof(EveryRoute))]
     public async Task Pending_member_is_403_on_every_route(string url)
     {
-        var client = await fixture.CreateAuthenticatedClientAsync(TestUsers.PendingMemberEmail);
+        var client = await fixture.CreateInactiveSessionAsync();
 
         var response = await client.GetAsync(url);
 

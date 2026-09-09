@@ -81,8 +81,10 @@ builder.Services
         options.Password.RequireNonAlphanumeric = false;
         options.Password.RequiredUniqueChars = 1;
 
-        // No confirmation flow in this milestone - the admin-approval gate is the vetting
-        // mechanism, so requiring a confirmed email would lock out every pending member.
+        // No confirmation flow. It used to be justified by the admin-approval gate being the
+        // vetting mechanism; S-16 retired approval, and the justification is now simply that there
+        // is no confirmation flow in scope - registration is rate limited instead, and an account
+        // with no karnet can read the schedule and nothing else.
         options.SignIn.RequireConfirmedAccount = false;
         options.User.RequireUniqueEmail = true;
     })
@@ -244,7 +246,6 @@ builder.Services.AddScoped<IOutboxWriter, OutboxWriter>();
 builder.Services.AddScoped<IOutboxEnqueuer, OutboxEnqueuer>();
 builder.Services.AddScoped<IPushSubscriptionStore, PushSubscriptionStore>();
 builder.Services.AddScoped<IVapidPublicKey, VapidPublicKeyProvider>();
-builder.Services.AddScoped<IAccountApprovedNotification, AccountApprovedNotification>();
 
 // S-13's reset email. Scoped for the reason its neighbours are: it enqueues without saving, so it
 // must share the request's DbContext with IUnitOfWork.
@@ -259,10 +260,12 @@ builder.Services.AddSingleton<IPasswordResetThrottle, PasswordResetThrottle>();
 // IUnitOfWork or the outbox rows would not commit with the domain change that triggered them.
 builder.Services.AddScoped<IClassChangeNotification, ClassChangeNotification>();
 
-// S-01's approve action needs to commit a status flip and the outbox rows it triggers together, and
-// to read the pending queue - both without Application referencing EF Core (AGENTS.md layering).
+// The unit of work every write path commits through, without Application referencing EF Core
+// (AGENTS.md layering). Introduced by S-01's approve, which needed a status flip and its outbox rows
+// in one transaction; that action is gone since S-16, and this is now load-bearing for every
+// endpoint that must land two changes together - a karnet insert beside a rotated member stamp, a
+// booking beside two rotated stamps, a block beside the bookings it releases.
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
-builder.Services.AddScoped<IPendingMemberQuery, PendingMemberQuery>();
 
 // S-02's member list (FR-005). Scoped like the query above - it depends on the same DbContext.
 builder.Services.AddScoped<IMemberQuery, MemberQuery>();

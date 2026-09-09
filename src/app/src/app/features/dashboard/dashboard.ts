@@ -28,9 +28,9 @@ const UPCOMING_DAYS = 7;
  * route of its own, exactly as app.html branches its links. An admin is also a member who books
  * classes, and sees both halves.
  *
- * EVERY CARD LOADS ON ITS OWN. Five independent requests with five independent states, because a
- * dashboard that blanks itself when one of them fails is worse than one that shows four cards and an
- * error. This is why there is no single `loading` flag here.
+ * EVERY CARD LOADS ON ITS OWN. Four independent requests with four independent states, because a
+ * dashboard that blanks itself when one of them fails is worse than one that shows three cards and
+ * an error. This is why there is no single `loading` flag here.
  *
  * READ-ONLY. Nothing is cancelled or approved from this screen; each card links to the one that owns
  * the action. Adding an action here means adding per-row busy state and failure mapping to a screen
@@ -98,13 +98,6 @@ export class Dashboard implements OnInit {
   protected readonly passFailed = signal(false);
   private passGeneration = 0;
 
-  // --- Admin: pending approvals ------------------------------------------------------------------
-
-  protected readonly pendingCount = signal(0);
-  protected readonly pendingLoading = signal(true);
-  protected readonly pendingFailed = signal(false);
-  private pendingGeneration = 0;
-
   // --- Admin: today and upcoming -----------------------------------------------------------------
 
   protected readonly todayClasses = signal<ScheduledClass[]>([]);
@@ -121,10 +114,12 @@ export class Dashboard implements OnInit {
     // request here is latency every member pays on every visit.
     void this.loadPass();
 
-    // Guarded, not merely hidden: these two endpoints answer 403 to a non-admin, and firing them for
-    // every member would put two guaranteed failures in the console on every visit to the home screen.
+    // Guarded, not merely hidden: this endpoint answers 403 to a non-admin, and firing it for every
+    // member would put a guaranteed failure in the console on every visit to the home screen.
+    //
+    // The pending-approvals card that used to sit beside it is gone (S-16, MP-03) — there is no
+    // queue, so "wymaga uwagi" is now just the day's classes.
     if (this.isAdmin()) {
-      void this.loadPending();
       void this.loadClasses();
     }
   }
@@ -213,34 +208,6 @@ export class Dashboard implements OnInit {
     } finally {
       if (generation === this.passGeneration) {
         this.passLoading.set(false);
-      }
-    }
-  }
-
-  protected async loadPending(): Promise<void> {
-    const generation = ++this.pendingGeneration;
-
-    this.pendingLoading.set(true);
-    this.pendingFailed.set(false);
-
-    try {
-      const pending = await this.members.getPending();
-
-      if (generation !== this.pendingGeneration) {
-        return;
-      }
-
-      this.pendingCount.set(pending.length);
-    } catch {
-      if (generation !== this.pendingGeneration) {
-        return;
-      }
-
-      this.pendingCount.set(0);
-      this.pendingFailed.set(true);
-    } finally {
-      if (generation === this.pendingGeneration) {
-        this.pendingLoading.set(false);
       }
     }
   }

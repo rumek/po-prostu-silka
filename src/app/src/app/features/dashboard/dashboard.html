@@ -111,26 +111,6 @@
     <h2 class="dashboard-section-title">Wymaga uwagi</h2>
 
     <article class="card dashboard-card">
-      <h3 class="dashboard-card-title">Zgłoszenia</h3>
-
-      @if (pendingLoading()) {
-        <p class="notice" role="status">Wczytywanie…</p>
-      } @else if (pendingFailed()) {
-        <p class="alert" role="alert">
-          Nie udało się wczytać zgłoszeń.
-          <button type="button" class="link-button" (click)="loadPending()">
-            Spróbuj ponownie
-          </button>
-        </p>
-      } @else if (pendingCount() === 0) {
-        <p class="empty">Brak oczekujących zgłoszeń.</p>
-      } @else {
-        <p class="dashboard-count">{{ pendingCount() }}</p>
-        <a class="dashboard-more" routerLink="/admin/approvals">Przejdź do zgłoszeń</a>
-      }
-    </article>
-
-    <article class="card dashboard-card">
       <h3 class="dashboard-card-title">Dzisiaj</h3>
 
       @if (classesLoading()) {

@@ -237,10 +237,8 @@ public class MemberClaimTests(IntegrationTestFixture fixture)
             Assert.Equal(1, await db.Members.CountAsync(m => m.UserId == member.UserId));
         }
 
-        // The history is reachable through the new session once the account is approved.
-        var approve = await admin.PostAsync($"{Members}/{memberId}/approve", content: null);
-        Assert.Equal(HttpStatusCode.OK, approve.StatusCode);
-
+        // The history is reachable through the new session immediately — since S-16 there is no
+        // approval step between registering with a code and using the account it created.
         var member2 = await fixture.CreateAuthenticatedClientAsync(email);
 
         var bookings = await member2.GetFromJsonAsync<List<MyBookingBody>>("/api/bookings/mine");

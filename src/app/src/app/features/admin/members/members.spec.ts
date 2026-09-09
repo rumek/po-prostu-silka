@@ -35,7 +35,7 @@ const CELINA: Member = {
   email: 'celina@test.local',
   displayName: 'Celina Wiśniewska',
   membershipStatus: 'Active',
-  accountStatus: 'Pending',
+  accountStatus: 'Active',
   roles: ['User'],
   hasAccessCode: false,
   createdAt: '2026-09-01T10:00:00+00:00',
@@ -332,15 +332,14 @@ describe('Members', () => {
     expect(html()).toContain('Aktywny');
   });
 
-  it('offers approve on a pending row', async () => {
+  /**
+   * APPROVE IS GONE (S-16, MP-03), asserted as an absence. Nothing produces a pending account any
+   * more, so a Zatwierdź item on any row would be an action with no outcome.
+   */
+  it('offers no approve action on any row', async () => {
     await createWith([CELINA]);
 
-    menuItemIn(rows()[0], 'Zatwierdź').click();
-
-    (await vi.waitFor(() => controller.expectOne('/api/admin/members/m3/approve'))).flush(null);
-    await settle();
-
-    expect(html()).toContain('Aktywny');
+    expect(html()).not.toContain('Zatwierdź');
   });
 
   /**
@@ -463,12 +462,17 @@ describe('Members', () => {
     expect(menuLabels(rows()[0])).toContain('Odbierz rolę Trenera');
   });
 
-  /** Mirrors the API's not_active guard — a button whose only outcome is a 409 is not an action. */
-  it('hides the role action on non-active rows', async () => {
-    await createWith([BARTEK, CELINA]);
+  /**
+   * Mirrors the API's not_active guard — a button whose only outcome is a 409 is not an action.
+   *
+   * ONE ROW SINCE S-16, not two. This used to cover a blocked account and a pending one; nothing
+   * produces a pending account any more, so blocked is the whole of what the guard can still refuse.
+   * See MemberAdminEndpoints' TrainerRoleFailure for what that guard does and no longer guarantees.
+   */
+  it('hides the role action on a blocked row', async () => {
+    await createWith([BARTEK]);
 
     expect(menuLabels(rows()[0]).join(' ')).not.toContain('Trenera');
-    expect(menuLabels(rows()[1]).join(' ')).not.toContain('Trenera');
   });
 
   /**

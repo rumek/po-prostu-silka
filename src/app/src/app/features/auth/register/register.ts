@@ -79,7 +79,10 @@ export class Register {
         memberCode: value.memberCode.trim() || null,
       });
 
-      await this.router.navigate(['/pending']);
+      // Straight to the dashboard (S-16, MP-03): the account works the moment it exists, so there is
+      // nothing to wait on. What the new member sees there is an empty karnet card telling them to
+      // speak to reception, which is the honest next step.
+      await this.router.navigate(['/']);
     } catch (failure) {
       this.applyFailure(failure);
     } finally {

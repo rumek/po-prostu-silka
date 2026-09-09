@@ -43,7 +43,13 @@ export interface CurrentUser {
   membershipStatus?: MembershipStatus | null;
 }
 
-/** Mirrors src/Domain/AccountStatus.cs. Serialised by name, not by number. */
+/**
+ * Mirrors src/Domain/AccountStatus.cs. Serialised by name, not by number.
+ *
+ * `'Pending'` is RETIRED and still listed, mirroring the server enum exactly: nothing produces it
+ * since S-16, but the value remains readable from the database, so a response could still carry it
+ * and this type has to be able to describe what arrives. The two go away together or not at all.
+ */
 export type AccountStatus = 'Pending' | 'Active' | 'Blocked';
 
 /** Mirrors src/Domain/Members/MembershipStatus.cs. Serialised by name, not by number. */

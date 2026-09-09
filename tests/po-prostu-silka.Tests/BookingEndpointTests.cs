@@ -324,7 +324,7 @@ public class BookingEndpointTests(IntegrationTestFixture fixture)
     [MemberData(nameof(EveryMemberRoute))]
     public async Task Booking_routes_refuse_a_pending_member(string method, string route)
     {
-        var pending = await fixture.CreateAuthenticatedClientAsync(TestUsers.PendingMemberEmail);
+        var pending = await fixture.CreateInactiveSessionAsync();
 
         var response = await pending.SendAsync(new HttpRequestMessage(new HttpMethod(method), route));
 

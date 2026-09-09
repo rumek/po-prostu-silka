@@ -168,12 +168,14 @@ public class MemberQuery(AppDbContext db) : IMemberQuery
     private static IQueryable<Member> Filtered(IQueryable<Member> members, MemberListFilter? filter) =>
         filter switch
         {
-            // A login awaiting approval. Necessarily has an account.
-            MemberListFilter.Pending =>
-                members.Where(m => m.User != null && m.User.Status == AccountStatus.Pending),
-
-            // May use the club. "Active if there is an account at all" is what makes this mean the
-            // same thing for a member with a login and a member without one.
+            // May use the club.
+            //
+            // THE ACCOUNT CLAUSE IS STILL LOAD-BEARING, even though S-16 retired the third state. It
+            // is not there to exclude Pending — nothing produces Pending any more — it is there
+            // because BLOCKED sets both statuses and a member could still, through some future path,
+            // hold an active membership behind a disabled login. Keeping it means "active" answers
+            // the same question for a person with a login and a person without one, which is the
+            // property this filter was built around.
             MemberListFilter.Active =>
                 members.Where(m => m.Status == MembershipStatus.Active
                                    && (m.User == null || m.User.Status == AccountStatus.Active)),

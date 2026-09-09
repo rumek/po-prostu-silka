@@ -68,8 +68,12 @@ model M-1 was built against.
   see it in order to hand it over, and can revoke it. Priority: must-have
 - **AM-005:** A person registering with a valid code gets an account attached to that existing record,
   inheriting its bookings and its active plan, instead of a fresh one. Registering without a code
-  behaves exactly as it does today. The account is still created `pending` — the code proves the club
-  knows them, not that login is approved. Priority: must-have
+  behaves exactly as it does today. Priority: must-have
+  - **Superseded in part by M-4 (MP-03).** The last sentence used to read "the account is still
+    created `pending` — the code proves the club knows them, not that login is approved". Approval was
+    retired in S-16: registration now produces an ACTIVE account whether or not a code was used, and
+    what decides whether somebody may train is the karnet. The claim's own point survives — the code
+    proves the club knows this person and never granted them anything else.
 - **AM-006:** Admin can assign a training plan to a member with no account, and can book one into a
   class on their behalf. The no-overbooking guarantee holds identically on that path. Priority:
   must-have

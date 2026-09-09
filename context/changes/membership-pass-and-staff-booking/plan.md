@@ -813,6 +813,15 @@ conditions stays true after the edit.
 **Intent**: Remove `TestUsers.PendingMemberEmail` and the tests asserting pending-specific behaviour;
 keep the blocked-account coverage, which is unaffected.
 
+**Adapted during implementation.** Removing `TestUsers.PendingMemberEmail` left a hole the plan did
+not anticipate: several suites used it to obtain **a signed-in session that fails `ActiveMember`**,
+and the obvious substitute does not work — login refuses a blocked account outright, so there is no
+cookie to test with. That state still matters (a session issued before a block must keep being
+refused), so the fixture gained `CreateInactiveSessionAsync`: sign in an active account, block its
+MEMBERSHIP directly in the database, refresh the claims. `AuthEndpointTests`' claim-staleness test
+was rewritten around a block for the same reason, and is stronger for it — the stale claim there is
+*permissive*, which is the direction that actually costs something.
+
 **Contract**: `AccountApprovedNotificationTests.cs` is deleted. Pending cases in
 `AuthEndpointTests`, `MemberAdminEndpointTests`, `MemberEndpointTests`, `MyPlanEndpointTests`,
 `PushEndpointTests`, `TrainingPlanEndpointTests` are removed; their `[Theory]` variants parameterized
@@ -1025,11 +1034,11 @@ a later change, once no deployed artifact reads it.
 
 #### Automated
 
-- [x] 7.1 Build is warning-free
-- [x] 7.2 Full suite passes
-- [x] 7.3 Frontend quality gate passes
-- [x] 7.4 Frontend unit tests pass
-- [x] 7.5 Grep finds no reference to the removed member booking routes
+- [x] 7.1 Build is warning-free — d561a82
+- [x] 7.2 Full suite passes — d561a82
+- [x] 7.3 Frontend quality gate passes — d561a82
+- [x] 7.4 Frontend unit tests pass — d561a82
+- [x] 7.5 Grep finds no reference to the removed member booking routes — d561a82
 
 #### Manual
 
@@ -1041,12 +1050,12 @@ a later change, once no deployed artifact reads it.
 
 #### Automated
 
-- [ ] 8.1 Build is warning-free
-- [ ] 8.2 Full suite passes
-- [ ] 8.3 Frontend quality gate passes
-- [ ] 8.4 Frontend unit tests pass
-- [ ] 8.5 Grep finds no dead approval references beyond the retired enum member
-- [ ] 8.6 Production build emits no bundle-budget warning
+- [x] 8.1 Build is warning-free
+- [x] 8.2 Full suite passes
+- [x] 8.3 Frontend quality gate passes
+- [x] 8.4 Frontend unit tests pass
+- [x] 8.5 Grep finds no dead approval references beyond the retired enum member
+- [x] 8.6 Production build emits no bundle-budget warning
 
 #### Manual
 

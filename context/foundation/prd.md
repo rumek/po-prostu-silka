@@ -56,6 +56,11 @@ Scope decision (revised in the Socratic round): MVP notifications are delivered 
 
 ### US-01: Member books a spot in a class
 
+> **Superseded by M-4 (roadmap S-16), 2026-09-09.** Members no longer book for themselves. The club
+> books them: an admin into any class, a trainer into the classes they instruct, and only when the
+> member holds a karnet valid on the day of the class with a free entry. The member sees their
+> upcoming classes and cannot change them.
+
 - **Given** a logged-in member with an active (approved) account, and a scheduled class with at least one free spot
 - **When** they open the class details from the schedule and tap "Book"
 - **Then** their spot is reserved, the class's free-spot count decreases by one, and the class appears in their upcoming classes
@@ -137,6 +142,13 @@ Scope decision (revised in the Socratic round): MVP notifications are delivered 
 
 ## Business Logic
 
+> **Superseded in part by M-4 (roadmap S-16), 2026-09-09.** Admin approval no longer gates anything:
+> registration produces an active account, and what decides whether somebody may train is a *karnet*
+> — a named pass with a validity range and a pool of entries, issued by the club. Booking is a staff
+> action: an admin anywhere, a trainer on the classes they instruct. The no-overbooking guarantee and
+> the one-active-plan rule below are unchanged. This section is left as written rather than rewritten,
+> because it records what v1 shipped.
+
 The app decides who gets in and who gets a spot: every account must pass admin approval before it can act, every booking is admitted only while the class has free capacity (never overbooked, even under simultaneous requests), and every member sees the one training plan assigned personally to them.
 
 Supporting detail:
@@ -146,6 +158,12 @@ Supporting detail:
 - **Where the user meets the rules:** the pending member waits at the approval screen; the member sees live free-spot counts and is refused when a class is full; a cancelled class or edited booked class triggers email + push to every booked member; the member's dashboard opens on their personal plan.
 
 ## Access Control
+
+> **Superseded in part by M-4 (roadmap S-16), 2026-09-09.** The approval gate and the pending state
+> described below were retired; registration is rate-limited per client IP instead, and the account
+> lifecycle is active → blocked. `AccountStatus.Pending` remains declared but is never produced.
+> Blocking is unchanged. The Trainer role the MVP ruled out was added in S-04 and, since S-16, carries
+> the booking capability for a trainer's own classes.
 
 Email + password login. Self-registration is open, but every new account is gated by admin approval before it becomes active.
 

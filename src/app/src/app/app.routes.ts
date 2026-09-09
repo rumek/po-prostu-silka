@@ -3,13 +3,11 @@ import { activeMemberGuard } from './core/auth/active-member.guard';
 import { adminGuard } from './core/auth/admin.guard';
 import { authGuard } from './core/auth/auth.guard';
 import { trainerGuard } from './core/auth/trainer.guard';
-import { Approvals } from './features/admin/approvals/approvals';
 import { ClassForm } from './features/admin/classes/class-form';
 import { ClassTypes } from './features/admin/class-types/class-types';
 import { ClassTypeForm } from './features/admin/class-types/class-type-form';
 import { Members } from './features/admin/members/members';
 import { Login } from './features/auth/login/login';
-import { Pending } from './features/auth/pending/pending';
 import { Register } from './features/auth/register/register';
 import { Dashboard } from './features/dashboard/dashboard';
 
@@ -17,9 +15,12 @@ import { Dashboard } from './features/dashboard/dashboard';
  * Paths stay English while the copy is Polish (S-01 D10): /login already exists and authGuard
  * redirects to it, and every identifier in the codebase is English already.
  *
- * The guards compose rather than nest (D12). authGuard answers "is there a session"; activeMemberGuard
- * answers "is it approved". /pending carries only the first — a Pending member must be able to reach
- * the screen that exists for them, and listing activeMemberGuard there would redirect it to itself.
+ * The guards compose rather than nest (D12). authGuard answers "is there a session";
+ * activeMemberGuard answers "may this person use the club".
+ *
+ * /pending and /admin/approvals are GONE (S-16, MP-03) along with the approval flow they served.
+ * There is no waiting screen because there is nothing to wait for: registration produces an account
+ * that works, and what decides whether somebody may train is the karnet.
  */
 export const routes: Routes = [
   { path: 'login', component: Login },
@@ -41,13 +42,11 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./features/auth/reset-password/reset-password').then((m) => m.ResetPassword),
   },
-  { path: 'pending', component: Pending, canActivate: [authGuard] },
   // EAGER, as Home was before it. This is the screen every approved account lands on, and a lazy
   // chunk here would put a network round trip between signing in and seeing anything — the one place
   // in the app where that cost is paid by everyone, every visit. The 500 kB budget in angular.json is
   // what governs whether it stays that way.
   { path: '', component: Dashboard, canActivate: [authGuard, activeMemberGuard] },
-  { path: 'admin/approvals', component: Approvals, canActivate: [authGuard, adminGuard] },
   { path: 'admin/members', component: Members, canActivate: [authGuard, adminGuard] },
   // 'new' BEFORE ':id', or the literal would be matched as an id and the form would try to load a
   // member called "new". Lazy, like every admin form: only an admin creating or editing a record

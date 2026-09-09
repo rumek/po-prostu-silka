@@ -4,12 +4,19 @@ import { CanActivateFn, Router } from '@angular/router';
 import { AuthService } from './auth.service';
 
 /**
- * Keeps a Pending member out of app content and sends them to the awaiting-approval screen — the
- * SPA half of the backend's ActiveMember policy.
+ * Keeps a member who may not use the club out of app content — the SPA half of the backend's
+ * ActiveMember policy.
+ *
+ * <p>
+ * IT NO LONGER HAS A DESTINATION TO OFFER (S-16, MP-03). It used to send a Pending account to
+ * /pending, a screen that explained the wait; approval is gone, so the only way to fail this guard
+ * now is to be BLOCKED, and a blocked person has nowhere in the app to be sent. They go to /login,
+ * which is also where their next request lands them anyway — blocking rotates the security stamp,
+ * so the session is refused on the round trip after it.
+ * </p>
  *
  * Deliberately separate from authGuard, which stays authentication-only (S-01 D12). That mirrors the
- * backend, where authentication and authorization are also separate, and it means a route that
- * SHOULD admit a pending member — /pending itself — simply does not list this guard. Compose them:
+ * backend, where authentication and authorization are also separate. Compose them:
  * `canActivate: [authGuard, activeMemberGuard]`.
  */
 export const activeMemberGuard: CanActivateFn = async () => {
@@ -33,10 +40,7 @@ export const activeMemberGuard: CanActivateFn = async () => {
     return true;
   }
 
-  // Authenticated but not approved: they have somewhere to be.
-  if (auth.isAuthenticated()) {
-    return router.createUrlTree(['/pending']);
-  }
-
+  // Blocked, or a session whose claims say so. /login either way: there is no screen in this app
+  // for somebody the club has barred, and inventing one would be a place to argue with the decision.
   return router.createUrlTree(['/login']);
 };

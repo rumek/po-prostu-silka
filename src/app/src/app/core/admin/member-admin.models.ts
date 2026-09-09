@@ -1,33 +1,10 @@
 /**
- * Mirrors the API's PendingMember record (src/Application/Members/MemberAdminEndpoints.cs).
- * Keep the two in step — this is a contract, not a convenience type.
- */
-export interface PendingMember {
-  /** The MEMBER's id — every route on the admin surface is addressed by it since S-14. */
-  memberId: string;
-
-  /** The account behind them. The pending queue is accounts-only by definition, so never null. */
-  userId: string;
-
-  email: string;
-  displayName: string;
-
-  /** ISO 8601 from the API. Kept as a string; the screen formats it, nothing does arithmetic on it. */
-  createdAt: string;
-}
-
-/**
- * Mirrors ApproveFailure. `not_pending` — with Active handled as a no-op, the only status approve can
- * refuse is Blocked, and the action wanted there is unblock. `no_account` — the row is a member the
- * club recorded who never registered, so there is no login to approve.
- */
-export interface ApproveFailure {
-  reason: 'not_pending' | 'no_account';
-}
-
-/**
- * The three ACCOUNT statuses, as AccountStatus names. Null on a member with no login — see
+ * The ACCOUNT statuses, as AccountStatus names. Null on a member with no login — see
  * `Member.accountStatus`.
+ *
+ * `'Pending'` STAYS IN THE UNION even though S-16 retired it, and it must, for the same reason the
+ * server keeps the enum member: the value is still readable from the database, so a response could
+ * still carry it and this type has to be able to describe what arrives. Nothing produces it.
  */
 export type MemberStatus = 'Pending' | 'Active' | 'Blocked';
 
@@ -45,8 +22,12 @@ export type MembershipStatus = 'Active' | 'Blocked';
  * The positions the members screen's filter offers. These are the states an admin thinks in rather
  * than a projection of either status: `Active` has to mean the same thing for a person with a login
  * and a person without one.
+ *
+ * `'Pending'` is GONE (S-16) — unlike `MemberStatus`, nothing forces this union to describe a value
+ * that may still arrive, because a filter is something the SCREEN sends. A chip that could only ever
+ * return an empty list is a chip that teaches the admin the screen is broken.
  */
-export type MemberFilter = 'Pending' | 'Active' | 'Blocked' | 'WithoutAccount';
+export type MemberFilter = 'Active' | 'Blocked' | 'WithoutAccount';
 
 /**
  * Mirrors the API's MemberSummary record (src/Application/Members/MemberAdminEndpoints.cs).

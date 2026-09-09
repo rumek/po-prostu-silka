@@ -60,7 +60,9 @@ describe('activeMemberGuard', () => {
       loadCurrentUser: vi.fn(),
     } as unknown as AuthService);
 
-    expectRedirect(await runGuard(), '/pending');
+    // /login, not /pending: S-16 removed the awaiting-approval screen, and the only way to fail this
+    // guard now is to be blocked — for whom there is nowhere in the app to be sent.
+    expectRedirect(await runGuard(), '/login');
   });
 
   it('sends an anonymous visitor to /login', async () => {

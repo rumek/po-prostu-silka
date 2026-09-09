@@ -12,7 +12,6 @@ import { Dashboard } from './dashboard';
 
 const BOOKINGS_URL = '/api/bookings/mine';
 const PLAN_URL = '/api/plans/mine';
-const PENDING_URL = '/api/admin/members/pending';
 const PASS_URL = '/api/passes/mine';
 
 const ADMIN: CurrentUser = {
@@ -246,8 +245,8 @@ describe('Dashboard', () => {
     await settle();
 
     expect(text()).not.toContain('Wymaga uwagi');
-    // The point of the isAdmin() guard in ngOnInit: a member must not fire endpoints that answer 403.
-    controller.expectNone(PENDING_URL);
+    // The point of the isAdmin() guard in ngOnInit: a member must not fire an endpoint that answers
+    // 403. verify() is what proves it — an unexpected admin request would be an open request here.
     controller.verify();
   });
 
@@ -257,12 +256,13 @@ describe('Dashboard', () => {
     controller.expectOne(BOOKINGS_URL).flush([]);
     controller.expectOne(PLAN_URL).flush(null, { status: 204, statusText: 'No Content' });
     flushPass();
-    controller.expectOne(PENDING_URL).flush([{ id: 'p1' }, { id: 'p2' }]);
     controller.expectOne((r) => r.url === '/api/admin/classes').flush([]);
     await settle();
 
+    // The approvals card that used to sit here is gone with the flow it counted (S-16, MP-03), so
+    // "Wymaga uwagi" is now the day's classes alone.
     expect(text()).toContain('Wymaga uwagi');
-    expect(element().querySelector('.dashboard-count')!.textContent).toContain('2');
+    expect(text()).not.toContain('Zgłoszenia');
     controller.verify();
   });
 
@@ -277,7 +277,6 @@ describe('Dashboard', () => {
     controller.expectOne(BOOKINGS_URL).flush([]);
     controller.expectOne(PLAN_URL).flush(null, { status: 204, statusText: 'No Content' });
     flushPass();
-    controller.expectOne(PENDING_URL).flush([]);
 
     const request = controller.expectOne((r) => r.url === '/api/admin/classes');
     const from = new Date(request.request.params.get('from')!);

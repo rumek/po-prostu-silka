@@ -71,22 +71,6 @@ public class MemberBlockPolicyTests(IntegrationTestFixture fixture)
         Assert.Equal(nameof(MembershipStatus.Active), me.MembershipStatus);
     }
 
-    /// <summary>
-    /// A PENDING account has an ACTIVE membership, and the pair must stay distinguishable: approval
-    /// gates the login, not the club's record of the person. Collapsing them into one status is the
-    /// mistake this asserts against.
-    /// </summary>
-    [Fact]
-    public async Task A_pending_account_reports_an_active_membership()
-    {
-        var client = await fixture.CreateAuthenticatedClientAsync(TestUsers.PendingMemberEmail);
-
-        var me = await client.GetFromJsonAsync<CurrentUserBody>("/api/auth/me");
-
-        Assert.Equal(nameof(AccountStatus.Pending), me!.Status);
-        Assert.Equal(nameof(MembershipStatus.Active), me.MembershipStatus);
-    }
-
     // --- what a membership block actually does --------------------------------
 
     /// <summary>

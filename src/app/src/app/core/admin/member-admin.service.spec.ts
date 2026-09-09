@@ -2,22 +2,14 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { MemberAdminService } from './member-admin.service';
-import { Member, PendingMember } from './member-admin.models';
+import { Member } from './member-admin.models';
 
-const MEMBER: PendingMember = {
-  memberId: 'm1',
+const FULL_MEMBER: Member = {
+  id: 'm1',
   userId: 'u1',
   email: 'nowy@test.local',
   displayName: 'Nowy Członek',
   createdAt: '2026-09-01T08:00:00+00:00',
-};
-
-const FULL_MEMBER: Member = {
-  id: MEMBER.memberId,
-  userId: MEMBER.userId,
-  email: MEMBER.email,
-  displayName: MEMBER.displayName,
-  createdAt: MEMBER.createdAt,
   membershipStatus: 'Active',
   accountStatus: 'Active',
   roles: ['User'],
@@ -39,33 +31,13 @@ describe('MemberAdminService', () => {
 
   afterEach(() => controller.verify());
 
-  it('reads the pending queue from /api/admin/members/pending', async () => {
-    const pending = service.getPending();
-
-    const request = await vi.waitFor(() => controller.expectOne('/api/admin/members/pending'));
-    expect(request.request.method).toBe('GET');
-    request.flush([MEMBER]);
-
-    await expect(pending).resolves.toEqual([MEMBER]);
-  });
-
-  it('posts approve to the member-scoped path', async () => {
-    const approved = service.approve('m1');
-
-    const request = await vi.waitFor(() => controller.expectOne('/api/admin/members/m1/approve'));
-    expect(request.request.method).toBe('POST');
-    request.flush(null);
-
-    await expect(approved).resolves.toBeUndefined();
-  });
-
   // Identity's default key is a GUID, but the type is a string and the path is built by hand — an
   // unencoded id would silently produce a request to the wrong URL.
   it('encodes the id into the path', async () => {
-    const approved = service.approve('a b/c');
+    const approved = service.block('a b/c');
 
     const request = await vi.waitFor(() =>
-      controller.expectOne('/api/admin/members/a%20b%2Fc/approve'),
+      controller.expectOne('/api/admin/members/a%20b%2Fc/block'),
     );
     request.flush(null);
 
@@ -125,16 +97,16 @@ describe('MemberAdminService', () => {
     await expect(unblocked).resolves.toBeUndefined();
   });
 
-  // Nothing here catches: the screen has to know an approve failed so it can keep the row.
-  it('rejects rather than swallowing a failed approve', async () => {
-    const approved = service.approve('m1');
+  // Nothing here catches: the screen has to know a block failed so it can keep the row as it was.
+  it('rejects rather than swallowing a failed block', async () => {
+    const blocked = service.block('m1');
 
-    (await vi.waitFor(() => controller.expectOne('/api/admin/members/m1/approve'))).flush(
-      { reason: 'not_pending' },
+    (await vi.waitFor(() => controller.expectOne('/api/admin/members/m1/block'))).flush(
+      { reason: 'is_admin' },
       { status: 409, statusText: 'Conflict' },
     );
 
-    await expect(approved).rejects.toBeDefined();
+    await expect(blocked).rejects.toBeDefined();
   });
 
   /** Grant and revoke share a path and differ only by verb, so both are asserted together. */

@@ -7,6 +7,7 @@
 - Never write to `context/archive/` — archived changes are immutable. If a target path resolves there, stop and open a new change instead.
 - No overbooking: any booking logic must guarantee a class never accepts more bookings than it has spots (SQL Server transaction via EF Core, per the PRD guardrail).
 - MVP notifications are email + push only; do not add an in-app notification center — that scope was explicitly rejected in the PRD.
+- **Booking is a staff action, and the karnet is what gates training** (S-16, supersedes v1 US-01/FR-002/FR-003/FR-008/FR-009). A member never books or cancels their own spot: an admin books anyone, a trainer books into the classes they personally instruct, and nobody may be booked without a `MembershipPass` valid on the class's club-local date with a free entry. Entries left is DERIVED from active bookings carrying that pass's id — never a stored counter. Admin approval of new accounts is gone; registration produces an active account and is rate-limited instead. `AccountStatus.Pending` stays declared but is never produced.
 - Known accepted risk: transitive HIGH vulnerability in `Microsoft.OpenApi 2.0.0` (GHSA-v5pm-xwqc-g5wc); don't "fix" it by downgrading `Microsoft.AspNetCore.OpenApi` — pin a patched transitive reference when available.
 
 ## Project structure

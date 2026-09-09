@@ -104,10 +104,12 @@ describe('Login', () => {
     fill('pending@test.local', 'TestPass_123');
     submit();
 
-    (await expectLogin()).flush({ ...ACTIVE, status: 'Pending' });
+    (await expectLogin()).flush({ ...ACTIVE, status: 'Active' });
     await fixture.whenStable();
 
-    expect(navigate).toHaveBeenCalledWith(['/pending']);
+    // The dashboard, whatever the status (S-16, MP-03). Login used to route by status; there is no
+    // second destination any more, and a blocked account never gets a cookie to route with.
+    expect(navigate).toHaveBeenCalledWith(['/']);
   });
 
   it('renders one non-specific message for invalid credentials', async () => {

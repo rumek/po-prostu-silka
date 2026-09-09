@@ -22,17 +22,13 @@ const TRAINER: CurrentUser = {
   roles: ['User', 'Trainer'],
 };
 const PENDING_MEMBER: CurrentUser = { ...MEMBER, id: 'p1', status: 'Pending' };
-const INACTIVE_ADMIN: CurrentUser = { ...ADMIN, id: 'a2', status: 'Pending' };
-const INACTIVE_TRAINER: CurrentUser = { ...TRAINER, id: 't2', status: 'Pending' };
+// BLOCKED, not Pending — S-16 retired the pending state, and blocked is now the only way an account
+// can be authenticated and still fail isActive().
+const INACTIVE_ADMIN: CurrentUser = { ...ADMIN, id: 'a2', status: 'Blocked' };
+const INACTIVE_TRAINER: CurrentUser = { ...TRAINER, id: 't2', status: 'Blocked' };
 
 /** Every admin destination the panel offers, in template order. */
-const ADMIN_HREFS = [
-  '/admin/approvals',
-  '/admin/members',
-  '/admin/classes',
-  '/admin/class-types',
-  '/admin/exercises',
-];
+const ADMIN_HREFS = ['/admin/members', '/admin/classes', '/admin/class-types', '/admin/exercises'];
 
 /**
  * The "Więcej" hub (S-12).
@@ -40,8 +36,9 @@ const ADMIN_HREFS = [
  * THIS SPEC IS THE POINT OF THE SCREEN. The bottom bar carries five tabs that are identical for every
  * role, so every role-conditional link in the app now lives here — which means this one file is where
  * the whole visibility matrix is enforced. The S-01 implementation review found a shipped bug of
- * exactly this kind (an admin link tested isAdmin() alone, so a Pending admin saw a link that bounced
- * them), and the inactive-role cases below are here so it cannot happen again silently.
+ * exactly this kind (an admin link tested isAdmin() alone, so an admin who could not use the club saw
+ * a link that bounced them), and the inactive-role cases below are here so it cannot happen again
+ * silently.
  */
 describe('More', () => {
   function createWith(user: CurrentUser) {
@@ -83,7 +80,7 @@ describe('More', () => {
 
   /**
    * The exception the whole screen is built around: /profile is gated on isAuthenticated(), NOT
-   * isActive(), because a Pending member needs it to supply the contact details S-13 made mandatory.
+   * isActive(), because an account still needs it to supply the contact details S-13 made mandatory.
    * Hiding it here would strand them once the header's links are gone on a phone.
    */
   it('still offers the profile screen to a member who is not yet approved', () => {
@@ -122,7 +119,7 @@ describe('More', () => {
 
   /**
    * The S-01 F5 case. adminGuard is `isAdmin() && isActive()`; an admin whose account is not active
-   * fails it, so showing the links would offer a trip to /admin/approvals -> / and back.
+   * fails it, so showing the links would offer a trip to /admin/members -> / and back.
    */
   it('hides every panel entry from an admin whose account is not active', () => {
     const element = createWith(INACTIVE_ADMIN);

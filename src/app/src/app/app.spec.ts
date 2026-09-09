@@ -138,13 +138,13 @@ describe('App', () => {
     await fixture.whenStable();
 
     expect(
-      (fixture.nativeElement as HTMLElement).querySelector('a[href="/admin/approvals"]'),
+      (fixture.nativeElement as HTMLElement).querySelector('a[href="/trainer/plans"]'),
     ).toBeNull();
   });
 
   // The header's condition must match adminGuard and the backend Admin policy: an admin whose own
-  // account is not approved is not an admin anywhere else either.
-  it('hides the approvals link from an admin whose account is not active', async () => {
+  // account is unusable is not an admin anywhere else either.
+  it('hides the admin link from an admin whose account is not active', async () => {
     configure({
       user: () => ADMIN,
       isAuthenticated: () => true,
@@ -157,11 +157,11 @@ describe('App', () => {
     await fixture.whenStable();
 
     expect(
-      (fixture.nativeElement as HTMLElement).querySelector('a[href="/admin/approvals"]'),
+      (fixture.nativeElement as HTMLElement).querySelector('a[href="/trainer/plans"]'),
     ).toBeNull();
   });
 
-  it('shows the approvals link to an admin', async () => {
+  it('shows the admin panel link to an admin', async () => {
     configure({
       user: () => ADMIN,
       isAuthenticated: () => true,
@@ -174,7 +174,7 @@ describe('App', () => {
     await fixture.whenStable();
 
     expect(
-      (fixture.nativeElement as HTMLElement).querySelector('a[href="/admin/approvals"]'),
+      (fixture.nativeElement as HTMLElement).querySelector('a[href="/trainer/plans"]'),
     ).not.toBeNull();
   });
 

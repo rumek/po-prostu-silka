@@ -119,7 +119,6 @@ public class IntegrationTestFixture : IAsyncLifetime
     {
         await CreateUserAsync(TestUsers.ActiveAdminEmail, AccountStatus.Active, ApplicationRoles.Admin);
         await CreateUserAsync(TestUsers.ActiveMemberEmail, AccountStatus.Active, ApplicationRoles.User);
-        await CreateUserAsync(TestUsers.PendingMemberEmail, AccountStatus.Pending, ApplicationRoles.User);
         await CreateUserAsync(TestUsers.BlockedMemberEmail, AccountStatus.Blocked, ApplicationRoles.User);
 
         // BOTH ROLES, and that is the point rather than belt-and-braces. A real trainer is an
@@ -189,8 +188,9 @@ public class IntegrationTestFixture : IAsyncLifetime
         // fails the membership claim and every policy built on it, and the failure would look like a
         // broken policy rather than a broken fixture.
         //
-        // Mirrors what RegisterAsync does in production, including Active membership for a Pending
-        // account - approval gates the login, not the membership.
+        // Mirrors what RegisterAsync does in production. Membership follows the account only for
+        // Blocked; the two statuses answer different questions and are deliberately not derived from
+        // one another anywhere else.
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         db.Members.Add(new Member
         {
@@ -317,6 +317,49 @@ public class IntegrationTestFixture : IAsyncLifetime
         return await db.Members.AsNoTracking().Where(m => m.UserId == userId).Select(m => m.Id).SingleAsync();
     }
 
+    /// <summary>
+    /// A signed-in client whose session FAILS the ActiveMember policy (S-16).
+    ///
+    /// <para>
+    /// WHY THIS HELPER HAD TO EXIST. Until S-16 that state was simply "a pending account", which the
+    /// fixture seeded and any test could sign in as. Approval is gone, and the remaining way to fail
+    /// the policy — being blocked — cannot be reached the same way: login refuses a blocked account
+    /// outright, so there is no cookie to test with. The state still MATTERS, because a session
+    /// issued before a block must keep being refused, and that is what these tests assert.
+    /// </para>
+    ///
+    /// <para>
+    /// So the sequence is: seed an active account, sign in, block the MEMBERSHIP straight in the
+    /// database, and refresh the claims. Membership rather than the account, because blocking the
+    /// account would invalidate the cookie itself and the client would stop being signed in at all —
+    /// which is a different thing from a live session that is refused.
+    /// </para>
+    /// </summary>
+    public async Task<HttpClient> CreateInactiveSessionAsync()
+    {
+        var email = $"inactive-session-{Guid.NewGuid():N}@test.local";
+        await CreateUserAsync(email, AccountStatus.Active, ApplicationRoles.User);
+
+        var client = await CreateAuthenticatedClientAsync(email);
+
+        using (var scope = Factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+            var member = await db.Members.SingleAsync(m => m.Email == email);
+            member.Status = MembershipStatus.Blocked;
+
+            await db.SaveChangesAsync();
+        }
+
+        // Re-mint, so the cookie carries the new membership rather than the one it was issued with.
+        // Bare RequireAuthorization(), so a member who is about to fail every policy can still call it.
+        var refreshed = await client.PostAsync("/api/auth/refresh", content: null);
+        Assert.Equal(HttpStatusCode.OK, refreshed.StatusCode);
+
+        return client;
+    }
+
     /// <summary>Logs in and returns a client carrying the resulting auth cookie.</summary>
     public async Task<HttpClient> CreateAuthenticatedClientAsync(string email)
     {
@@ -364,7 +407,10 @@ public static class TestUsers
     public const string SeededAdminEmail = "seeded-admin@test.local";
     public const string ActiveAdminEmail = "active-admin@test.local";
     public const string ActiveMemberEmail = "active-member@test.local";
-    public const string PendingMemberEmail = "pending-member@test.local";
+    // PendingMemberEmail is GONE (S-16, MP-03). Nothing produces a pending account any more, so a
+    // seeded one would be a state the product cannot reach — and every test that used it was really
+    // asking "what does a session that fails ActiveMember do", which BlockedMemberEmail answers on
+    // the one axis that still exists.
     public const string BlockedMemberEmail = "blocked-member@test.local";
 
     /// <summary>An approved member who also holds Trainer - what promoting a member actually produces.</summary>

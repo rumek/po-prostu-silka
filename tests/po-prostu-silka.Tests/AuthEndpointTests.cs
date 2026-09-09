@@ -1,13 +1,22 @@
 using System.Net;
 using System.Net.Http.Json;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using po_prostu_silka.Domain;
+using po_prostu_silka.Infrastructure.Persistence;
 
 namespace po_prostu_silka.Tests;
 
 /// <summary>
 /// Asserts the PRD's Access Control rules directly. These are the invariants whose silent breakage
-/// would compromise every later slice: an unapproved account must not be able to act, and role
-/// separation must hold at the HTTP boundary.
+/// would compromise every later slice: an account the club has barred must not be able to act, and
+/// role separation must hold at the HTTP boundary.
+///
+/// <para>
+/// The pending half of this file went with approval (S-16, MP-03). What survives is the axis that
+/// still exists — blocked — plus the claim-staleness mechanism, which S-16 rewrote around a block
+/// because that is now the only status change there is.
+/// </para>
 /// </summary>
 [Collection(nameof(IntegrationCollection))]
 public class AuthEndpointTests(IntegrationTestFixture fixture)
@@ -40,39 +49,6 @@ public class AuthEndpointTests(IntegrationTestFixture fixture)
     // Inverted by S-01 (D1). The PRD's Access Control section and roadmap S-01 both say a pending
     // member logs in and sees an awaiting-approval screen; F-02 refused them instead. Content is
     // gated by the ActiveMember policy, which the next test pins.
-    [Fact]
-    public async Task Pending_user_receives_a_session()
-    {
-        var client = fixture.CreateClient();
-
-        var response = await client.PostAsJsonAsync(
-            "/api/auth/login", Credentials(TestUsers.PendingMemberEmail));
-
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Contains(response.Headers.GetValues("Set-Cookie"), c => c.Contains("Identity.Application"));
-
-        var body = await response.Content.ReadFromJsonAsync<CurrentUserBody>();
-        Assert.Equal(nameof(AccountStatus.Pending), body!.Status);
-    }
-
-    /// <summary>
-    /// The assertion that makes D1 safe: a pending session exists, can read its own status, and
-    /// still reaches nothing behind the ActiveMember policy.
-    /// </summary>
-    [Fact]
-    public async Task Pending_session_reaches_me_but_not_ActiveMember_content()
-    {
-        var client = await fixture.CreateAuthenticatedClientAsync(TestUsers.PendingMemberEmail);
-
-        var me = await client.GetAsync("/api/auth/me");
-        Assert.Equal(HttpStatusCode.OK, me.StatusCode);
-        Assert.Equal(
-            nameof(AccountStatus.Pending),
-            (await me.Content.ReadFromJsonAsync<CurrentUserBody>())!.Status);
-
-        var content = await client.GetAsync("/test/active-member");
-        Assert.Equal(HttpStatusCode.Forbidden, content.StatusCode);
-    }
 
     [Fact]
     public async Task Blocked_user_is_refused_with_a_distinguishing_reason()
@@ -222,65 +198,80 @@ public class AuthEndpointTests(IntegrationTestFixture fixture)
 
     /// <summary>
     /// /refresh must sit behind bare RequireAuthorization(), never the ActiveMember policy - a
-    /// pending member has to be able to call the one endpoint that stops them being pending.
+    /// member has to be able to call it whatever their claims currently say.
     /// </summary>
     [Fact]
-    public async Task Refresh_succeeds_for_a_pending_member()
+    public async Task Refresh_succeeds_for_an_ordinary_member()
     {
-        var client = await fixture.CreateAuthenticatedClientAsync(TestUsers.PendingMemberEmail);
+        var client = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveMemberEmail);
 
         var response = await client.PostAsync("/api/auth/refresh", content: null);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
         var body = await response.Content.ReadFromJsonAsync<CurrentUserBody>();
-        Assert.Equal(nameof(AccountStatus.Pending), body!.Status);
+        Assert.Equal(nameof(AccountStatus.Active), body!.Status);
     }
 
     /// <summary>
-    /// The claim-staleness regression test, and the reason POST /api/auth/refresh exists at all.
+    /// THE CLAIM-STALENESS MECHANISM, and the reason POST /api/auth/refresh exists.
     ///
-    /// The ActiveMember policy reads account_status from the COOKIE, not the database, and that claim
-    /// is re-minted only when the security-stamp validator refreshes - every 30 minutes. So approval
-    /// alone leaves the member holding a Pending cookie while /me (which queries the row) correctly
-    /// reports Active. Asserting the still-403 step in the middle pins the mechanism rather than the
-    /// symptom: without it, this test would still pass if the claim were never stale.
+    /// <para>
+    /// Authorization reads the COOKIE, not the database, so a status change does not bite until the
+    /// claims are re-minted — on the security-stamp validation interval (Program.cs) or on this
+    /// endpoint. Asserting the still-permitted step in the middle pins the mechanism rather than the
+    /// symptom: without it, this test would pass even if the claim were never stale.
+    /// </para>
     ///
-    /// It has to be automated because production has no ActiveMember endpoint to observe it against
-    /// until S-03 - /me and /api/push are deliberately bare RequireAuthorization(). The
-    /// IsEnvironment("Testing") probes are the only surface.
+    /// <para>
+    /// WRITTEN AROUND A BLOCK SINCE S-16. It used to run the same sequence through approval —
+    /// Pending, approve, still refused, refresh, admitted — and approval is gone. Blocking is the
+    /// remaining status change, and it runs the sequence in the more dangerous direction: the stale
+    /// claim here is PERMISSIVE, so what refresh fixes is a session still being let in.
+    /// </para>
+    ///
+    /// <para>
+    /// The status is written straight to the database rather than through POST /{id}/block, and that
+    /// is the whole arrangement: the endpoint rotates the security stamp, which makes Identity
+    /// re-validate and re-mint on its own — closing the window this test needs to observe. Going
+    /// around it is what keeps the stale claim stale.
+    /// </para>
     /// </summary>
     [Fact]
-    public async Task Approval_does_not_reach_the_cookie_until_refresh_is_called()
+    public async Task A_status_change_does_not_reach_the_cookie_until_refresh_is_called()
     {
         var email = $"claim-refresh-{Guid.NewGuid():N}@test.local";
-        await fixture.CreateUserAsync(email, AccountStatus.Pending, ApplicationRoles.User);
+        await fixture.CreateUserAsync(email, AccountStatus.Active, ApplicationRoles.User);
 
         var member = await fixture.CreateAuthenticatedClientAsync(email);
-        Assert.Equal(HttpStatusCode.Forbidden, (await member.GetAsync("/test/active-member")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await member.GetAsync("/test/active-member")).StatusCode);
 
-        var admin = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveAdminEmail);
-        var pending = await admin.GetFromJsonAsync<PendingMemberBody[]>("/api/admin/members/pending");
-        var id = Assert.Single(pending!, p => p.Email == email).MemberId;
+        using (var scope = fixture.Factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-        var approve = await admin.PostAsync($"/api/admin/members/{id}/approve", content: null);
-        Assert.Equal(HttpStatusCode.OK, approve.StatusCode);
+            var user = await db.Users.SingleAsync(u => u.Email == email);
+            user.Status = AccountStatus.Blocked;
 
-        // The database says Active...
+            await db.SaveChangesAsync();
+        }
+
+        // The database says Blocked...
         Assert.Equal(
-            nameof(AccountStatus.Active),
+            nameof(AccountStatus.Blocked),
             (await member.GetFromJsonAsync<CurrentUserBody>("/api/auth/me"))!.Status);
 
-        // ...but the cookie still says Pending, so every ActiveMember endpoint keeps refusing.
-        Assert.Equal(HttpStatusCode.Forbidden, (await member.GetAsync("/test/active-member")).StatusCode);
+        // ...but the cookie still says Active, so the ActiveMember probe keeps admitting them.
+        Assert.Equal(HttpStatusCode.OK, (await member.GetAsync("/test/active-member")).StatusCode);
 
         var refresh = await member.PostAsync("/api/auth/refresh", content: null);
         Assert.Equal(HttpStatusCode.OK, refresh.StatusCode);
         Assert.Equal(
-            nameof(AccountStatus.Active),
+            nameof(AccountStatus.Blocked),
             (await refresh.Content.ReadFromJsonAsync<CurrentUserBody>())!.Status);
 
-        Assert.Equal(HttpStatusCode.OK, (await member.GetAsync("/test/active-member")).StatusCode);
+        Assert.Equal(
+            HttpStatusCode.Forbidden, (await member.GetAsync("/test/active-member")).StatusCode);
     }
 
     // --- seeding --------------------------------------------------------------

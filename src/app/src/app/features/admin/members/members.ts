@@ -157,15 +157,6 @@ export class Members implements OnInit {
     await this.load();
   }
 
-  protected async approve(member: Member): Promise<void> {
-    await this.mutate(
-      member,
-      () => this.members.approve(member.id),
-      (row) => ({ ...row, accountStatus: 'Active' }),
-      () => `Nie udało się zatwierdzić — ${member.displayName} nie oczekuje już na zatwierdzenie.`,
-    );
-  }
-
   protected async block(member: Member): Promise<void> {
     await this.mutate(
       member,
@@ -245,14 +236,6 @@ export class Members implements OnInit {
     return member.userId === null;
   }
 
-  /**
-   * Approve acts on a LOGIN, so it is offered only where one is waiting. Without this the action
-   * would appear on an accountless row whose only possible outcome is a 409 `no_account`.
-   */
-  protected canApprove(member: Member): boolean {
-    return member.accountStatus === 'Pending';
-  }
-
   protected canBlock(member: Member): boolean {
     return member.membershipStatus !== 'Blocked' && !this.isAdmin(member);
   }
@@ -264,15 +247,18 @@ export class Members implements OnInit {
   /**
    * What the row's badge says. One label rather than two, because two statuses side by side on a
    * phone row is noise: the membership answers "may they use the club", and the account status only
-   * adds anything while it disagrees — which is exactly the pending case.
+   * adds anything while it DISAGREES with it.
+   *
+   * <p>
+   * Since S-16 that disagreement has one shape left — a blocked person — so the pending branch is
+   * gone. `accountStatus` is still read, because a row could in principle still carry the retired
+   * value from an old database, and falling through to "Aktywny" for it would be a claim rather than
+   * a reading.
+   * </p>
    */
   protected statusLabel(member: Member): string {
     if (member.membershipStatus === 'Blocked') {
       return 'Zablokowany';
-    }
-
-    if (member.accountStatus === 'Pending') {
-      return 'Oczekuje';
     }
 
     return member.userId ? 'Aktywny' : 'Bez konta';
@@ -282,10 +268,6 @@ export class Members implements OnInit {
   protected statusKind(member: Member): string {
     if (member.membershipStatus === 'Blocked') {
       return 'blocked';
-    }
-
-    if (member.accountStatus === 'Pending') {
-      return 'pending';
     }
 
     return member.userId ? 'active' : 'no-account';

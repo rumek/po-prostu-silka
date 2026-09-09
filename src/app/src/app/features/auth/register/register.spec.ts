@@ -9,7 +9,7 @@ const PENDING: CurrentUser = {
   id: 'u1',
   email: 'nowy@test.local',
   displayName: 'Nowy Członek',
-  status: 'Pending',
+  status: 'Active',
   roles: ['User'],
 };
 
@@ -133,7 +133,8 @@ describe('Register', () => {
     (await expectRegister()).flush(PENDING);
     await fixture.whenStable();
 
-    expect(navigate).toHaveBeenCalledWith(['/pending']);
+    // Straight to the dashboard (S-16, MP-03): the account works the moment it exists.
+    expect(navigate).toHaveBeenCalledWith(['/']);
   });
 
   /**

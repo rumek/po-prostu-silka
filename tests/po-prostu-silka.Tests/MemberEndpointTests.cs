@@ -400,18 +400,6 @@ public class MemberEndpointTests(IntegrationTestFixture fixture)
 
     // --- account-shaped actions on a record with no account -------------------
 
-    [Fact]
-    public async Task Approving_a_member_with_no_account_is_409_no_account()
-    {
-        var admin = await AdminAsync();
-        var id = await CreateAsync(admin, Request(displayName: "Bez Logowania"));
-
-        var response = await admin.PostAsync($"{Endpoint}/{id}/approve", content: null);
-
-        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
-        Assert.Equal("no_account", (await response.Content.ReadFromJsonAsync<FailureBody>())!.Reason);
-    }
-
     /// <summary>
     /// Roles live in Identity, so an accountless record cannot hold one. S-14 makes an accountless
     /// INSTRUCTOR representable — the class's instructor becomes a member — and still refuses it here;
@@ -459,17 +447,6 @@ public class MemberEndpointTests(IntegrationTestFixture fixture)
         Assert.All(rows!, r => Assert.Null(r.UserId));
     }
 
-    [Fact]
-    public async Task The_pending_filter_returns_accounts_awaiting_approval_only()
-    {
-        var admin = await AdminAsync();
-
-        var rows = await admin.GetFromJsonAsync<MemberSummaryBody[]>($"{Endpoint}?filter=Pending");
-
-        Assert.Contains(rows!, r => r.Email == TestUsers.PendingMemberEmail);
-        Assert.All(rows!, r => Assert.Equal(nameof(AccountStatus.Pending), r.AccountStatus));
-    }
-
     /// <summary>
     /// "Active" has to mean the same thing for a person with a login and a person without one, which
     /// is why the filter is not a projection of either status on its own.
@@ -484,7 +461,6 @@ public class MemberEndpointTests(IntegrationTestFixture fixture)
 
         Assert.Contains(rows!, r => r.Id == id);
         Assert.Contains(rows!, r => r.Email == TestUsers.ActiveMemberEmail);
-        Assert.DoesNotContain(rows!, r => r.Email == TestUsers.PendingMemberEmail);
         Assert.DoesNotContain(rows!, r => r.Email == TestUsers.BlockedMemberEmail);
     }
 
