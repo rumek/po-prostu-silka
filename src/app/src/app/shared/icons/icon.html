@@ -48,6 +48,13 @@
       <path d="M12 5.5V3M9.5 3h5" />
       <path d="M12 13l3-3" />
     }
+    <!-- A plain dial, deliberately unlike ('time') above: that one is a stopwatch and marks the
+         duration an exercise is HELD, this one marks the rest BETWEEN sets. They sit side by side on
+         the same card, so they must not read as the same glyph. -->
+    @case ('clock') {
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M12 7v5l3.5 2" />
+    }
     @case ('idea') {
       <path d="M9 17.5h6" />
       <path d="M9.5 20h5" />

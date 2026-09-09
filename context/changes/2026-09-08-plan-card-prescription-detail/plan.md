@@ -422,6 +422,27 @@ exercise-specific accessible name; the note renders inside the callout with its 
   288 px card, narrower than any phone. Recorded because it is a substitute for the stated check,
   not the check itself.
 
+**Adapted after the plan closed (`50ce249 "UI fixes"`, 2026-09-08).** A hand commit landed after the
+epilogue and changed what this phase shipped. It never went through plan review; recorded here so the
+plan describes the code that actually exists, per `lessons.md`'s first rule.
+
+- **Every parameter carries an icon, and the list is a row of bordered columns.** The plan's contract
+  was a wrapping list of `label + value` pairs with `gap: var(--space-2) var(--space-6)`. What ships
+  is `.my-plan-param` — `flex: 1`, a vertical stack of icon over value over label, separated by
+  `1px var(--section-warm)` rules. Three new glyphs came with it (`repeat`, `hantle`, `time`), plus
+  `clock`, which was added to the `IconName` union with **no matching `@case`** — the Przerwa icon
+  rendered nothing until this review's F1 fix.
+- **Value now precedes label.** `Serie 3` became `3 Serie`; the whole list reads as numbers first.
+- **The muscle group is a pill, not a caption.** The plan asked for `var(--muted)` at the
+  `0.8125rem` `.my-plan-label` already uses. What ships is `0.65rem`, weight 600, on a
+  `var(--section-warm)` ground with `border-radius: 23px` and `padding: 4px 8px` — raw values where
+  this file otherwise uses tokens (F6).
+- **The note callout's background is `var(--section-cool)`, not the `--ink` derivation** the note
+  above claims. That earlier note is now wrong and is superseded by this line. `align-items` also
+  moved from `flex-start` to `center`, leaving the rule's own comment arguing against it (F4).
+- **The bottom-nav tabs were shortened** (`Moje zajęcia` → `Zajęcia`, `Mój plan` → `Plan`), which is
+  unrelated to this slice and left `bottom-nav.spec.ts` red (F2).
+
 ### Success Criteria:
 
 #### Automated Verification:

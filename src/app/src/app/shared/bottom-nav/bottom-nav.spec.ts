@@ -98,7 +98,7 @@ describe('BottomNav', () => {
     const current = tabs(element).filter((a) => a.getAttribute('aria-current') === 'page');
 
     expect(current.length).toBe(1);
-    expect(current[0].getAttribute('aria-label')).toBe('Moje zajęcia');
+    expect(current[0].getAttribute('aria-label')).toBe('Zajęcia');
   });
 
   /**

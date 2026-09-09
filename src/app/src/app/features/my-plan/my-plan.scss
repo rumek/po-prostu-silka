@@ -53,10 +53,11 @@ app-plan-summary {
   margin: var(--space-1) 0 0;
   color: var(--muted);
   font-weight: 600;
-  font-size: 0.65rem;
+  font-size: 0.8125rem;
   background: var(--section-warm);
-  border-radius: 23px;
-  padding: 4px 8px;
+  // A pill, so the radius is larger than any height this can take rather than a figure tuned to one.
+  border-radius: 999px;
+  padding: var(--space-1) var(--space-2);
   width: fit-content;
 }
 
@@ -78,19 +79,22 @@ app-plan-summary {
 
 .my-plan-param {
   flex: 1;
-  border-right: solid 1px var(--section-warm);
   display: flex;
   flex-direction: column;
   align-items: center;
 
+  // BETWEEN the parameters and nowhere else. Only the adjacent-sibling rule draws it, so a divider
+  // never appears before the first or after the last — and a card carrying a single parameter (the
+  // duration-only plank this slice exists for) gets no stray rule at all.
   & + .my-plan-param {
     border-left: solid 1px var(--section-warm);
   }
 }
 
 // A callout, so the trainer's remark stops reading as a continuation of the numbers above it. The
-// icon is aligned to the first line rather than centred: a three-line note with a centred icon
-// points at nothing in particular.
+// icon is CENTRED on the block rather than pinned to the first line: it labels the whole remark, not
+// its opening words, and most notes here are one or two lines, where centring reads as deliberate
+// and first-line alignment reads as a stray glyph riding high. Revisit if long notes become common.
 .my-plan-note {
   display: flex;
   align-items: center;
@@ -105,8 +109,6 @@ app-plan-summary {
     flex-shrink: 0;
     color: var(--muted);
     font-size: 0.875rem;
-    // Nudges the 1.5em glyph onto the first line's optical centre.
-    margin-top: 0.1em;
   }
 
   span {
