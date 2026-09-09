@@ -253,6 +253,11 @@ builder.Services.AddScoped<IMemberQuery, MemberQuery>();
 // releases bookings while rotating the account's security stamp, both depend on landing in one commit.
 builder.Services.AddScoped<IMemberStore, MemberStore>();
 
+// S-16's karnet write side. Scoped, and it MUST share the request's DbContext with IMemberStore: the
+// non-overlap rule is a probe followed by an insert, and it is only an invariant because the insert
+// and the rotation of Member.ConcurrencyStamp land in the same SaveChangesAsync.
+builder.Services.AddScoped<IMembershipPassStore, MembershipPassStore>();
+
 // S-06's instructor selection (prd-v2 FR-009). Separate from IMemberQuery on purpose: that one
 // browses accounts for the admin's management screen, this one answers "who may run a class".
 builder.Services.AddScoped<ITrainerQuery, TrainerQuery>();

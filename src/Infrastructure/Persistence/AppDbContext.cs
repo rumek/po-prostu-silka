@@ -26,6 +26,12 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
     /// </summary>
     public DbSet<Member> Members => Set<Member>();
 
+    /// <summary>
+    /// The karnet (S-16): a member's time-bounded, counted entitlement to train. See
+    /// <see cref="MembershipPass"/> for why entries left is derived from bookings rather than stored.
+    /// </summary>
+    public DbSet<MembershipPass> MembershipPasses => Set<MembershipPass>();
+
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
     public DbSet<PushSubscription> PushSubscriptions => Set<PushSubscription>();

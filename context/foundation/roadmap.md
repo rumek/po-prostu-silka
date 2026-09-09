@@ -7,8 +7,8 @@ updated: 2026-09-09
 prd_version: 1, 2
 main_goal: speed
 top_blocker: none
-milestone_id: plan-card-prescription
-milestone_seq: 3
+milestone_id: membership-pass-and-staff-booking
+milestone_seq: 4
 milestone_status: open
 ---
 
@@ -20,31 +20,38 @@ milestone_status: open
 
 ## Milestone
 
-**M-3: The plan card carries the whole prescription** — Status: open
+**M-4: The karnet decides who trains** — Status: open
 
-- **Intent:** A member opens their training plan and the card for each exercise tells them everything
-  the trainer prescribed — including exercises measured in time rather than in weight — and tells it
-  legibly. M-1 made plans exist and M-2 made them assignable to anyone; this milestone is about the
-  one screen the member actually reads.
-- **Source materials:** the user's own description, recorded as the `MS-NN` anchors below. Neither PRD
-  describes a timed exercise or the shape of the plan card, so there is nothing upstream to trace to.
+- **Intent:** Replace the access model M-1 built with the one the club actually runs on. Membership
+  is a *karnet* — a named pass with a validity range and a pool of entries — and it is the desk, not
+  the member, that puts somebody into a class. Admin approval, the gate that stood between
+  registering and training, is retired: the pass is the gate now.
+- **Source materials:** the user's own description, recorded as the `MP-NN` anchors below. Neither PRD
+  describes a pass, and both describe self-service booking, so this milestone *supersedes* published
+  product scope rather than extending it — which is why it opens a milestone rather than joining M-3.
 - **Done when:** every S-NN in this milestone is `done`.
 - **Scope anchors:**
-  - MS-01: A prescribed exercise can carry a duration, for movements measured in time rather than in
-    load — a plank needs "45 seconds", not "how many kilograms". It is a per-plan prescription that
-    sits beside the existing weight and rest, NOT a property of the exercise definition: the same
-    plank is 45 s in one member's plan and 60 s in another's, exactly as weight already varies.
-  - MS-02: The member's plan card shows which muscle group the exercise trains.
-  - MS-03: The exercise name on the plan card is no longer itself the link to the exercise details. A
-    separate info icon carries that navigation.
-  - MS-04: The trainer's note on the plan card is set off by a lightly rounded background and an info
-    icon, in the form `(i) Treść uwagi`.
+  - MP-01: Self-service booking is gone. A member sees their upcoming classes and their plan; they
+    cannot book a spot and cannot cancel one. This retires v1 US-01, FR-008 and FR-009 as
+    member-facing capabilities — the behaviour survives, but only on staff routes.
+  - MP-02: An admin books any member into any class and releases any spot. A trainer does the same,
+    but only for the classes they personally instruct.
+  - MP-03: Admin approval of new accounts is gone, along with the Zgłoszenia tab and the
+    awaiting-approval screen. Registration produces an active account. This retires v1 FR-002 and
+    FR-003. Blocking remains the admin's lever, unchanged.
+  - MP-04: A `MembershipPass` (karnet) belongs to a member and carries a type name, a validity range
+    (inclusive both ends), and an entry count. The entry count is ALWAYS required — there is no
+    unlimited pass.
+  - MP-05: A member always sees their pass: its type, its validity, and how many entries are left.
+    They can never issue or edit one.
+  - MP-06: Nobody can be booked into a class unless the member holds a pass valid **on the day of the
+    class** with an entry still free. An entry is consumed by an active booking and returned when
+    that booking is released — derived from the bookings themselves, never a stored counter.
+  - MP-07: A member's passes form a history and their validity ranges may not overlap, so any date
+    resolves to at most one pass.
 
-## PRD addendum (M-2)` below. Neither PRD describes a person without an account — this
-  is new product scope, which is why it opens a milestone rather than joining M-1.
-- **Done when:** every S-NN in this milestone is `done`.
-- **Scope anchors:** the addendum's AM-001–AM-006. Everything M-1 delivered is preserved: the
-  register → pending → active lifecycle, admin approval, block and unblock, and the seeded admin.
+**Not in scope, deliberately:** money. A pass is issued, not sold — no price, no payment, no invoice.
+That half of "Payments, passes, subscriptions" stays parked.
 
 ## PRD addendum (M-2)
 
@@ -79,14 +86,15 @@ Mid-milestone, a second decision landed: a class stops being retyped text and be
 
 ## North star
 
-**S-15: A member's plan card shows the whole prescription, including exercises measured in time** —
-M-3 has one slice, so it is the north star by construction. It still earns the name: the milestone's
-hypothesis is that the plan screen is where a training plan either works or does not, and the only way
-to test that is to put a real prescription in front of a real member.
+**S-16: A member with a valid karnet is booked in by staff; one without a karnet is refused** — M-4
+has one slice, so it is the north star by construction. It earns the name on the refusal, not the
+booking: the milestone's hypothesis is that the pass, and not an approval flag, is what should decide
+whether a person trains, and the only way to test that is to watch a booking be turned away because
+the karnet ran out.
 
 > "North star" here means the smallest end-to-end slice whose successful delivery would prove the core
-> product hypothesis. M-1's was S-09 (email + push on class changes) and M-2's was S-14 (the claim
-> path); both shipped, and their entries live in `## Milestone History`.
+> product hypothesis. M-1's was S-09 (email + push on class changes), M-2's was S-14 (the claim path)
+> and M-3's was S-15 (the plan card); all shipped, and their entries live in `## Milestone History`.
 
 ## At a glance
 
@@ -110,6 +118,7 @@ to test that is to put a real prescription in front of a real member.
 | S-13 | member-profile-edit              | member edits contact details, changes password, resets a forgotten one   | F-02, S-01             | v1 FR-006, v1 FR-025, v1 FR-026                                 | done        |
 | S-14 | member-entity-and-accountless-members | admin keeps a record for someone with no account; that person later claims it with a code | S-02, S-08, S-11, S-13 | M-2 AM-001–AM-006 | done |
 | S-15 | plan-card-prescription-detail | member reads their plan card with the muscle group, a prescribed duration where the trainer set one, an info icon to the exercise, and the note set off as a callout | S-10, S-11 | M-3 MS-001–MS-004 | done |
+| S-16 | membership-pass-and-staff-booking | admin issues a karnet and books a member in; a trainer books into their own classes; a member with no valid karnet is refused; nobody self-books and nobody waits for approval | S-01, S-04, S-08, S-14 | M-4 MP-01–MP-07 (retires v1 US-01, FR-002, FR-003, FR-008, FR-009) | in-progress |
 
 ## Streams
 
@@ -117,7 +126,7 @@ Navigation aid — groups items that share a Prerequisites chain. Canonical orde
 
 | Stream | Theme                 | Chain                                              | Note                                                                                             |
 | ------ | --------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| A      | Access & identity     | `F-01` → `F-02` → `S-01` → `S-02` → `S-04` → `S-13` → `S-14` | The spine. Through M-1 everything hung off an approved account; `S-14` is where that stops being true and a member outlives the login. |
+| A      | Access & identity     | `F-01` → `F-02` → `S-01` → `S-02` → `S-04` → `S-13` → `S-14` → `S-16` | The spine. Through M-1 everything hung off an approved account; `S-14` is where that stops being true and a member outlives the login, and `S-16` is where the approval flag stops deciding anything at all — the karnet does. `S-16` also closes Stream C's member-facing half, which is why it belongs to both chains. |
 | B      | Notification delivery | `F-03` → `S-09`                                    | Carries the north star; `S-09` joins Stream C at `S-08`, which produces the bookings to notify against. |
 | C      | Scheduling & booking  | `S-03` → `S-05` → `S-06` → `S-07` → `S-08` → `S-12` | The longest chain and the milestone's critical path; `S-12` also joins from Stream D at `S-11`.  |
 | D      | Training domain       | `S-10` → `S-11` → `S-15`                           | Independent bounded context — a separate agent run can build it alongside the whole of Stream C. `S-15` extends the plan surface `S-11` created; it is M-3's only slice. |
@@ -388,6 +397,35 @@ What's already in place in the codebase as of `2026-09-02` (auto-researched + us
   a plan card is exactly the kind of surface where "while we're in here" turns one slice into four.
 - **Status:** done
 
+### S-16: The karnet decides who trains
+
+- **Outcome:** user (admin) issues a member a karnet — a type name, a validity range and a number of
+  entries — and books that member into a class; a trainer does the same for the classes they
+  instruct; the member opens the app, sees their karnet and how many entries are left, sees their
+  upcoming classes and cannot book or cancel anything; a booking into a class the karnet does not
+  cover, or with no entry left, is refused; a newly registered account is active immediately and
+  there is no approvals tab.
+- **Change ID:** membership-pass-and-staff-booking
+- **PRD refs:** M-4 MP-01–MP-07. Retires v1 US-01, FR-002, FR-003, FR-008, FR-009 as member-facing
+  capabilities.
+- **Prerequisites:** S-01 (registration, whose approval half this removes), S-04 (the Trainer role
+  the trainer booking surface is gated on), S-08 (the booking aggregate and its no-overbooking
+  protocol this extends), S-14 (`Member`, which the karnet hangs off, and the admin book-on-behalf
+  route this generalises)
+- **Parallel with:** — (M-4's only slice)
+- **Blockers:** —
+- **Unknowns:** — (all seven anchors were settled with the user before planning; see the M-4 scope
+  anchors)
+- **Risk:** two risks, and the smaller one is the new entity. The karnet's entry pool is a second
+  read-then-write invariant sitting inside the write path that already carries the club's headline
+  guarantee, so it needs its own concurrency stamp rotated in the same `SaveChanges` — a pass with a
+  last entry and two classes is exactly the race `Class.ConcurrencyStamp` exists to stop, one level
+  up. The larger risk is subtraction: this slice deletes shipped, working capability on both ends
+  (self-booking, approval) across API, tests, routes, guards and navigation, and a half-removed
+  approval gate leaves accounts that can log in but pass no policy. The migration that activates
+  existing pending accounts must land before the code that stops producing them.
+- **Status:** in-progress
+
 ## Backlog Handoff
 
 | Roadmap ID | Change ID                        | Suggested issue title                                        | Ready for `/10x-plan` | Notes                                              |
@@ -409,7 +447,8 @@ What's already in place in the codebase as of `2026-09-02` (auto-researched + us
 | S-12       | member-and-admin-dashboards      | Member and admin dashboards                                  | no                    | Needs S-01, S-07, S-08, S-11                        |
 | S-13       | member-profile-edit              | Member profile, password change, and password reset          | no                    | Done — archived 2026-09-06                          |
 | S-14       | member-entity-and-accountless-members | Member entity split from the account; accountless members and the claim code | no                    | Done — archived 2026-09-08                          |
-| S-15       | plan-card-prescription-detail    | Prescribed duration, muscle group, info icon and note callout on the plan card | yes                   | Run `/10x-plan plan-card-prescription-detail` — M-3's only slice |
+| S-15       | plan-card-prescription-detail    | Prescribed duration, muscle group, info icon and note callout on the plan card | no                    | Done — archived 2026-09-09                          |
+| S-16       | membership-pass-and-staff-booking | Membership pass gates booking; staff book on a member's behalf; approval retired | yes                   | Run `/10x-plan membership-pass-and-staff-booking` — M-4's only slice |
 
 ## Open Roadmap Questions
 
@@ -437,7 +476,7 @@ Resolved since the previous roadmap: the sender-domain question that gated F-03 
 - **Standalone exercise library browsing** — Why parked: v1 §Non-Goals; exercises are reached from the plan only.
 - **Plan history / versioning UI** — Why parked: v1 §Non-Goals; one active plan per member.
 - **Account rejection status** — Why parked: v1 §Non-Goals; lifecycle is pending / active / blocked.
-- **Payments, passes, subscriptions, invoices** — Why parked: v1 §Non-Goals; the app manages participation, not money.
+- **Payments, subscriptions, invoices** — Why parked: v1 §Non-Goals; the app manages participation, not money. **Passes are no longer parked** — M-4 makes the karnet the thing that decides who trains — but the money half stands: a karnet is issued by an admin, never bought, and carries no price.
 - **Waitlist for full classes** — Why parked: v1 §Non-Goals.
 - **Full recurring-series management** — Why parked: v1 §Non-Goals; weekly duplication stands in, and v2 explicitly declined to reopen it.
 - **Chat / social features; health-app integrations; native mobile apps; self-hosted video; advanced statistics; automatic weight progression** — Why parked: v1 §Non-Goals.
@@ -464,6 +503,13 @@ Resolved since the previous roadmap: the sender-domain question that gated F-03 
   attaches a new account to an existing record, and admin booking on a member's behalf. Closed with
   its "Done when" satisfied. Its scope anchors AM-001–AM-006 are preserved in `## PRD addendum (M-2)`
   below, which stays in this document because no PRD version describes the accountless model.
+
+- **M-3: The plan card carries the whole prescription** (`plan-card-prescription`) — seq 3, opened
+  2026-09-08, closed 2026-09-09. Delivered S-15, its only slice: a nullable per-plan duration beside
+  weight and rest, the muscle group on the member's plan card, a separate info icon carrying the
+  navigation the exercise name used to, and the trainer's note set off as a callout. Closed with its
+  "Done when" satisfied. Its scope anchors MS-01–MS-04 are preserved in this entry; no PRD version
+  describes the plan card.
 
 ## Done
 
