@@ -3,7 +3,7 @@ project: "Po Prostu Siłka"
 version: 2
 status: draft
 created: 2026-08-31
-updated: 2026-09-08
+updated: 2026-09-09
 prd_version: 1, 2
 main_goal: speed
 top_blocker: none
@@ -109,7 +109,7 @@ to test that is to put a real prescription in front of a real member.
 | S-12 | member-and-admin-dashboards      | member and admin land on their at-a-glance home screens                  | S-01, S-07, S-08, S-11 | v1 FR-023, v1 FR-024                                            | done        |
 | S-13 | member-profile-edit              | member edits contact details, changes password, resets a forgotten one   | F-02, S-01             | v1 FR-006, v1 FR-025, v1 FR-026                                 | done        |
 | S-14 | member-entity-and-accountless-members | admin keeps a record for someone with no account; that person later claims it with a code | S-02, S-08, S-11, S-13 | M-2 AM-001–AM-006 | done |
-| S-15 | plan-card-prescription-detail | member reads their plan card with the muscle group, a prescribed duration where the trainer set one, an info icon to the exercise, and the note set off as a callout | S-10, S-11 | M-3 MS-001–MS-004 | in-progress |
+| S-15 | plan-card-prescription-detail | member reads their plan card with the muscle group, a prescribed duration where the trainer set one, an info icon to the exercise, and the note set off as a callout | S-10, S-11 | M-3 MS-001–MS-004 | done |
 
 ## Streams
 
@@ -386,7 +386,7 @@ What's already in place in the codebase as of `2026-09-02` (auto-researched + us
   field added to the record but missed in the query projection surfaces as a silently empty cell
   rather than as an error. The second risk is scope: three of the four anchors are presentation, and
   a plan card is exactly the kind of surface where "while we're in here" turns one slice into four.
-- **Status:** in-progress
+- **Status:** done
 
 ## Backlog Handoff
 
@@ -484,3 +484,4 @@ Resolved since the previous roadmap: the sender-domain question that gated F-03 
 - **S-13: member sees their name and email, edits their contact details (phone and address), changes their password while signed in, and resets a forgotten password by emailed link before login. The display name is deliberately NOT editable — the gym owns how a member appears on its lists.** — Archived 2026-09-06 → `context/archive/2026-09-05-member-profile-edit/`. Lesson: Verify a prerequisite against the code, not against an archived plan (`context/foundation/lessons.md`).
 - **S-12: user (member) lands on a dashboard showing their nearest upcoming classes and active training plan; the admin lands on a dashboard of items needing attention — pending approvals, today's and upcoming classes.** — Archived 2026-09-07 → `context/archive/2026-09-06-member-and-admin-dashboards/`. Lesson: —.
 - **S-14: the admin creates a member record for someone who has never registered, edits and blocks it, assigns them a training plan and books them into a class; the admin issues a single-use code, and the person registers with it and lands on that record — their existing bookings and their active plan already there.** — Archived 2026-09-08 → `context/archive/2026-09-07-member-entity-and-accountless-members/`. Lesson: —.
+- **S-15: user (member) opens their plan and each exercise card shows which muscle group it trains, the duration the trainer prescribed where the exercise is measured in time, a distinct info icon leading to the exercise details, and the trainer's note set off as a callout.** — Archived 2026-09-09 → `context/archive/2026-09-08-plan-card-prescription-detail/`. Lesson: —.

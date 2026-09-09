@@ -1,9 +1,10 @@
 ---
 change_id: plan-card-prescription-detail
 title: The plan card carries the whole prescription
-status: impl_reviewed
+status: archived
 created: 2026-09-08
 updated: 2026-09-09
+archived_at: 2026-09-09T06:14:05Z
 ---
 
 ## Notes
