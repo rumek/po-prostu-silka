@@ -75,7 +75,8 @@ export interface BookingFailure {
     | 'class_started'
     | 'already_booked'
     | 'class_full'
-    | 'not_booked'
     | 'member_blocked'
+    | 'no_valid_pass'
+    | 'no_entries_left'
     | 'conflict';
 }

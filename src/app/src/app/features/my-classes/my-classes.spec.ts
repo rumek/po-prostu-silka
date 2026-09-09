@@ -93,43 +93,23 @@ describe('MyClasses', () => {
     expect(rows().length).toBe(1);
   });
 
-  it('cancels by CLASS and removes the row in place', async () => {
-    await respond([
-      booking({ bookingId: 'b1', classId: 'c1' }),
-      booking({ bookingId: 'b2', classId: 'c2' }),
-    ]);
+  /**
+   * MP-01, asserted as an absence. "Moje zajęcia" is a READ now: the member sees what the club signed
+   * them up for and has no control to undo it — the two tests that used to exercise the cancel, and
+   * the refusal it could return, went with the route.
+   */
+  it('offers no way to cancel a booking', async () => {
+    await respond([booking()]);
 
-    rows()[0].querySelector<HTMLButtonElement>('button')!.click();
-    fixture.detectChanges();
+    const html = fixture.nativeElement as HTMLElement;
 
-    // Addressed by class, not by booking id: a member holds at most one active booking per class.
-    const request = controller.expectOne('/api/classes/c1/bookings/mine');
-    expect(request.request.method).toBe('DELETE');
-
-    // The server answers with the class; this screen has no use for it beyond knowing it worked.
-    request.flush({});
-    await settle();
-
-    // Removed rather than refetched — the response already said the spot is gone.
-    expect(rows().length).toBe(1);
-    expect(rows()[0].textContent).toContain('Joga');
-    controller.expectNone('/api/bookings/mine');
+    expect(html.querySelectorAll('button').length).toBe(0);
+    expect(html.textContent).not.toContain('Anuluj zapis');
   });
 
-  it('keeps the row and explains the refusal when a cancellation is rejected', async () => {
-    await respond([booking({ bookingId: 'b1', classId: 'c1' })]);
+  it('says who does the booking, so an empty list is not a dead end', async () => {
+    await respond([]);
 
-    rows()[0].querySelector<HTMLButtonElement>('button')!.click();
-    fixture.detectChanges();
-
-    controller
-      .expectOne('/api/classes/c1/bookings/mine')
-      .flush({ reason: 'not_booked' }, { status: 409, statusText: 'Conflict' });
-    await settle();
-
-    // The row survives a refusal: removing it would tell the member the spot was released when it
-    // was not.
-    expect(rows().length).toBe(1);
-    expect(element().querySelector('.field-error')!.textContent).toContain('Nie jesteś zapisany');
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Zapisy prowadzi klub');
   });
 });

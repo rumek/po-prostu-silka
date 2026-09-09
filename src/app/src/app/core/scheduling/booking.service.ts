@@ -5,45 +5,32 @@ import { ClassBooking, MyBooking } from './booking.models';
 import { ScheduledClass } from './class.models';
 
 /**
- * Booking and cancelling a spot (prd.md US-01, FR-008, FR-009, FR-010, FR-014).
+ * Reading a member's bookings, and the staff actions that create and release them (prd.md FR-010,
+ * FR-014; S-16 MP-01 and MP-02).
+ *
+ * <h2>A member no longer writes here</h2>
+ *
+ * `book()` and `cancel()` are GONE. MP-01 removed self-service booking: the karnet decides who
+ * trains and the desk is what knows whether somebody holds one, so a member reads `getMine()` and
+ * nothing else. The API removed the two routes outright, so re-adding methods for them would produce
+ * a 405, not a 403.
  *
  * Relative /api paths, like every other service here: the SPA is served from the API's own wwwroot,
  * so these are same-origin and the auth cookie rides along.
  *
- * Nothing here catches. A refused booking has to reach the screen, which shows the reason in the
- * overlay — a member who believes they have a spot when they do not is the failure mode that matters.
+ * Nothing here catches. A refused booking has to reach the screen that asked for it — a staff member
+ * who believes somebody has a spot when they do not is the failure mode that matters.
  *
- * <h2>Why book and cancel answer with a class</h2>
+ * <h2>Why bookForMember answers with a class</h2>
  *
- * They return the occurrence AS IT NOW STANDS, not the booking. The client already knows it booked;
+ * It returns the occurrence AS IT NOW STANDS, not the booking. The caller already knows it booked;
  * what it does not know is the new free-spot count, and answering with the class is what lets the
- * schedule replace the tile in place instead of refetching the week.
+ * calendar replace the tile in place instead of refetching the week. `cancelAsAdmin` deliberately
+ * does not: the screen that releases a spot is a list of people and reloads that list.
  */
 @Injectable({ providedIn: 'root' })
 export class BookingService {
   private readonly http = inject(HttpClient);
-
-  /** Claims a spot. Resolves with the class as it now stands. */
-  book(classId: string): Promise<ScheduledClass> {
-    return firstValueFrom(
-      this.http.post<ScheduledClass>(
-        `/api/classes/${encodeURIComponent(classId)}/bookings`,
-        // No body: the class is in the URL and the member is the cookie. There is nothing to send.
-        null,
-      ),
-    );
-  }
-
-  /**
-   * Releases the caller's own spot. Addressed by CLASS rather than by booking id — a member holds at
-   * most one active booking per class, so the class identifies it, and the client never has to carry
-   * a booking id it did not need for anything else.
-   */
-  cancel(classId: string): Promise<ScheduledClass> {
-    return firstValueFrom(
-      this.http.delete<ScheduledClass>(`/api/classes/${encodeURIComponent(classId)}/bookings/mine`),
-    );
-  }
 
   /** The caller's upcoming bookings, chronological. Upcoming only — the past is history, not a list. */
   getMine(): Promise<MyBooking[]> {

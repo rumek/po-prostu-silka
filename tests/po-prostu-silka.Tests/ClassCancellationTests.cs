@@ -194,13 +194,48 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
         return (await fixture.CreateAuthenticatedClientAsync(email), id, email);
     }
 
-    private static async Task<HttpClient> BookAsync(HttpClient member, Guid classId)
+    /// <summary>
+    /// Gets <paramref name="member"/> booked into a class, THROUGH THE STAFF ROUTE since S-16 —
+    /// MP-01 removed the member's own. These tests are about who gets TOLD when a class changes, and
+    /// that is unaffected by which route created the booking.
+    /// </summary>
+    private async Task<HttpClient> BookAsync(HttpClient member, Guid classId)
     {
-        var response = await member.PostAsync($"/api/classes/{classId}/bookings", content: null);
+        var me = await member.GetFromJsonAsync<MeBody>("/api/auth/me");
+        var admin = await AdminAsync();
+
+        var response = await admin.PostAsJsonAsync(
+            $"/api/admin/classes/{classId}/bookings", new { memberId = me!.MemberId });
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         return member;
     }
+
+    /// <summary>
+    /// Releases a member's spot through the staff route — the replacement for their own cancel,
+    /// which MP-01 removed. Needed here for the one assertion that somebody who gave up their spot is
+    /// owed no message.
+    /// </summary>
+    private async Task ReleaseAsync(HttpClient member, Guid classId)
+    {
+        var me = await member.GetFromJsonAsync<MeBody>("/api/auth/me");
+        var admin = await AdminAsync();
+
+        var roster = await admin.GetFromJsonAsync<List<ClassBookingRow>>(
+            $"/api/admin/classes/{classId}/bookings");
+        var row = roster!.Single(b => b.MemberId == me!.MemberId);
+
+        var response = await admin.DeleteAsync(
+            $"/api/admin/classes/{classId}/bookings/{row.BookingId}");
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+    }
+
+    /// <summary>Mirrors CurrentUser — only the member id, which is what BookAsync needs.</summary>
+    private sealed record MeBody(Guid MemberId);
+
+    /// <summary>Mirrors ClassBooking — only what ReleaseAsync needs to find the right row.</summary>
+    private sealed record ClassBookingRow(Guid BookingId, Guid MemberId);
 
     /// <summary>
     /// Writes a class straight into the database, bypassing the API — the only way to arrange a
@@ -431,7 +466,7 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
         // Someone who released their spot is owed nothing — the recipient list is ACTIVE bookings.
         var (released, _, _) = await NewMemberAsync(deviceCount: 1);
         await BookAsync(released, scheduled.Id);
-        await released.DeleteAsync($"/api/classes/{scheduled.Id}/bookings/mine");
+        await ReleaseAsync(released, scheduled.Id);
 
         // And a member booked on a DIFFERENT class of the same type must not be swept in.
         var other = await PostClassAsync(admin, type.Id, trainerId, NextSlot());

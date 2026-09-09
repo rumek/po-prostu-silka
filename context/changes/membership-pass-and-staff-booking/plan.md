@@ -727,6 +727,15 @@ member-facing half of `booking-failure.ts` shrinks to the admin vocabulary. `bot
 **Intent**: The member routes are gone, so the tests asserting them go with them; the remaining
 member-facing assertion is that the routes are absent.
 
+**Adapted during implementation.** The removed routes answer **405, not 404** — `MapFallbackToFile`
+claims every unmatched path for GET and HEAD only, so a POST or DELETE to a path nothing else maps
+matches the fallback's pattern but not its method. The test asserts 405 and says why; what it is
+really pinning is that the answer is neither a 200 nor a 409, either of which would mean a handler
+ran. Also: the suites' `BookAsync` helpers were *repointed* at the staff route rather than deleted —
+almost every assertion in `BookingEndpointTests` is about the write path's behaviour (capacity,
+duplicates, both races), which did not move, and rewriting those tests around a new arrangement is
+where the coverage would have quietly thinned.
+
 **Contract**: Tests for `BookAsync`/`CancelMineAsync` are removed; a test asserts both routes now
 return 404. The concurrency tests that used the member route move to the admin route, which already
 has an equivalent race test to model on. Do not delete race coverage in the move — the admin path
@@ -1001,10 +1010,10 @@ a later change, once no deployed artifact reads it.
 
 #### Automated
 
-- [x] 6.1 Build is warning-free
-- [x] 6.2 Full suite passes
-- [x] 6.3 Data migration is idempotent when applied twice
-- [x] 6.4 Migration script generates without error
+- [x] 6.1 Build is warning-free — 17d9be6
+- [x] 6.2 Full suite passes — 17d9be6
+- [x] 6.3 Data migration is idempotent when applied twice — 17d9be6
+- [x] 6.4 Migration script generates without error — 17d9be6
 
 #### Manual
 
@@ -1016,11 +1025,11 @@ a later change, once no deployed artifact reads it.
 
 #### Automated
 
-- [ ] 7.1 Build is warning-free
-- [ ] 7.2 Full suite passes
-- [ ] 7.3 Frontend quality gate passes
-- [ ] 7.4 Frontend unit tests pass
-- [ ] 7.5 Grep finds no reference to the removed member booking routes
+- [x] 7.1 Build is warning-free
+- [x] 7.2 Full suite passes
+- [x] 7.3 Frontend quality gate passes
+- [x] 7.4 Frontend unit tests pass
+- [x] 7.5 Grep finds no reference to the removed member booking routes
 
 #### Manual
 

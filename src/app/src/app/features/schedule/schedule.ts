@@ -1,6 +1,4 @@
-import { HttpErrorResponse } from '@angular/common/http';
 import { Component, inject, signal } from '@angular/core';
-import { bookingFailureMessage } from '../../core/scheduling/booking-failure';
 import { BookingService } from '../../core/scheduling/booking.service';
 import { ClassService } from '../../core/scheduling/class.service';
 import { ScheduledClass } from '../../core/scheduling/class.models';
@@ -15,17 +13,17 @@ import { ClassDetailsOverlay } from './class-details-overlay/class-details-overl
  * calendar, which is also what the admin panel renders — FR-017's whole point is that there is one
  * of them.
  *
- * <h2>What S-08 added</h2>
+ * <h2>Browsing only, since S-16</h2>
  *
- * Tapping a class opens a detail overlay with the booking action. The screen holds the member's own
- * bookings as a set of class ids, so a tile knows whether the caller is in it without the shared
- * `ScheduledClass` projection growing a `bookedByMe` field — splitting the member and admin
- * projections was weighed and declined in S-06, and adding a member-only field would be the same
- * decision by the back door.
+ * Tapping a class opens a detail overlay — with no action in it. MP-01 removed self-service booking,
+ * so this screen reads the schedule and nothing else; the `act()` path that used to apply a booking
+ * result back into the week went with it.
  *
- * A booking or a cancellation REPLACES the matching row with the class the server returned, so the
- * tile's spot count moves without refetching the week. That is the whole reason those two endpoints
- * answer with a class rather than a booking.
+ * The screen still holds the member's own bookings as a set of class ids, so a tile can show that the
+ * caller is in it, without the shared `ScheduledClass` projection growing a `bookedByMe` field —
+ * splitting the member and admin projections was weighed and declined in S-06, and adding a
+ * member-only field would be the same decision by the back door. It is now loaded and never
+ * modified, because nothing on this screen can change it.
  */
 @Component({
   imports: [ClassDetailsOverlay, ScheduleCalendar],
@@ -44,21 +42,14 @@ export class Schedule {
   /**
    * Class ids the member currently holds an active booking on.
    *
-   * Loaded once, then maintained locally by book and cancel — the two operations that can change it
-   * — rather than refetched after each. A set rather than the bookings themselves because that is
-   * all this screen asks: "is the caller in this class?". The list of bookings belongs to
-   * /my-classes.
+   * Refetched with every window change and never modified locally — since S-16 nothing on this
+   * screen can change it. A set rather than the bookings themselves because that is all this screen
+   * asks: "is the caller in this class?". The list of bookings belongs to /my-classes.
    */
   protected readonly bookedClassIds = signal<ReadonlySet<string>>(new Set());
 
   /** The class whose overlay is open, or null. */
   protected readonly selected = signal<ScheduledClass | null>(null);
-
-  /** A booking action is in flight. */
-  protected readonly acting = signal(false);
-
-  /** The refusal to show inside the overlay, already in Polish. */
-  protected readonly actionError = signal<string | null>(null);
 
   /** The window the calendar is showing. Null until its first emission, which is the first load. */
   private readonly range = signal<CalendarRange | null>(null);
@@ -68,9 +59,6 @@ export class Schedule {
    * otherwise win: two quick taps on "next week" can land their responses in either order, and the
    * loser would overwrite the week actually on screen. The single fetch this screen used to do could
    * not race with anything; navigation is what made it possible. Same guard as classes.ts.
-   *
-   * S-08 gave it a second job: a booking that resolves after the member has navigated away must not
-   * write its row back into a week that no longer contains it.
    */
   private generation = 0;
 
@@ -130,100 +118,14 @@ export class Schedule {
   }
 
   protected openDetails(row: ScheduledClass): void {
-    this.actionError.set(null);
     this.selected.set(row);
   }
 
   protected closeDetails(): void {
     this.selected.set(null);
-    this.actionError.set(null);
   }
 
   protected isBooked(id: string): boolean {
     return this.bookedClassIds().has(id);
-  }
-
-  protected book(): void {
-    const row = this.selected();
-
-    if (row) {
-      void this.act(row, () => this.bookings.book(row.id), true);
-    }
-  }
-
-  protected cancel(): void {
-    const row = this.selected();
-
-    if (row) {
-      void this.act(row, () => this.bookings.cancel(row.id), false);
-    }
-  }
-
-  /**
-   * Runs a booking write and applies its result in place.
-   *
-   * Both operations have the same shape — call, replace the row with what came back, move the id in
-   * or out of the set, map a refusal to a sentence — so they share one path rather than two that
-   * drift.
-   *
-   * <h2>The generation fence</h2>
-   *
-   * Checked after the await for the same reason `load` checks it: the member may have navigated to
-   * another week while this was in flight, and writing the row back would resurrect a class that is
-   * no longer on screen. The booking still HAPPENED — this only declines to redraw for it.
-   *
-   * The fence gates applying the RESULT, never clearing `acting`. `acting` is this component's flag,
-   * not the stale week's: gating it too would leave it stuck `true` after a mid-flight navigation,
-   * and since `[busy]="acting()"` disables the overlay's own buttons, nothing would ever set it back.
-   * `loading` can afford the guard because the next `load` resets it; this cannot.
-   */
-  private async act(
-    row: ScheduledClass,
-    write: () => Promise<ScheduledClass>,
-    nowBooked: boolean,
-  ): Promise<void> {
-    const generation = this.generation;
-
-    this.acting.set(true);
-    this.actionError.set(null);
-
-    try {
-      const updated = await write();
-
-      if (generation !== this.generation) {
-        return;
-      }
-
-      this.rows.update((rows) =>
-        rows.map((candidate) => (candidate.id === updated.id ? updated : candidate)),
-      );
-
-      this.bookedClassIds.update((ids) => {
-        const next = new Set(ids);
-        if (nowBooked) {
-          next.add(row.id);
-        } else {
-          next.delete(row.id);
-        }
-        return next;
-      });
-
-      // The overlay stays OPEN and shows the new state — booked, one fewer spot. Closing it would
-      // hide the only confirmation the member gets, on the surface they are already looking at.
-      this.selected.set(updated);
-    } catch (failure) {
-      if (generation !== this.generation) {
-        return;
-      }
-
-      const reason = ((failure as HttpErrorResponse)?.error as { reason?: string } | undefined)
-        ?.reason;
-
-      // Shown in the OVERLAY, not as a screen-level banner: the refusal is about the class the
-      // member is looking at, and a banner above a calendar would be read as being about the week.
-      this.actionError.set(bookingFailureMessage(reason));
-    } finally {
-      this.acting.set(false);
-    }
   }
 }

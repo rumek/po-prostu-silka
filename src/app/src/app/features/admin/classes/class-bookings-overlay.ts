@@ -4,10 +4,7 @@ import { Component, OnInit, computed, inject, input, output, signal } from '@ang
 import { FormsModule } from '@angular/forms';
 import { Member } from '../../../core/admin/member-admin.models';
 import { MemberAdminService } from '../../../core/admin/member-admin.service';
-import {
-  adminBookingFailureMessage,
-  bookingFailureMessage,
-} from '../../../core/scheduling/booking-failure';
+import { bookingFailureMessage } from '../../../core/scheduling/booking-failure';
 import { BookingService } from '../../../core/scheduling/booking.service';
 import { ClassBooking } from '../../../core/scheduling/booking.models';
 import { ScheduledClass } from '../../../core/scheduling/class.models';
@@ -145,9 +142,10 @@ export class ClassBookingsOverlay implements OnInit {
       this.addFailure.set(
         response?.status === 404
           ? 'Nie znaleziono tej osoby — lista mogła się zmienić.'
-          : adminBookingFailureMessage(
-              (response?.error as { reason?: string } | undefined)?.reason,
-            ),
+          : // ONE TABLE SINCE S-16. It used to need a third-person overlay (adminBookingFailureMessage)
+            // because the shared messages addressed the member directly; MP-01 removed the member-facing
+            // surfaces, so the shared table is now written in this screen's voice to begin with.
+            bookingFailureMessage((response?.error as { reason?: string } | undefined)?.reason),
       );
     } finally {
       this.adding.set(false);

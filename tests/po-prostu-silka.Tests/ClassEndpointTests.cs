@@ -861,11 +861,22 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
         await fixture.IssuePassForAccountAsync(email);
 
         var member = await fixture.CreateAuthenticatedClientAsync(email);
-        var response = await member.PostAsync($"/api/classes/{classId}/bookings", content: null);
+
+        // THROUGH THE STAFF ROUTE since S-16 — MP-01 removed the member's own. What these tests care
+        // about is that an ACTIVE booking exists against the class, which is what the delete and
+        // shrink guards key on; the route that created it is immaterial to them.
+        var me = await member.GetFromJsonAsync<MeBody>("/api/auth/me");
+        var admin = await AdminAsync();
+
+        var response = await admin.PostAsJsonAsync(
+            $"/api/admin/classes/{classId}/bookings", new { memberId = me!.MemberId });
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         return member;
     }
+
+    /// <summary>Mirrors CurrentUser — only the member id, which is what BookAsync needs.</summary>
+    private sealed record MeBody(Guid MemberId);
 
     [Fact]
     public async Task Deleting_a_class_with_a_booking_is_refused_and_the_class_survives()

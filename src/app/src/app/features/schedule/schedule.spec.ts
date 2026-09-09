@@ -198,7 +198,7 @@ describe('Schedule', () => {
     expect(html.querySelector('.alert')).toBeNull();
   });
 
-  // --- S-08: booking from the schedule --------------------------------------
+  // --- S-16: the schedule is browsing only -----------------------------------
 
   /** Opens the detail overlay for the only class on screen. */
   async function openFirstTile(): Promise<HTMLElement> {
@@ -220,55 +220,24 @@ describe('Schedule', () => {
     });
   }
 
-  it('applies a booking in place, without refetching the week', async () => {
+  /**
+   * MP-01, asserted from the screen's side. The overlay's own spec pins that it renders no action;
+   * this one pins that the schedule no longer WIRES one — the `act()` path that applied a booking
+   * result back into the week is gone, so there is nothing here that could issue a booking request.
+   */
+  it('opens a class without offering any booking action', async () => {
     flushMine();
     scheduleRequests()[0].flush([tile()]);
     await settle();
 
     const html = await openFirstTile();
 
-    [...html.querySelectorAll('button')]
-      .find((button) => button.textContent?.includes('Zapisz się'))!
-      .click();
-    fixture.detectChanges();
+    expect(html.textContent).not.toContain('Zapisz się');
+    expect(html.textContent).not.toContain('Anuluj zapis');
+    expect(html.textContent).toContain('Zapisów dokonuje klub');
 
-    // The server answers with the class as it now stands - one fewer spot.
-    controller.expectOne('/api/classes/c1/bookings').flush({ ...tile(), freeSpots: 3 });
-    await fixture.whenStable();
-    fixture.detectChanges();
-
-    // Replaced in place. A refetch of either endpoint here would mean the response was thrown away.
-    controller.expectNone('/api/bookings/mine');
-    expect(scheduleRequests().length).toBe(0);
-
-    expect(html.querySelector('.calendar-tile')!.textContent).toContain('3 / 12 wolnych');
-    // The overlay stays open and now offers the cancel, which is the member's only confirmation.
-    expect(html.textContent).toContain('Jesteś zapisany');
-  });
-
-  it('shows a refusal inside the overlay and leaves the tile alone', async () => {
-    flushMine();
-    scheduleRequests()[0].flush([tile()]);
-    await settle();
-
-    const html = await openFirstTile();
-
-    [...html.querySelectorAll('button')]
-      .find((button) => button.textContent?.includes('Zapisz się'))!
-      .click();
-    fixture.detectChanges();
-
-    controller
-      .expectOne('/api/classes/c1/bookings')
-      .flush({ reason: 'class_full' }, { status: 409, statusText: 'Conflict' });
-    await settle();
-
-    // In the overlay, not as a screen-level banner: a banner above a calendar reads as being about
-    // the week rather than about the class the member tapped.
-    expect(html.querySelector('.overlay-panel .alert')!.textContent).toContain(
-      'Brak wolnych miejsc',
-    );
-    expect(html.querySelector('.calendar-tile')!.textContent).toContain('4 / 12 wolnych');
+    // Nothing was requested by opening it, and nothing can be.
+    controller.verify();
   });
 
   it('knows which classes the member already holds', async () => {
@@ -292,41 +261,5 @@ describe('Schedule', () => {
     // Resolved from the member's own bookings rather than from a field on ScheduledClass - the
     // shared projection deliberately carries no bookedByMe.
     expect(html.textContent).toContain('Jesteś zapisany');
-  });
-
-  it('does not stay busy when the week changes mid-booking', async () => {
-    flushMine();
-    scheduleRequests()[0].flush([tile()]);
-    await settle();
-
-    const html = await openFirstTile();
-
-    [...html.querySelectorAll('button')]
-      .find((button) => button.textContent?.includes('Zapisz się'))!
-      .click();
-    fixture.detectChanges();
-
-    // Navigating away mid-flight bumps the generation, so the RESULT is rightly discarded. The busy
-    // flag must not be discarded with it: `[busy]="acting()"` disables the overlay's own buttons, so
-    // an acting() stuck true leaves every later overlay dead until the page is reloaded.
-    step('Następny tydzień');
-
-    controller.expectOne('/api/classes/c1/bookings').flush({ ...tile(), freeSpots: 3 });
-    flushMine();
-    scheduleRequests()[0].flush([]);
-    await settle();
-
-    // Back to the week the class is on, so there is a tile to reopen.
-    step('Poprzedni tydzień');
-    flushMine();
-    scheduleRequests()[0].flush([tile()]);
-    await settle();
-
-    const reopened = await openFirstTile();
-    const book = [...reopened.querySelectorAll('button')].find((button) =>
-      button.textContent?.includes('Zapisz się'),
-    )!;
-
-    expect(book.disabled).toBe(false);
   });
 });

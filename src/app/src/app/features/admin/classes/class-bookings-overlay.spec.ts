@@ -290,8 +290,9 @@ describe('ClassBookingsOverlay', () => {
   });
 
   /**
-   * The shared failure table addresses the member in the second person, which is wrong on the one
-   * screen where an admin acts for somebody else — see adminBookingFailureMessage.
+   * Refusals on this screen are ABOUT A THIRD PERSON, and read that way. Since S-16 that is simply
+   * how the shared table is written — there are no member-facing booking surfaces left for it to
+   * address in the second person.
    */
   it('names a refusal in the third person', async () => {
     await respond([], [member({ id: 'm2' })]);

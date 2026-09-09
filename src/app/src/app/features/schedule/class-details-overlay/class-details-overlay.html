@@ -40,42 +40,17 @@
     </div>
   </dl>
 
-  @if (error()) {
-    <p class="alert" role="alert">{{ error() }}</p>
-  }
-
-  <!-- A withheld action needs a reason, or it reads as broken rather than deliberate — the same rule
-       the admin panel applies to a past week. Only shown when there is genuinely nothing to offer:
-       a booked member keeps their Cancel button even after the class has started. -->
-  @if (!canBook() && !canCancel()) {
+  <!-- The one thing a member still learns here that the tile cannot tell them. No button beside it:
+       since S-16 the club puts people into classes, not the other way round. -->
+  @if (booked()) {
+    <p class="overlay-booked" role="status">Jesteś zapisany na te zajęcia.</p>
+  } @else {
     <p class="hint" role="status">
-      @if (started()) {
-        Te zajęcia już się rozpoczęły — zapisy są zamknięte.
-      } @else {
-        Brak wolnych miejsc. Zajrzyj później — ktoś może zrezygnować.
-      }
+      Zapisów dokonuje klub. Jeśli chcesz wziąć udział, odezwij się w recepcji lub do trenera.
     </p>
   }
 
   <div class="overlay-actions">
-    @if (canBook()) {
-      <button type="button" class="button" [disabled]="busy()" (click)="book.emit()">
-        {{ busy() ? 'Zapisywanie…' : 'Zapisz się' }}
-      </button>
-    }
-
-    @if (canCancel()) {
-      <p class="overlay-booked" role="status">Jesteś zapisany na te zajęcia.</p>
-      <button
-        type="button"
-        class="button button--secondary"
-        [disabled]="busy()"
-        (click)="cancelBooking.emit()"
-      >
-        {{ busy() ? 'Anulowanie…' : 'Anuluj zapis' }}
-      </button>
-    }
-
     <button type="button" class="link-button" (click)="close()">Zamknij</button>
   </div>
 </div>

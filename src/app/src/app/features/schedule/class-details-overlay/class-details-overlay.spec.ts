@@ -23,31 +23,25 @@ function classAt(offsetMinutes: number, over: Partial<ScheduledClass> = {}): Sch
 @Component({
   imports: [ClassDetailsOverlay],
   template: `
-    <app-class-details-overlay
-      [row]="row()"
-      [booked]="booked()"
-      [busy]="busy()"
-      [error]="error()"
-      (book)="books = books + 1"
-      (cancelBooking)="cancels = cancels + 1"
-      (closed)="closes = closes + 1"
-    />
+    <app-class-details-overlay [row]="row()" [booked]="booked()" (closed)="closes = closes + 1" />
   `,
 })
 class Host {
   readonly row = signal<ScheduledClass>(classAt(60));
   readonly booked = signal(false);
-  readonly busy = signal(false);
-  readonly error = signal<string | null>(null);
-  books = 0;
-  cancels = 0;
   closes = 0;
 }
 
 /**
- * The member's booking surface. What these tests protect is that the overlay never offers an action
- * that cannot succeed AND never withholds one without saying why — a missing button with no
- * explanation reads as broken, which is the failure the admin panel's past-week note also guards.
+ * The member's read of one class (S-16, MP-01).
+ *
+ * <p>
+ * WHAT THESE TESTS NOW PROTECT IS AN ABSENCE. The overlay used to offer booking and cancelling, and
+ * the tests guarded that it never offered an action that could not succeed and never withheld one
+ * without saying why. MP-01 removed both actions, so the equivalent guarantee is that no action
+ * creeps back in — and that the member is told who does book them in, rather than being left in
+ * front of a panel that simply has no button.
+ * </p>
  */
 describe('ClassDetailsOverlay', () => {
   let fixture: ComponentFixture<Host>;
@@ -64,63 +58,43 @@ describe('ClassDetailsOverlay', () => {
     return fixture.nativeElement as HTMLElement;
   }
 
-  function buttonWith(text: string): HTMLButtonElement | undefined {
-    return [...element().querySelectorAll('button')].find((button) =>
-      button.textContent?.includes(text),
-    );
-  }
-
-  it('offers Zapisz się on a class with room that has not started', () => {
+  /**
+   * THE MP-01 REGRESSION TEST. The only button in this panel is Zamknij; a booking control appearing
+   * here again would mean self-service booking had come back through the UI while the API answers
+   * 405 to it.
+   */
+  it('offers no booking action at all, only a way out', () => {
     create();
 
-    expect(buttonWith('Zapisz się')).toBeDefined();
-    expect(buttonWith('Anuluj zapis')).toBeUndefined();
+    const labels = [...element().querySelectorAll('button')]
+      .map((button) => button.textContent?.trim() ?? '')
+      // The backdrop is a button so it can be reached from the keyboard; it is not an action.
+      .filter((label) => label.length > 0);
 
-    buttonWith('Zapisz się')!.click();
-
-    expect(host.books).toBe(1);
+    expect(labels).toEqual(['Zamknij']);
   });
 
-  it('offers Anuluj zapis instead once the member is booked', () => {
+  it('tells a member who is not booked that the club does the booking', () => {
+    create();
+
+    expect(element().textContent).toContain('Zapisów dokonuje klub');
+  });
+
+  it('tells a booked member that they are in, without offering to take them out', () => {
     create();
     host.booked.set(true);
     fixture.detectChanges();
 
-    expect(buttonWith('Zapisz się')).toBeUndefined();
-
-    buttonWith('Anuluj zapis')!.click();
-
-    expect(host.cancels).toBe(1);
+    expect(element().textContent).toContain('Jesteś zapisany na te zajęcia');
+    expect(element().textContent).not.toContain('Zapisów dokonuje klub');
   });
 
-  it('explains a full class rather than showing a button that would be refused', () => {
+  it('still reports a full class, because free spots are information the member wants', () => {
     create();
     host.row.set(classAt(60, { freeSpots: 0 }));
     fixture.detectChanges();
 
-    expect(buttonWith('Zapisz się')).toBeUndefined();
-    expect(element().textContent).toContain('Brak wolnych miejsc');
-  });
-
-  it('explains a class that has already started', () => {
-    create();
-    // A minute ago: the same boundary the server applies — booking closes AT the start.
-    host.row.set(classAt(-1));
-    fixture.detectChanges();
-
-    expect(buttonWith('Zapisz się')).toBeUndefined();
-    expect(element().textContent).toContain('już się rozpoczęły');
-  });
-
-  it('still offers cancel after the class has started, because cancelling is free anytime', () => {
-    create();
-    host.row.set(classAt(-1));
-    host.booked.set(true);
-    fixture.detectChanges();
-
-    // prd.md §Non-Goals locks free-cancel-anytime. A cancel button that vanished at the start would
-    // be this screen inventing a rule the server does not have.
-    expect(buttonWith('Anuluj zapis')).toBeDefined();
+    expect(element().textContent).toContain('Brak miejsc');
   });
 
   it('shows the class type description, which nothing else in the app renders', () => {
@@ -129,16 +103,6 @@ describe('ClassDetailsOverlay', () => {
     fixture.detectChanges();
 
     expect(element().textContent).toContain('Spokojna praktyka dla początkujących.');
-  });
-
-  it('renders a refusal inline and disables the action while one is in flight', () => {
-    create();
-    host.error.set('Brak wolnych miejsc na tych zajęciach.');
-    host.busy.set(true);
-    fixture.detectChanges();
-
-    expect(element().querySelector('[role="alert"]')!.textContent).toContain('Brak wolnych miejsc');
-    expect(buttonWith('Zapisywanie…')!.disabled).toBe(true);
   });
 
   it('closes on Escape, wherever focus happens to be', () => {

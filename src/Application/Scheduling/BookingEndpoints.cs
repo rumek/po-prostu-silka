@@ -73,17 +73,24 @@ public record ClassBooking(
 /// <para>
 /// EVERY ONE OF THESE IS A 409, which is what makes this union different from
 /// <see cref="ClassFailure"/>. A booking request carries no fields to get wrong — the class is in the
-/// route and the member is the caller — so there is nothing here that could be a 400. What can fail
-/// is always a disagreement with state the caller could not see: the class was cancelled, it has
-/// started, they already hold a spot, the spots ran out, they had no booking to cancel.
+/// route and the member is named by the caller's own request — so there is nothing here that could be
+/// a 400. What can fail is always a disagreement with state the caller could not see: the class was
+/// cancelled, it has started, the person already holds a spot, the spots ran out, their karnet does
+/// not cover the day or has no entries left.
 /// </para>
 ///
 /// <para>
 /// Reasons: <c>class_cancelled</c>, <c>class_started</c>, <c>already_booked</c>, <c>class_full</c>,
-/// <c>not_booked</c>, <c>no_valid_pass</c>, <c>no_entries_left</c>, <c>conflict</c>, and — on the
-/// admin route only — <c>member_blocked</c>. Adding one means adding it to the SPA's BookingFailure
-/// union too. A missing class is a 404 and not a reason — an unknown id is not a state disagreement,
-/// and neither is a member id nobody issued.
+/// <c>member_blocked</c>, <c>no_valid_pass</c>, <c>no_entries_left</c>, <c>conflict</c>. Adding one
+/// means adding it to the SPA's BookingFailure union too. A missing class is a 404 and not a reason —
+/// an unknown id is not a state disagreement, and neither is a member id nobody issued.
+/// </para>
+///
+/// <para>
+/// <c>not_booked</c> IS GONE as of S-16 and must not come back. It belonged to the member's own
+/// cancel route, which produced it when there was no spot to release; the staff release addresses a
+/// booking by id and answers 404 for one that does not exist, belongs to another class, or is already
+/// cancelled — see <c>ReleaseAsync</c> for why those three collapse.
 /// </para>
 ///
 /// <para>
@@ -96,9 +103,9 @@ public record ClassBooking(
 /// </para>
 ///
 /// <para>
-/// <c>member_blocked</c> cannot occur on the member's own route: the <c>ActiveMember</c> policy
-/// already requires an active membership, so a blocked member never reaches the handler. It exists
-/// because the admin route names its member in the body, where no policy can vouch for them (S-14).
+/// <c>member_blocked</c> exists because the staff route names its member in the BODY, where no policy
+/// can vouch for them (S-14). It used to be documented as impossible on the member's own route; that
+/// route is gone, so it is now simply one of the ordinary refusals.
 /// </para>
 ///
 /// <para>
@@ -110,28 +117,36 @@ public record ClassBooking(
 public record BookingFailure(string Reason);
 
 /// <summary>
-/// Who the admin is booking (S-14, AM-007).
+/// Who the staff member is booking (S-14 AM-007, widened by S-16 MP-02).
 ///
 /// <para>
-/// A MEMBER ID IN A BODY, which every other booking route refuses on principle — see
-/// <c>BookAsync</c>. The exception is deliberate and is the whole point of the route: the admin is
-/// acting for somebody else, typically somebody with no account who could not book for themselves.
-/// What makes it safe is the <c>Admin</c> policy on the group, not the shape of the request.
+/// A MEMBER ID IN A BODY. That used to be the exception among booking routes — every member-facing
+/// one took its member from the cookie on principle — and since MP-01 removed those routes it is
+/// simply how booking works: the person being booked is by definition not the person asking, and may
+/// have no account to be a caller with at all. What makes it safe is the <c>TrainerOrAdmin</c> policy
+/// on the group plus each handler's instructor check, never the shape of the request.
 /// </para>
 /// </summary>
 public record AdminBookingRequest(Guid MemberId);
 
 /// <summary>
-/// Booking and cancelling a spot (prd.md US-01, FR-008, FR-009, FR-010).
+/// Booking and releasing a spot (prd.md FR-010, FR-014; S-16 MP-01 and MP-02).
+///
+/// <para>
+/// SELF-SERVICE BOOKING IS GONE. prd.md US-01, FR-008 and FR-009 described a member who books and
+/// cancels their own spot; S-16 retires all three as member-facing capabilities. The behaviour
+/// survives on the staff routes — an admin anywhere, a trainer on the classes they instruct — and
+/// what a member has left here is a read of their own upcoming bookings.
+/// </para>
 ///
 /// <para>
 /// THE NO-OVERBOOKING GUARANTEE IS IMPLEMENTED HERE, and it rests entirely on one line in
-/// <see cref="BookAsync"/>: the rotation of <see cref="Class.ConcurrencyStamp"/>. A booking inserts a
+/// <see cref="TryBookAsync"/>: the rotation of <see cref="Class.ConcurrencyStamp"/>. A booking inserts a
 /// row into Bookings and touches nothing on Classes by itself, so without that assignment EF issues
 /// no UPDATE against Classes, no WHERE clause carries the token, and two members racing for the last
 /// spot both commit. Rotating the stamp is not bookkeeping — it is the mechanism. Every write that
-/// changes how many spots are taken must do it, cancellation included: a cancel and a book racing for
-/// the same last spot must not both believe they won.
+/// changes how many spots are taken must do it, a release included: a release and a booking racing
+/// for the same last spot must not both believe they won.
 /// </para>
 ///
 /// <para>
@@ -142,10 +157,11 @@ public record AdminBookingRequest(Guid MemberId);
 /// </para>
 ///
 /// <para>
-/// Two member-facing groups, both under ActiveMember and both applying the policy at the GROUP, per
-/// <see cref="ClassEndpoints"/>: a Pending or Blocked account cannot book, cancel, or list. That is
-/// the whole of the authorization story on the member side — a booking belongs to its caller by
-/// construction, since every route resolves the member from the cookie and never from the request.
+/// ONE member-facing group since S-16, and it is READ-ONLY. <c>GET /api/bookings/mine</c> is all a
+/// member has: MP-01 removed self-service booking and cancellation entirely, because the karnet
+/// decides who trains and the desk is what knows whether somebody holds one. The route still resolves
+/// the member from the COOKIE and never from the request, which is what makes "your bookings" mean
+/// yours by construction.
 ///
 /// <para>
 /// THE STAFF GROUP IS THE EXCEPTION, and it is the only place in this application where the group
@@ -182,16 +198,11 @@ public static class BookingEndpoints
 
     public static IEndpointRouteBuilder MapBookingEndpoints(this IEndpointRouteBuilder app)
     {
-        // Shares the /api/classes prefix with ClassEndpoints on purpose: a booking is addressed as a
-        // sub-resource of the class it claims. Two MapGroups over one prefix is fine - routes are
-        // matched by pattern, not by group.
-        var classBookings = app.MapGroup("/api/classes")
-            .WithTags("Bookings")
-            .RequireAuthorization(AuthorizationPolicyNames.ActiveMember);
-
-        classBookings.MapPost("/{classId:guid}/bookings", BookAsync);
-        classBookings.MapDelete("/{classId:guid}/bookings/mine", CancelMineAsync);
-
+        // THE MEMBER'S WRITE ROUTES ARE GONE (S-16, MP-01). POST /api/classes/{id}/bookings and
+        // DELETE /api/classes/{id}/bookings/mine were removed with their handlers: booking is a staff
+        // action now, because the karnet is what entitles somebody to a spot and the desk is what
+        // knows whether they hold one. The member keeps the READ below - they still see what they are
+        // committed to, they just do not change it themselves.
         var myBookings = app.MapGroup("/api/bookings")
             .WithTags("Bookings")
             .RequireAuthorization(AuthorizationPolicyNames.ActiveMember);
@@ -230,62 +241,21 @@ public static class BookingEndpoints
     }
 
     /// <summary>
-    /// Claims a spot.
-    ///
-    /// <para>
-    /// Returns the class AS IT NOW STANDS rather than the booking, so the schedule tile can be
-    /// replaced in place without a refetch. That is why the response shape is
-    /// <see cref="ScheduledClass"/> and not something booking-shaped: the client already knows it
-    /// booked — what it does not know is the new free-spot count.
-    /// </para>
-    ///
-    /// <para>
-    /// THE LOOP IS NOT DEFENSIVE PROGRAMMING. Everything between the re-read and the save is a check
-    /// against state another request may change a microsecond later; the stamp turns "check then
-    /// write" into one atomic operation, and the loop is what turns a lost race into a fresh read
-    /// rather than a refusal the member did not deserve. Each attempt must re-read, because the
-    /// capacity count it refused or accepted on is exactly what the lost race invalidated.
-    /// </para>
-    /// </summary>
-    private static async Task<IResult> BookAsync(
-        Guid classId,
-        ClaimsPrincipal principal,
-        IClassStore classes,
-        IBookingStore bookings,
-        IMembershipPassStore passes,
-        IUnitOfWork unitOfWork,
-        TimeProvider timeProvider,
-        CancellationToken cancellationToken)
-    {
-        // FROM THE COOKIE, NEVER FROM THE BODY. A booking belongs to its caller by construction, and
-        // that is the whole of the authorization story on the member side.
-        var memberId = principal.GetMemberId();
-        if (memberId is null)
-        {
-            return Results.Unauthorized();
-        }
-
-        return await TryBookAsync(
-            classId, memberId.Value, classes, bookings, passes, unitOfWork, timeProvider,
-            cancellationToken);
-    }
-
-    /// <summary>
     /// Books a spot for a member the caller has already established the right to book for (S-14).
     ///
     /// <para>
-    /// ONE LOOP, TWO CALLERS, and that is the point of the extraction rather than a tidiness
-    /// exercise: the no-overbooking protocol is a specific sequence — re-read, check, insert, rotate
-    /// the stamp, save, discard and retry — and a second copy of it written for the admin route would
-    /// be a second chance to get that sequence subtly wrong. <c>AdminBookingEndpointTests</c> runs
-    /// the concurrency race through the ADMIN route for exactly this reason.
+    /// ONE CALLER SINCE S-16, and it stays extracted anyway. It was written for two — the member's
+    /// own route and the staff one — and MP-01 removed the first. Folding it back into
+    /// <see cref="BookForMemberAsync"/> would mix the no-overbooking protocol (re-read, check the
+    /// capacity and the karnet, insert, rotate two stamps, save, discard and retry) with that
+    /// handler's authorization and member resolution, in the one place where the sequence must stay
+    /// legible enough to verify by reading.
     /// </para>
     ///
     /// <para>
     /// It takes no <see cref="ClaimsPrincipal"/> on purpose. Who may book for whom is settled by the
-    /// caller — the cookie on the member route, the <c>Admin</c> policy on the other — and passing
-    /// the principal in here would invite a future authorization check in the one place that must
-    /// stay a pure mechanism.
+    /// CALLER — the group policy plus the instructor check — and passing the principal in here would
+    /// invite a future authorization check in the one place that must stay a pure mechanism.
     /// </para>
     /// </summary>
     private static async Task<IResult> TryBookAsync(
@@ -482,78 +452,6 @@ public static class BookingEndpoints
         return await TryBookAsync(
             classId, member.Id, classes, bookings, passes, unitOfWork, timeProvider,
             cancellationToken);
-    }
-
-    /// <summary>
-    /// Releases the caller's own spot, keeping the booking in history (prd.md FR-009).
-    ///
-    /// <para>
-    /// NO TIME RULE AT ALL, deliberately. prd.md §Non-Goals locks free-cancel-anytime, so a member
-    /// may cancel after the class has started or ended. The cancelled row stays, which is what makes
-    /// re-booking the same class legal — the uniqueness index is filtered to active rows precisely so
-    /// that history does not hold the pair hostage.
-    /// </para>
-    ///
-    /// <para>
-    /// Rotates the stamp for the same reason <see cref="BookAsync"/> does, even though freeing a spot
-    /// can never overbook on its own: a cancel and a book racing for the last spot must serialize, or
-    /// the booker's capacity check reads a count the cancel is in the middle of changing.
-    /// </para>
-    /// </summary>
-    private static async Task<IResult> CancelMineAsync(
-        Guid classId,
-        ClaimsPrincipal principal,
-        UserManager<ApplicationUser> userManager,
-        IClassStore classes,
-        IBookingStore bookings,
-        IMembershipPassStore passes,
-        IUnitOfWork unitOfWork,
-        TimeProvider timeProvider,
-        CancellationToken cancellationToken)
-    {
-        var memberId = principal.GetMemberId();
-        if (memberId is null)
-        {
-            return Results.Unauthorized();
-        }
-
-        for (var attempt = 1; attempt <= MaxAttempts; attempt++)
-        {
-            var entity = await classes.FindAsync(classId, cancellationToken);
-            if (entity is null)
-            {
-                return Results.NotFound();
-            }
-
-            var booking = await bookings.FindActiveAsync(classId, memberId.Value, cancellationToken);
-            if (booking is null)
-            {
-                return Refuse("not_booked");
-            }
-
-            var bookedCount = await bookings.CountActiveAsync(classId, cancellationToken);
-
-            booking.Status = BookingStatus.Cancelled;
-            booking.CancelledAt = timeProvider.GetUtcNow();
-
-            entity.ConcurrencyStamp = Guid.NewGuid().ToString();
-            await ReturnEntryAsync(booking, passes, cancellationToken);
-
-            var outcome = await unitOfWork.TrySaveAsync(cancellationToken);
-            if (outcome == SaveOutcome.Saved)
-            {
-                // Minus one, exact for the same reason BookAsync's plus one is: the stamp serialized
-                // this write against every other STAMPED booking write on the class - and, with the
-                // same single exception, the block cascade, whose effect can only be to free further
-                // spots this number does not yet know about.
-                return Results.Ok(ClassEndpoints.ToDto(
-                    entity, entity.ClassType, entity.Instructor!.DisplayName, bookedCount - 1));
-            }
-
-            unitOfWork.DiscardChanges();
-        }
-
-        return Refuse("conflict");
     }
 
     /// <summary>

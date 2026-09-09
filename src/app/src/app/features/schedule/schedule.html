@@ -25,13 +25,5 @@
 }
 
 @if (selected(); as row) {
-  <app-class-details-overlay
-    [row]="row"
-    [booked]="isBooked(row.id)"
-    [busy]="acting()"
-    [error]="actionError()"
-    (book)="book()"
-    (cancelBooking)="cancel()"
-    (closed)="closeDetails()"
-  />
+  <app-class-details-overlay [row]="row" [booked]="isBooked(row.id)" (closed)="closeDetails()" />
 }

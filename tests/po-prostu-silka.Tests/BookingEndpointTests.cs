@@ -14,7 +14,7 @@ namespace po_prostu_silka.Tests;
 /// WHY THIS FILE EXISTS: <see cref="Concurrent_bookings_never_exceed_capacity"/>. Every other test
 /// here pins a product rule that a careful reading of BookingEndpoints would also give you. That one
 /// pins the guarantee the whole slice was built for, and it is the only test in this repository that
-/// FAILS if a single line is removed — the <c>ConcurrencyStamp</c> rotation in <c>BookAsync</c>.
+/// FAILS if a single line is removed — the <c>ConcurrencyStamp</c> rotation in <c>TryBookAsync</c>.
 /// Without the rotation EF issues no UPDATE against Classes, no WHERE clause carries the token, and
 /// every racer's capacity check passes against the same stale count. Comment that line out and this
 /// test goes red; nothing else does.
@@ -67,7 +67,8 @@ public class BookingEndpointTests(IntegrationTestFixture fixture)
     /// <summary>Mirrors ClassBooking.</summary>
     private sealed record ClassBookingBody(
         Guid BookingId,
-        string MemberUserId,
+        Guid MemberId,
+        string? UserId,
         string DisplayName,
         string Email,
         DateTimeOffset BookedAt);
@@ -79,7 +80,9 @@ public class BookingEndpointTests(IntegrationTestFixture fixture)
     private const string TypesEndpoint = "/api/admin/class-types";
     private const string MineEndpoint = "/api/bookings/mine";
 
-    private static string BookingsOf(Guid classId) => $"/api/classes/{classId}/bookings";
+    // BookingsOf and MyBookingOn are GONE with the routes they addressed (S-16, MP-01). The one
+    // test that still names those paths spells them out inline, because its whole subject is that
+    // they no longer resolve.
 
     private static string MyBookingOn(Guid classId) => $"/api/classes/{classId}/bookings/mine";
 
@@ -251,15 +254,65 @@ public class BookingEndpointTests(IntegrationTestFixture fixture)
         return (await response.Content.ReadFromJsonAsync<FailureBody>())!.Reason;
     }
 
-    private static Task<HttpResponseMessage> BookAsync(HttpClient client, Guid classId) =>
-        client.PostAsync(BookingsOf(classId), content: null);
+    /// <summary>
+    /// Books <paramref name="client"/>'s member into a class — THROUGH THE STAFF ROUTE since S-16.
+    ///
+    /// <para>
+    /// The signature is unchanged on purpose. MP-01 removed <c>POST /api/classes/{id}/bookings</c>,
+    /// but almost every assertion in this file is about the write path's BEHAVIOUR — capacity,
+    /// duplicates, the two races, what a cancelled class does — and that behaviour did not move, it
+    /// only changed who may invoke it. Keeping the helper's shape is what lets those tests stay
+    /// exactly as they were rather than being rewritten around a new arrangement, which is where the
+    /// coverage would have quietly thinned.
+    /// </para>
+    ///
+    /// <para>
+    /// The member id comes from the member's own session, so the tests keep expressing "book THIS
+    /// member" without each one growing an id parameter.
+    /// </para>
+    /// </summary>
+    private async Task<HttpResponseMessage> BookAsync(HttpClient client, Guid classId)
+    {
+        var me = await client.GetFromJsonAsync<MeBody>("/api/auth/me");
+        var admin = await AdminAsync();
+
+        return await admin.PostAsJsonAsync(AdminBookingsOf(classId), new { memberId = me!.MemberId });
+    }
+
+    /// <summary>
+    /// Releases <paramref name="client"/>'s member from a class, through the staff route — the
+    /// replacement for the member's own <c>DELETE .../bookings/mine</c>, which MP-01 removed.
+    ///
+    /// <para>
+    /// Addressed by BOOKING ID rather than by class, which is the one shape difference between the
+    /// two routes: the member's cancel could name the class because a member holds at most one active
+    /// booking on it, while the staff route releases a specific person's specific spot. The roster
+    /// read is how a test learns that id.
+    /// </para>
+    /// </summary>
+    private async Task<HttpResponseMessage> ReleaseAsync(HttpClient client, Guid classId)
+    {
+        var me = await client.GetFromJsonAsync<MeBody>("/api/auth/me");
+        var admin = await AdminAsync();
+
+        var roster = await admin.GetFromJsonAsync<List<ClassBookingBody>>(AdminBookingsOf(classId));
+        var row = roster!.Single(b => b.MemberId == me!.MemberId);
+
+        return await admin.DeleteAsync($"{AdminBookingsOf(classId)}/{row.BookingId}");
+    }
+
+    /// <summary>Mirrors CurrentUser — only the member id, which is what the helpers above need.</summary>
+    private sealed record MeBody(Guid MemberId);
 
     // --- who may reach the group ----------------------------------------------
 
+    /// <summary>
+    /// ONE ROUTE SINCE S-16. The two write routes that used to be here — POST
+    /// /api/classes/{id}/bookings and DELETE /api/classes/{id}/bookings/mine — were removed with
+    /// MP-01; <see cref="The_removed_member_booking_routes_are_gone"/> is what pins their absence.
+    /// </summary>
     public static TheoryData<string, string> EveryMemberRoute => new()
     {
-        { "POST", $"/api/classes/{Guid.Empty}/bookings" },
-        { "DELETE", $"/api/classes/{Guid.Empty}/bookings/mine" },
         { "GET", MineEndpoint },
     };
 
@@ -294,6 +347,40 @@ public class BookingEndpointTests(IntegrationTestFixture fixture)
             new { email = TestUsers.BlockedMemberEmail, password = TestUsers.Password });
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    /// <summary>
+    /// MP-01, asserted as an absence. A member may no longer book or cancel for themselves, and the
+    /// routes that let them are not merely hidden by the SPA — they do not exist.
+    ///
+    /// <para>
+    /// 405 RATHER THAN 404, and that is the app's routing rather than anything this test chose:
+    /// <c>MapFallbackToFile</c> claims every unmatched path for GET and HEAD only, so a POST or
+    /// DELETE to a path nothing else maps ends up matching the fallback's PATTERN but not its method.
+    /// The distinction that matters is not which of the two it is — it is that the answer is neither
+    /// a 200 nor a 409, both of which would mean the handler ran.
+    /// </para>
+    ///
+    /// <para>
+    /// The client used is an ACTIVE member — the one caller who WOULD have been allowed before — so
+    /// the refusal cannot be explained away as authorization.
+    /// </para>
+    /// </summary>
+    [Theory]
+    [InlineData("POST")]
+    [InlineData("DELETE")]
+    public async Task The_removed_member_booking_routes_are_gone(string method)
+    {
+        var (scheduled, member) = await BookableAsync();
+
+        var route = method == "POST"
+            ? $"/api/classes/{scheduled.Id}/bookings"
+            : $"/api/classes/{scheduled.Id}/bookings/mine";
+
+        var response = await member.SendAsync(
+            new HttpRequestMessage(new HttpMethod(method), route));
+
+        Assert.Equal(HttpStatusCode.MethodNotAllowed, response.StatusCode);
     }
 
     // --- the happy path --------------------------------------------------------
@@ -384,16 +471,6 @@ public class BookingEndpointTests(IntegrationTestFixture fixture)
         Assert.Empty(await BookingsForAsync(classId));
     }
 
-    [Fact]
-    public async Task Cancelling_without_a_booking_is_not_booked()
-    {
-        var (scheduled, member) = await BookableAsync();
-
-        var response = await member.DeleteAsync(MyBookingOn(scheduled.Id));
-
-        Assert.Equal("not_booked", await ReasonAsync(response));
-    }
-
     // --- FR-009: cancelling keeps history, and does not lock the member out ----
 
     [Fact]
@@ -402,9 +479,10 @@ public class BookingEndpointTests(IntegrationTestFixture fixture)
         var (scheduled, member) = await BookableAsync();
         await BookAsync(member, scheduled.Id);
 
-        var response = await member.DeleteAsync(MyBookingOn(scheduled.Id));
+        var response = await ReleaseAsync(member, scheduled.Id);
 
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        // 204: the staff release answers with no body, unlike the booking that answers with a class.
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
 
         var booking = Assert.Single(await BookingsForAsync(scheduled.Id));
         Assert.Equal(BookingStatus.Cancelled, booking.Status);
@@ -417,7 +495,7 @@ public class BookingEndpointTests(IntegrationTestFixture fixture)
         var (scheduled, member) = await BookableAsync();
 
         await BookAsync(member, scheduled.Id);
-        await member.DeleteAsync(MyBookingOn(scheduled.Id));
+        await ReleaseAsync(member, scheduled.Id);
 
         // THE FILTERED INDEX IS WHY THIS PASSES. A plain unique index on (ClassId, MemberUserId)
         // would reject this second booking forever, because FR-009 keeps the cancelled row.
@@ -461,7 +539,7 @@ public class BookingEndpointTests(IntegrationTestFixture fixture)
     {
         var (scheduled, member) = await BookableAsync();
         await BookAsync(member, scheduled.Id);
-        await member.DeleteAsync(MyBookingOn(scheduled.Id));
+        await ReleaseAsync(member, scheduled.Id);
 
         var mine = await member.GetFromJsonAsync<List<MyBookingBody>>(MineEndpoint);
 
@@ -574,11 +652,13 @@ public class BookingEndpointTests(IntegrationTestFixture fixture)
         Assert.Equal(HttpStatusCode.OK, (await BookAsync(holder, scheduled.Id)).StatusCode);
 
         var responses = await Task.WhenAll(
-            holder.DeleteAsync(MyBookingOn(scheduled.Id)),
+            ReleaseAsync(holder, scheduled.Id),
             BookAsync(challenger, scheduled.Id));
 
-        // The cancel always wins its own right - the holder does hold a booking.
-        Assert.Equal(HttpStatusCode.OK, responses[0].StatusCode);
+        // The release always wins its own right - the holder does hold a booking. 204, because the
+        // staff route answers with no body; see the response-shape test for why that asymmetry is
+        // deliberate.
+        Assert.Equal(HttpStatusCode.NoContent, responses[0].StatusCode);
 
         // The booking may go either way depending on which committed first, and BOTH answers are
         // correct. What is never correct is two active rows against a capacity of one.
@@ -694,17 +774,23 @@ public class BookingEndpointTests(IntegrationTestFixture fixture)
         var one = await admin.GetFromJsonAsync<ClassBody>($"{ClassesEndpoint}/{scheduled.Id}");
         Assert.Equal(4, one!.FreeSpots);
 
-        await member.DeleteAsync(MyBookingOn(scheduled.Id));
+        await ReleaseAsync(member, scheduled.Id);
 
         Assert.Equal(5, await FreeSpotsAsync(member, "/api/classes"));
     }
 
     /// <summary>
-    /// The booking response carries the class as it now stands, so the tile can be redrawn without a
-    /// refetch — the whole reason these two endpoints answer with a class rather than a booking.
+    /// The booking response carries the class as it now stands, so the calendar tile can be redrawn
+    /// without a refetch — the whole reason that endpoint answers with a class rather than a booking.
+    ///
+    /// <para>
+    /// THE RELEASE DOES NOT, and that asymmetry is deliberate rather than an oversight: it answers
+    /// 204, because the screen that releases a spot is a list of PEOPLE and reloads that list rather
+    /// than a tile. So the freed spot is verified by re-reading the class.
+    /// </para>
     /// </summary>
     [Fact]
-    public async Task Booking_and_cancelling_answer_with_the_updated_free_spots()
+    public async Task Booking_answers_with_the_updated_free_spots_and_releasing_frees_one()
     {
         var (scheduled, member) = await BookableAsync(capacity: 4);
 
@@ -712,9 +798,17 @@ public class BookingEndpointTests(IntegrationTestFixture fixture)
             .Content.ReadFromJsonAsync<ClassBody>();
         Assert.Equal(3, booked!.FreeSpots);
 
-        var cancelled = await (await member.DeleteAsync(MyBookingOn(scheduled.Id)))
-            .Content.ReadFromJsonAsync<ClassBody>();
-        Assert.Equal(4, cancelled!.FreeSpots);
+        Assert.Equal(
+            HttpStatusCode.NoContent, (await ReleaseAsync(member, scheduled.Id)).StatusCode);
+
+        var admin = await AdminAsync();
+        var window = $"?from={Uri.EscapeDataString(scheduled.StartsAt.AddHours(-1).ToString("o"))}"
+                     + $"&to={Uri.EscapeDataString(scheduled.StartsAt.AddHours(1).ToString("o"))}";
+
+        var reread = (await admin.GetFromJsonAsync<List<ClassBody>>(ClassesEndpoint + window))!
+            .Single(c => c.Id == scheduled.Id);
+
+        Assert.Equal(4, reread.FreeSpots);
     }
 
     // --- FR-014: the admin's list ---------------------------------------------
@@ -736,7 +830,7 @@ public class BookingEndpointTests(IntegrationTestFixture fixture)
         // Cancelled rows are history, not a sign-up list.
         var third = await NewMemberAsync();
         await BookAsync(third, scheduled.Id);
-        await third.DeleteAsync(MyBookingOn(scheduled.Id));
+        await ReleaseAsync(third, scheduled.Id);
 
         var rows = await admin.GetFromJsonAsync<List<ClassBookingBody>>(
             AdminBookingsOf(scheduled.Id));
