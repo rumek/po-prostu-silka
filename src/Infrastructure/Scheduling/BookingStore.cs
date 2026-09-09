@@ -40,6 +40,12 @@ public class BookingStore(AppDbContext db) : IBookingStore
         db.Bookings.CountAsync(
             b => b.ClassId == classId && b.Status == BookingStatus.Active, cancellationToken);
 
+    public Task<int> CountActiveForPassAsync(Guid passId, CancellationToken cancellationToken) =>
+        // Seeks IX_Bookings_MembershipPassId_Status, which exists for this query specifically - it
+        // runs inside the booking retry loop, on every attempt.
+        db.Bookings.CountAsync(
+            b => b.MembershipPassId == passId && b.Status == BookingStatus.Active, cancellationToken);
+
     public Task<bool> HasAnyAsync(Guid classId, CancellationToken cancellationToken) =>
         db.Bookings.AnyAsync(b => b.ClassId == classId, cancellationToken);
 
@@ -69,5 +75,42 @@ public class BookingStore(AppDbContext db) : IBookingStore
             booking.Status = BookingStatus.Cancelled;
             booking.CancelledAt = asOf;
         }
+
+        // THE ENTRIES GO BACK, AND THAT IS NOT SYMMETRIC WITH THE CLASS SPOTS ABOVE (S-16).
+        //
+        // This method rotates no Class stamp, and the doc comment on the interface says why: freeing
+        // a spot is always conservative, so a concurrent booker reading a pre-cascade count cannot be
+        // led into an overbooking. An ENTRY returning is the opposite kind of change - it makes a
+        // booking possible that was refused a moment ago, which is a state another writer is actively
+        // racing for. So each DISTINCT karnet these cancellations touch has its stamp rotated, in the
+        // same unit of work the caller is about to commit.
+        //
+        // Distinct, because one member can hold several future bookings against one pass and EF would
+        // otherwise be handed the same entity repeatedly - harmless, but the intent is one rotation
+        // per pool, not one per booking.
+        var passIds = future
+            .Where(b => b.MembershipPassId != null)
+            .Select(b => b.MembershipPassId!.Value)
+            .Distinct()
+            .ToList();
+
+        if (passIds.Count == 0)
+        {
+            return;
+        }
+
+        var passes = await db.MembershipPasses
+            .Where(p => passIds.Contains(p.Id))
+            .ToListAsync(cancellationToken);
+
+        foreach (var pass in passes)
+        {
+            pass.ConcurrencyStamp = Guid.NewGuid().ToString();
+        }
+
+        // The cascade runs OUTSIDE a retry loop, so a lost race here surfaces to the caller as a
+        // single 409 rather than being retried. That stays true and is acceptable for exactly the
+        // reason it already was for the block itself: the admin refetches and presses again, and
+        // nothing was half-written - the whole cascade is one SaveChangesAsync.
     }
 }

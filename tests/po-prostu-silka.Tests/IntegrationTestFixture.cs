@@ -203,6 +203,75 @@ public class IntegrationTestFixture : IAsyncLifetime
     }
 
     /// <summary>
+    /// Issues a karnet wide enough that it never gets in the way of a test about something else
+    /// (S-16).
+    ///
+    /// <para>
+    /// WHY EVERY BOOKING TEST NEEDS THIS. Since S-16 no member may be booked into a class without a
+    /// pass covering that class's club-local date with a free entry — so a suite testing capacity,
+    /// cancellation notifications or the block cascade has to arrange one, or it measures the karnet
+    /// gate instead of what it meant to measure. Written through the DbContext rather than the admin
+    /// API, because arranging a fixture through the surface under test would make every one of those
+    /// suites depend on the pass endpoints being correct.
+    /// </para>
+    ///
+    /// <para>
+    /// The range is deliberately absurd (the whole 21st century) and the entry count deliberately
+    /// large. It has to be: the suites work in fabricated years — ClassEndpointTests in 2030,
+    /// BookingEndpointTests in 2032, ClassCancellationTests in 2034 — and each slides its classes
+    /// further out with every test in the file, so anything narrower starts refusing bookings partway
+    /// through a run and only in a FULL run, which is the worst kind of flake to diagnose.
+    /// A test that cares about the range or the pool arranges its OWN pass with real bounds; this one
+    /// exists to be invisible. It is also why it must not be folded into
+    /// <see cref="CreateMemberAsync"/> or <see cref="CreateUserAsync"/>: a fixture that silently gave
+    /// everyone a karnet would make the gate untestable.
+    /// </para>
+    /// </summary>
+    public async Task<Guid> IssuePassAsync(
+        Guid memberId,
+        int entryCount = 1000,
+        DateOnly? validFrom = null,
+        DateOnly? validTo = null)
+    {
+        using var scope = Factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var pass = new MembershipPass
+        {
+            Id = Guid.NewGuid(),
+            MemberId = memberId,
+            TypeName = "Test Karnet",
+            ValidFrom = validFrom ?? new DateOnly(2000, 1, 1),
+            ValidTo = validTo ?? new DateOnly(2099, 12, 31),
+            EntryCount = entryCount,
+            IssuedAt = DateTimeOffset.UtcNow,
+        };
+
+        db.MembershipPasses.Add(pass);
+        await db.SaveChangesAsync();
+
+        return pass.Id;
+    }
+
+    /// <summary>
+    /// <see cref="IssuePassAsync"/> for a member addressed by their account's email — which is what
+    /// every suite that seeds through <see cref="CreateUserAsync"/> actually holds.
+    /// </summary>
+    public async Task<Guid> IssuePassForAccountAsync(string email, int entryCount = 1000)
+    {
+        using var scope = Factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var memberId = await db.Members
+            .AsNoTracking()
+            .Where(m => m.Email == email)
+            .Select(m => m.Id)
+            .SingleAsync();
+
+        return await IssuePassAsync(memberId, entryCount);
+    }
+
+    /// <summary>
     /// The member id behind an account. Since S-14 the admin surface is addressed by member, while
     /// most of these tests still hold an account id — this is the bridge, rather than each test
     /// growing its own DbContext to look one up.

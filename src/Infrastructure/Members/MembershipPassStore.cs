@@ -35,5 +35,33 @@ public class MembershipPassStore(AppDbContext db) : IMembershipPassStore
             .OrderBy(x => x.ValidFrom)
             .FirstOrDefaultAsync(cancellationToken);
 
+    public Task<MembershipPass?> FindCoveringAsync(
+        Guid memberId,
+        DateOnly clubLocalDate,
+        CancellationToken cancellationToken) =>
+        db.MembershipPasses
+            .Where(x => x.MemberId == memberId)
+            // The inclusive containment test, mirroring FindOverlappingAsync's inclusive
+            // intersection. Seeks IX_MembershipPasses_MemberId_ValidFrom.
+            .Where(x => x.ValidFrom <= clubLocalDate && clubLocalDate <= x.ValidTo)
+            .OrderBy(x => x.ValidFrom)
+            .FirstOrDefaultAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<MembershipPass>> FindManyAsync(
+        IReadOnlyCollection<Guid> passIds,
+        CancellationToken cancellationToken)
+    {
+        if (passIds.Count == 0)
+        {
+            // Short-circuit rather than issuing "WHERE Id IN ()". The common cancel is of a booking
+            // that carries no pass at all (a pre-S-16 row), and that case should cost no round trip.
+            return [];
+        }
+
+        return await db.MembershipPasses
+            .Where(x => passIds.Contains(x.Id))
+            .ToListAsync(cancellationToken);
+    }
+
     public void Remove(MembershipPass pass) => db.MembershipPasses.Remove(pass);
 }

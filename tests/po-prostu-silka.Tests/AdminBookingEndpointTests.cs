@@ -29,7 +29,7 @@ namespace po_prostu_silka.Tests;
 public class AdminBookingEndpointTests(IntegrationTestFixture fixture)
 {
     /// <summary>Mirrors ScheduledClass — only what these tests read from it.</summary>
-    private sealed record ClassBody(Guid Id, int Capacity, int FreeSpots);
+    private sealed record ClassBody(Guid Id, int Capacity, int FreeSpots, DateTimeOffset StartsAt);
 
     /// <summary>Mirrors ClassTypeSummary — only what these tests read from it.</summary>
     private sealed record ClassTypeBody(Guid Id, string Name);
@@ -119,8 +119,22 @@ public class AdminBookingEndpointTests(IntegrationTestFixture fixture)
     /// A person the club recorded who has never registered — the case the route exists for, since
     /// they cannot book for themselves.
     /// </summary>
-    private Task<Guid> AccountlessMemberAsync(MembershipStatus status = MembershipStatus.Active) =>
-        fixture.CreateMemberAsync($"Bez Konta {Guid.NewGuid():N}", status);
+    private async Task<Guid> AccountlessMemberAsync(MembershipStatus status = MembershipStatus.Active)
+    {
+        var memberId = await fixture.CreateMemberAsync($"Bez Konta {Guid.NewGuid():N}", status);
+
+        // The karnet is part of the arrangement since S-16 — see IntegrationTestFixture.IssuePassAsync
+        // for why it is deliberately wide and why it is not folded into member creation. A BLOCKED
+        // member gets one too, on purpose: the membership refusal must be what stops them, or
+        // "member_blocked" would be passing for the wrong reason.
+        await fixture.IssuePassAsync(memberId);
+
+        return memberId;
+    }
+
+    /// <summary>A member with no karnet at all — the case the gate exists for.</summary>
+    private Task<Guid> PasslessMemberAsync() =>
+        fixture.CreateMemberAsync($"Bez Karnetu {Guid.NewGuid():N}");
 
     private static Task<HttpResponseMessage> BookAsync(
         HttpClient admin, Guid classId, Guid memberId) =>
@@ -134,6 +148,52 @@ public class AdminBookingEndpointTests(IntegrationTestFixture fixture)
         await using var db = NewContext();
 
         return await db.Bookings.AsNoTracking().Where(b => b.ClassId == classId).ToListAsync();
+    }
+
+    /// <summary>
+    /// The bounds of a karnet that is never the thing under test. Wide enough to cover this file's
+    /// fabricated 2036 slots however far they slide — see IntegrationTestFixture.IssuePassAsync.
+    /// </summary>
+    private static readonly DateOnly WideFrom = new(2000, 1, 1);
+
+    private static readonly DateOnly WideTo = new(2099, 12, 31);
+
+    /// <summary>
+    /// A second (third, fourth) class in its own slot, for the entry-pool tests — which need one
+    /// member booked into SEVERAL classes, the one shape a class's own capacity stamp cannot guard.
+    /// </summary>
+    private async Task<ClassBody> AnotherClassAsync(HttpClient admin)
+    {
+        var type = await CreateTypeAsync(admin);
+        var trainerId = await CreateTrainerAsync(admin);
+
+        var response = await admin.PostAsJsonAsync(ClassesEndpoint, new
+        {
+            classTypeId = type.Id,
+            startsAt = NextSlot(),
+            instructorMemberId = trainerId,
+            durationMinutes = 60,
+            capacity = 12,
+        });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        return (await response.Content.ReadFromJsonAsync<ClassBody>())!;
+    }
+
+    /// <summary>A fresh admin client — the racers each need their own, so their scopes are separate.</summary>
+    private Task<HttpClient> AdminClientAsync() => AdminAsync();
+
+    /// <summary>
+    /// How many entries of this karnet are actually spent, read straight from the database rather
+    /// than from any response. This is the assertion the entry-pool race turns on.
+    /// </summary>
+    private async Task<int> ActiveBookingsForPassAsync(Guid passId)
+    {
+        await using var db = NewContext();
+
+        return await db.Bookings
+            .AsNoTracking()
+            .CountAsync(b => b.MembershipPassId == passId && b.Status == BookingStatus.Active);
     }
 
     // --- the happy path --------------------------------------------------------
@@ -192,6 +252,7 @@ public class AdminBookingEndpointTests(IntegrationTestFixture fixture)
 
         var email = $"booked-for-{Guid.NewGuid():N}@test.local";
         await fixture.CreateUserAsync(email, AccountStatus.Active, ApplicationRoles.User);
+        await fixture.IssuePassForAccountAsync(email);
 
         var members = await admin.GetFromJsonAsync<List<MemberBody>>("/api/admin/members");
         var memberId = members!.Single(m => m.Email == email).Id;
@@ -200,6 +261,200 @@ public class AdminBookingEndpointTests(IntegrationTestFixture fixture)
 
         var booking = Assert.Single(await BookingsForAsync(scheduled.Id));
         Assert.Equal(memberId, booking.MemberId);
+    }
+
+    // --- the karnet gate (S-16) ------------------------------------------------
+
+    /// <summary>
+    /// The class's club-local date, which is what the gate compares a pass's range against — NOT
+    /// today's date, and not UTC's. These suites schedule classes years out, so a test about the
+    /// range has to anchor on the class rather than on the clock.
+    /// </summary>
+    private static DateOnly DateOf(DateTimeOffset startsAt) =>
+        DateOnly.FromDateTime(po_prostu_silka.Domain.Scheduling.ClubTime.ToClubLocal(startsAt).DateTime);
+
+    [Fact]
+    public async Task A_member_with_no_karnet_cannot_be_booked()
+    {
+        var (admin, scheduled) = await ArrangeAsync();
+        var memberId = await PasslessMemberAsync();
+
+        var response = await BookAsync(admin, scheduled.Id, memberId);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal("no_valid_pass", await ReasonAsync(response));
+
+        // Nothing was written. A refusal that left a row would be worse than one that did not refuse.
+        Assert.Empty(await BookingsForAsync(scheduled.Id));
+    }
+
+    /// <summary>
+    /// A karnet that ran out the day before the class does not cover it. One day is the whole test —
+    /// an inclusive comparison written as exclusive fails exactly here and nowhere else.
+    /// </summary>
+    [Fact]
+    public async Task A_karnet_that_ends_the_day_before_the_class_does_not_cover_it()
+    {
+        var (admin, scheduled) = await ArrangeAsync();
+        var memberId = await PasslessMemberAsync();
+
+        var classDate = DateOf(scheduled.StartsAt);
+        await fixture.IssuePassAsync(
+            memberId, entryCount: 10, validFrom: classDate.AddDays(-30), validTo: classDate.AddDays(-1));
+
+        var response = await BookAsync(admin, scheduled.Id, memberId);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal("no_valid_pass", await ReasonAsync(response));
+    }
+
+    /// <summary>
+    /// A karnet that starts the day after the class does not cover it either — the mirror image of
+    /// the test above, and the other half of the inclusive range.
+    /// </summary>
+    [Fact]
+    public async Task A_karnet_that_starts_the_day_after_the_class_does_not_cover_it()
+    {
+        var (admin, scheduled) = await ArrangeAsync();
+        var memberId = await PasslessMemberAsync();
+
+        var classDate = DateOf(scheduled.StartsAt);
+        await fixture.IssuePassAsync(
+            memberId, entryCount: 10, validFrom: classDate.AddDays(1), validTo: classDate.AddDays(30));
+
+        var response = await BookAsync(admin, scheduled.Id, memberId);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal("no_valid_pass", await ReasonAsync(response));
+    }
+
+    /// <summary>
+    /// BOTH ENDS ARE INCLUSIVE. A one-day karnet covering exactly the class's date is enough — this
+    /// is the boundary a &lt; written for a &lt;= would silently move.
+    /// </summary>
+    [Fact]
+    public async Task A_karnet_covering_exactly_the_class_date_is_enough()
+    {
+        var (admin, scheduled) = await ArrangeAsync();
+        var memberId = await PasslessMemberAsync();
+
+        var classDate = DateOf(scheduled.StartsAt);
+        await fixture.IssuePassAsync(memberId, entryCount: 1, validFrom: classDate, validTo: classDate);
+
+        Assert.Equal(
+            HttpStatusCode.OK, (await BookAsync(admin, scheduled.Id, memberId)).StatusCode);
+    }
+
+    /// <summary>
+    /// The entry pool. A two-entry karnet pays for two classes and refuses the third — and the
+    /// refusal names the pool, not the validity, because they are different conversations at the desk.
+    /// </summary>
+    [Fact]
+    public async Task Exhausting_the_entries_refuses_the_next_booking()
+    {
+        var (admin, first) = await ArrangeAsync();
+        var second = await AnotherClassAsync(admin);
+        var third = await AnotherClassAsync(admin);
+
+        var memberId = await PasslessMemberAsync();
+        await fixture.IssuePassAsync(memberId, entryCount: 2, validFrom: WideFrom, validTo: WideTo);
+
+        Assert.Equal(HttpStatusCode.OK, (await BookAsync(admin, first.Id, memberId)).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await BookAsync(admin, second.Id, memberId)).StatusCode);
+
+        var refused = await BookAsync(admin, third.Id, memberId);
+        Assert.Equal(HttpStatusCode.Conflict, refused.StatusCode);
+        Assert.Equal("no_entries_left", await ReasonAsync(refused));
+    }
+
+    /// <summary>
+    /// RELEASING RETURNS THE ENTRY. Derived, not decremented — the entry comes back because the row
+    /// stopped being Active, and nothing had to remember to give it back.
+    /// </summary>
+    [Fact]
+    public async Task Releasing_a_booking_returns_the_entry()
+    {
+        var (admin, first) = await ArrangeAsync();
+        var second = await AnotherClassAsync(admin);
+
+        var memberId = await PasslessMemberAsync();
+        await fixture.IssuePassAsync(memberId, entryCount: 1, validFrom: WideFrom, validTo: WideTo);
+
+        Assert.Equal(HttpStatusCode.OK, (await BookAsync(admin, first.Id, memberId)).StatusCode);
+
+        var refused = await BookAsync(admin, second.Id, memberId);
+        Assert.Equal("no_entries_left", await ReasonAsync(refused));
+
+        var booking = Assert.Single(await BookingsForAsync(first.Id));
+        var released = await admin.DeleteAsync($"{AdminBookingsOf(first.Id)}/{booking.Id}");
+        Assert.Equal(HttpStatusCode.NoContent, released.StatusCode);
+
+        // The entry is back, so the booking that was refused a moment ago now succeeds.
+        Assert.Equal(HttpStatusCode.OK, (await BookAsync(admin, second.Id, memberId)).StatusCode);
+    }
+
+    /// <summary>
+    /// The booking records WHICH karnet paid — that attribution is what keeps entries-left stable
+    /// when a pass's range is later edited.
+    /// </summary>
+    [Fact]
+    public async Task A_booking_records_the_karnet_that_paid_for_it()
+    {
+        var (admin, scheduled) = await ArrangeAsync();
+        var memberId = await PasslessMemberAsync();
+
+        var passId = await fixture.IssuePassAsync(
+            memberId, entryCount: 5, validFrom: WideFrom, validTo: WideTo);
+
+        Assert.Equal(HttpStatusCode.OK, (await BookAsync(admin, scheduled.Id, memberId)).StatusCode);
+
+        Assert.Equal(passId, Assert.Single(await BookingsForAsync(scheduled.Id)).MembershipPassId);
+    }
+
+    /// <summary>
+    /// THE TEST THE SECOND STAMP EXISTS FOR, and it is a race the CLASS stamp cannot catch: one
+    /// member, one entry left, N+1 DIFFERENT classes. The bookings touch N+1 different Class rows, so
+    /// Class.ConcurrencyStamp serializes none of them against each other — only
+    /// MembershipPass.ConcurrencyStamp does.
+    ///
+    /// <para>
+    /// Asserted against the DATABASE, like every other race in this repository: all N+1 requests read
+    /// an entry count of zero before any of them writes, so counting HTTP successes could be satisfied
+    /// by a coincidence of scheduling. Remove the <c>pass.ConcurrencyStamp</c> rotation in
+    /// TryBookAsync and this test finds N+1 active rows against an N-entry karnet.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public async Task Concurrent_bookings_never_exceed_the_pass_entry_count()
+    {
+        const int Entries = 2;
+
+        var (admin, first) = await ArrangeAsync();
+
+        var classes = new List<ClassBody> { first };
+        for (var i = 0; i < Entries; i++)
+        {
+            classes.Add(await AnotherClassAsync(admin));
+        }
+
+        var memberId = await PasslessMemberAsync();
+        var passId = await fixture.IssuePassAsync(
+            memberId, entryCount: Entries, validFrom: WideFrom, validTo: WideTo);
+
+        // Separate clients, so the requests run in separate DI scopes with separate DbContexts and
+        // nothing is shared through the change tracker.
+        var racers = await Task.WhenAll(classes.Select(_ => AdminClientAsync()));
+
+        var responses = await Task.WhenAll(
+            classes.Select((c, i) => BookAsync(racers[i], c.Id, memberId)));
+
+        Assert.Equal(Entries, responses.Count(r => r.StatusCode == HttpStatusCode.OK));
+
+        var refused = Assert.Single(responses, r => r.StatusCode != HttpStatusCode.OK);
+        Assert.Equal("no_entries_left", await ReasonAsync(refused));
+
+        // The assertion that matters.
+        Assert.Equal(Entries, await ActiveBookingsForPassAsync(passId));
     }
 
     // --- the refusals ----------------------------------------------------------

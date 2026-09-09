@@ -133,11 +133,21 @@ public class BookingEndpointTests(IntegrationTestFixture fixture)
         return members!.Single(m => m.Email == email).Id;
     }
 
-    /// <summary>A brand-new active member, signed in. Every booking test needs one nobody else holds.</summary>
+    /// <summary>
+    /// A brand-new active member, signed in and holding a karnet. Every booking test needs one nobody
+    /// else holds.
+    ///
+    /// <para>
+    /// THE PASS IS PART OF THE ARRANGEMENT SINCE S-16, and deliberately a wide one — these tests are
+    /// about capacity, duplicates and races, not about the karnet gate, which the entry-pool tests
+    /// below cover on their own terms with real bounds.
+    /// </para>
+    /// </summary>
     private async Task<HttpClient> NewMemberAsync()
     {
         var email = $"booker-{Guid.NewGuid():N}@test.local";
         await fixture.CreateUserAsync(email, AccountStatus.Active, ApplicationRoles.User);
+        await fixture.IssuePassForAccountAsync(email);
 
         return await fixture.CreateAuthenticatedClientAsync(email);
     }
@@ -816,6 +826,11 @@ public class BookingEndpointTests(IntegrationTestFixture fixture)
 
         var email = $"cascade-{Guid.NewGuid():N}@test.local";
         await fixture.CreateUserAsync(email, AccountStatus.Active, ApplicationRoles.User);
+
+        // The karnet the gate requires (S-16). This test seeds its own member rather than going
+        // through NewMemberAsync, because it needs the address to look the member id up afterwards.
+        await fixture.IssuePassForAccountAsync(email);
+
         var member = await fixture.CreateAuthenticatedClientAsync(email);
 
         await BookAsync(member, upcoming.Id);

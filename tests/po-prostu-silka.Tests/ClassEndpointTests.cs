@@ -856,6 +856,10 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
         var email = $"guard-{Guid.NewGuid():N}@test.local";
         await fixture.CreateUserAsync(email, AccountStatus.Active, ApplicationRoles.User);
 
+        // The karnet the booking gate requires (S-16). These tests are about the delete and shrink
+        // guards, so the pass is arranged wide and never gets in the way.
+        await fixture.IssuePassForAccountAsync(email);
+
         var member = await fixture.CreateAuthenticatedClientAsync(email);
         var response = await member.PostAsync($"/api/classes/{classId}/bookings", content: null);
 

@@ -400,13 +400,26 @@ it is acceptable today.
 
 #### 5. Concurrency and behaviour tests
 
+**Adapted during implementation.** The arrangement change the contract anticipated landed as two
+fixture helpers (`IntegrationTestFixture.IssuePassAsync` / `IssuePassForAccountAsync`) called from
+each suite's member-creating helper, rather than as a per-test edit. Four suites needed it —
+`BookingEndpointTests`, `AdminBookingEndpointTests`, `ClassCancellationTests` and
+`ClassEndpointTests` — and the fixture pass is deliberately century-wide, because those suites work
+in fabricated years (2030/2032/2034/2036) that slide further out with every test in the file.
+
 **File**: `tests/po-prostu-silka.Tests/BookingEndpointTests.cs`, `tests/po-prostu-silka.Tests/AdminBookingEndpointTests.cs`
 
 **Intent**: Prove the second invariant holds under the race it was built for — one member, one entry
 left, two different classes, two simultaneous staff bookings.
 
+**Adapted during implementation.** `pass_not_valid` does not exist; both "no pass at all" and "a pass
+that does not reach the class's date" answer `no_valid_pass`. The two are indistinguishable from the
+lookup's side — `FindCoveringAsync` returns null for both — and the club's response to each is the
+same (sell them a karnet), so splitting them would have meant a second query purely to phrase a
+refusal. `no_entries_left` stays distinct, because *that* is a different conversation at the desk.
+
 **Contract**: New cases: booking with no pass is 409 `no_valid_pass`; booking into a class one day
-outside the range is 409 `pass_not_valid`; booking on the exact first and last day of the range
+outside the range is 409 `no_valid_pass`; booking on the exact first and last day of the range
 succeeds (inclusive both ends); exhausting the entries refuses the next with `no_entries_left`;
 releasing a booking frees an entry and the next booking succeeds; a booking whose pass is null
 (pre-migration row) is left alone by the entries count. The race:
@@ -913,10 +926,10 @@ a later change, once no deployed artifact reads it.
 
 #### Automated
 
-- [x] 2.1 Build is warning-free
-- [x] 2.2 New and existing tests pass
-- [x] 2.3 Concurrent-overlap test passes on three consecutive runs
-- [x] 2.6 AddBookingMembershipPass rolls back and re-applies (moved from 3.4 — see the adaptation note)
+- [x] 2.1 Build is warning-free — bbcb731
+- [x] 2.2 New and existing tests pass — bbcb731
+- [x] 2.3 Concurrent-overlap test passes on three consecutive runs — bbcb731
+- [x] 2.6 AddBookingMembershipPass rolls back and re-applies (moved from 3.4 — see the adaptation note) — bbcb731
 
 #### Manual
 
@@ -927,9 +940,9 @@ a later change, once no deployed artifact reads it.
 
 #### Automated
 
-- [ ] 3.1 Build is warning-free
-- [ ] 3.2 Full suite passes
-- [ ] 3.3 Entry-pool race test passes on three consecutive full-suite runs
+- [x] 3.1 Build is warning-free
+- [x] 3.2 Full suite passes
+- [x] 3.3 Entry-pool race test passes on three consecutive full-suite runs
 
 #### Manual
 

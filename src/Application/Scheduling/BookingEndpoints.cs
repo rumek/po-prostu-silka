@@ -80,9 +80,19 @@ public record ClassBooking(
 ///
 /// <para>
 /// Reasons: <c>class_cancelled</c>, <c>class_started</c>, <c>already_booked</c>, <c>class_full</c>,
-/// <c>not_booked</c>, <c>conflict</c>, and — on the admin route only — <c>member_blocked</c>. Adding
-/// one means adding it to the SPA's BookingFailure union too. A missing class is a 404 and not a
-/// reason — an unknown id is not a state disagreement, and neither is a member id nobody issued.
+/// <c>not_booked</c>, <c>no_valid_pass</c>, <c>no_entries_left</c>, <c>conflict</c>, and — on the
+/// admin route only — <c>member_blocked</c>. Adding one means adding it to the SPA's BookingFailure
+/// union too. A missing class is a 404 and not a reason — an unknown id is not a state disagreement,
+/// and neither is a member id nobody issued.
+/// </para>
+///
+/// <para>
+/// THE TWO KARNET REFUSALS ARE DIFFERENT QUESTIONS AND MUST STAY DISTINGUISHABLE (S-16).
+/// <c>no_valid_pass</c> means the member holds no pass covering the class's club-local date — either
+/// they have none at all, or the one they have does not reach that day; those two are indistinguishable
+/// from the lookup's side and are deliberately one reason, because the club's answer to both is "sell
+/// them a karnet". <c>no_entries_left</c> means a pass DOES cover the date and its entries are all
+/// spent, which is a different conversation at the desk.
 /// </para>
 ///
 /// <para>
@@ -216,6 +226,7 @@ public static class BookingEndpoints
         ClaimsPrincipal principal,
         IClassStore classes,
         IBookingStore bookings,
+        IMembershipPassStore passes,
         IUnitOfWork unitOfWork,
         TimeProvider timeProvider,
         CancellationToken cancellationToken)
@@ -229,7 +240,8 @@ public static class BookingEndpoints
         }
 
         return await TryBookAsync(
-            classId, memberId.Value, classes, bookings, unitOfWork, timeProvider, cancellationToken);
+            classId, memberId.Value, classes, bookings, passes, unitOfWork, timeProvider,
+            cancellationToken);
     }
 
     /// <summary>
@@ -255,6 +267,7 @@ public static class BookingEndpoints
         Guid memberId,
         IClassStore classes,
         IBookingStore bookings,
+        IMembershipPassStore passes,
         IUnitOfWork unitOfWork,
         TimeProvider timeProvider,
         CancellationToken cancellationToken)
@@ -295,18 +308,59 @@ public static class BookingEndpoints
                 return Refuse("class_full");
             }
 
+            // ------------------------------------------------------------------
+            // THE KARNET GATE (S-16, MP-06). A SECOND POOL, GUARDED THE SAME WAY.
+            //
+            // Deliberately INSIDE the loop and re-read on every attempt. Hoisting it above the loop
+            // would be the exact stale guess the loop exists to prevent: a racer that lost on the
+            // class stamp may have lost to a booking that spent this member's last entry, and an
+            // entry count read before that write is a number about a world that no longer exists.
+            //
+            // The date is the CLASS'S club-local date, not today's and not UTC's. A 21:00 class on
+            // the last day a karnet covers is covered; the 06:00 class the next morning is not. This
+            // is ClubTime's second read-path consumer - see that type's doc comment, which anticipates
+            // exactly this kind of narrow exception and explains why a JSON path still returns UTC.
+            // ------------------------------------------------------------------
+            var classDate = DateOnly.FromDateTime(ClubTime.ToClubLocal(entity.StartsAt).DateTime);
+
+            var pass = await passes.FindCoveringAsync(memberId, classDate, cancellationToken);
+            if (pass is null)
+            {
+                return Refuse("no_valid_pass");
+            }
+
+            // Greater-or-equal for the reason the capacity check is: if the count has somehow passed
+            // the issued number the answer is still "none left". Equality would turn a broken
+            // invariant into an open door.
+            var entriesUsed = await bookings.CountActiveForPassAsync(pass.Id, cancellationToken);
+            if (entriesUsed >= pass.EntryCount)
+            {
+                return Refuse("no_entries_left");
+            }
+
             bookings.Add(new Booking
             {
                 Id = Guid.NewGuid(),
                 ClassId = entity.Id,
                 MemberId = memberId,
                 Status = BookingStatus.Active,
+
+                // ATTRIBUTION, recorded now. It is what keeps entries-left stable when the pass's
+                // validity range is later edited - see Booking.MembershipPassId.
+                MembershipPassId = pass.Id,
                 CreatedAt = now,
             });
 
             // THE GUARANTEE. Read the class doc comment before touching this line: without it the
             // count above is a guess that happens to be right most of the time.
             entity.ConcurrencyStamp = Guid.NewGuid().ToString();
+
+            // THE SECOND GUARANTEE, and it is a SEPARATE pool rather than a duplicate of the first.
+            // One member's last entry spent on two DIFFERENT classes races on nothing else: the two
+            // bookings touch two different Class rows, so the class stamp above serializes neither of
+            // them against the other. Both stamps rotate in the same SaveChangesAsync below, so one
+            // atomic write guards both invariants.
+            pass.ConcurrencyStamp = Guid.NewGuid().ToString();
 
             var outcome = await unitOfWork.TrySaveAsync(cancellationToken);
             if (outcome == SaveOutcome.Saved)
@@ -365,6 +419,7 @@ public static class BookingEndpoints
         IMemberStore members,
         IClassStore classes,
         IBookingStore bookings,
+        IMembershipPassStore passes,
         IUnitOfWork unitOfWork,
         TimeProvider timeProvider,
         CancellationToken cancellationToken)
@@ -384,7 +439,8 @@ public static class BookingEndpoints
         }
 
         return await TryBookAsync(
-            classId, member.Id, classes, bookings, unitOfWork, timeProvider, cancellationToken);
+            classId, member.Id, classes, bookings, passes, unitOfWork, timeProvider,
+            cancellationToken);
     }
 
     /// <summary>
@@ -409,6 +465,7 @@ public static class BookingEndpoints
         UserManager<ApplicationUser> userManager,
         IClassStore classes,
         IBookingStore bookings,
+        IMembershipPassStore passes,
         IUnitOfWork unitOfWork,
         TimeProvider timeProvider,
         CancellationToken cancellationToken)
@@ -439,6 +496,7 @@ public static class BookingEndpoints
             booking.CancelledAt = timeProvider.GetUtcNow();
 
             entity.ConcurrencyStamp = Guid.NewGuid().ToString();
+            await ReturnEntryAsync(booking, passes, cancellationToken);
 
             var outcome = await unitOfWork.TrySaveAsync(cancellationToken);
             if (outcome == SaveOutcome.Saved)
@@ -518,6 +576,7 @@ public static class BookingEndpoints
         Guid bookingId,
         IClassStore classes,
         IBookingStore bookings,
+        IMembershipPassStore passes,
         IUnitOfWork unitOfWork,
         TimeProvider timeProvider,
         CancellationToken cancellationToken)
@@ -549,6 +608,7 @@ public static class BookingEndpoints
             booking.CancelledAt = timeProvider.GetUtcNow();
 
             entity.ConcurrencyStamp = Guid.NewGuid().ToString();
+            await ReturnEntryAsync(booking, passes, cancellationToken);
 
             if (await unitOfWork.TrySaveAsync(cancellationToken) == SaveOutcome.Saved)
             {
@@ -559,6 +619,40 @@ public static class BookingEndpoints
         }
 
         return Refuse("conflict");
+    }
+
+    /// <summary>
+    /// Returns the entry a cancelling booking was holding, by rotating its karnet's stamp (S-16).
+    ///
+    /// <para>
+    /// WHY THIS IS NOT THE SAME CASE AS FREEING A CLASS SPOT. The block cascade skips the class stamp
+    /// because cancelling can only ever free spots — a concurrent booker reading a pre-cancel count
+    /// is being conservative. An entry is the OPPOSITE: returning one makes a booking possible that
+    /// was refused a moment ago, so a booker whose entry check straddles this cancel would be deciding
+    /// on a pool that is mid-change, and could spend the same entry twice. Every path that flips a
+    /// booking to Cancelled owes this rotation.
+    /// </para>
+    ///
+    /// <para>
+    /// A booking with no pass (a pre-S-16 row) consumes no entry and returns none — hence the null
+    /// check, which is the whole of the handling that case needs. Stages only; the caller commits.
+    /// </para>
+    /// </summary>
+    private static async Task ReturnEntryAsync(
+        Booking booking,
+        IMembershipPassStore passes,
+        CancellationToken cancellationToken)
+    {
+        if (booking.MembershipPassId is null)
+        {
+            return;
+        }
+
+        var pass = await passes.FindAsync(booking.MembershipPassId.Value, cancellationToken);
+        if (pass is not null)
+        {
+            pass.ConcurrencyStamp = Guid.NewGuid().ToString();
+        }
     }
 
     /// <summary>
@@ -612,6 +706,24 @@ public interface IBookingStore
     /// </para>
     /// </summary>
     Task<int> CountActiveAsync(Guid classId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// How many entries of this karnet are currently spent (S-16).
+    ///
+    /// <para>
+    /// THERE IS NO STORED COUNTER here either; entries used IS the number of active bookings carrying
+    /// this pass's id. Reading it is only half of an entry check — the other half is rotating
+    /// <see cref="Domain.Members.MembershipPass.ConcurrencyStamp"/> before saving, without which this
+    /// number is stale by the time it is acted on. Exactly the shape
+    /// <see cref="CountActiveAsync"/> has, one pool up.
+    /// </para>
+    ///
+    /// <para>
+    /// Seeks IX_Bookings_MembershipPassId_Status. It runs on EVERY attempt of the booking retry loop,
+    /// so it must be a seek.
+    /// </para>
+    /// </summary>
+    Task<int> CountActiveForPassAsync(Guid passId, CancellationToken cancellationToken);
 
     /// <summary>
     /// Whether this class has EVER been booked, cancelled bookings included.

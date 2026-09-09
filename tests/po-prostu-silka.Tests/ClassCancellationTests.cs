@@ -169,6 +169,10 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
         var email = $"booker-{Guid.NewGuid():N}@test.local";
         await fixture.CreateUserAsync(email, AccountStatus.Active, ApplicationRoles.User);
 
+        // The karnet the booking gate requires (S-16). Wide enough to be invisible — these tests are
+        // about notification fan-out, not about entitlement.
+        await fixture.IssuePassForAccountAsync(email);
+
         await using var db = NewContext();
         var id = await db.Users.Where(u => u.Email == email).Select(u => u.Id).SingleAsync();
 

@@ -49,6 +49,39 @@ public interface IMembershipPassStore
         Guid? excludingPassId,
         CancellationToken cancellationToken);
 
+    /// <summary>
+    /// The pass covering <paramref name="clubLocalDate"/> for this member, TRACKED, or null.
+    ///
+    /// <para>
+    /// THE BOOKING GATE'S LOOKUP, and it is on the write seam rather than on
+    /// <see cref="IMembershipPassQuery"/> for one reason: the booking path must ROTATE this pass's
+    /// concurrency stamp in the same save as the insert, and an untracked projection cannot be
+    /// rotated. The query's <c>FindCoveringAsync</c> is the read-only twin, for screens.
+    /// </para>
+    ///
+    /// <para>
+    /// At most one row can match while the non-overlap invariant holds — but that is enforced on the
+    /// issue path, not here, so the implementation still orders and takes one.
+    /// </para>
+    /// </summary>
+    Task<MembershipPass?> FindCoveringAsync(
+        Guid memberId,
+        DateOnly clubLocalDate,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Every pass, TRACKED, that any of <paramref name="passIds"/> names.
+    ///
+    /// <para>
+    /// For the cancel paths, which must return an entry by rotating the stamp of each DISTINCT pass
+    /// they touch. The block cascade releases a handful of bookings at once and they may sit on
+    /// different passes, so this loads the set in one round trip rather than one per booking.
+    /// </para>
+    /// </summary>
+    Task<IReadOnlyList<MembershipPass>> FindManyAsync(
+        IReadOnlyCollection<Guid> passIds,
+        CancellationToken cancellationToken);
+
     /// <summary>Stages a delete. Commits nothing; the caller decides what else lands with it.</summary>
     void Remove(MembershipPass pass);
 }
