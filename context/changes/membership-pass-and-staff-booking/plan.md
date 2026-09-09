@@ -1050,12 +1050,12 @@ a later change, once no deployed artifact reads it.
 
 #### Automated
 
-- [x] 8.1 Build is warning-free
-- [x] 8.2 Full suite passes
-- [x] 8.3 Frontend quality gate passes
-- [x] 8.4 Frontend unit tests pass
-- [x] 8.5 Grep finds no dead approval references beyond the retired enum member
-- [x] 8.6 Production build emits no bundle-budget warning
+- [x] 8.1 Build is warning-free — 07828d7
+- [x] 8.2 Full suite passes — 07828d7
+- [x] 8.3 Frontend quality gate passes — 07828d7
+- [x] 8.4 Frontend unit tests pass — 07828d7
+- [x] 8.5 Grep finds no dead approval references beyond the retired enum member — 07828d7
+- [x] 8.6 Production build emits no bundle-budget warning — 07828d7
 
 #### Manual
 

@@ -25,3 +25,11 @@ M-4's only slice (roadmap S-16). Three moves that are one product decision:
 Settled with the user before planning; see the M-4 scope anchors MP-01–MP-07 in
 `context/foundation/roadmap.md`. Approved design notes live in the session plan and are the input to
 `/10x-plan`.
+
+## Status note
+
+All eight phases are implemented and every AUTOMATED success criterion in `plan.md` passes (514
+backend integration tests, 422 frontend unit tests, a warning-free build, and a 504 kB initial bundle
+against a 550 kB budget). `status` stays `implementing` rather than `implemented` because the plan's
+24 manual-verification rows are deliberately outstanding — the user reserved them for one pass at the
+end of the slice. Flip to `implemented` once they are ticked.
