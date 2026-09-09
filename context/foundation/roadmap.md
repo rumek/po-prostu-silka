@@ -122,7 +122,7 @@ the karnet ran out.
 | S-13 | member-profile-edit              | member edits contact details, changes password, resets a forgotten one   | F-02, S-01             | v1 FR-006, v1 FR-025, v1 FR-026                                 | done        |
 | S-14 | member-entity-and-accountless-members | admin keeps a record for someone with no account; that person later claims it with a code | S-02, S-08, S-11, S-13 | M-2 AM-001–AM-006 | done |
 | S-15 | plan-card-prescription-detail | member reads their plan card with the muscle group, a prescribed duration where the trainer set one, an info icon to the exercise, and the note set off as a callout | S-10, S-11 | M-3 MS-001–MS-004 | done |
-| S-16 | membership-pass-and-staff-booking | admin issues a karnet and books a member in; a trainer books into their own classes; a member with no valid karnet is refused; nobody self-books and nobody waits for approval | S-01, S-04, S-08, S-14 | M-4 MP-01–MP-07 (retires v1 US-01, FR-002, FR-003, FR-008, FR-009) | in-progress |
+| S-16 | membership-pass-and-staff-booking | admin issues a karnet and books a member in; a trainer books into their own classes; a member with no valid karnet is refused; nobody self-books and nobody waits for approval | S-01, S-04, S-08, S-14 | M-4 MP-01–MP-07 (retires v1 US-01, FR-002, FR-003, FR-008, FR-009) | done        |
 
 ## Streams
 
@@ -428,7 +428,7 @@ What's already in place in the codebase as of `2026-09-02` (auto-researched + us
   (self-booking, approval) across API, tests, routes, guards and navigation, and a half-removed
   approval gate leaves accounts that can log in but pass no policy. The migration that activates
   existing pending accounts must land before the code that stops producing them.
-- **Status:** in-progress
+- **Status:** done
 
 ## Backlog Handoff
 
@@ -535,3 +535,4 @@ Resolved since the previous roadmap: the sender-domain question that gated F-03 
 - **S-12: user (member) lands on a dashboard showing their nearest upcoming classes and active training plan; the admin lands on a dashboard of items needing attention — pending approvals, today's and upcoming classes.** — Archived 2026-09-07 → `context/archive/2026-09-06-member-and-admin-dashboards/`. Lesson: —.
 - **S-14: the admin creates a member record for someone who has never registered, edits and blocks it, assigns them a training plan and books them into a class; the admin issues a single-use code, and the person registers with it and lands on that record — their existing bookings and their active plan already there.** — Archived 2026-09-08 → `context/archive/2026-09-07-member-entity-and-accountless-members/`. Lesson: —.
 - **S-15: user (member) opens their plan and each exercise card shows which muscle group it trains, the duration the trainer prescribed where the exercise is measured in time, a distinct info icon leading to the exercise details, and the trainer's note set off as a callout.** — Archived 2026-09-09 → `context/archive/2026-09-08-plan-card-prescription-detail/`. Lesson: —.
+- **S-16: user (admin) issues a member a karnet — a type name, a validity range and a number of entries — and books that member into a class; a trainer does the same for the classes they instruct; the member opens the app, sees their karnet and how many entries are left, sees their upcoming classes and cannot book or cancel anything; a booking into a class the karnet does not cover, or with no entry left, is refused; a newly registered account is active immediately and there is no approvals tab.** — Archived 2026-09-09 → `context/archive/2026-09-09-membership-pass-and-staff-booking/`. Lesson: —.
