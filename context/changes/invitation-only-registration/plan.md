@@ -372,6 +372,13 @@ name.
 
 **Contract**: Existing spec setup; the clipboard is already stubbed there for the code copy.
 
+**Adapted during implementation.** The clipboard was NOT already stubbed in `members.spec.ts` — no
+test there had exercised `copyCode()`. The new test stubs it itself, through
+`Object.defineProperty(navigator, 'clipboard', …)` rather than `vi.stubGlobal('navigator', …)`:
+replacing the whole navigator drops the prototype getters Angular's `DefaultValueAccessor` reads
+(`userAgent`), which fails every render in the file rather than the one test. It also asserts the
+bare-code copy still works, since the panel now has two copy actions where it had one.
+
 ### Success Criteria:
 
 #### Automated Verification:
@@ -456,9 +463,9 @@ the previous version cannot read.
 
 #### Automated
 
-- [x] 2.1 Frontend unit tests pass
-- [x] 2.2 Prettier + ESLint clean
-- [x] 2.3 Build succeeds inside the 550 kB initial-bundle budget
+- [x] 2.1 Frontend unit tests pass — a542f79
+- [x] 2.2 Prettier + ESLint clean — a542f79
+- [x] 2.3 Build succeeds inside the 550 kB initial-bundle budget — a542f79
 
 #### Manual
 
@@ -473,9 +480,9 @@ the previous version cannot read.
 
 #### Automated
 
-- [ ] 3.1 Frontend unit tests pass
-- [ ] 3.2 Prettier + ESLint clean
-- [ ] 3.3 Full backend suite still green
+- [x] 3.1 Frontend unit tests pass
+- [x] 3.2 Prettier + ESLint clean
+- [x] 3.3 Full backend suite still green
 
 #### Manual
 

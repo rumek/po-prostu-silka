@@ -1,6 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, HostListener, OnInit, computed, inject, signal } from '@angular/core';
-import { DatePipe } from '@angular/common';
+import { DOCUMENT, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { MemberAdminService } from '../../../core/admin/member-admin.service';
@@ -42,6 +42,9 @@ const triggerId = (memberId: string): string => `member-menu-${memberId}`;
 })
 export class Members implements OnInit {
   private readonly members = inject(MemberAdminService);
+
+  /** Injected rather than reached for globally, so the invitation link's origin is SSR-safe. */
+  private readonly document = inject(DOCUMENT);
 
   protected readonly rows = signal<Member[]>([]);
   protected readonly loading = signal(true);
@@ -361,6 +364,43 @@ export class Members implements OnInit {
 
     try {
       await navigator.clipboard.writeText(view.code);
+      this.codeCopied.set(true);
+    } catch {
+      this.codeCopyFailed.set(true);
+    }
+  }
+
+  /**
+   * Copies the whole invitation URL rather than the bare code (S-17, IR-06).
+   *
+   * <p>
+   * BOTH ACTIONS EXIST BECAUSE BOTH DELIVERIES DO. The link is what an admin pastes into a message;
+   * the code is what they read down the phone, which is the entire reason its alphabet drops the
+   * characters people confuse when transcribing. Replacing the code with the link would take that
+   * away.
+   * </p>
+   *
+   * <p>
+   * Built from the document's OWN origin, so it is correct on localhost, on a staging host and in
+   * production without a configured base URL to keep in step. The code goes in as displayed — the
+   * dash is in the API's own alphabet-normalising path, so a link carrying it resolves fine.
+   * </p>
+   */
+  protected async copyInvitationLink(): Promise<void> {
+    const view = this.code();
+    if (!view) {
+      return;
+    }
+
+    this.codeCopied.set(false);
+    this.codeCopyFailed.set(false);
+
+    // `invitationCode`, not `memberCode`: the query parameter and the API field are deliberately
+    // named differently (M-5 charter). This is the name the register screen reads.
+    const url = `${this.document.location.origin}/register?invitationCode=${encodeURIComponent(view.code)}`;
+
+    try {
+      await navigator.clipboard.writeText(url);
       this.codeCopied.set(true);
     } catch {
       this.codeCopyFailed.set(true);

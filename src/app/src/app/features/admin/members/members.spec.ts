@@ -661,6 +661,60 @@ describe('Members', () => {
   });
 
   /**
+   * S-17, IR-06. The admin's ordinary delivery is now a link they paste into a message, so the panel
+   * offers the whole URL — with `invitationCode`, the name the register screen reads, and NOT
+   * `memberCode`, which is the API field the two deliberately disagree on.
+   *
+   * <p>
+   * The BARE CODE stays copyable beside it: it exists to be read down the phone, which is the entire
+   * reason its alphabet drops the characters people confuse when transcribing.
+   * </p>
+   */
+  it('copies the invitation link carrying the code, and keeps the bare code copyable', async () => {
+    // Only `clipboard` is replaced, and through defineProperty rather than vi.stubGlobal: swapping
+    // the whole navigator loses the prototype getters Angular's forms read (userAgent), which fails
+    // every subsequent render rather than this test.
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText },
+      configurable: true,
+    });
+
+    await createWith([FILIP]);
+
+    menuItemIn(rows()[0], 'Wygeneruj kod klubowicza').click();
+
+    (await vi.waitFor(() => controller.expectOne('/api/admin/members/m6/access-code'))).flush({
+      code: 'ABCD-2345',
+      expiresAt: '2026-09-22T14:00:00+00:00',
+    });
+    await settle();
+
+    const buttons = Array.from(
+      rows()[0].querySelectorAll<HTMLButtonElement>('.member-code-actions .link-button'),
+    );
+
+    buttons.find((b) => b.textContent?.includes('Kopiuj link'))!.click();
+    await settle();
+
+    const [link] = writeText.mock.calls[0] as [string];
+    expect(link).toContain('/register?invitationCode=');
+    expect(link).toContain('ABCD-2345');
+
+    // The origin is the document's own, so the link is right on localhost and in production alike
+    // without a configured base URL to keep in step.
+    expect(link.startsWith(document.location.origin)).toBe(true);
+
+    // And the code alone is still one click away, for the admin reading it out at the desk.
+    buttons.find((b) => b.textContent?.includes('Kopiuj kod'))!.click();
+    await settle();
+
+    expect(writeText).toHaveBeenLastCalledWith('ABCD-2345');
+
+    Reflect.deleteProperty(navigator, 'clipboard');
+  });
+
+  /**
    * The member registered between the list loading and the admin pressing the button. The list is
    * stale, so it is refetched rather than patched from a guess — the rule every action here follows.
    */

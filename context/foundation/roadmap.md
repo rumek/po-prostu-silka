@@ -1,14 +1,14 @@
 ---
 project: "Po Prostu Siłka"
-version: 2
+version: 3
 status: draft
 created: 2026-08-31
 updated: 2026-09-09
 prd_version: 1, 2
 main_goal: speed
 top_blocker: none
-milestone_id: membership-pass-and-staff-booking
-milestone_seq: 4
+milestone_id: invitation-only-registration
+milestone_seq: 5
 milestone_status: open
 ---
 
@@ -20,38 +20,43 @@ milestone_status: open
 
 ## Milestone
 
-**M-4: The karnet decides who trains** — Status: open
+**M-5: An account is created only by invitation** — Status: open
 
-- **Intent:** Replace the access model M-1 built with the one the club actually runs on. Membership
-  is a *karnet* — a named pass with a validity range and a pool of entries — and it is the desk, not
-  the member, that puts somebody into a class. Admin approval, the gate that stood between
-  registering and training, is retired: the pass is the gate now.
-- **Source materials:** the user's own description, recorded as the `MP-NN` anchors below. Neither PRD
-  describes a pass, and both describe self-service booking, so this milestone *supersedes* published
-  product scope rather than extending it — which is why it opens a milestone rather than joining M-3.
+- **Intent:** Registration stops being a public door. The club's desk is where a person enters the
+  records, and the only way to attach a login to those records is an invitation code handed over in
+  person. What registration asks for shrinks to the two things the club cannot know for them: an
+  address to sign in with and a password.
+- **Source materials:** the user's own description, recorded as the `IR-NN` anchors below. No PRD
+  version describes an invitation-only door — v1 FR-001 describes open self-registration — so this
+  milestone supersedes published product scope, exactly as M-4 did.
 - **Done when:** every S-NN in this milestone is `done`.
 - **Scope anchors:**
-  - MP-01: Self-service booking is gone. A member sees their upcoming classes and their plan; they
-    cannot book a spot and cannot cancel one. This retires v1 US-01, FR-008 and FR-009 as
-    member-facing capabilities — the behaviour survives, but only on staff routes.
-  - MP-02: An admin books any member into any class and releases any spot. A trainer does the same,
-    but only for the classes they personally instruct.
-  - MP-03: Admin approval of new accounts is gone, along with the Zgłoszenia tab and the
-    awaiting-approval screen. Registration produces an active account. This retires v1 FR-002 and
-    FR-003. Blocking remains the admin's lever, unchanged.
-  - MP-04: A `MembershipPass` (karnet) belongs to a member and carries a type name, a validity range
-    (inclusive both ends), and an entry count. The entry count is ALWAYS required — there is no
-    unlimited pass.
-  - MP-05: A member always sees their pass: its type, its validity, and how many entries are left.
-    They can never issue or edit one.
-  - MP-06: Nobody can be booked into a class unless the member holds a pass valid **on the day of the
-    class** with an entry still free. An entry is consumed by an active booking and returned when
-    that booking is released — derived from the bookings themselves, never a stored counter.
-  - MP-07: A member's passes form a history and their validity ranges may not overlap, so any date
-    resolves to at most one pass.
+  - IR-01: An admin records a member with no email address. That person receives no email and no
+    push, and that is an accepted consequence rather than a defect — the club reaches them at the
+    desk.
+  - IR-02: `/register` is reachable ONLY with an `invitationCode` query parameter. A request without
+    one is redirected to `/login`, and no screen in the app links to registration.
+  - IR-03: The code arrives in the query string, prefills the field, and the field is readonly. A
+    person registering never types a code and never edits the one they were handed.
+  - IR-04: Registration asks for an email address and a password, and nothing else. Display name,
+    phone number and postal address are no longer collected — they come from the member record the
+    code attaches to.
+  - IR-05: Registration without a valid code is impossible, and the refusal lives in the API rather
+    than only in the SPA. A code that is unknown, expired, revoked or already used is still refused
+    as one answer, for the account-enumeration reason S-14 recorded.
+  - IR-06: The admin can copy the whole invitation URL, not only the bare code. Added during
+    planning, deliberately widening this milestone: the link is what an admin pastes into a message,
+    and without it every invitation would have to be assembled by hand. The bare code stays copyable
+    beside it — it exists to be read down the phone, which is what its alphabet was designed for.
 
-**Not in scope, deliberately:** money. A pass is issued, not sold — no price, no payment, no invoice.
-That half of "Payments, passes, subscriptions" stays parked.
+**Naming, settled with the user:** the query parameter is `invitationCode`; the API contract keeps
+`memberCode`. Two names for one thing is a deliberate, recorded trade — the SPA reads the friendlier
+word out of the URL and sends the field the API already answers to, and no shipped contract moves.
+
+**Not in scope, deliberately:** GENERATING, expiring and revoking the invitation. That admin surface
+shipped with S-14 and is untouched. Note the narrowing: this line used to say "issuing the
+invitation" outright, and IR-06 makes that no longer true — copying the link is part of issuing it,
+and the scope was extended on purpose rather than by drift.
 
 ## PRD addendum (M-2)
 
@@ -90,15 +95,16 @@ Mid-milestone, a second decision landed: a class stops being retyped text and be
 
 ## North star
 
-**S-16: A member with a valid karnet is booked in by staff; one without a karnet is refused** — M-4
-has one slice, so it is the north star by construction. It earns the name on the refusal, not the
-booking: the milestone's hypothesis is that the pass, and not an approval flag, is what should decide
-whether a person trains, and the only way to test that is to watch a booking be turned away because
-the karnet ran out.
+**S-17: Registration is reachable only through an invitation, and asks for almost nothing** — M-5 has
+one slice, so it is the north star by construction. It earns the name on the closed door rather than
+on the shortened form: the milestone's hypothesis is that nobody should be able to create an account
+the club did not hand out, and the only way to test that is to open `/register` with no code and land
+back on the login screen.
 
 > "North star" here means the smallest end-to-end slice whose successful delivery would prove the core
-> product hypothesis. M-1's was S-09 (email + push on class changes), M-2's was S-14 (the claim path)
-> and M-3's was S-15 (the plan card); all shipped, and their entries live in `## Milestone History`.
+> product hypothesis. M-1's was S-09 (email + push on class changes), M-2's was S-14 (the claim path),
+> M-3's was S-15 (the plan card) and M-4's was S-16 (the karnet refusal); all shipped, and their
+> entries live in `## Milestone History`.
 
 ## At a glance
 
@@ -123,6 +129,7 @@ the karnet ran out.
 | S-14 | member-entity-and-accountless-members | admin keeps a record for someone with no account; that person later claims it with a code | S-02, S-08, S-11, S-13 | M-2 AM-001–AM-006 | done |
 | S-15 | plan-card-prescription-detail | member reads their plan card with the muscle group, a prescribed duration where the trainer set one, an info icon to the exercise, and the note set off as a callout | S-10, S-11 | M-3 MS-001–MS-004 | done |
 | S-16 | membership-pass-and-staff-booking | admin issues a karnet and books a member in; a trainer books into their own classes; a member with no valid karnet is refused; nobody self-books and nobody waits for approval | S-01, S-04, S-08, S-14 | M-4 MP-01–MP-07 (retires v1 US-01, FR-002, FR-003, FR-008, FR-009) | done        |
+| S-17 | invitation-only-registration | register only through an invitation link — the code is prefilled and readonly, the form asks for an email and a password, and there is no way in without a code | S-14, S-16 | M-5 IR-01–IR-06 (supersedes v1 FR-001's open self-registration) | in-progress |
 
 ## Streams
 
@@ -130,7 +137,7 @@ Navigation aid — groups items that share a Prerequisites chain. Canonical orde
 
 | Stream | Theme                 | Chain                                              | Note                                                                                             |
 | ------ | --------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| A      | Access & identity     | `F-01` → `F-02` → `S-01` → `S-02` → `S-04` → `S-13` → `S-14` → `S-16` | The spine. Through M-1 everything hung off an approved account; `S-14` is where that stops being true and a member outlives the login, and `S-16` is where the approval flag stops deciding anything at all — the karnet does. `S-16` also closes Stream C's member-facing half, which is why it belongs to both chains. |
+| A      | Access & identity     | `F-01` → `F-02` → `S-01` → `S-02` → `S-04` → `S-13` → `S-14` → `S-16` → `S-17` | The spine. Through M-1 everything hung off an approved account; `S-14` is where that stops being true and a member outlives the login, and `S-16` is where the approval flag stops deciding anything at all — the karnet does. `S-16` also closes Stream C's member-facing half, which is why it belongs to both chains. `S-17` closes the stream where it started: the registration door `S-01` opened is shut to everyone the club did not invite. |
 | B      | Notification delivery | `F-03` → `S-09`                                    | Carries the north star; `S-09` joins Stream C at `S-08`, which produces the bookings to notify against. |
 | C      | Scheduling & booking  | `S-03` → `S-05` → `S-06` → `S-07` → `S-08` → `S-12` | The longest chain and the milestone's critical path; `S-12` also joins from Stream D at `S-11`.  |
 | D      | Training domain       | `S-10` → `S-11` → `S-15`                           | Independent bounded context — a separate agent run can build it alongside the whole of Stream C. `S-15` extends the plan surface `S-11` created; it is M-3's only slice. |
@@ -430,6 +437,32 @@ What's already in place in the codebase as of `2026-09-02` (auto-researched + us
   existing pending accounts must land before the code that stops producing them.
 - **Status:** done
 
+### S-17: An account is created only by invitation
+
+- **Outcome:** user (admin) records a member without an email address and hands them an invitation
+  link; that person opens `/register?invitationCode=…`, finds the code already filled in and not
+  editable, supplies only an email address and a password, and lands on the record the club already
+  keeps — its bookings, its karnet and its plan already there; opening `/register` without a code
+  sends them to the login screen, and the API refuses a registration that carries no code.
+- **Change ID:** invitation-only-registration
+- **PRD refs:** M-5 IR-01–IR-06. Supersedes v1 FR-001's open self-registration; leaves S-14's AM-004
+  (issuing and revoking the code) untouched.
+- **Prerequisites:** S-14 (the member code and the claim path this makes the only door), S-16
+  (registration that produces an active account — the form this slice shortens is the one S-16 left
+  behind)
+- **Parallel with:** — (M-5's only slice)
+- **Blockers:** —
+- **Unknowns:** — (all five anchors were settled with the user before planning; the two calls that
+  could have gone either way — what the query parameter is called, and what happens when there is no
+  code — are recorded in the M-5 charter)
+- **Risk:** two risks, and the sharper one is subtraction from a write path. `DisplayName`, phone and
+  address stop arriving at registration and must come from the member record instead, so the create
+  path changes shape for inputs it has required since S-01 — and a member record with an empty
+  display name would produce a nameless account, a case the admin surface has never had to refuse.
+  The second risk is the door itself: the route guard, the removed link and the API refusal have to
+  land together, because any one of them alone leaves a way in that the other two claim is closed.
+- **Status:** in-progress
+
 ## Backlog Handoff
 
 | Roadmap ID | Change ID                        | Suggested issue title                                        | Ready for `/10x-plan` | Notes                                              |
@@ -452,7 +485,8 @@ What's already in place in the codebase as of `2026-09-02` (auto-researched + us
 | S-13       | member-profile-edit              | Member profile, password change, and password reset          | no                    | Done — archived 2026-09-06                          |
 | S-14       | member-entity-and-accountless-members | Member entity split from the account; accountless members and the claim code | no                    | Done — archived 2026-09-08                          |
 | S-15       | plan-card-prescription-detail    | Prescribed duration, muscle group, info icon and note callout on the plan card | no                    | Done — archived 2026-09-09                          |
-| S-16       | membership-pass-and-staff-booking | Membership pass gates booking; staff book on a member's behalf; approval retired | yes                   | Run `/10x-plan membership-pass-and-staff-booking` — M-4's only slice |
+| S-16       | membership-pass-and-staff-booking | Membership pass gates booking; staff book on a member's behalf; approval retired | no                    | Done — archived 2026-09-09                          |
+| S-17       | invitation-only-registration     | Invitation-only registration with a prefilled, readonly code | yes                   | Run `/10x-plan invitation-only-registration` — M-5's only slice |
 
 ## Open Roadmap Questions
 
@@ -514,6 +548,33 @@ Resolved since the previous roadmap: the sender-domain question that gated F-03 
   navigation the exercise name used to, and the trainer's note set off as a callout. Closed with its
   "Done when" satisfied. Its scope anchors MS-01–MS-04 are preserved in this entry; no PRD version
   describes the plan card.
+
+- **M-4: The karnet decides who trains** (`membership-pass-and-staff-booking`) — seq 4, opened
+  2026-09-09, closed 2026-09-09. Delivered S-16, its only slice: `MembershipPass` as a named karnet
+  with an inclusive validity range and an always-required entry pool, entries derived from active
+  bookings rather than stored, booking and release moved onto staff routes (an admin anywhere, a
+  trainer in the classes they instruct), self-service booking removed from the member surface, and
+  admin approval retired so registration produces an active account. Closed with its "Done when"
+  satisfied. Its "not in scope" line stands unchanged: a karnet is issued, never sold. Its scope
+  anchors MP-01–MP-07 are preserved in this entry, because no PRD version describes a pass:
+  - MP-01: Self-service booking is gone. A member sees their upcoming classes and their plan; they
+    cannot book a spot and cannot cancel one. This retires v1 US-01, FR-008 and FR-009 as
+    member-facing capabilities — the behaviour survives, but only on staff routes.
+  - MP-02: An admin books any member into any class and releases any spot. A trainer does the same,
+    but only for the classes they personally instruct.
+  - MP-03: Admin approval of new accounts is gone, along with the Zgłoszenia tab and the
+    awaiting-approval screen. Registration produces an active account. This retires v1 FR-002 and
+    FR-003. Blocking remains the admin's lever, unchanged.
+  - MP-04: A `MembershipPass` (karnet) belongs to a member and carries a type name, a validity range
+    (inclusive both ends), and an entry count. The entry count is ALWAYS required — there is no
+    unlimited pass.
+  - MP-05: A member always sees their pass: its type, its validity, and how many entries are left.
+    They can never issue or edit one.
+  - MP-06: Nobody can be booked into a class unless the member holds a pass valid **on the day of the
+    class** with an entry still free. An entry is consumed by an active booking and returned when
+    that booking is released — derived from the bookings themselves, never a stored counter.
+  - MP-07: A member's passes form a history and their validity ranges may not overlap, so any date
+    resolves to at most one pass.
 
 ## Done
 
