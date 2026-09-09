@@ -1,7 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { Router, provideRouter } from '@angular/router';
+import { ActivatedRoute, Router, convertToParamMap, provideRouter } from '@angular/router';
 import { CurrentUser, LoginFailureReason } from '../../../core/auth/auth.models';
 import { Login } from './login';
 
@@ -111,6 +111,42 @@ describe('Login', () => {
 
   it('renders the blocked message for a blocked account', async () => {
     expect(await failWith('blocked')).toContain('zablokowane');
+  });
+
+  /**
+   * The register screen bounces a refused invitation here (S-17), and the redirect must not be
+   * silent — otherwise the member arrives at a login form with no idea why and retries the same
+   * dead link.
+   */
+  it('explains a refused invitation when the register screen sends one here', async () => {
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      imports: [Login],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideRouter([]),
+        {
+          provide: ActivatedRoute,
+          useValue: {
+            snapshot: { queryParamMap: convertToParamMap({ reason: 'invalid-invitation' }) },
+          },
+        },
+      ],
+    });
+
+    controller = TestBed.inject(HttpTestingController);
+    const withReason = TestBed.createComponent(Login);
+    await withReason.whenStable();
+    withReason.detectChanges();
+
+    const alert = (withReason.nativeElement as HTMLElement).querySelector('.alert');
+    expect(alert?.textContent).toContain('To zaproszenie już nie jest aktywne');
+  });
+
+  /** Absent parameter, nothing rendered — the ordinary visit must stay clean. */
+  it('renders no invitation message on an ordinary visit', () => {
+    expect((fixture.nativeElement as HTMLElement).querySelector('.alert')).toBeNull();
   });
 
   it('falls back to a generic message on an unexpected failure', async () => {

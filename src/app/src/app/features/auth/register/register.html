@@ -1,8 +1,8 @@
 <div class="panel">
   <h1>Załóż konto</h1>
   <p class="hint">
-    Po rejestracji Twoje konto czeka na zatwierdzenie przez obsługę siłowni. Powiadomimy Cię
-    e-mailem.
+    Konto połączy się z kartoteką, którą klub już dla Ciebie prowadzi — razem z historią zajęć,
+    karnetem i planem. Podaj tylko adres e-mail i hasło; resztę danych mamy z recepcji.
   </p>
 
   <div class="card">
@@ -11,22 +11,6 @@
     }
 
     <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
-      <div class="field">
-        <label for="displayName">Imię i nazwisko</label>
-        <input
-          id="displayName"
-          type="text"
-          autocomplete="name"
-          formControlName="displayName"
-          [attr.aria-invalid]="
-            form.controls.displayName.touched && form.controls.displayName.invalid
-          "
-        />
-        @if (form.controls.displayName.touched && form.controls.displayName.invalid) {
-          <p class="field-error">Podaj imię i nazwisko.</p>
-        }
-      </div>
-
       <div class="field">
         <label for="email">Adres e-mail</label>
         <input
@@ -63,108 +47,22 @@
         }
       </div>
 
+      <!-- READONLY, and readonly rather than disabled on purpose: a disabled control is dropped from
+           getRawValue()'s payload, which would post an empty code. The value comes from the
+           invitation link, so there is nothing here to type and no error branch to show — a code the
+           API refuses takes the visitor to /login instead, because a message under a box they cannot
+           edit would be a dead end. -->
       <div class="field">
-        <label for="phoneNumber">Numer telefonu</label>
-        <input
-          id="phoneNumber"
-          type="tel"
-          autocomplete="tel"
-          formControlName="phoneNumber"
-          [attr.aria-invalid]="
-            form.controls.phoneNumber.touched && form.controls.phoneNumber.invalid
-          "
-        />
-        @if (form.controls.phoneNumber.touched && form.controls.phoneNumber.invalid) {
-          <p class="field-error">Podaj numer telefonu w formacie 123 456 789.</p>
-        }
-      </div>
-
-      <div class="field">
-        <label for="street">Ulica</label>
-        <input
-          id="street"
-          type="text"
-          autocomplete="address-line1"
-          formControlName="street"
-          [attr.aria-invalid]="form.controls.street.touched && form.controls.street.invalid"
-        />
-        @if (form.controls.street.touched && form.controls.street.invalid) {
-          <p class="field-error">Podaj nazwę ulicy.</p>
-        }
-      </div>
-
-      <div class="field">
-        <label for="houseNumber">Numer domu / mieszkania</label>
-        <input
-          id="houseNumber"
-          type="text"
-          autocomplete="address-line2"
-          formControlName="houseNumber"
-          [attr.aria-invalid]="
-            form.controls.houseNumber.touched && form.controls.houseNumber.invalid
-          "
-        />
-        @if (form.controls.houseNumber.touched && form.controls.houseNumber.invalid) {
-          <p class="field-error">Podaj numer domu lub mieszkania.</p>
-        }
-      </div>
-
-      <div class="field">
-        <label for="postalCode">Kod pocztowy</label>
-        <input
-          id="postalCode"
-          type="text"
-          inputmode="numeric"
-          autocomplete="postal-code"
-          formControlName="postalCode"
-          [attr.aria-invalid]="form.controls.postalCode.touched && form.controls.postalCode.invalid"
-        />
-        @if (form.controls.postalCode.touched && form.controls.postalCode.invalid) {
-          <p class="field-error">Podaj kod pocztowy w formacie 00-000.</p>
-        }
-      </div>
-
-      <div class="field">
-        <label for="city">Miejscowość</label>
-        <input
-          id="city"
-          type="text"
-          autocomplete="address-level2"
-          formControlName="city"
-          [attr.aria-invalid]="form.controls.city.touched && form.controls.city.invalid"
-        />
-        @if (form.controls.city.touched && form.controls.city.invalid) {
-          <p class="field-error">Podaj miejscowość.</p>
-        }
-      </div>
-
-      <div class="field">
-        <label for="memberCode">Kod klubowicza <span class="optional">(opcjonalnie)</span></label>
+        <label for="memberCode">Kod zaproszenia</label>
         <input
           id="memberCode"
           type="text"
-          inputmode="latin"
-          autocapitalize="characters"
+          readonly
+          tabindex="-1"
           autocomplete="off"
           formControlName="memberCode"
-          placeholder="ABCD-2345"
-          [attr.aria-invalid]="form.controls.memberCode.touched && form.controls.memberCode.invalid"
         />
-
-        <!-- Two messages, because they ask for different things: one says "check what you typed",
-             the other says "ask the club for a new one". -->
-        @if (form.controls.memberCode.errors?.['unknown']) {
-          <p class="field-error">
-            Ten kod już nie działa — mógł zostać użyty albo wygasnąć. Poproś obsługę o nowy.
-          </p>
-        } @else if (form.controls.memberCode.touched && form.controls.memberCode.invalid) {
-          <p class="field-error">Kod ma osiem znaków, na przykład ABCD-2345.</p>
-        }
-
-        <p class="hint">
-          Jeśli trenujesz już w klubie, obsługa mogła dać Ci kod. Wpisz go, a konto połączy się z
-          Twoją kartoteką razem z historią zajęć i planem. Nie masz kodu? Zostaw pole puste.
-        </p>
+        <p class="hint">Kod pochodzi z linku od obsługi klubu i nie trzeba go zmieniać.</p>
       </div>
 
       <button type="submit" class="button button--block" [disabled]="submitting()">

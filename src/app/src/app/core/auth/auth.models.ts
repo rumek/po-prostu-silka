@@ -80,27 +80,26 @@ export interface LoginRequest {
 /**
  * Mirrors RegisterRequest in src/Application/Auth/AuthEndpoints.cs.
  *
- * The five contact fields land with S-13 and are required by the API even though their columns are
- * nullable — the nullability exists only for accounts created before that slice.
+ * THREE FIELDS since S-17. The display name and the five contact fields used to be here and are
+ * gone: registration is claim-only now, so all of that comes from the member record the code
+ * attaches to. What the club does not hold, the member supplies through {@link ProfileRequest},
+ * which is the one place those five fields are still asked for.
  */
 export interface RegisterRequest {
   email: string;
   password: string;
-  displayName: string;
-  phoneNumber: string;
-  street: string;
-  houseNumber: string;
-  postalCode: string;
-  city: string;
 
   /**
-   * The club's member code, when the person has one (S-14).
+   * The club's invitation code — REQUIRED (S-17, IR-05), and neither optional nor nullable.
    *
-   * With it, the new account attaches to the record the club already keeps and arrives with that
-   * person's bookings and plan already on it. Without it, registration behaves exactly as it always
-   * has — the field is optional, and most people will never see a code.
+   * It is what attaches the new account to the record the club already keeps, so the person arrives
+   * with their bookings, their karnet and their plan already there. There is no other kind of
+   * registration: the API answers a missing code with `invalid_member_code`.
+   *
+   * Named `memberCode` on the wire while the URL calls it `invitationCode` — two names for one
+   * thing, settled deliberately so no shipped API contract moves.
    */
-  memberCode?: string | null;
+  memberCode: string;
 }
 
 /**
@@ -118,12 +117,15 @@ export type RegisterFailureReason =
   | 'email_taken'
   | 'invalid_password'
   | 'invalid_email'
-  | 'invalid_display_name'
-  | ContactFailureReason
 
-  // S-14. `invalid_member_code` is a format failure — what was typed could not be a code at all.
-  // `unknown_member_code` collapses "no such code", "expired", "revoked" and "already used" into one
-  // answer on purpose: telling them apart would confirm to a stranger that a code once existed.
+  // S-14, and the ONLY code failure the screen can act on since S-17 — the five ContactFailureReason
+  // codes and `invalid_display_name` left this union with the fields that produced them, and now
+  // belong to the profile screen alone.
+  //
+  // `invalid_member_code` is a format failure — what was typed could not be a code at all, which
+  // since S-17 also covers a code that was not sent. `unknown_member_code` collapses "no such code",
+  // "expired", "revoked" and "already used" into one answer on purpose: telling them apart would
+  // confirm to a stranger that a code once existed.
   | 'invalid_member_code'
   | 'unknown_member_code'
   | 'invalid_registration';
@@ -157,15 +159,6 @@ export interface ProfileRequest {
   houseNumber: string;
   postalCode: string;
   city: string;
-
-  /**
-   * The club's member code, when the person has one (S-14).
-   *
-   * With it, the new account attaches to the record the club already keeps and arrives with that
-   * person's bookings and plan already on it. Without it, registration behaves exactly as it always
-   * has — the field is optional, and most people will never see a code.
-   */
-  memberCode?: string | null;
 }
 
 /** Mirrors ProfileFailure — the same five codes registration answers with, same helper behind them. */

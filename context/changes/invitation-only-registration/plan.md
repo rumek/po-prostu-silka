@@ -291,6 +291,27 @@ three of its answers plus the server bypass.
 
 **Contract**: Existing Vitest + `provideHttpClientTesting` setup; no new test infrastructure.
 
+**Adapted during implementation.** Three departures from this phase's contracts, all necessary:
+
+1. **`login.spec.ts` was touched too**, which contract #7 does not name. Contract #5 adds rendered
+   behaviour to the login screen, and leaving it uncovered would have shipped the one half of the
+   redirect the register spec cannot see. Two tests: the message renders for
+   `?reason=invalid-invitation`, and an ordinary visit renders no alert.
+2. **`ProfileRequest` in `auth.models.ts` lost a stray `memberCode` field.** It was a copy-paste of
+   `RegisterRequest`'s doc comment and field into the profile mirror type; `ProfileRequest` on the
+   server (`src/Application/Members/ProfileEndpoints.cs:19`) has five fields and never had a sixth,
+   and nothing in the SPA ever set it. Removing it corrects a mirror type that was lying, and touches
+   no behaviour — `PUT /api/profile` is unchanged, as "What We're NOT Doing" requires.
+3. **`RegisterFailureReason` was narrowed**, which contract #6 does not mention: `invalid_display_name`
+   and the five `ContactFailureReason` codes left the union along with the fields that produced them.
+   The union is a mirror of what the endpoint can answer, and the endpoint can no longer answer with
+   any of them.
+
+The two code failures were also collapsed into ONE handler rather than two — `invalid_member_code`
+and `unknown_member_code` both navigate to `/login?reason=invalid-invitation`, because the member's
+next step is identical either way and the readonly field leaves nothing to distinguish for them. The
+contract asked for the same destination for both; this only says it once.
+
 ### Success Criteria:
 
 #### Automated Verification:
@@ -422,9 +443,9 @@ the previous version cannot read.
 
 #### Automated
 
-- [x] 1.1 Backend builds warning-free
-- [x] 1.2 Integration tests pass
-- [x] 1.3 No `ContactDetails` reference remains in `RegisterAsync`
+- [x] 1.1 Backend builds warning-free — 14bcdce
+- [x] 1.2 Integration tests pass — 14bcdce
+- [x] 1.3 No `ContactDetails` reference remains in `RegisterAsync` — 14bcdce
 
 #### Manual
 
@@ -435,9 +456,9 @@ the previous version cannot read.
 
 #### Automated
 
-- [ ] 2.1 Frontend unit tests pass
-- [ ] 2.2 Prettier + ESLint clean
-- [ ] 2.3 Build succeeds inside the 550 kB initial-bundle budget
+- [x] 2.1 Frontend unit tests pass
+- [x] 2.2 Prettier + ESLint clean
+- [x] 2.3 Build succeeds inside the 550 kB initial-bundle budget
 
 #### Manual
 

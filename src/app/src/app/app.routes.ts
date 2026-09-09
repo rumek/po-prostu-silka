@@ -2,6 +2,7 @@ import { Routes } from '@angular/router';
 import { activeMemberGuard } from './core/auth/active-member.guard';
 import { adminGuard } from './core/auth/admin.guard';
 import { authGuard } from './core/auth/auth.guard';
+import { invitationGuard } from './core/auth/invitation.guard';
 import { trainerGuard } from './core/auth/trainer.guard';
 import { ClassForm } from './features/admin/classes/class-form';
 import { ClassTypes } from './features/admin/class-types/class-types';
@@ -24,10 +25,14 @@ import { Dashboard } from './features/dashboard/dashboard';
  */
 export const routes: Routes = [
   { path: 'login', component: Login },
-  { path: 'register', component: Register },
-  // The pre-login recovery flow (S-13). GUARD-FREE, like login and register — a visitor who cannot
-  // sign in is exactly who these are for, and authGuard would bounce them to /login, which is the
-  // screen they just failed at.
+  // GUARDED SINCE S-17, and it is the only anonymous route that is. Registration stopped being a
+  // public door: /register is reachable only with an ?invitationCode= the club handed over, and
+  // nothing in the app links to it. invitationGuard checks that a code is PRESENT, never that it is
+  // valid — that answer belongs to the API, and asking for it first would be a code oracle.
+  { path: 'register', component: Register, canActivate: [invitationGuard] },
+  // The pre-login recovery flow (S-13). GUARD-FREE, like login — a visitor who cannot sign in is
+  // exactly who these are for, and authGuard would bounce them to /login, which is the screen they
+  // just failed at. Register used to be grouped here and no longer is; see above.
   //
   // LAZY: they sit in the anonymous bundle's blast radius otherwise, and most visitors never open
   // them. /reset-password reads its email and token from the QUERY STRING, never the path —

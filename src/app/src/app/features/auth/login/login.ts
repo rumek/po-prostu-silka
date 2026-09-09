@@ -34,8 +34,23 @@ export class Login {
    *
    * Read once from the snapshot: this route is not reused, so there is nothing to observe.
    */
-  protected readonly passwordReset =
-    inject(ActivatedRoute).snapshot.queryParamMap.get('reset') === 'ok';
+  private readonly route = inject(ActivatedRoute);
+
+  protected readonly passwordReset = this.route.snapshot.queryParamMap.get('reset') === 'ok';
+
+  /**
+   * Set by the register screen when the API refused the invitation (S-17).
+   *
+   * The code field there is readonly, so a refused code leaves the member nothing to correct and
+   * they are sent here instead. WITHOUT THIS THE REDIRECT IS SILENT — they would arrive at a login
+   * form with no idea why, and try the same dead link again.
+   *
+   * It says no more than the API does. "Used", "expired" and "revoked" are one answer on the wire
+   * for the account-enumeration reason, and the message must not imply the screen can tell them
+   * apart.
+   */
+  protected readonly invalidInvitation =
+    this.route.snapshot.queryParamMap.get('reason') === 'invalid-invitation';
 
   protected async submit(): Promise<void> {
     // markAllAsTouched, not a silent return: a submit that appears to do nothing reads as a broken

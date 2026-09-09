@@ -7,19 +7,27 @@ import {
   ValidationErrors,
   Validators,
 } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/auth/auth.service';
 import { RegisterFailure } from '../../../core/auth/auth.models';
-import {
-  MIN_PASSWORD_LENGTH,
-  PHONE_PATTERN,
-  POSTAL_CODE_PATTERN,
-} from '../../../core/auth/validation';
+import { MIN_PASSWORD_LENGTH } from '../../../core/auth/validation';
 
 /**
- * Registration (FR-001). The account is created ACTIVE and signed in immediately (S-16, MP-03), so
- * this always ends on the dashboard. It used to end on an awaiting-approval screen; approval is gone
- * and so is the screen.
+ * Registration (FR-001, narrowed to invitation-only by S-17). The account is created ACTIVE and
+ * signed in immediately (S-16, MP-03), so this always ends on the dashboard. It used to end on an
+ * awaiting-approval screen; approval is gone and so is the screen.
+ *
+ * <p>
+ * TWO FIELDS AND A CODE. The display name, the phone number and the four address fields left with
+ * S-17: the club entered this person into its records before handing the invitation over, so asking
+ * them to type it all again would only produce a second, competing copy. Whatever the club lacks,
+ * the member fills in later on /profile, which already prompts for it.
+ * </p>
+ *
+ * <p>
+ * The screen is unreachable without an invitation — invitationGuard sees to that, and the API
+ * refuses a codeless registration regardless.
+ * </p>
  */
 @Component({
   imports: [ReactiveFormsModule, RouterLink],
@@ -33,20 +41,28 @@ export class Register {
 
   protected readonly minPasswordLength = MIN_PASSWORD_LENGTH;
 
+  /**
+   * The code comes from the LINK, never from the keyboard (S-17, IR-03).
+   *
+   * Read once from the snapshot: this route is not reused, so there is nothing to observe. The guard
+   * has already refused an empty one, so by the time this runs in the browser there is a value —
+   * the `?? ''` covers the prerender, where the guard deliberately decides nothing.
+   */
+  private readonly invitationCode =
+    inject(ActivatedRoute).snapshot.queryParamMap.get('invitationCode')?.trim() ?? '';
+
   protected readonly form = inject(FormBuilder).nonNullable.group({
-    displayName: ['', [Validators.required]],
     email: ['', [Validators.required, Validators.email]],
     password: ['', [Validators.required, Validators.minLength(MIN_PASSWORD_LENGTH)]],
-    phoneNumber: ['', [Validators.required, Validators.pattern(PHONE_PATTERN)]],
-    street: ['', [Validators.required]],
-    houseNumber: ['', [Validators.required]],
-    postalCode: ['', [Validators.required, Validators.pattern(POSTAL_CODE_PATTERN)]],
-    city: ['', [Validators.required]],
 
-    // OPTIONAL, and no client-side format rule beyond a length bound: the server normalises what is
-    // typed (case, the dash it printed, stray spaces), so anything stricter here would reject codes
-    // the API would have accepted.
-    memberCode: ['', [Validators.maxLength(32)]],
+    // Seeded from the query and never edited. No client-side format rule beyond a length bound: the
+    // server normalises what arrives (case, the dash it printed, stray spaces), so anything stricter
+    // here would reject codes the API would have accepted.
+    //
+    // READONLY IN THE TEMPLATE, NOT `disable()`. A disabled control is dropped from getRawValue()'s
+    // payload on the template-bound path, which would post an empty code and turn every registration
+    // into a 400.
+    memberCode: [this.invitationCode, [Validators.required, Validators.maxLength(32)]],
   });
 
   protected readonly error = signal<string | null>(null);
@@ -64,39 +80,43 @@ export class Register {
     try {
       const value = this.form.getRawValue();
 
-      // Trimmed here as well as on the server: the API normalises before storing, but a trailing
-      // space the member cannot see should not be what a validator rejects on the way back.
+      // Exactly three fields — the whole request contract since S-17.
       await this.auth.register({
-        ...value,
-        displayName: value.displayName.trim(),
-        phoneNumber: value.phoneNumber.trim(),
-        street: value.street.trim(),
-        houseNumber: value.houseNumber.trim(),
-        postalCode: value.postalCode.trim(),
-        city: value.city.trim(),
+        email: value.email.trim(),
+        password: value.password,
 
-        // Omitted rather than sent empty. The server treats a blank code as "no code", but sending
-        // one would put an empty string into the request for every member who has never seen a code.
-        memberCode: value.memberCode.trim() || null,
+        // Sent AS IT ARRIVED, dash and all: normalisation belongs to the API, which owns the
+        // alphabet. Only the whitespace a URL or a paste brings along has been stripped.
+        memberCode: value.memberCode.trim(),
       });
 
-      // Straight to the dashboard (S-16, MP-03): the account works the moment it exists, so there is
-      // nothing to wait on. What the new member sees there is an empty karnet card telling them to
-      // speak to reception, which is the honest next step.
+      // Straight to the dashboard (S-16, MP-03): the account works the moment it exists, and since
+      // S-17 it arrives holding the record the club has been keeping — bookings, karnet and plan
+      // already on it.
       await this.router.navigate(['/']);
     } catch (failure) {
-      this.applyFailure(failure);
+      await this.applyFailure(failure);
     } finally {
       this.submitting.set(false);
     }
   }
 
   /**
-   * `email_taken` goes onto the email CONTROL rather than into the banner — this is the payoff D8
-   * bought with reactive forms. The member sees the problem next to the field that caused it, and
-   * the error clears itself as soon as they change the address.
+   * TWO KINDS OF FAILURE, AND THEY MUST NOT SHARE A HANDLER.
+   *
+   * <p>
+   * A REFUSED CODE LEAVES THE SCREEN. The field is readonly, so there is nothing here for the member
+   * to correct — an error message under a box they cannot touch is a dead end. They go to /login
+   * with a reason that screen renders, and the club issues a fresh invitation.
+   * </p>
+   *
+   * <p>
+   * EVERYTHING ELSE STAYS. `email_taken` and `invalid_password` are fixable right here, and
+   * redirecting them would throw away a typed password for no reason. They land on the control that
+   * caused them rather than in a banner — the payoff D8 bought with reactive forms.
+   * </p>
    */
-  private applyFailure(failure: unknown): void {
+  private async applyFailure(failure: unknown): Promise<void> {
     const reason = ((failure as HttpErrorResponse)?.error as RegisterFailure | undefined)?.reason;
 
     switch (reason) {
@@ -112,40 +132,13 @@ export class Register {
         this.reject(this.form.controls.password, { minlength: true });
         return;
 
-      case 'invalid_display_name':
-        this.reject(this.form.controls.displayName, { required: true });
-        return;
-
-      case 'invalid_phone':
-        this.reject(this.form.controls.phoneNumber, { pattern: true });
-        return;
-
-      case 'invalid_street':
-        this.reject(this.form.controls.street, { required: true });
-        return;
-
-      case 'invalid_house_number':
-        this.reject(this.form.controls.houseNumber, { required: true });
-        return;
-
-      case 'invalid_postal_code':
-        this.reject(this.form.controls.postalCode, { pattern: true });
-        return;
-
-      case 'invalid_city':
-        this.reject(this.form.controls.city, { required: true });
-        return;
-
-      // Both land on the code field rather than in the page-level banner: the member typed something
-      // wrong in one specific box and that is where they will look. The MESSAGES differ (the template
-      // branches on which error is set) because "that is not a code" and "that code no longer works"
-      // ask for different things from the person reading them.
+      // Both mean the invitation is no good, and neither is actionable on this screen. Collapsed
+      // into one redirect on purpose — the member's next step is identical either way.
       case 'invalid_member_code':
-        this.reject(this.form.controls.memberCode, { pattern: true });
-        return;
-
       case 'unknown_member_code':
-        this.reject(this.form.controls.memberCode, { unknown: true });
+        await this.router.navigate(['/login'], {
+          queryParams: { reason: 'invalid-invitation' },
+        });
         return;
 
       default:

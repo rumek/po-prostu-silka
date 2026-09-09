@@ -3,6 +3,12 @@
   <p class="hint">Jeśli masz już konto zaloguj się</p>
 
   <div class="card">
+    @if (invalidInvitation) {
+      <p class="alert" role="alert">
+        To zaproszenie już nie jest aktywne. Poproś obsługę klubu o nowy link.
+      </p>
+    }
+
     @if (passwordReset) {
       <p class="notice" role="status">
         Hasło zostało zmienione. Zaloguj się przy użyciu nowego hasła.
