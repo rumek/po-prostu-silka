@@ -285,6 +285,14 @@ collection navigation on the aggregate.
 `FindCoveringAsync(memberId, clubLocalDate, ct)` returning the single pass whose inclusive range
 contains that date, or null. Registered scoped in `Program.cs`.
 
+**Adapted during implementation.** This projection counts active bookings by `MembershipPassId`, so
+it cannot compile until that column exists — and the plan placed the column in Phase 3. Phase 2
+therefore also lands **Phase 3's Changes Required §1 and §2** (`Booking.MembershipPassId`, its FK,
+the `(MembershipPassId, Status)` index and the `AddBookingMembershipPass` migration). The alternative
+was a Phase 2 that reported a hardcoded `entriesUsed: 0` and rewrote the projection a phase later,
+which would have shipped an API that knowingly lied. Phase 3 is unchanged apart from no longer
+carrying those two items: it is now purely the gate and the stamp rotations.
+
 #### 3. Blocked-member guard
 
 **File**: `src/Application/Members/MembershipPassEndpoints.cs`
@@ -331,7 +339,10 @@ rotated stamp; every cancel path returns the entry by rotating that stamp too.
 
 ### Changes Required:
 
-#### 1. Booking carries its pass
+#### 1. Booking carries its pass — **LANDED IN PHASE 2**
+
+**Adapted during implementation.** Moved forward to Phase 2, which cannot compile without the column;
+see that phase's read-projection contract for why. The contract below is what shipped, unchanged.
 
 **File**: `src/Domain/Scheduling/Booking.cs`, `src/Infrastructure/Persistence/Configurations/BookingConfiguration.cs`
 
@@ -344,7 +355,9 @@ have no pass and because the column must be addable without a backfill.
 subquery. Document on the property that null means "booked before the karnet existed" and that such
 bookings consume no entry — this is a stated consequence, not a gap.
 
-#### 2. Migration
+#### 2. Migration — **LANDED IN PHASE 2**
+
+**Adapted during implementation.** Moved forward with §1 above, for the same reason.
 
 **File**: `src/Infrastructure/Persistence/Migrations/<timestamp>_AddBookingMembershipPass.cs`
 
@@ -886,10 +899,10 @@ a later change, once no deployed artifact reads it.
 
 #### Automated
 
-- [x] 1.1 Solution builds warning-free
-- [x] 1.2 Migration applies cleanly against a real engine
-- [x] 1.3 Migration is reversible
-- [x] 1.4 Existing suite still green
+- [x] 1.1 Solution builds warning-free — 49f6e23
+- [x] 1.2 Migration applies cleanly against a real engine — 49f6e23
+- [x] 1.3 Migration is reversible — 49f6e23
+- [x] 1.4 Existing suite still green — 49f6e23
 
 #### Manual
 
@@ -900,9 +913,10 @@ a later change, once no deployed artifact reads it.
 
 #### Automated
 
-- [ ] 2.1 Build is warning-free
-- [ ] 2.2 New and existing tests pass
-- [ ] 2.3 Concurrent-overlap test passes on three consecutive runs
+- [x] 2.1 Build is warning-free
+- [x] 2.2 New and existing tests pass
+- [x] 2.3 Concurrent-overlap test passes on three consecutive runs
+- [x] 2.6 AddBookingMembershipPass rolls back and re-applies (moved from 3.4 — see the adaptation note)
 
 #### Manual
 
@@ -916,7 +930,6 @@ a later change, once no deployed artifact reads it.
 - [ ] 3.1 Build is warning-free
 - [ ] 3.2 Full suite passes
 - [ ] 3.3 Entry-pool race test passes on three consecutive full-suite runs
-- [ ] 3.4 AddBookingMembershipPass rolls back and re-applies
 
 #### Manual
 

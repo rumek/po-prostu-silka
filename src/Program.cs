@@ -258,6 +258,11 @@ builder.Services.AddScoped<IMemberStore, MemberStore>();
 // and the rotation of Member.ConcurrencyStamp land in the same SaveChangesAsync.
 builder.Services.AddScoped<IMembershipPassStore, MembershipPassStore>();
 
+// S-16's karnet read side. Separate from the store for the reason every I*Query here is: this one is
+// untracked and projected in the database, and the entries-used figure it carries is a correlated
+// count over bookings rather than a column.
+builder.Services.AddScoped<IMembershipPassQuery, MembershipPassQuery>();
+
 // S-06's instructor selection (prd-v2 FR-009). Separate from IMemberQuery on purpose: that one
 // browses accounts for the admin's management screen, this one answers "who may run a class".
 builder.Services.AddScoped<ITrainerQuery, TrainerQuery>();
@@ -343,6 +348,7 @@ app.MapAuthEndpoints();
 app.MapProfileEndpoints();
 app.MapPushEndpoints();
 app.MapMemberAdminEndpoints();
+app.MapMembershipPassEndpoints();
 app.MapTrainerEndpoints();
 app.MapClassEndpoints();
 app.MapClassTypeEndpoints();

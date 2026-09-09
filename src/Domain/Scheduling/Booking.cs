@@ -59,6 +59,33 @@ public class Booking
     public Domain.Members.Member? Member { get; set; }
 
     /// <summary>
+    /// Which karnet paid for this booking, or null when none did (S-16).
+    ///
+    /// <para>
+    /// THIS IS WHAT KEEPS THE DERIVED ENTRY COUNT STABLE. Entries left on a pass is the issued count
+    /// minus the number of ACTIVE bookings carrying that pass's id — so it is attribution, recorded at
+    /// the moment of booking, rather than a re-derivation from dates. Without it, editing a pass's
+    /// validity range would silently move history between passes: a booking would stop being paid for
+    /// by the pass that actually covered it and start counting against whichever pass happens to cover
+    /// its date today.
+    /// </para>
+    ///
+    /// <para>
+    /// NULL MEANS "BOOKED BEFORE THE KARNET EXISTED", and such a booking CONSUMES NO ENTRY. That is a
+    /// stated consequence, not a gap: back-filling these would mean inventing a pass that was never
+    /// issued, so a member's first karnet is simply not retroactively debited for classes they
+    /// attended before S-16 shipped. The column is nullable for that reason and for one more — it had
+    /// to be addable to a live table without a backfill.
+    /// </para>
+    /// </summary>
+    public Guid? MembershipPassId { get; set; }
+
+    /// <summary>
+    /// The karnet, when one paid. READ SIDE ONLY, same contract as <see cref="Member"/> above.
+    /// </summary>
+    public Domain.Members.MembershipPass? MembershipPass { get; set; }
+
+    /// <summary>
     /// Whether this booking still holds the spot. Only <see cref="BookingStatus.Active"/> counts
     /// against <see cref="Class.Capacity"/>.
     /// </summary>

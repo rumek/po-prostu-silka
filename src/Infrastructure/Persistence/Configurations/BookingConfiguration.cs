@@ -37,6 +37,22 @@ public class BookingConfiguration : IEntityTypeConfiguration<Booking>
             .HasForeignKey(x => x.MemberId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        // RESTRICT again, and here it does real work rather than merely following the house style:
+        // RevokePassAsync refuses to delete a pass with active bookings, and this constraint is what
+        // still holds if a future path forgets to ask. Note it restricts on ANY booking, cancelled
+        // ones included - a cancelled booking is history that records which karnet paid.
+        builder.HasOne(x => x.MembershipPass)
+            .WithMany()
+            .HasForeignKey(x => x.MembershipPassId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // Serves the entries-used subquery, which is the hottest read S-16 adds: it runs inside the
+        // booking retry loop, on every attempt, and MUST be a seek rather than a scan of Bookings.
+        // MembershipPassId leads because it is the equality predicate; Status follows because the
+        // count is filtered to Active.
+        builder.HasIndex(x => new { x.MembershipPassId, x.Status })
+            .HasDatabaseName("IX_Bookings_MembershipPassId_Status");
+
         // FILTERED, not plain - the same shape and the same reasoning as IX_ClassTypes_Name_Active.
         // A member may hold at most ONE active booking per class, but cancelling must not hold the
         // pair hostage: FR-009 keeps the cancelled row in history, and the member is allowed to book
