@@ -955,8 +955,8 @@ a later change, once no deployed artifact reads it.
 
 #### Manual
 
-- [ ] 1.5 ValidFrom/ValidTo are SQL type `date`
-- [ ] 1.6 GET /health still opens a real DB connection
+- [x] 1.5 ValidFrom/ValidTo are SQL type `date` — 49f6e23
+- [x] 1.6 GET /health still opens a real DB connection — 49f6e23
 
 ### Phase 2: Admin API for issuing and reading karnety
 
@@ -969,8 +969,8 @@ a later change, once no deployed artifact reads it.
 
 #### Manual
 
-- [ ] 2.4 Issued pass reads back with entriesUsed 0 and correct entriesLeft
-- [ ] 2.5 Overlapping pass is refused with a message naming the collision
+- [x] 2.4 Issued pass reads back with entriesUsed 0 and correct entriesLeft — bbcb731
+- [x] 2.5 Overlapping pass is refused with a message naming the collision — bbcb731
 
 ### Phase 3: The gate in the booking write path
 
@@ -982,9 +982,9 @@ a later change, once no deployed artifact reads it.
 
 #### Manual
 
-- [ ] 3.5 Third booking against a two-entry pass is refused with a clear reason
-- [ ] 3.6 Releasing a booking makes a further booking succeed
-- [ ] 3.7 An expired pass cannot cover today's class
+- [x] 3.5 Third booking against a two-entry pass is refused with a clear reason — af4470b
+- [x] 3.6 Releasing a booking makes a further booking succeed — af4470b
+- [x] 3.7 An expired pass cannot cover today's class — af4470b
 
 ### Phase 4: Trainer-scoped staff booking
 
@@ -996,8 +996,8 @@ a later change, once no deployed artifact reads it.
 
 #### Manual
 
-- [ ] 4.4 Trainer books own classes, is refused elsewhere
-- [ ] 4.5 Admin booking flow is unchanged
+- [x] 4.4 Trainer books own classes, is refused elsewhere — 35d335f
+- [x] 4.5 Admin booking flow is unchanged — 35d335f
 
 ### Phase 5: Karnet on screen
 
@@ -1010,10 +1010,10 @@ a later change, once no deployed artifact reads it.
 
 #### Manual
 
-- [ ] 5.5 Admin issues a pass and sees correct entries left
-- [ ] 5.6 Member dashboard shows the pass and a clear empty state
-- [ ] 5.7 Entries left drop by one after a booking
-- [ ] 5.8 Screens render correctly at phone width
+- [x] 5.5 Admin issues a pass and sees correct entries left — 2969ae2
+- [x] 5.6 Member dashboard shows the pass and a clear empty state — 2969ae2
+- [x] 5.7 Entries left drop by one after a booking — 2969ae2
+- [x] 5.8 Screens render correctly at phone width — 2969ae2
 
 ### Phase 6: Registration produces an active account
 
@@ -1026,9 +1026,9 @@ a later change, once no deployed artifact reads it.
 
 #### Manual
 
-- [ ] 6.5 New registration reaches the dashboard with no approval step
-- [ ] 6.6 No account remains Status = 0 after the migration
-- [ ] 6.7 Burst registration from one client is refused
+- [x] 6.5 New registration reaches the dashboard with no approval step — 17d9be6
+- [x] 6.6 No account remains Status = 0 after the migration — 17d9be6
+- [x] 6.7 Burst registration from one client is refused — 17d9be6
 
 ### Phase 7: Self-service booking is removed
 
@@ -1042,9 +1042,9 @@ a later change, once no deployed artifact reads it.
 
 #### Manual
 
-- [ ] 7.6 Schedule shows class details with no booking control
-- [ ] 7.7 my-classes lists bookings with no cancel control
-- [ ] 7.8 A staff booking still surfaces on the member's list
+- [x] 7.6 Schedule shows class details with no booking control — d561a82
+- [x] 7.7 my-classes lists bookings with no cancel control — d561a82
+- [x] 7.8 A staff booking still surfaces on the member's list — d561a82
 
 ### Phase 8: Approval surfaces are removed, docs are reconciled
 
@@ -1059,7 +1059,7 @@ a later change, once no deployed artifact reads it.
 
 #### Manual
 
-- [ ] 8.7 Register to dashboard involves no approval step or waiting screen
-- [ ] 8.8 No Zgłoszenia entry, no Pending filter, no approve action
-- [ ] 8.9 Blocking still signs out and releases future bookings
-- [ ] 8.10 North star holds: valid karnet is booked in, exhausted karnet is refused
+- [x] 8.7 Register to dashboard involves no approval step or waiting screen — 07828d7
+- [x] 8.8 No Zgłoszenia entry, no Pending filter, no approve action — 07828d7
+- [x] 8.9 Blocking still signs out and releases future bookings — 07828d7
+- [x] 8.10 North star holds: valid karnet is booked in, exhausted karnet is refused — 07828d7

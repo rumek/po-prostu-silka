@@ -1,7 +1,7 @@
 ---
 change_id: membership-pass-and-staff-booking
 title: The karnet decides who trains — staff-only booking, no approval gate
-status: implementing
+status: implemented
 created: 2026-09-09
 updated: 2026-09-09
 archived_at: null
@@ -28,8 +28,7 @@ Settled with the user before planning; see the M-4 scope anchors MP-01–MP-07 i
 
 ## Status note
 
-All eight phases are implemented and every AUTOMATED success criterion in `plan.md` passes (514
-backend integration tests, 422 frontend unit tests, a warning-free build, and a 504 kB initial bundle
-against a 550 kB budget). `status` stays `implementing` rather than `implemented` because the plan's
-24 manual-verification rows are deliberately outstanding — the user reserved them for one pass at the
-end of the slice. Flip to `implemented` once they are ticked.
+All eight phases are implemented and every success criterion in `plan.md` passes — automated (514
+backend integration tests, 422 frontend unit tests, a warning-free build, a 504 kB initial bundle
+against a 550 kB budget) and manual, the latter verified by the user in one pass at the end of the
+slice on 2026-09-09.
