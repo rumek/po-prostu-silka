@@ -480,9 +480,9 @@ the previous version cannot read.
 
 #### Automated
 
-- [x] 3.1 Frontend unit tests pass
-- [x] 3.2 Prettier + ESLint clean
-- [x] 3.3 Full backend suite still green
+- [x] 3.1 Frontend unit tests pass — e3abd77
+- [x] 3.2 Prettier + ESLint clean — e3abd77
+- [x] 3.3 Full backend suite still green — e3abd77
 
 #### Manual
 
