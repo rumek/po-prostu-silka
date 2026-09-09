@@ -98,20 +98,6 @@ describe('Login', () => {
     expect(navigate).toHaveBeenCalledWith(['/']);
   });
 
-  // Since S-01 a pending member logs in successfully — the routing decision is by status, not by a
-  // login failure.
-  it('routes a pending member to the awaiting-approval screen', async () => {
-    fill('pending@test.local', 'TestPass_123');
-    submit();
-
-    (await expectLogin()).flush({ ...ACTIVE, status: 'Active' });
-    await fixture.whenStable();
-
-    // The dashboard, whatever the status (S-16, MP-03). Login used to route by status; there is no
-    // second destination any more, and a blocked account never gets a cookie to route with.
-    expect(navigate).toHaveBeenCalledWith(['/']);
-  });
-
   it('renders one non-specific message for invalid credentials', async () => {
     const message = await failWith('invalid_credentials');
 

@@ -5,7 +5,7 @@ import { Router, provideRouter } from '@angular/router';
 import { CurrentUser } from '../../../core/auth/auth.models';
 import { Register } from './register';
 
-const PENDING: CurrentUser = {
+const REGISTERED: CurrentUser = {
   id: 'u1',
   email: 'nowy@test.local',
   displayName: 'Nowy Członek',
@@ -86,7 +86,7 @@ describe('Register', () => {
     const request = await expectRegister();
     expect(request.request.body.displayName).toBe('Anna Kowalska');
 
-    request.flush(PENDING);
+    request.flush(REGISTERED);
     await fixture.whenStable();
   });
 
@@ -114,7 +114,7 @@ describe('Register', () => {
       memberCode: null,
     });
 
-    request.flush(PENDING);
+    request.flush(REGISTERED);
     await fixture.whenStable();
   });
 
@@ -126,11 +126,11 @@ describe('Register', () => {
     controller.expectNone('/api/auth/register');
   });
 
-  it('navigates to the awaiting-approval screen on success', async () => {
+  it('navigates to the dashboard on success', async () => {
     fill();
     submit();
 
-    (await expectRegister()).flush(PENDING);
+    (await expectRegister()).flush(REGISTERED);
     await fixture.whenStable();
 
     // Straight to the dashboard (S-16, MP-03): the account works the moment it exists.
@@ -196,7 +196,7 @@ describe('Register', () => {
     const request = await expectRegister();
     expect(request.request.body.memberCode).toBeNull();
 
-    request.flush(PENDING);
+    request.flush(REGISTERED);
     await fixture.whenStable();
   });
 
@@ -211,7 +211,7 @@ describe('Register', () => {
     const request = await expectRegister();
     expect(request.request.body.memberCode).toBe('abcd-2345');
 
-    request.flush(PENDING);
+    request.flush(REGISTERED);
     await fixture.whenStable();
   });
 

@@ -17,8 +17,9 @@ import {
 } from '../../../core/auth/validation';
 
 /**
- * Registration (FR-001). The account is created Pending and signed in immediately, so this always
- * ends on the awaiting-approval screen.
+ * Registration (FR-001). The account is created ACTIVE and signed in immediately (S-16, MP-03), so
+ * this always ends on the dashboard. It used to end on an awaiting-approval screen; approval is gone
+ * and so is the screen.
  */
 @Component({
   imports: [ReactiveFormsModule, RouterLink],

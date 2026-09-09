@@ -90,11 +90,12 @@ export class AuthService {
   /**
    * Re-mints the auth cookie's claims from the member's current row.
    *
-   * NOT an alias over loadCurrentUser(). /me reads the database and would report Active while the
-   * cookie's account_status claim still said Pending - the claim is refreshed only every 30 minutes
-   * by the security-stamp validator. Routing on /me alone puts a just-approved member into an app
-   * where every ActiveMember endpoint answers 403 for up to half an hour. /api/auth/refresh is the
-   * endpoint that fixes the claim; the awaiting-approval screen must call this one.
+   * NOT an alias over loadCurrentUser(). /me reads the database; the cookie's claims are refreshed
+   * only every 30 minutes by the security-stamp validator, so the two can disagree for up to half an
+   * hour and only the claims decide what the API answers. Routing on /me alone therefore puts a
+   * member into an app where every ActiveMember endpoint answers 403. /api/auth/refresh is the
+   * endpoint that fixes the claim. The approval transition this was written for is gone (S-16), but
+   * the gap it exploits is not: call this after any change to a status the claims carry.
    */
   async refresh(): Promise<CurrentUser> {
     const user = await firstValueFrom(this.http.post<CurrentUser>('/api/auth/refresh', null));

@@ -20,13 +20,25 @@ public class ApplicationUser : IdentityUser
     public string DisplayName { get; set; } = string.Empty;
 
     /// <summary>
-    /// Gates everything else (PRD Business Logic). Defined here in F-02 and enforced at login and
-    /// in the ActiveMember authorization policy; the admin actions that change it land with S-01
-    /// (approve) and S-02 (block/unblock).
+    /// Gates everything else (PRD Business Logic). Defined here in F-02 and enforced at login and in
+    /// the ActiveMember authorization policy; the admin action that changes it is S-02
+    /// (block/unblock). Approval is GONE (S-16) - there is no transition into this field's retired
+    /// third value any more.
+    ///
+    /// <para>
+    /// THE DEFAULT IS ACTIVE, AND THE COLUMN'S IS NOT. Registration sets this explicitly, so the
+    /// initializer only decides what a caller who FORGOT to gets. Before S-16 that was
+    /// <see cref="AccountStatus.Pending"/>, which an admin would then approve; with approval removed
+    /// it would be an account that logs in - Blocked is the only refusal left - and then fails every
+    /// ActiveMember policy, with the screen that used to explain the wait deleted. Active is the
+    /// answer that at least matches what registration produces. Note the SQL default stays 0, so a
+    /// row inserted without going through this initializer is still Pending on read.
+    /// </para>
     /// </summary>
-    public AccountStatus Status { get; set; } = AccountStatus.Pending;
+    public AccountStatus Status { get; set; } = AccountStatus.Active;
 
-    /// <summary>When the account was registered. The admin's pending list (FR-005) orders by it.</summary>
+    /// <summary>When the account was registered. The admin's member list (FR-005) can order by it; the
+    /// pending queue that originally did was removed with approval (S-16).</summary>
     public DateTimeOffset CreatedAt { get; set; }
 
     // CONTACT DETAILS (S-13). The phone number is NOT declared here on purpose: IdentityUser

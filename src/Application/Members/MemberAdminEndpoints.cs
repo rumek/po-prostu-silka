@@ -899,9 +899,14 @@ public static class MemberAdminEndpoints
 
 
 /// <summary>
-/// The same seam for the full member list (FR-005). Separate from
-/// <see cref="IPendingMemberQuery"/> rather than replacing it: the approvals queue orders oldest
-/// first and needs no status, this one browses alphabetically and needs everything.
+/// The seam for the full member list (FR-005): browses alphabetically and needs every status.
+///
+/// <para>
+/// It used to be the SECOND such seam. IPendingMemberQuery was the other - the approvals queue,
+/// ordered oldest first and carrying no status because every row in it had the same one - and S-16
+/// deleted it along with approval itself. This one absorbed nothing in the process; it was always
+/// the general case.
+/// </para>
 /// </summary>
 public interface IMemberQuery
 {

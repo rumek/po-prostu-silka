@@ -7,9 +7,10 @@ import { AuthService } from './auth.service';
  * Keeps unauthenticated visitors out of app routes - the PRD's "all app content requires an active
  * account".
  *
- * Only authentication is decided here. Status-specific routing (sending a Pending member to the
- * awaiting-approval screen) belongs to S-01, which owns that screen; the guard just makes the
- * status available on AuthService for S-01 to branch on.
+ * Only authentication is decided here; the guard just makes the status available on AuthService for
+ * others to branch on. There is no status-specific routing left to do - it used to send a Pending
+ * member to an awaiting-approval screen, and S-16 removed both the status and the screen. What still
+ * reads the status is activeMemberGuard, which refuses a BLOCKED member.
  */
 export const authGuard: CanActivateFn = async () => {
   const platformId = inject(PLATFORM_ID);

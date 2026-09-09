@@ -60,10 +60,11 @@ export type MembershipStatus = 'Active' | 'Blocked';
  * wrong password. `invalid_credentials` covers both a wrong password and an unknown address - the
  * API deliberately does not distinguish them, so the UI must not imply it does.
  *
- * `pending_approval` is NO LONGER REACHABLE from /login. S-01 inverted that rule: a pending member
- * now receives a session and is routed to /pending by status, not by a login failure. The member is
- * kept in the union because the API still declares the literal, and removing it from both sides is
- * churn for no gain.
+ * `pending_approval` is NO LONGER REACHABLE from /login, and there is nothing left for it to mean.
+ * S-01 first made it unreachable by letting a pending member sign in and routing them onward by
+ * status; S-16 then removed approval entirely, so nothing produces a pending account and the screen
+ * that routing led to is deleted. The member is kept in the union because the API still declares the
+ * literal (see AuthEndpoints.LoginFailure), and removing it from both sides is churn for no gain.
  */
 export type LoginFailureReason = 'invalid_credentials' | 'pending_approval' | 'blocked';
 

@@ -21,6 +21,7 @@ import { membershipPassFailureMessage } from '../../../core/admin/membership-pas
 const TYPE_NAME_MAX_LENGTH = 100;
 const MIN_ENTRY_COUNT = 1;
 const MAX_ENTRY_COUNT = 500;
+const MAX_VALIDITY_DAYS = 400;
 
 /**
  * One member's karnety: the history, and the form that issues the next one (S-16, MP-04..MP-06).
@@ -175,6 +176,18 @@ export class MemberPasses implements OnInit {
     const { validFrom, validTo } = this.form.getRawValue();
     if (validTo < validFrom) {
       this.error.set(membershipPassFailureMessage('invalid_range'));
+      return;
+    }
+
+    // The span, which the API answers with the SAME invalid_range reason. Without this check the
+    // admin is told the end date precedes the start when it plainly does not - the one case where
+    // the shared message is wrong about what went wrong.
+    const spanDays =
+      Math.round(
+        (new Date(validTo).getTime() - new Date(validFrom).getTime()) / (24 * 60 * 60 * 1000),
+      ) + 1;
+    if (spanDays > MAX_VALIDITY_DAYS) {
+      this.error.set(`Karnet nie może obejmować więcej niż ${MAX_VALIDITY_DAYS} dni.`);
       return;
     }
 

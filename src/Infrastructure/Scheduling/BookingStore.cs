@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using po_prostu_silka.Application.Members;
 using po_prostu_silka.Application.Scheduling;
 using po_prostu_silka.Domain.Scheduling;
 using po_prostu_silka.Infrastructure.Persistence;
@@ -10,7 +11,7 @@ namespace po_prostu_silka.Infrastructure.Scheduling;
 /// through IUnitOfWork, which is what lets the booking insert and the class's stamp rotation land in
 /// one SaveChangesAsync.
 /// </summary>
-public class BookingStore(AppDbContext db) : IBookingStore
+public class BookingStore(AppDbContext db, IMembershipPassStore passes) : IBookingStore
 {
     public void Add(Booking entity) => db.Bookings.Add(entity);
 
@@ -94,16 +95,10 @@ public class BookingStore(AppDbContext db) : IBookingStore
             .Distinct()
             .ToList();
 
-        if (passIds.Count == 0)
-        {
-            return;
-        }
-
-        var passes = await db.MembershipPasses
-            .Where(p => passIds.Contains(p.Id))
-            .ToListAsync(cancellationToken);
-
-        foreach (var pass in passes)
+        // Through the store rather than a query of our own: it is the seam that owns loading passes
+        // by id, it already short-circuits an empty set without a round trip, and a second copy of
+        // this query here is one that a later change to the first would not reach.
+        foreach (var pass in await passes.FindManyAsync(passIds, cancellationToken))
         {
             pass.ConcurrencyStamp = Guid.NewGuid().ToString();
         }

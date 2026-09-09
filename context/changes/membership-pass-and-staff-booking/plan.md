@@ -226,6 +226,15 @@ returning the first colliding pass or null, `RemoveAsync`. Implementation in
 `src/Infrastructure/Members/MembershipPassStore.cs`; registered scoped in `src/Program.cs` beside the
 other member stores, with a comment naming S-16.
 
+**Adapted during implementation.** The interface that shipped is wider than this, and Phase 3 could
+not have worked with the one specified here. `Add`/`Remove` are SYNCHRONOUS — they only stage onto
+the change tracker, so an async signature would have promised I/O that never happens, which is the
+convention the other stores already follow. Two methods were added: `FindCoveringAsync`, a TRACKED
+twin of `IMembershipPassQuery.FindCoveringAsync` (the booking gate has to rotate the resolved pass's
+`ConcurrencyStamp`, and a no-tracking projection cannot be written back), and `FindManyAsync`, a
+batch load for the block cascade, which releases several bookings at once and they may sit on
+different passes. Both are consequences of Phase 3's stamp-rotation contract rather than new scope.
+
 ### Success Criteria:
 
 #### Automated Verification:
@@ -270,6 +279,11 @@ it is the pass covering today) and `IssuePassRequest`. Failures as
 `member_not_found`, `member_blocked`, `invalid_range`, `invalid_entry_count`, `overlapping_pass`,
 `has_active_bookings`, `conflict`. 400 for malformed input, 409 for a conflict with existing state,
 404 for an unaddressable member or pass — the split `MemberAdminEndpoints` already uses.
+
+**Adapted during implementation.** There are EIGHT reasons, not seven: `invalid_type_name` was added
+for a blank or over-length type name. The list above folded that case into `invalid_range`'s
+neighbours by omission, but a bad name and a bad date range are different corrections at the desk,
+and `MembershipPassRules.TypeNameMaxLength` exists precisely so the bound is nameable.
 
 #### 2. Read projection
 
@@ -781,6 +795,14 @@ registration, and the `Pending` branch of the admin member-list filter.
 that no third state is produced. `UnblockAsync`'s comment at L613, which reasons from the approve
 notification's existence, is rewritten.
 
+**Adapted during implementation.** `MemberListFilter` did NOT lose its `Pending` member; it was
+retired in place instead — `[Obsolete]`, a RETIRED doc comment, and the numeric value reserved. The
+plan's reasoning for deleting it was that, unlike `AccountStatus.Pending`, it is not a persisted
+column. True, but it is a *query-string* value: an admin with a bookmarked or stored filter URL still
+sends `0`, and re-using that position for something else would silently repoint them at the wrong
+list. Nothing produces or sends it, and the SPA correctly dropped `'Pending'` from its own
+`MemberFilter` union, so the retired position is backend-only and inert.
+
 #### 2. Login and enum
 
 **File**: `src/Application/Auth/AuthEndpoints.cs`, `src/Domain/AccountStatus.cs`
@@ -912,8 +934,9 @@ claim correctly anyway.
 
 ## Migration Notes
 
-Four migrations land across the stream, in this order: `AddMembershipPasses` (Phase 1, schema),
-`AddBookingMembershipPass` (Phase 3, schema), `ActivatePendingAccounts` (Phase 6, data). All are
+Three migrations land across the stream, in this order: `AddMembershipPasses` (Phase 1, schema),
+`AddBookingMembershipPass` (Phase 2, schema — moved forward from Phase 3; see that phase's adaptation
+note), `ActivatePendingAccounts` (Phase 6, data). All are
 reversible except the data migration, whose `Down` is a documented no-op — which accounts were
 pending is not recoverable, and re-pending live accounts would lock out real members.
 

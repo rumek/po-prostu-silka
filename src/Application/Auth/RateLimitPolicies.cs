@@ -41,7 +41,8 @@ public static class RateLimitPolicies
     public const string Register = "register";
 
     /// <summary>
-    /// The partition key for <see cref="ForgotPassword"/>: the caller's IP address, without the port.
+    /// The partition key for <see cref="ForgotPassword"/> and <see cref="Register"/>: the caller's IP
+    /// address, without the port.
     ///
     /// <para>
     /// THE PORT IS WHY THIS IS NOT ONE LINE. App Service and Front Door write X-Forwarded-For as
@@ -53,6 +54,14 @@ public static class RateLimitPolicies
     /// </para>
     ///
     /// <para>
+    /// THE LAST SEGMENT, NOT THE FIRST. A proxy APPENDS the address it observed rather than replacing
+    /// the header, so in "1.1.1.1, 203.0.113.5" the client sent the first value and App Service wrote
+    /// the second. Partitioning on the first would let a caller pick their own partition and change it
+    /// per request - not a weaker cap but no cap at all. The last segment is the one hop this app did
+    /// not have to trust the caller for.
+    /// </para>
+    ///
+    /// <para>
     /// The header is attacker controlled, so this stays a courtesy cap on volume and NOT an
     /// authorization control. <c>IPasswordResetThrottle</c> is what protects an individual mailbox,
     /// and it cannot be sidestepped by changing IP.
@@ -61,7 +70,7 @@ public static class RateLimitPolicies
     public static string PartitionKey(HttpContext context)
     {
         var forwardedFor = context.Request.Headers["X-Forwarded-For"].FirstOrDefault();
-        var candidate = forwardedFor?.Split(',').FirstOrDefault()?.Trim();
+        var candidate = forwardedFor?.Split(',').LastOrDefault()?.Trim();
 
         // Empty rather than null is what a header sent with no value produces, and ?? does not catch
         // it - every such caller would share one partition.
