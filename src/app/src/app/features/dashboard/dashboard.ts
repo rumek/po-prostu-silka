@@ -1,3 +1,4 @@
+import { DatePipe } from '@angular/common';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
@@ -6,6 +7,7 @@ import { BookingService } from '../../core/scheduling/booking.service';
 import { ClassService } from '../../core/scheduling/class.service';
 import { MyBooking } from '../../core/scheduling/booking.models';
 import { ScheduledClass } from '../../core/scheduling/class.models';
+import { MembershipPassView } from '../../core/admin/member-admin.models';
 import { TrainingPlanService } from '../../core/training/training-plan.service';
 import { TrainingPlanDetail } from '../../core/training/training-plan.models';
 import { ClassSummary } from '../../shared/class-summary/class-summary';
@@ -26,8 +28,8 @@ const UPCOMING_DAYS = 7;
  * route of its own, exactly as app.html branches its links. An admin is also a member who books
  * classes, and sees both halves.
  *
- * EVERY CARD LOADS ON ITS OWN. Four independent requests with four independent states, because a
- * dashboard that blanks itself when one of them fails is worse than one that shows three cards and an
+ * EVERY CARD LOADS ON ITS OWN. Five independent requests with five independent states, because a
+ * dashboard that blanks itself when one of them fails is worse than one that shows four cards and an
  * error. This is why there is no single `loading` flag here.
  *
  * READ-ONLY. Nothing is cancelled or approved from this screen; each card links to the one that owns
@@ -37,7 +39,7 @@ const UPCOMING_DAYS = 7;
  * It must not import date-fns — see `todayWindow()`.
  */
 @Component({
-  imports: [ClassSummary, PlanSummary, RouterLink],
+  imports: [ClassSummary, DatePipe, PlanSummary, RouterLink],
   selector: 'app-dashboard',
   styleUrl: './dashboard.scss',
   templateUrl: './dashboard.html',
@@ -82,6 +84,20 @@ export class Dashboard implements OnInit {
   protected readonly planFailed = signal(false);
   private planGeneration = 0;
 
+  // --- Member: karnet (S-16, MP-07) --------------------------------------------------------------
+
+  /**
+   * The karnet covering TODAY, or null when there is none.
+   *
+   * Null means "no valid karnet" ONLY when passLoading and passFailed are both false — the same
+   * three-signal shape the plan card uses, and for the same reason: "you hold nothing" and "we could
+   * not find out" are different things to put in front of a member.
+   */
+  protected readonly pass = signal<MembershipPassView | null>(null);
+  protected readonly passLoading = signal(true);
+  protected readonly passFailed = signal(false);
+  private passGeneration = 0;
+
   // --- Admin: pending approvals ------------------------------------------------------------------
 
   protected readonly pendingCount = signal(0);
@@ -100,6 +116,10 @@ export class Dashboard implements OnInit {
   ngOnInit(): void {
     void this.loadBookings();
     void this.loadPlan();
+
+    // In PARALLEL with the two above, not after them — this route is eager and every serialised
+    // request here is latency every member pays on every visit.
+    void this.loadPass();
 
     // Guarded, not merely hidden: these two endpoints answer 403 to a non-admin, and firing them for
     // every member would put two guaranteed failures in the console on every visit to the home screen.
@@ -163,6 +183,36 @@ export class Dashboard implements OnInit {
     } finally {
       if (generation === this.planGeneration) {
         this.planLoading.set(false);
+      }
+    }
+  }
+
+  protected async loadPass(): Promise<void> {
+    const generation = ++this.passGeneration;
+
+    this.passLoading.set(true);
+    this.passFailed.set(false);
+
+    try {
+      const pass = await this.members.getMyPass();
+
+      if (generation !== this.passGeneration) {
+        return;
+      }
+
+      this.pass.set(pass);
+    } catch {
+      if (generation !== this.passGeneration) {
+        return;
+      }
+
+      // Cleared as well as flagged, following the plan card: a stale karnet under an error banner
+      // tells the member they may train when the app no longer knows whether they may.
+      this.pass.set(null);
+      this.passFailed.set(true);
+    } finally {
+      if (generation === this.passGeneration) {
+        this.passLoading.set(false);
       }
     }
   }

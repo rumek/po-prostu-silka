@@ -57,6 +57,15 @@ export const routes: Routes = [
     loadComponent: () => import('./features/admin/members/member-form').then((m) => m.MemberForm),
     canActivate: [authGuard, adminGuard],
   },
+  // BEFORE ':id', or ':id' would swallow the whole two-segment path and the form would try to load
+  // a member called "passes"... which it would not, but the route would never match. Same ordering
+  // rule as 'new' above.
+  {
+    path: 'admin/members/:id/passes',
+    loadComponent: () =>
+      import('./features/admin/members/member-passes').then((m) => m.MemberPasses),
+    canActivate: [authGuard, adminGuard],
+  },
   {
     path: 'admin/members/:id',
     loadComponent: () => import('./features/admin/members/member-form').then((m) => m.MemberForm),

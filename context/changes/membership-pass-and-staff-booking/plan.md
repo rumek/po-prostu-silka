@@ -546,6 +546,14 @@ tamper with — the `MyPlanEndpoints` pattern rather than an ownership compariso
 today plus entries left, or null when there is none. Never lists other members' passes and never
 accepts a member id.
 
+**Adapted during implementation.** It landed as its own file, `src/Application/Members/MyPassEndpoints.cs`,
+rather than on `ProfileEndpoints`. Same reason `MyPlanEndpoints` is separate from
+`TrainingPlanEndpoints`: this codebase applies one policy per group, and `ProfileEndpoints` is a bare
+`RequireAuthorization()` group (an account with no contact details must reach it while still failing
+`ActiveMember`), so hanging an `ActiveMember` route off it would have meant two policies in one group.
+"No content" is 204 rather than null-in-a-200, mirroring `MyPlanEndpoints.GetMineAsync` — the SPA has
+to tell "you hold none" from "the request failed", and it can only do that if the API does.
+
 #### 4. Member dashboard card
 
 **File**: `src/app/src/app/features/dashboard/dashboard.ts` / `.html`
@@ -954,9 +962,9 @@ a later change, once no deployed artifact reads it.
 
 #### Automated
 
-- [x] 4.1 Build is warning-free
-- [x] 4.2 Full suite passes
-- [x] 4.3 Every widened handler has a non-instructing-trainer 403 test
+- [x] 4.1 Build is warning-free — 35d335f
+- [x] 4.2 Full suite passes — 35d335f
+- [x] 4.3 Every widened handler has a non-instructing-trainer 403 test — 35d335f
 
 #### Manual
 
@@ -967,10 +975,10 @@ a later change, once no deployed artifact reads it.
 
 #### Automated
 
-- [ ] 5.1 Frontend quality gate passes
-- [ ] 5.2 Frontend unit tests pass
-- [ ] 5.3 Backend suite passes
-- [ ] 5.4 Production build emits no bundle-budget warning
+- [x] 5.1 Frontend quality gate passes
+- [x] 5.2 Frontend unit tests pass
+- [x] 5.3 Backend suite passes
+- [x] 5.4 Production build emits no bundle-budget warning
 
 #### Manual
 

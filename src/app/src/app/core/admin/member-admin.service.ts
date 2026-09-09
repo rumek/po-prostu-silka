@@ -3,10 +3,12 @@ import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import {
   AccessCodeView,
+  IssuePassRequest,
   Member,
   MemberDetail,
   MemberFilter,
   MemberRequest,
+  MembershipPassView,
   PendingMember,
   TrainerSummary,
 } from './member-admin.models';
@@ -156,5 +158,72 @@ export class MemberAdminService {
     await firstValueFrom(
       this.http.delete<void>(`/api/admin/members/${encodeURIComponent(id)}/access-code`),
     );
+  }
+
+  // --- karnety (S-16) ----------------------------------------------------------------------------
+
+  /**
+   * The member's whole karnet history, newest first — expired passes included.
+   *
+   * HISTORY, NOT "THE CURRENT PASS". The admin's question at the desk is usually what this person has
+   * bought and used, which one current row cannot answer; the row covering today carries
+   * `coversToday` so the screen can highlight it without a second request.
+   */
+  getPasses(memberId: string): Promise<MembershipPassView[]> {
+    return firstValueFrom(
+      this.http.get<MembershipPassView[]>(
+        `/api/admin/members/${encodeURIComponent(memberId)}/passes`,
+      ),
+    );
+  }
+
+  /** Issues a karnet. Refused when it overlaps one the member already holds — passes are a history. */
+  issuePass(memberId: string, request: IssuePassRequest): Promise<MembershipPassView> {
+    return firstValueFrom(
+      this.http.post<MembershipPassView>(
+        `/api/admin/members/${encodeURIComponent(memberId)}/passes`,
+        request,
+      ),
+    );
+  }
+
+  /**
+   * Corrects a karnet. Editing NEVER reattributes history: bookings point at a pass by id, so
+   * narrowing a range does not hand entries back, and the entry count cannot go below what is spent.
+   */
+  updatePass(
+    memberId: string,
+    passId: string,
+    request: IssuePassRequest,
+  ): Promise<MembershipPassView> {
+    return firstValueFrom(
+      this.http.put<MembershipPassView>(
+        `/api/admin/members/${encodeURIComponent(memberId)}/passes/${encodeURIComponent(passId)}`,
+        request,
+      ),
+    );
+  }
+
+  /** Removes a karnet. Refused while any booking still points at it (`has_active_bookings`). */
+  async revokePass(memberId: string, passId: string): Promise<void> {
+    await firstValueFrom(
+      this.http.delete<void>(
+        `/api/admin/members/${encodeURIComponent(memberId)}/passes/${encodeURIComponent(passId)}`,
+      ),
+    );
+  }
+
+  /**
+   * The CALLER's own karnet covering today, or `null` when they hold none (MP-07).
+   *
+   * A different route from the four above and deliberately so: it takes no member id at all, so
+   * there is nothing to tamper with, and it answers to the ActiveMember policy rather than Admin.
+   * The API says 204 for "none", which Angular surfaces as `null` — and an EXPIRED pass is reported
+   * that way too, because the member's question is "can I train", not "what did I once hold".
+   */
+  async getMyPass(): Promise<MembershipPassView | null> {
+    const view = await firstValueFrom(this.http.get<MembershipPassView | null>('/api/passes/mine'));
+
+    return view ?? null;
   }
 }

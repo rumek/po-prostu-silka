@@ -151,6 +151,18 @@
                   </button>
                 }
 
+                <!-- Karnety (S-16). Offered on EVERY row, blocked members included: what a blocked
+                     person holds is exactly what the admin needs to see before deciding whether to
+                     unblock them, and the issue form on that screen refuses the write on its own. -->
+                <a
+                  role="menuitem"
+                  class="row-menu-item"
+                  [routerLink]="['/admin/members', member.id, 'passes']"
+                  (click)="closeMenu()"
+                >
+                  Karnety
+                </a>
+
                 <!-- The code attaches a NEW account to this record, so it is offered only where
                      there is no login yet — see canIssueCode. -->
                 @if (canIssueCode(member)) {

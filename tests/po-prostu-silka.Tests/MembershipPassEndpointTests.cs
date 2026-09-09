@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using po_prostu_silka.Application.Members;
+using po_prostu_silka.Domain;
 using po_prostu_silka.Domain.Members;
 using po_prostu_silka.Infrastructure.Persistence;
 
@@ -324,6 +325,72 @@ public class MembershipPassEndpointTests(IntegrationTestFixture fixture)
         Assert.Equal(10, updated.EntryCount);
         Assert.Equal(Anchor.AddDays(20), updated.ValidTo);
     }
+
+    // --- the member's own karnet (MP-07) ---------------------------------------
+
+    /// <summary>
+    /// The member reads their OWN pass, and the route takes no member id at all — there is nothing to
+    /// tamper with, which is the point of scoping by the cookie rather than comparing an id.
+    /// </summary>
+    [Fact]
+    public async Task A_member_reads_their_own_karnet()
+    {
+        var admin = await AdminAsync();
+        var email = $"karnet-holder-{Guid.NewGuid():N}@test.local";
+        await fixture.CreateUserAsync(email, AccountStatus.Active, ApplicationRoles.User);
+
+        var memberId = (await admin.GetFromJsonAsync<List<MemberRow>>("/api/admin/members"))!
+            .Single(m => m.Email == email).Id;
+
+        var today = DateOnly.FromDateTime(
+            po_prostu_silka.Domain.Scheduling.ClubTime.ToClubLocal(DateTimeOffset.UtcNow).DateTime);
+
+        await admin.PostAsJsonAsync(
+            $"/api/admin/members/{memberId}/passes",
+            Request(today.AddDays(-1), today.AddDays(20), entries: 6, name: "Karnet 6 wejść"));
+
+        var member = await fixture.CreateAuthenticatedClientAsync(email);
+        var response = await member.GetAsync("/api/passes/mine");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var view = await response.Content.ReadFromJsonAsync<MembershipPassView>();
+        Assert.NotNull(view);
+        Assert.Equal("Karnet 6 wejść", view.TypeName);
+        Assert.Equal(6, view.EntriesLeft);
+        Assert.True(view.CoversToday);
+    }
+
+    /// <summary>
+    /// 204, not 404 and not the expired pass. Holding no valid karnet is an ordinary state, and
+    /// answering with a pass that ran out would put an entitlement on the dashboard that does not
+    /// exist.
+    /// </summary>
+    [Fact]
+    public async Task A_member_whose_karnet_expired_reads_no_content()
+    {
+        var admin = await AdminAsync();
+        var email = $"karnet-expired-{Guid.NewGuid():N}@test.local";
+        await fixture.CreateUserAsync(email, AccountStatus.Active, ApplicationRoles.User);
+
+        var memberId = (await admin.GetFromJsonAsync<List<MemberRow>>("/api/admin/members"))!
+            .Single(m => m.Email == email).Id;
+
+        var today = DateOnly.FromDateTime(
+            po_prostu_silka.Domain.Scheduling.ClubTime.ToClubLocal(DateTimeOffset.UtcNow).DateTime);
+
+        await admin.PostAsJsonAsync(
+            $"/api/admin/members/{memberId}/passes",
+            Request(today.AddDays(-30), today.AddDays(-1)));
+
+        var member = await fixture.CreateAuthenticatedClientAsync(email);
+
+        Assert.Equal(
+            HttpStatusCode.NoContent, (await member.GetAsync("/api/passes/mine")).StatusCode);
+    }
+
+    /// <summary>Mirrors MemberSummary — only what these tests read from it.</summary>
+    private sealed record MemberRow(Guid Id, string? Email);
 
     /// <summary>
     /// THE TEST THE STAMP ROTATION EXISTS FOR. Two admins issue overlapping passes at the same

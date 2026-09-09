@@ -52,6 +52,19 @@
   font-size: 0.9375rem;
 }
 
+// The karnet card (S-16). The big number is .dashboard-count, shared with the approvals count; these
+// two only label it, above and below.
+.dashboard-pass-name {
+  margin: 0 0 var(--space-2);
+  font-weight: 600;
+}
+
+.dashboard-pass-meta {
+  margin: var(--space-1) 0 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
 // A card's "nothing here", which is not an error and must not read as one.
 .empty {
   margin: 0;

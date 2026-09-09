@@ -207,3 +207,63 @@ export interface AccessCodeView {
 export interface AccessCodeFailure {
   reason: 'has_account' | 'conflict';
 }
+
+/**
+ * Mirrors the API's MembershipPassView record (src/Application/Members/MembershipPassEndpoints.cs).
+ * Keep the two in step — this is a contract, not a convenience type.
+ *
+ * `entriesUsed` and `entriesLeft` are DERIVED SERVER-SIDE from active bookings, never stored. The
+ * practical consequence for this screen: they are a reading taken at request time, so anything that
+ * books or releases a spot invalidates them and the screen must refetch rather than adjust them.
+ */
+export interface MembershipPassView {
+  id: string;
+
+  /** What the club calls this pass — free text, never an enum. */
+  typeName: string;
+
+  /**
+   * First day covered, as `YYYY-MM-DD`. A DATE, not an instant: the API sends `DateOnly`, which has
+   * no hour and no offset to be misread in another timezone. Never pass it through `new Date()` and
+   * back — that reintroduces exactly the timezone shift the type exists to avoid.
+   */
+  validFrom: string;
+
+  /** Last day covered, INCLUSIVE, same shape as `validFrom`. */
+  validTo: string;
+
+  /** How many entries the pass was issued with. */
+  entryCount: number;
+
+  /** How many are spent — the count of active bookings attributed to this pass. */
+  entriesUsed: number;
+
+  /** `entryCount - entriesUsed`. Sent rather than computed here, so one place owns the arithmetic. */
+  entriesLeft: number;
+
+  /** ISO 8601 from the API. Kept as a string; the screen formats it. */
+  issuedAt: string;
+
+  /** Whether this is the pass covering today, by the CLUB's calendar rather than the browser's. */
+  coversToday: boolean;
+}
+
+/** Mirrors IssuePassRequest — what the admin submits to issue or correct a karnet. */
+export interface IssuePassRequest {
+  typeName: string;
+  validFrom: string;
+  validTo: string;
+  entryCount: number;
+}
+
+/** Mirrors MembershipPassFailure. See that record for what each reason means. */
+export interface MembershipPassFailure {
+  reason:
+    | 'member_blocked'
+    | 'invalid_type_name'
+    | 'invalid_range'
+    | 'invalid_entry_count'
+    | 'overlapping_pass'
+    | 'has_active_bookings'
+    | 'conflict';
+}

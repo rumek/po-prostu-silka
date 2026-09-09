@@ -1,0 +1,93 @@
+// Layout only — the .panel/.card/.field/.hint/.notice/.empty/.button classes come from
+// src/styles.scss, exactly as member-form.scss does it.
+
+.section-title {
+  margin: var(--space-6) 0 var(--space-4);
+  font-size: 1.125rem;
+}
+
+.passes-back {
+  margin: 0 0 var(--space-4);
+}
+
+// The two date inputs sit side by side where there is room and stack on a phone. Not a media query:
+// the range is the only place on this screen with two controls on one line, so the wrap does the
+// whole job.
+.passes-range {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+
+  > .field {
+    flex: 1 1 12rem;
+  }
+}
+
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-6);
+}
+
+.passes-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-3);
+}
+
+// The row wraps rather than shrinking: on a phone the actions belong under the text, not squeezed
+// beside it.
+.passes-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+// The live karnet, marked by a border rather than a fill — the badge already names it, and a filled
+// row would read as selected rather than as current.
+.passes-row--current {
+  border-color: var(--accent, currentColor);
+}
+
+.passes-row-main {
+  flex: 1 1 16rem;
+
+  > p {
+    margin: 0 0 var(--space-1);
+  }
+}
+
+.passes-name {
+  font-weight: 600;
+}
+
+.passes-badge {
+  margin-left: var(--space-2);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.passes-range-text,
+.passes-entries {
+  font-size: 0.9375rem;
+}
+
+.passes-issued {
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.passes-row-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}

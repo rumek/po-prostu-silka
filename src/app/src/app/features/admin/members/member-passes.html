@@ -1,0 +1,163 @@
+<div class="panel">
+  <h1>Karnety{{ member() ? ' — ' + member()!.displayName : '' }}</h1>
+
+  <p class="passes-back">
+    <a class="link-button" routerLink="/admin/members">Wróć do listy członków</a>
+  </p>
+
+  <!-- The desk's first question, answered in one line rather than by reading the table. -->
+  @if (!loading() && !loadFailed()) {
+    @if (current(); as live) {
+      <p class="notice" role="status">
+        Aktywny karnet: <strong>{{ live.typeName }}</strong> — zostało
+        <strong>{{ live.entriesLeft }}</strong>
+        z {{ live.entryCount }} wejść, ważny do {{ live.validTo | date: 'd MMMM y' }}.
+      </p>
+    } @else {
+      <p class="empty">
+        Ta osoba nie ma dziś ważnego karnetu, więc nie można jej zapisać na żadne zajęcia.
+      </p>
+    }
+  }
+
+  <div class="card">
+    <h2 class="section-title">{{ editing() ? 'Edytuj karnet' : 'Wystaw karnet' }}</h2>
+
+    @if (error()) {
+      <p class="alert" role="alert">{{ error() }}</p>
+    }
+
+    <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+      <div class="field">
+        <label for="typeName">Nazwa karnetu</label>
+        <input
+          id="typeName"
+          type="text"
+          formControlName="typeName"
+          placeholder="np. Karnet 8 wejść"
+          [attr.aria-invalid]="form.controls.typeName.touched && form.controls.typeName.invalid"
+        />
+        @if (form.controls.typeName.touched && form.controls.typeName.invalid) {
+          <p class="field-error">Podaj nazwę karnetu (maksymalnie 100 znaków).</p>
+        }
+      </div>
+
+      <div class="passes-range">
+        <div class="field">
+          <label for="validFrom">Ważny od</label>
+          <input
+            id="validFrom"
+            type="date"
+            formControlName="validFrom"
+            [attr.aria-invalid]="form.controls.validFrom.touched && form.controls.validFrom.invalid"
+          />
+          @if (form.controls.validFrom.touched && form.controls.validFrom.invalid) {
+            <p class="field-error">Podaj datę startu.</p>
+          }
+        </div>
+
+        <div class="field">
+          <label for="validTo">Ważny do</label>
+          <input
+            id="validTo"
+            type="date"
+            formControlName="validTo"
+            [attr.aria-invalid]="form.controls.validTo.touched && form.controls.validTo.invalid"
+          />
+          @if (form.controls.validTo.touched && form.controls.validTo.invalid) {
+            <p class="field-error">Podaj datę końca.</p>
+          }
+        </div>
+      </div>
+
+      <!-- Both ends count, and the form says so: an admin reading "ważny do 30" needs to know the
+           30th is covered, because that is the day someone will turn up. -->
+      <p class="hint">Oba dni są wliczone — karnet ważny do 30 obejmuje także 30.</p>
+
+      <div class="field">
+        <label for="entryCount">Liczba wejść</label>
+        <input
+          id="entryCount"
+          type="number"
+          min="1"
+          max="500"
+          formControlName="entryCount"
+          [attr.aria-invalid]="form.controls.entryCount.touched && form.controls.entryCount.invalid"
+        />
+        @if (form.controls.entryCount.touched && form.controls.entryCount.invalid) {
+          <p class="field-error">Podaj liczbę wejść od 1 do 500.</p>
+        }
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="button" [disabled]="submitting()">
+          {{ submitting() ? 'Zapisuję…' : editing() ? 'Zapisz zmiany' : 'Wystaw karnet' }}
+        </button>
+
+        @if (editing()) {
+          <button type="button" class="link-button" (click)="cancelEdit()">Anuluj edycję</button>
+        }
+      </div>
+    </form>
+  </div>
+
+  <h2 class="section-title">Historia karnetów</h2>
+
+  @if (loading()) {
+    <p class="notice" role="status">Wczytywanie…</p>
+  } @else if (loadFailed()) {
+    <p class="alert" role="alert">
+      Nie udało się wczytać karnetów.
+      <button type="button" class="link-button" (click)="load()">Spróbuj ponownie</button>
+    </p>
+  } @else if (passes().length === 0) {
+    <!-- NOT an error: a member who has never been sold a karnet is an ordinary state. -->
+    <p class="empty">Ta osoba nie ma jeszcze żadnego karnetu.</p>
+  } @else {
+    <ul class="passes-list">
+      @for (pass of passes(); track pass.id) {
+        <li class="card passes-row" [class.passes-row--current]="pass.coversToday">
+          <div class="passes-row-main">
+            <p class="passes-name">
+              {{ pass.typeName }}
+              @if (pass.coversToday) {
+                <span class="passes-badge">Aktywny</span>
+              }
+            </p>
+
+            <p class="passes-range-text">
+              {{ pass.validFrom | date: 'd MMM y' }} – {{ pass.validTo | date: 'd MMM y' }}
+            </p>
+
+            <p class="passes-entries">
+              Wykorzystano {{ pass.entriesUsed }} z {{ pass.entryCount }} wejść — zostało
+              <strong>{{ pass.entriesLeft }}</strong>
+            </p>
+
+            <p class="passes-issued">Wystawiony {{ pass.issuedAt | date: 'd MMMM y' }}</p>
+          </div>
+
+          <div class="passes-row-actions">
+            <button
+              type="button"
+              class="button button--secondary"
+              [disabled]="revokingId() === pass.id"
+              (click)="edit(pass)"
+            >
+              Edytuj
+            </button>
+
+            <button
+              type="button"
+              class="link-button"
+              [disabled]="revokingId() === pass.id"
+              (click)="revoke(pass)"
+            >
+              {{ revokingId() === pass.id ? 'Usuwam…' : 'Usuń' }}
+            </button>
+          </div>
+        </li>
+      }
+    </ul>
+  }
+</div>

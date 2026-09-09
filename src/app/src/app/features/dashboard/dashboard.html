@@ -40,6 +40,37 @@
     }
   </article>
 
+  <!-- The karnet (S-16, MP-07). READ-ONLY like everything else here: a member never buys, extends or
+       requests one in this app — they read what the club issued them. Markup kept lean deliberately,
+       since this route is eager and the initial-bundle warning budget is 550 kB. -->
+  <article class="card dashboard-card">
+    <h2 class="dashboard-card-title">Twój karnet</h2>
+
+    @if (passLoading()) {
+      <p class="notice" role="status">Wczytywanie…</p>
+    } @else if (passFailed()) {
+      <p class="alert" role="alert">
+        Nie udało się wczytać karnetu.
+        <button type="button" class="link-button" (click)="loadPass()">Spróbuj ponownie</button>
+      </p>
+    } @else if (pass(); as karnet) {
+      <p class="dashboard-pass-name">{{ karnet.typeName }}</p>
+      <p class="dashboard-count">{{ karnet.entriesLeft }}</p>
+      <p class="dashboard-pass-meta">
+        {{ karnet.entriesLeft === 1 ? 'wejście' : 'wejść' }} z {{ karnet.entryCount }} — ważny do
+        {{ karnet.validTo | date: 'd MMMM y' }}
+      </p>
+    } @else {
+      <!-- NOT an error, and deliberately not styled as one: the API says 204. It names the
+           consequence rather than only the fact, because "brak karnetu" on its own does not tell a
+           member why nobody is signing them up for anything. -->
+      <p class="empty">
+        Nie masz aktywnego karnetu. Bez niego klub nie zapisze Cię na zajęcia — odezwij się w
+        recepcji.
+      </p>
+    }
+  </article>
+
   <article class="card dashboard-card">
     <!-- The static heading appears ONLY in the states that have no plan name to show. When a plan is
          loaded, plan-summary's own h2 is the card's heading — two sibling h2s would read to a screen

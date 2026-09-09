@@ -4,6 +4,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import { CurrentUser } from '../../core/auth/auth.models';
+import { MembershipPassView } from '../../core/admin/member-admin.models';
 import { MyBooking } from '../../core/scheduling/booking.models';
 import { ScheduledClass } from '../../core/scheduling/class.models';
 import { TrainingPlanDetail } from '../../core/training/training-plan.models';
@@ -12,6 +13,7 @@ import { Dashboard } from './dashboard';
 const BOOKINGS_URL = '/api/bookings/mine';
 const PLAN_URL = '/api/plans/mine';
 const PENDING_URL = '/api/admin/members/pending';
+const PASS_URL = '/api/passes/mine';
 
 const ADMIN: CurrentUser = {
   id: 'a1',
@@ -31,6 +33,18 @@ const PLAN: TrainingPlanDetail = {
   assignedByDisplayName: 'Marek Trener',
   createdAt: new Date('2026-09-01T10:00').toISOString(),
   items: [],
+};
+
+const PASS: MembershipPassView = {
+  id: 'k1',
+  typeName: 'Karnet 8 wejść',
+  validFrom: '2026-09-01',
+  validTo: '2026-09-30',
+  entryCount: 8,
+  entriesUsed: 3,
+  entriesLeft: 5,
+  issuedAt: new Date('2026-09-01T10:00').toISOString(),
+  coversToday: true,
 };
 
 function booking(over: Partial<MyBooking> = {}): MyBooking {
@@ -120,6 +134,21 @@ describe('Dashboard', () => {
     fixture.detectChanges();
   }
 
+  /**
+   * Answers the karnet card's request (S-16). Every test has to, because the card loads on every
+   * visit and `verify()` would otherwise find it outstanding. 204 by default — "no karnet" is the
+   * state that changes nothing about what the other cards assert.
+   */
+  function flushPass(view: MembershipPassView | null = null): void {
+    const request = controller.expectOne(PASS_URL);
+
+    if (view === null) {
+      request.flush(null, { status: 204, statusText: 'No Content' });
+    } else {
+      request.flush(view);
+    }
+  }
+
   function text(): string {
     return (fixture.nativeElement as HTMLElement).textContent ?? '';
   }
@@ -133,6 +162,7 @@ describe('Dashboard', () => {
 
     controller.expectOne(BOOKINGS_URL).flush([booking({ name: 'Pilates', instructor: 'Ala T.' })]);
     controller.expectOne(PLAN_URL).flush(PLAN);
+    flushPass();
     await settle();
 
     expect(text()).toContain('Cześć, Ala');
@@ -148,6 +178,7 @@ describe('Dashboard', () => {
       .expectOne(BOOKINGS_URL)
       .flush([1, 2, 3, 4].map((n) => booking({ bookingId: `b${n}`, classId: `c${n}` })));
     controller.expectOne(PLAN_URL).flush(null, { status: 204, statusText: 'No Content' });
+    flushPass();
     await settle();
 
     expect(element().querySelectorAll('.dashboard-list li').length).toBe(3);
@@ -165,6 +196,7 @@ describe('Dashboard', () => {
 
     controller.expectOne(BOOKINGS_URL).flush([booking()]);
     controller.expectOne(PLAN_URL).flush(PLAN);
+    flushPass();
     await settle();
 
     expect(element().querySelectorAll('h1').length).toBe(1);
@@ -184,6 +216,7 @@ describe('Dashboard', () => {
 
     controller.expectOne(BOOKINGS_URL).flush([booking()]);
     controller.expectOne(PLAN_URL).flush(null, { status: 204, statusText: 'No Content' });
+    flushPass();
     await settle();
 
     expect(text()).toContain('Twój plan treningowy');
@@ -196,6 +229,7 @@ describe('Dashboard', () => {
 
     controller.expectOne(BOOKINGS_URL).flush([booking()]);
     controller.expectOne(PLAN_URL).flush(null, { status: 204, statusText: 'No Content' });
+    flushPass();
     await settle();
 
     expect(text()).toContain('Nie masz jeszcze przypisanego planu');
@@ -208,6 +242,7 @@ describe('Dashboard', () => {
 
     controller.expectOne(BOOKINGS_URL).flush([booking()]);
     controller.expectOne(PLAN_URL).flush(PLAN);
+    flushPass();
     await settle();
 
     expect(text()).not.toContain('Wymaga uwagi');
@@ -221,6 +256,7 @@ describe('Dashboard', () => {
 
     controller.expectOne(BOOKINGS_URL).flush([]);
     controller.expectOne(PLAN_URL).flush(null, { status: 204, statusText: 'No Content' });
+    flushPass();
     controller.expectOne(PENDING_URL).flush([{ id: 'p1' }, { id: 'p2' }]);
     controller.expectOne((r) => r.url === '/api/admin/classes').flush([]);
     await settle();
@@ -240,6 +276,7 @@ describe('Dashboard', () => {
 
     controller.expectOne(BOOKINGS_URL).flush([]);
     controller.expectOne(PLAN_URL).flush(null, { status: 204, statusText: 'No Content' });
+    flushPass();
     controller.expectOne(PENDING_URL).flush([]);
 
     const request = controller.expectOne((r) => r.url === '/api/admin/classes');
@@ -265,12 +302,62 @@ describe('Dashboard', () => {
     controller.verify();
   });
 
+  /**
+   * The karnet card (S-16, MP-07). What it must show is entries LEFT — the number the member acts on
+   * — and it must be read-only, which is the product decision MP-01 settles rather than a scope cut.
+   */
+  it('shows the karnet with entries left', async () => {
+    configure(MEMBER);
+
+    controller.expectOne(BOOKINGS_URL).flush([]);
+    controller.expectOne(PLAN_URL).flush(null, { status: 204, statusText: 'No Content' });
+    flushPass(PASS);
+    await settle();
+
+    const card = [...element().querySelectorAll('.dashboard-card')].find((c) =>
+      c.textContent?.includes('Karnet 8 wejść'),
+    )!;
+
+    expect(card).toBeDefined();
+    expect(card.querySelector('.dashboard-count')!.textContent).toContain('5');
+    expect(card.textContent).toContain('z 8');
+
+    // READ-ONLY. Nothing on this card is a control — a member neither buys nor extends a karnet here.
+    expect(card.querySelectorAll('button').length).toBe(0);
+    controller.verify();
+  });
+
+  /**
+   * 204 is "you hold no karnet", which is an ordinary state and not an error — and the empty state
+   * names the CONSEQUENCE, because "brak karnetu" alone does not tell a member why nobody is signing
+   * them up for anything.
+   */
+  it('shows a plain empty state when the member has no karnet', async () => {
+    configure(MEMBER);
+
+    controller.expectOne(BOOKINGS_URL).flush([]);
+    controller.expectOne(PLAN_URL).flush(null, { status: 204, statusText: 'No Content' });
+    flushPass();
+    await settle();
+
+    const card = [...element().querySelectorAll('.dashboard-card')].find((c) =>
+      c.textContent?.includes('Twój karnet'),
+    )!;
+
+    expect(card.textContent).toContain('Nie masz aktywnego karnetu');
+    expect(card.querySelector('.empty')).not.toBeNull();
+    // Not an error: an empty state styled as one would send the member to reception over nothing.
+    expect(card.querySelector('[role="alert"]')).toBeNull();
+    controller.verify();
+  });
+
   /** One card failing must not blank the others — the reason there is no single loading flag. */
   it('keeps the other cards when one request fails', async () => {
     configure(MEMBER);
 
     controller.expectOne(BOOKINGS_URL).error(new ProgressEvent('failed'));
     controller.expectOne(PLAN_URL).flush(PLAN);
+    flushPass();
     await settle();
 
     expect(element().querySelector('[role="alert"]')).not.toBeNull();
@@ -283,6 +370,7 @@ describe('Dashboard', () => {
 
     controller.expectOne(BOOKINGS_URL).error(new ProgressEvent('failed'));
     controller.expectOne(PLAN_URL).flush(PLAN);
+    flushPass();
     await settle();
 
     element().querySelector<HTMLButtonElement>('.link-button')!.click();
@@ -292,8 +380,9 @@ describe('Dashboard', () => {
     await settle();
 
     expect(text()).toContain('Joga');
-    // The plan card was never asked again.
+    // Neither the plan card nor the karnet card was asked again.
     controller.expectNone(PLAN_URL);
+    controller.expectNone(PASS_URL);
     controller.verify();
   });
 });
