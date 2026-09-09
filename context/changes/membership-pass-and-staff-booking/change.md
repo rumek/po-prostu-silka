@@ -1,7 +1,7 @@
 ---
 change_id: membership-pass-and-staff-booking
 title: The karnet decides who trains — staff-only booking, no approval gate
-status: implemented
+status: impl_reviewed
 created: 2026-09-09
 updated: 2026-09-09
 archived_at: null
