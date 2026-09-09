@@ -940,9 +940,9 @@ a later change, once no deployed artifact reads it.
 
 #### Automated
 
-- [x] 3.1 Build is warning-free
-- [x] 3.2 Full suite passes
-- [x] 3.3 Entry-pool race test passes on three consecutive full-suite runs
+- [x] 3.1 Build is warning-free — af4470b
+- [x] 3.2 Full suite passes — af4470b
+- [x] 3.3 Entry-pool race test passes on three consecutive full-suite runs — af4470b
 
 #### Manual
 
@@ -954,9 +954,9 @@ a later change, once no deployed artifact reads it.
 
 #### Automated
 
-- [ ] 4.1 Build is warning-free
-- [ ] 4.2 Full suite passes
-- [ ] 4.3 Every widened handler has a non-instructing-trainer 403 test
+- [x] 4.1 Build is warning-free
+- [x] 4.2 Full suite passes
+- [x] 4.3 Every widened handler has a non-instructing-trainer 403 test
 
 #### Manual
 

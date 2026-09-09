@@ -142,10 +142,18 @@ public record AdminBookingRequest(Guid MemberId);
 /// </para>
 ///
 /// <para>
-/// Two groups, both under ActiveMember and both applying the policy at the GROUP, per
+/// Two member-facing groups, both under ActiveMember and both applying the policy at the GROUP, per
 /// <see cref="ClassEndpoints"/>: a Pending or Blocked account cannot book, cancel, or list. That is
 /// the whole of the authorization story on the member side — a booking belongs to its caller by
 /// construction, since every route resolves the member from the cookie and never from the request.
+///
+/// <para>
+/// THE STAFF GROUP IS THE EXCEPTION, and it is the only place in this application where the group
+/// policy is not the whole answer (S-16, MP-02). It admits trainers as well as admins, and a trainer
+/// may act only on classes they personally instruct — a narrowing that depends on the class in the
+/// route and therefore cannot live in a policy. See the comment on that group before adding anything
+/// to it.
+/// </para>
 /// </para>
 /// </summary>
 public static class BookingEndpoints
@@ -190,15 +198,33 @@ public static class BookingEndpoints
 
         myBookings.MapGet("/mine", GetMineAsync);
 
-        // The admin's half. Under Admin rather than ActiveMember, and addressed under
-        // /api/admin/classes so it sits beside the management endpoints it belongs with.
-        var adminBookings = app.MapGroup("/api/admin/classes")
+        // THE STAFF HALF. Under TrainerOrAdmin since S-16, and addressed under /api/admin/classes so
+        // it sits beside the management endpoints it belongs with. The path still says "admin"; the
+        // policy no longer does, and that is not an oversight - renaming the route would break the
+        // SPA's whole booking surface for a cosmetic gain.
+        //
+        // ------------------------------------------------------------------
+        // THE GROUP POLICY ALONE IS NO LONGER SUFFICIENT HERE. READ THIS BEFORE ADDING AN ENDPOINT.
+        //
+        // TrainerOrAdmin admits every trainer in the club, and a trainer may act only on the classes
+        // they personally instruct (MP-02). That narrowing cannot live in the policy: it depends on
+        // the CLASS in the route, which no policy can see. So each handler below carries an inline
+        // ownership check against Class.InstructorMemberId, and ANY endpoint added to this group must
+        // carry the same one - a new route inherits the group's admission and none of its narrowing,
+        // which would silently let a trainer act on somebody else's class.
+        //
+        // Inline rather than an IAuthorizationHandler because that is what this codebase does
+        // everywhere: authorization here is either a group policy or a hand-rolled field check, and
+        // nothing in this repository registers a resource handler. This is the known cost of that
+        // choice, written down where the next person will read it.
+        // ------------------------------------------------------------------
+        var staffBookings = app.MapGroup("/api/admin/classes")
             .WithTags("Bookings")
-            .RequireAuthorization(AuthorizationPolicyNames.Admin);
+            .RequireAuthorization(AuthorizationPolicyNames.TrainerOrAdmin);
 
-        adminBookings.MapGet("/{classId:guid}/bookings", GetForClassAsync);
-        adminBookings.MapPost("/{classId:guid}/bookings", BookForMemberAsync);
-        adminBookings.MapDelete("/{classId:guid}/bookings/{bookingId:guid}", ReleaseAsync);
+        staffBookings.MapGet("/{classId:guid}/bookings", GetForClassAsync);
+        staffBookings.MapPost("/{classId:guid}/bookings", BookForMemberAsync);
+        staffBookings.MapDelete("/{classId:guid}/bookings/{bookingId:guid}", ReleaseAsync);
 
         return app;
     }
@@ -416,6 +442,7 @@ public static class BookingEndpoints
     private static async Task<IResult> BookForMemberAsync(
         Guid classId,
         AdminBookingRequest request,
+        ClaimsPrincipal principal,
         IMemberStore members,
         IClassStore classes,
         IBookingStore bookings,
@@ -424,6 +451,20 @@ public static class BookingEndpoints
         TimeProvider timeProvider,
         CancellationToken cancellationToken)
     {
+        // OWNERSHIP FIRST, before anything about the member is revealed. Checking it after the member
+        // lookup would answer 404 for a member id that does not exist even to a trainer with no
+        // business on this class, which turns the route into a probe for which member ids are real.
+        var entity = await classes.FindAsync(classId, cancellationToken);
+        if (entity is null)
+        {
+            return Results.NotFound();
+        }
+
+        if (!MayActOn(principal, entity))
+        {
+            return NotYourClass();
+        }
+
         var member = await members.FindAsync(request.MemberId, cancellationToken);
         if (member is null)
         {
@@ -551,9 +592,26 @@ public static class BookingEndpoints
     /// </summary>
     private static async Task<IResult> GetForClassAsync(
         Guid classId,
+        ClaimsPrincipal principal,
+        IClassStore classes,
         IBookingQuery query,
-        CancellationToken cancellationToken) =>
-        Results.Ok(await query.GetForClassAsync(classId, cancellationToken));
+        CancellationToken cancellationToken)
+    {
+        // The class is loaded for the ownership check and for nothing else. That is one extra read on
+        // a read-only route, which is the price of the narrowing - and it is a keyed lookup.
+        var entity = await classes.FindAsync(classId, cancellationToken);
+        if (entity is null)
+        {
+            return Results.NotFound();
+        }
+
+        if (!MayActOn(principal, entity))
+        {
+            return NotYourClass();
+        }
+
+        return Results.Ok(await query.GetForClassAsync(classId, cancellationToken));
+    }
 
     /// <summary>
     /// Releases somebody else's spot.
@@ -574,6 +632,7 @@ public static class BookingEndpoints
     private static async Task<IResult> ReleaseAsync(
         Guid classId,
         Guid bookingId,
+        ClaimsPrincipal principal,
         IClassStore classes,
         IBookingStore bookings,
         IMembershipPassStore passes,
@@ -587,6 +646,15 @@ public static class BookingEndpoints
             if (entity is null)
             {
                 return Results.NotFound();
+            }
+
+            // Inside the loop rather than above it, because the class is re-read on every attempt and
+            // the check must be against the row this attempt is actually acting on. Reassigning an
+            // instructor mid-retry is vanishingly unlikely; deciding on a stale copy of the field
+            // that authorises the write is not a thing to leave to likelihood.
+            if (!MayActOn(principal, entity))
+            {
+                return NotYourClass();
             }
 
             var booking = await bookings.FindByIdAsync(bookingId, cancellationToken);
@@ -620,6 +688,38 @@ public static class BookingEndpoints
 
         return Refuse("conflict");
     }
+
+    /// <summary>
+    /// Whether this caller may act on this class (S-16, MP-02).
+    ///
+    /// <para>
+    /// THE FIRST RESOURCE-OWNERSHIP CHECK IN THIS CODEBASE. Until now every authorization decision
+    /// here was either a group policy or a field check about the CALLER; this one compares the caller
+    /// against a property of the resource, which is why it could not stay in the policy — a policy
+    /// cannot see the class in the route.
+    /// </para>
+    ///
+    /// <para>
+    /// An ADMIN PASSES UNCONDITIONALLY and is checked first, so an owner who also teaches is never
+    /// narrowed to their own classes by holding the Trainer role as well. Roles are additive in this
+    /// product (see <see cref="ApplicationRoles"/>) and the realistic staff account holds both.
+    /// </para>
+    /// </summary>
+    private static bool MayActOn(ClaimsPrincipal principal, Class entity) =>
+        principal.IsInRole(ApplicationRoles.Admin)
+        || principal.GetMemberId() == entity.InstructorMemberId;
+
+    /// <summary>
+    /// 403, NOT 404, when a trainer reaches for a class they do not instruct.
+    ///
+    /// <para>
+    /// The class's existence is not a secret — every member can see it on the schedule, instructor
+    /// included. What is refused is the ACTION, and saying so is the honest answer. Hiding it behind a
+    /// 404 would also make the SPA's error handling wrong: "this class is gone, refresh" and "this is
+    /// not your class" call for different screens.
+    /// </para>
+    /// </summary>
+    private static IResult NotYourClass() => Results.Forbid();
 
     /// <summary>
     /// Returns the entry a cancelling booking was holding, by rotating its karnet's stamp (S-16).

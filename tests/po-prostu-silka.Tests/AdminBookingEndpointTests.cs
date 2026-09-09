@@ -98,8 +98,26 @@ public class AdminBookingEndpointTests(IntegrationTestFixture fixture)
     private async Task<(HttpClient Admin, ClassBody Class)> ArrangeAsync(int capacity = 12)
     {
         var admin = await AdminAsync();
+        var (scheduled, _) = await ClassWithInstructorAsync(admin, capacity: capacity);
+
+        return (admin, scheduled);
+    }
+
+    /// <summary>
+    /// A class and the MEMBER id of the trainer instructing it — which the ownership tests need, since
+    /// the whole question they ask is whether the caller is that person.
+    /// </summary>
+    /// <param name="instructorMemberId">
+    /// Whom to put in front of the class. Null mints a fresh trainer, which is what every test that
+    /// does not care about the instructor wants.
+    /// </param>
+    private async Task<(ClassBody Class, Guid InstructorMemberId)> ClassWithInstructorAsync(
+        HttpClient admin,
+        Guid? instructorMemberId = null,
+        int capacity = 12)
+    {
         var type = await CreateTypeAsync(admin);
-        var trainerId = await CreateTrainerAsync(admin);
+        var trainerId = instructorMemberId ?? await CreateTrainerAsync(admin);
 
         var response = await admin.PostAsJsonAsync(ClassesEndpoint, new
         {
@@ -112,7 +130,24 @@ public class AdminBookingEndpointTests(IntegrationTestFixture fixture)
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
-        return (admin, (await response.Content.ReadFromJsonAsync<ClassBody>())!);
+        return ((await response.Content.ReadFromJsonAsync<ClassBody>())!, trainerId);
+    }
+
+    /// <summary>
+    /// A staff account holding BOTH User and Trainer — what promoting a member actually produces, and
+    /// therefore the only shape worth testing the narrowing against. Returns the signed-in client and
+    /// their member id.
+    /// </summary>
+    private async Task<(HttpClient Client, Guid MemberId)> NewTrainerAsync(HttpClient admin)
+    {
+        var email = $"scoped-trainer-{Guid.NewGuid():N}@test.local";
+        await fixture.CreateUserAsync(
+            email, AccountStatus.Active, ApplicationRoles.User, additionalRole: ApplicationRoles.Trainer);
+
+        var members = await admin.GetFromJsonAsync<List<MemberBody>>("/api/admin/members");
+        var memberId = members!.Single(m => m.Email == email).Id;
+
+        return (await fixture.CreateAuthenticatedClientAsync(email), memberId);
     }
 
     /// <summary>
@@ -261,6 +296,117 @@ public class AdminBookingEndpointTests(IntegrationTestFixture fixture)
 
         var booking = Assert.Single(await BookingsForAsync(scheduled.Id));
         Assert.Equal(memberId, booking.MemberId);
+    }
+
+    // --- trainer scoping (S-16, MP-02) -----------------------------------------
+
+    /// <summary>
+    /// The half of MP-02 that is new capability: a trainer books somebody into a class they run,
+    /// without an admin having to do it for them.
+    /// </summary>
+    [Fact]
+    public async Task A_trainer_books_into_a_class_they_instruct()
+    {
+        var admin = await AdminAsync();
+        var (trainer, trainerMemberId) = await NewTrainerAsync(admin);
+        var (scheduled, _) = await ClassWithInstructorAsync(admin, trainerMemberId);
+
+        var memberId = await AccountlessMemberAsync();
+
+        Assert.Equal(HttpStatusCode.OK, (await BookAsync(trainer, scheduled.Id, memberId)).StatusCode);
+    }
+
+    /// <summary>
+    /// The half that is a restriction, and the reason the group policy alone is not enough: the same
+    /// trainer, the same member, a class somebody else instructs.
+    /// </summary>
+    [Fact]
+    public async Task A_trainer_is_refused_on_a_class_someone_else_instructs()
+    {
+        var admin = await AdminAsync();
+        var (trainer, _) = await NewTrainerAsync(admin);
+        var (scheduled, _) = await ClassWithInstructorAsync(admin);
+
+        var memberId = await AccountlessMemberAsync();
+        var response = await BookAsync(trainer, scheduled.Id, memberId);
+
+        // 403, not 404 — the class is on every member's schedule, so its existence is not a secret.
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Empty(await BookingsForAsync(scheduled.Id));
+    }
+
+    [Fact]
+    public async Task A_trainer_releases_a_spot_on_their_own_class_and_is_refused_on_another()
+    {
+        var admin = await AdminAsync();
+        var (trainer, trainerMemberId) = await NewTrainerAsync(admin);
+
+        var (own, _) = await ClassWithInstructorAsync(admin, trainerMemberId);
+        var (other, _) = await ClassWithInstructorAsync(admin);
+
+        var memberId = await AccountlessMemberAsync();
+        Assert.Equal(HttpStatusCode.OK, (await BookAsync(admin, own.Id, memberId)).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await BookAsync(admin, other.Id, memberId)).StatusCode);
+
+        var onOther = Assert.Single(await BookingsForAsync(other.Id));
+        Assert.Equal(
+            HttpStatusCode.Forbidden,
+            (await trainer.DeleteAsync($"{AdminBookingsOf(other.Id)}/{onOther.Id}")).StatusCode);
+
+        var onOwn = Assert.Single(await BookingsForAsync(own.Id));
+        Assert.Equal(
+            HttpStatusCode.NoContent,
+            (await trainer.DeleteAsync($"{AdminBookingsOf(own.Id)}/{onOwn.Id}")).StatusCode);
+    }
+
+    [Fact]
+    public async Task A_trainer_reads_the_roster_of_their_own_class_and_is_refused_on_another()
+    {
+        var admin = await AdminAsync();
+        var (trainer, trainerMemberId) = await NewTrainerAsync(admin);
+
+        var (own, _) = await ClassWithInstructorAsync(admin, trainerMemberId);
+        var (other, _) = await ClassWithInstructorAsync(admin);
+
+        Assert.Equal(HttpStatusCode.OK, (await trainer.GetAsync(AdminBookingsOf(own.Id))).StatusCode);
+        Assert.Equal(
+            HttpStatusCode.Forbidden, (await trainer.GetAsync(AdminBookingsOf(other.Id))).StatusCode);
+    }
+
+    /// <summary>
+    /// AN ADMIN SKIPS THE COMPARISON ENTIRELY. Roles are additive here, so the realistic owner-who-
+    /// teaches holds Trainer as well — and must not be narrowed to their own classes by holding it.
+    /// </summary>
+    [Fact]
+    public async Task An_admin_acts_on_a_class_they_do_not_instruct()
+    {
+        var admin = await AdminAsync();
+        var (scheduled, _) = await ClassWithInstructorAsync(admin);
+        var memberId = await AccountlessMemberAsync();
+
+        Assert.Equal(HttpStatusCode.OK, (await admin.GetAsync(AdminBookingsOf(scheduled.Id))).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await BookAsync(admin, scheduled.Id, memberId)).StatusCode);
+
+        var booking = Assert.Single(await BookingsForAsync(scheduled.Id));
+        Assert.Equal(
+            HttpStatusCode.NoContent,
+            (await admin.DeleteAsync($"{AdminBookingsOf(scheduled.Id)}/{booking.Id}")).StatusCode);
+    }
+
+    /// <summary>
+    /// An ordinary member holds neither role and never reaches the ownership check — the group policy
+    /// is still doing its half of the job.
+    /// </summary>
+    [Fact]
+    public async Task A_plain_member_is_still_refused_by_the_group_policy()
+    {
+        var admin = await AdminAsync();
+        var (scheduled, _) = await ClassWithInstructorAsync(admin);
+
+        var member = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveMemberEmail);
+
+        Assert.Equal(
+            HttpStatusCode.Forbidden, (await member.GetAsync(AdminBookingsOf(scheduled.Id))).StatusCode);
     }
 
     // --- the karnet gate (S-16) ------------------------------------------------
