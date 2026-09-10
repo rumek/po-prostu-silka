@@ -44,14 +44,13 @@
           }
         </div>
 
-        <div class="field">
-          <label for="email">Adres e-mail <span class="optional">(opcjonalnie)</span></label>
-          <input id="email" type="email" autocomplete="email" formControlName="email" />
-          <p class="hint">
-            Bez adresu nie wyślemy powiadomień o odwołanych zajęciach — ale kartotekę można
-            prowadzić i bez niego.
-          </p>
-        </div>
+        <!-- NO EMAIL FIELD (S-17). The desk records who trains here; the address arrives when
+             that person registers with their invitation and becomes their login. -->
+        <p class="hint">
+          Adresu e-mail nie podajemy tutaj — klubowicz poda go sam przy rejestracji z zaproszenia i
+          stanie się on jego loginem. Do tego czasu świadomie nie wysyłamy mu powiadomień e-mail ani
+          push; kontakt jest przy ladzie.
+        </p>
 
         <h2 class="section-title">Dane adresowe <span class="optional">(opcjonalnie)</span></h2>
 

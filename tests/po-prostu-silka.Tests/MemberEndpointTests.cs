@@ -52,21 +52,23 @@ public class MemberEndpointTests(IntegrationTestFixture fixture)
 
     private sealed record FailureBody(string Reason);
 
+    /// <summary>
+    /// NO EMAIL FIELD since S-17 — the admin surface stopped accepting one, and the payload here IS
+    /// the contract. An address reaches a member row exactly once, from RegisterAsync.
+    /// </summary>
     private static object Request(
         string displayName = "Jan Kowalski",
-        string? email = null,
         string? phoneNumber = null,
         string? street = null,
         string? houseNumber = null,
         string? postalCode = null,
         string? city = null) =>
-        new { displayName, email, phoneNumber, street, houseNumber, postalCode, city };
+        new { displayName, phoneNumber, street, houseNumber, postalCode, city };
 
-    private static object FullContact(string displayName, string? email = null) =>
+    private static object FullContact(string displayName) =>
         new
         {
             displayName,
-            email,
             phoneNumber = "601202303",
             street = "Polna",
             houseNumber = "7/2",
@@ -135,13 +137,14 @@ public class MemberEndpointTests(IntegrationTestFixture fixture)
     public async Task A_member_can_be_created_with_full_contact_details()
     {
         var admin = await AdminAsync();
-        var email = $"desk-{Guid.NewGuid():N}@test.local";
 
-        var id = await CreateAsync(admin, FullContact("Anna Nowak", email));
+        var id = await CreateAsync(admin, FullContact("Anna Nowak"));
 
         var detail = await admin.GetFromJsonAsync<MemberDetailBody>($"{Endpoint}/{id}");
 
-        Assert.Equal(email, detail!.Email);
+        // NO ADDRESS, however complete the rest is (S-17). "Full contact details" now means the phone
+        // and the postal address; the email is not the desk's to give.
+        Assert.Null(detail!.Email);
         Assert.Equal("601202303", detail.PhoneNumber);
         Assert.Equal("Polna", detail.Street);
         Assert.Equal("7/2", detail.HouseNumber);
@@ -183,33 +186,26 @@ public class MemberEndpointTests(IntegrationTestFixture fixture)
     }
 
     /// <summary>
-    /// An address already held by an ACCOUNT is taken too, not just one held by another member row.
-    /// Without this an admin could record an address that a later claim could never attach to.
+    /// THE DESK CANNOT SET AN ADDRESS, even by sending one (S-17). The field left the contract, so a
+    /// caller that still supplies it is not refused — it is simply ignored, which is what a removed
+    /// field means over JSON. Worth pinning: a stale client, or a curl, must not be able to write a
+    /// login address into somebody's record from the admin surface.
     /// </summary>
     [Fact]
-    public async Task An_address_an_account_already_holds_is_refused()
+    public async Task An_address_sent_to_the_admin_surface_is_ignored_rather_than_stored()
     {
         var admin = await AdminAsync();
+        var email = $"smuggled-{Guid.NewGuid():N}@test.local";
 
-        var response = await admin.PostAsJsonAsync(
-            Endpoint, Request(displayName: "Duplikat", email: TestUsers.ActiveMemberEmail));
+        var created = await admin.PostAsJsonAsync(
+            Endpoint,
+            new { displayName = "Przemycony Adres", email, phoneNumber = (string?)null });
 
-        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
-        Assert.Equal("email_taken", (await response.Content.ReadFromJsonAsync<FailureBody>())!.Reason);
-    }
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var id = (await created.Content.ReadFromJsonAsync<CreatedBody>())!.Id;
 
-    [Fact]
-    public async Task An_address_another_member_already_holds_is_refused()
-    {
-        var admin = await AdminAsync();
-        var email = $"first-{Guid.NewGuid():N}@test.local";
-
-        await CreateAsync(admin, Request(displayName: "Pierwszy", email: email));
-
-        var response = await admin.PostAsJsonAsync(
-            Endpoint, Request(displayName: "Drugi", email: email));
-
-        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        var detail = await admin.GetFromJsonAsync<MemberDetailBody>($"{Endpoint}/{id}");
+        Assert.Null(detail!.Email);
     }
 
     // --- edit -----------------------------------------------------------------
@@ -228,17 +224,32 @@ public class MemberEndpointTests(IntegrationTestFixture fixture)
         Assert.Equal("Kraków", detail.City);
     }
 
+    /// <summary>
+    /// THE SHARPEST EDGE OF S-17. The admin form stopped sending an address, so an edit that assigned
+    /// the request's value would null the login address the member registered with — losing it to an
+    /// admin correcting a typo in a phone number. UpdateAsync deliberately does not touch Email at
+    /// all, and this is what says so.
+    /// </summary>
     [Fact]
-    public async Task Editing_keeps_an_unchanged_address_rather_than_colliding_with_itself()
+    public async Task Editing_leaves_the_login_address_the_member_registered_with_untouched()
     {
         var admin = await AdminAsync();
-        var email = $"same-{Guid.NewGuid():N}@test.local";
-        var id = await CreateAsync(admin, Request(displayName: "Ten Sam", email: email));
+        var email = $"registered-{Guid.NewGuid():N}@test.local";
+
+        // A record whose address came from registration, which is the only writer of one now.
+        var memberId = await fixture.CreateMemberAsync("Zarejestrowany", email: email);
 
         var response = await admin.PutAsJsonAsync(
-            $"{Endpoint}/{id}", Request(displayName: "Ten Sam Poprawiony", email: email));
+            $"{Endpoint}/{memberId}", FullContact("Zarejestrowany Poprawiony"));
 
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+
+        var detail = await admin.GetFromJsonAsync<MemberDetailBody>($"{Endpoint}/{memberId}");
+        Assert.Equal("Zarejestrowany Poprawiony", detail!.DisplayName);
+        Assert.Equal("Kraków", detail.City);
+
+        // The address survived the edit that never mentioned it.
+        Assert.Equal(email, detail.Email);
     }
 
     /// <summary>

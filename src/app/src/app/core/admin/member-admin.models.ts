@@ -92,13 +92,18 @@ export interface MemberDetail {
 /**
  * Mirrors MemberRequest — what the admin submits to create or edit a record.
  *
+ * NO EMAIL ADDRESS, and its absence is the enforcement (S-17). The desk records who trains here; the
+ * address arrives when that person registers with their invitation and becomes their login. Until
+ * then they receive no email and no push, which is an accepted consequence (IR-01) rather than a gap
+ * to be filled in here. `MemberSummary` and `MemberDetail` still CARRY an address, because reading
+ * one back and writing one are different questions.
+ *
  * The five contact fields are ALL-OR-NOTHING: optional as a block, because demanding a full postal
  * address before the club may write down that someone trains here would defeat the point, but half an
- * address is refused by the same validator `/register` uses.
+ * address is refused by the same validator `PUT /api/profile` uses.
  */
 export interface MemberRequest {
   displayName: string;
-  email: string | null;
   phoneNumber: string | null;
   street: string | null;
   houseNumber: string | null;
@@ -108,13 +113,15 @@ export interface MemberRequest {
 
 /**
  * Mirrors MemberFailure. The five contact codes come straight from ContactDetails and are the same
- * strings the registration and profile forms already map onto their controls.
+ * strings the profile form already maps onto its controls.
+ *
+ * `invalid_email` and `email_taken` are GONE (S-17): this endpoint no longer accepts an address, so
+ * neither is reachable. Registration still answers `email_taken`, which is where an address now
+ * enters a member record.
  */
 export interface MemberFailure {
   reason:
     | 'invalid_display_name'
-    | 'invalid_email'
-    | 'email_taken'
     | 'conflict'
     | 'invalid_phone'
     | 'invalid_street'

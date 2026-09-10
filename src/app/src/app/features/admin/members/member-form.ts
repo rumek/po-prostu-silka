@@ -55,7 +55,6 @@ export class MemberForm implements OnInit {
 
   protected readonly form = inject(FormBuilder).nonNullable.group({
     displayName: ['', [Validators.required, Validators.maxLength(100)]],
-    email: [''],
     phoneNumber: ['', [Validators.pattern(PHONE_PATTERN)]],
     street: [''],
     houseNumber: [''],
@@ -96,7 +95,6 @@ export class MemberForm implements OnInit {
       this.hasAccount.set(member.userId !== null);
       this.form.patchValue({
         displayName: member.displayName,
-        email: member.email ?? '',
         phoneNumber: member.phoneNumber ?? '',
         street: member.street ?? '',
         houseNumber: member.houseNumber ?? '',
@@ -152,7 +150,6 @@ export class MemberForm implements OnInit {
 
     return {
       displayName: value.displayName.trim(),
-      email: trimmed(value.email),
       phoneNumber: trimmed(value.phoneNumber),
       street: trimmed(value.street),
       houseNumber: trimmed(value.houseNumber),
@@ -175,8 +172,11 @@ export class MemberForm implements OnInit {
 
   /**
    * Maps the API's failure vocabulary onto Polish. The five contact codes are the same strings the
-   * registration and profile forms already answer to — deliberately, so the three screens say the
-   * same thing about the same rule.
+   * profile form already answers to — deliberately, so both screens say the same thing about the
+   * same rule.
+   *
+   * There is no email branch since S-17: this form does not send an address, so the endpoint cannot
+   * answer with one of the two codes that used to concern it.
    */
   private messageFor(failure: unknown): string {
     const reason = ((failure as HttpErrorResponse)?.error as MemberFailure | undefined)?.reason;
@@ -184,10 +184,6 @@ export class MemberForm implements OnInit {
     switch (reason) {
       case 'invalid_display_name':
         return 'Podaj imię i nazwisko (maksymalnie 100 znaków).';
-      case 'invalid_email':
-        return 'Podaj poprawny adres e-mail albo zostaw pole puste.';
-      case 'email_taken':
-        return 'Ten adres e-mail należy już do innego członka lub konta.';
       case 'conflict':
         return 'Dane zmieniły się w międzyczasie. Odśwież i spróbuj ponownie.';
       case 'invalid_phone':

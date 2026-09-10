@@ -31,13 +31,17 @@ milestone_status: open
   milestone supersedes published product scope, exactly as M-4 did.
 - **Done when:** every S-NN in this milestone is `done`.
 - **Scope anchors:**
-  - IR-01: An admin records a member with no email address. That person receives no email and no
-    push, and that is an accepted consequence rather than a defect — the club reaches them at the
-    desk.
+  - IR-01: An admin records a member with no email address — and, since the correction below, CANNOT
+    record one at all: the field left the admin form and the API contract together. That person
+    receives no email and no push, and that is an accepted consequence rather than a defect — the
+    club reaches them at the desk. The address arrives when they register with their invitation and
+    becomes their login, which is the only writer of one.
   - IR-02: `/register` is reachable ONLY with an `invitationCode` query parameter. A request without
     one is redirected to `/login`, and no screen in the app links to registration.
-  - IR-03: The code arrives in the query string, prefills the field, and the field is readonly. A
-    person registering never types a code and never edits the one they were handed.
+  - IR-03: The code arrives in the query string and is DISPLAYED AS TEXT, not as a form field. A
+    person registering never types a code and never edits the one they were handed. It shipped first
+    as a readonly input and was corrected: a box the member cannot type into is still a box, and it
+    invites them to try.
   - IR-04: Registration asks for an email address and a password, and nothing else. Display name,
     phone number and postal address are no longer collected — they come from the member record the
     code attaches to.
@@ -52,6 +56,12 @@ milestone_status: open
 **Naming, settled with the user:** the query parameter is `invitationCode`; the API contract keeps
 `memberCode`. Two names for one thing is a deliberate, recorded trade — the SPA reads the friendlier
 word out of the URL and sends the field the API already answers to, and no shipped contract moves.
+
+**Corrected after the first implementation, on the user's review:** two things the slice got wrong
+the first time. The admin form still asked for an email address, which contradicted IR-01's premise —
+the desk does not take one, and the club consciously forgoes notifications until the member registers.
+And the invitation code shipped as a readonly `<input>` rather than as text. Both are folded into
+IR-01 and IR-03 above rather than left as errata.
 
 **Not in scope, deliberately:** GENERATING, expiring and revoking the invitation. That admin surface
 shipped with S-14 and is untouched. Note the narrowing: this line used to say "issuing the

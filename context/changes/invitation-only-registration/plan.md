@@ -50,7 +50,47 @@ their karnet and their plan already there. `POST /api/auth/register` without a m
 400 and creates nothing.
 
 Verify by: `dotnet test` from the repo root, `npm test` and `npm run quality:check` from `src/app/`,
-and the manual steps in `## Testing Strategy`.
+and the manual steps in `## Post-implementation corrections
+
+Two things the slice got wrong the first time, raised by the user after the three phases landed and
+fixed together. Recorded here rather than as errata elsewhere, because the contracts above still
+describe the first attempt and a reader needs to know which one shipped.
+
+### 1. The admin form must not ask for an email address
+
+**What the plan assumed.** Nothing — the admin surface was out of scope beyond Phase 3's copy-link
+button. But IR-01's premise ("an admin records a member with no email address") was only ever a
+*possibility* in the code: `member-form.html` offered an optional email field, and `MemberRequest`
+accepted one.
+
+**What shipped instead.** The field left the admin form and the API contract together. `MemberRequest`
+has no `Email`; `CreateAsync` writes `Email = null` unconditionally; `TryReadRequest` lost its email
+out-parameter and its validation. The `invalid_email` and `email_taken` failure codes are unreachable
+from this endpoint and were removed from `MemberFailure`'s vocabulary and the SPA's union — the
+pre-insert uniqueness check they guarded had nothing left to guard, and `IMemberQuery` dropped out of
+both handlers' parameter lists with it. `POST /api/auth/register` still answers `email_taken`, which
+is now the one place an address enters a member record.
+
+**The sharp edge.** `UpdateAsync` used to run `member.Email = email`. With the form no longer sending
+an address, leaving that line would have nulled the login address the member registered with, on an
+admin correcting a typo in a phone number. The line is deliberately GONE rather than made
+conditional, and `Editing_leaves_the_login_address_the_member_registered_with_untouched` is what says
+so. `An_address_sent_to_the_admin_surface_is_ignored_rather_than_stored` pins the other half: a stale
+client that still posts an address is ignored, not obeyed.
+
+### 2. The invitation code is text, not a readonly input
+
+**What the plan said** (Phase 2, contract #3): "Use a readonly input rather than a disabled one — a
+disabled control is dropped from `getRawValue()`'s payload." That reasoning was sound and the
+implementation followed it, but the premise was wrong: a box the member cannot type into is still a
+box, and it invites them to try.
+
+**What shipped instead.** `memberCode` is not a form control at all. It is a component field read
+from the query and rendered as text (`.invitation-code`), carried into the payload directly. The
+form is down to `email` and `password`. This also retires the readonly-versus-disabled trap the
+contract worried about — there is no bound control whose value could be dropped.
+
+## Testing Strategy`.
 
 ### Key Discoveries
 

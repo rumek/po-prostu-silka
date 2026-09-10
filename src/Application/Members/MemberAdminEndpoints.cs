@@ -97,6 +97,14 @@ public enum MemberListFilter
 /// What the admin submits to create or edit a member record.
 ///
 /// <para>
+/// NO EMAIL ADDRESS, and its absence is the enforcement (S-17). The desk records who trains here;
+/// the address arrives when that person registers with their invitation and becomes their login,
+/// written once by <c>RegisterAsync</c> and never overwritten. Until then the club reaches them at
+/// the counter and they receive no email and no push — an accepted consequence, recorded as IR-01,
+/// not a gap to be filled in by typing an address here.
+/// </para>
+///
+/// <para>
 /// The five contact fields are ALL-OR-NOTHING rather than individually optional — see
 /// <see cref="MemberAdminEndpoints"/>'s remarks on why they are not simply required here the way they
 /// are at registration.
@@ -104,7 +112,6 @@ public enum MemberListFilter
 /// </summary>
 public record MemberRequest(
     string DisplayName,
-    string? Email,
     string? PhoneNumber,
     string? Street,
     string? HouseNumber,
@@ -155,10 +162,16 @@ public record TrainerRoleFailure(string Reason);
 
 /// <summary>
 /// Why a create or edit was refused. <c>invalid_display_name</c> — blank or too long;
-/// <c>invalid_email</c> — present but malformed; <c>email_taken</c> — another member or account
-/// already holds it; <c>conflict</c> — a lost optimistic race. The five contact codes
-/// (<c>invalid_phone</c> and friends) come straight from <see cref="ContactDetails"/> and are the same
-/// strings <c>/register</c> and <c>PUT /api/profile</c> answer with.
+/// <c>conflict</c> — a lost optimistic race. The five contact codes (<c>invalid_phone</c> and
+/// friends) come straight from <see cref="ContactDetails"/> and are the same strings
+/// <c>PUT /api/profile</c> answers with.
+///
+/// <para>
+/// <c>invalid_email</c> and <c>email_taken</c> are GONE (S-17). This endpoint no longer accepts an
+/// address, so neither is reachable: there is nothing to malform and nothing to collide with. The
+/// uniqueness check they guarded still runs, at the one place an address now enters a member record —
+/// <c>POST /api/auth/register</c>, which keeps answering <c>email_taken</c>.
+/// </para>
 /// </summary>
 public record MemberFailure(string Reason);
 
@@ -279,23 +292,13 @@ public static class MemberAdminEndpoints
     private static async Task<IResult> CreateAsync(
         [FromBody] MemberRequest request,
         IMemberStore members,
-        IMemberQuery query,
         IUnitOfWork unitOfWork,
         TimeProvider timeProvider,
         CancellationToken cancellationToken)
     {
-        if (!TryReadRequest(request, out var displayName, out var email, out var contact, out var failure))
+        if (!TryReadRequest(request, out var displayName, out var contact, out var failure))
         {
             return failure;
-        }
-
-        // Checked before the insert so the ordinary case answers in this endpoint's own vocabulary
-        // rather than as a unique-index violation. The index is still what makes it true - two admins
-        // creating the same address at the same moment both pass this, and the loser gets the 500 that
-        // an unhandled DbUpdateException produces. Rare enough to leave, and safe: nothing is written.
-        if (email is not null && await query.EmailExistsAsync(email, null, cancellationToken))
-        {
-            return Results.Json(new MemberFailure("email_taken"), statusCode: 409);
         }
 
         var member = new Member
@@ -303,7 +306,12 @@ public static class MemberAdminEndpoints
             Id = Guid.NewGuid(),
             UserId = null,
             DisplayName = displayName,
-            Email = email,
+
+            // NULL, ALWAYS (S-17). The desk does not take an address; the one this row will hold is
+            // the login the member registers with, written by RegisterAsync. That also removes the
+            // pre-insert uniqueness check that used to guard IX_Members_Email here — nothing this
+            // endpoint writes can collide with it any more.
+            Email = null,
             PhoneNumber = contact?.PhoneNumber,
             Street = contact?.Street,
             HouseNumber = contact?.HouseNumber,
@@ -342,12 +350,11 @@ public static class MemberAdminEndpoints
         Guid memberId,
         [FromBody] MemberRequest request,
         IMemberStore members,
-        IMemberQuery query,
         UserManager<ApplicationUser> userManager,
         IUnitOfWork unitOfWork,
         CancellationToken cancellationToken)
     {
-        if (!TryReadRequest(request, out var displayName, out var email, out var contact, out var failure))
+        if (!TryReadRequest(request, out var displayName, out var contact, out var failure))
         {
             return failure;
         }
@@ -358,13 +365,12 @@ public static class MemberAdminEndpoints
             return Results.NotFound();
         }
 
-        if (email is not null && await query.EmailExistsAsync(email, memberId, cancellationToken))
-        {
-            return Results.Json(new MemberFailure("email_taken"), statusCode: 409);
-        }
-
+        // MEMBER.EMAIL IS DELIBERATELY NOT ASSIGNED (S-17), and the omission is load-bearing rather
+        // than an oversight. The admin form stopped sending an address, so writing the request's
+        // value here would set every edit's email to null — wiping the login address the member
+        // registered with, on an admin fixing a typo in a phone number. The address has exactly one
+        // writer now, RegisterAsync, and nothing here may take it away.
         member.DisplayName = displayName;
-        member.Email = email;
         member.PhoneNumber = contact?.PhoneNumber;
         member.Street = contact?.Street;
         member.HouseNumber = contact?.HouseNumber;
@@ -834,16 +840,19 @@ public static class MemberAdminEndpoints
     /// <paramref name="contact"/> comes back null when the caller supplied none of the five fields,
     /// which is the "recorded at the desk with nothing but a name" case. Supplying SOME of them is a
     /// failure, not a partial save.
+    ///
+    /// <para>
+    /// There is no email out-parameter any more (S-17): the admin does not supply an address, so
+    /// there is nothing here to validate or normalise.
+    /// </para>
     /// </summary>
     private static bool TryReadRequest(
         MemberRequest request,
         out string displayName,
-        out string? email,
         out ContactDetails? contact,
         out IResult failure)
     {
         displayName = string.Empty;
-        email = null;
         contact = null;
         failure = Results.Empty;
 
@@ -855,19 +864,6 @@ public static class MemberAdminEndpoints
         }
 
         displayName = trimmedName;
-
-        var trimmedEmail = string.IsNullOrWhiteSpace(request.Email) ? null : request.Email.Trim();
-        if (trimmedEmail is not null
-            && (trimmedEmail.Length > 256 || !trimmedEmail.Contains('@') || trimmedEmail.Contains(' ')))
-        {
-            // Deliberately not a full RFC parse. The address is a way to reach someone, this endpoint
-            // never sends to it, and Identity does the real validation on the path where it becomes a
-            // login. What this rejects is the typo that would otherwise sit in the club's records.
-            failure = Results.Json(new MemberFailure("invalid_email"), statusCode: 400);
-            return false;
-        }
-
-        email = trimmedEmail;
 
         var supplied = new[]
         {

@@ -114,8 +114,12 @@ describe('MemberForm', () => {
 
     // EMPTY STRINGS CROSS AS NULLS. "Not given" is the record's state; "" would be a value the club
     // never entered, and the API would store it as one.
-    expect(request.request.body.email).toBeNull();
     expect(request.request.body.city).toBeNull();
+
+    // NO ADDRESS AT ALL (S-17): the desk does not take one, and the member supplies it when they
+    // register with their invitation. Asserted as absent from the payload, not as null — the field
+    // is gone from the contract rather than left empty.
+    expect(request.request.body).not.toHaveProperty('email');
 
     request.flush({ id: 'm9' }, { status: 201, statusText: 'Created' });
     await submitted;
@@ -186,21 +190,37 @@ describe('MemberForm', () => {
     expect(html()).not.toContain('ma konto w aplikacji');
   });
 
-  it('maps a taken address onto its own message', async () => {
+  /**
+   * S-17: the form asks for no address, so there is no email box to find and nothing on the screen
+   * that could produce one. What the record HOLDS is still shown in the list — reading an address
+   * back and writing one are different questions.
+   */
+  it('offers no email field, and says where the address comes from instead', async () => {
     await createWith(null);
 
-    form().patchValue({ displayName: 'Duplikat', email: 'anna@test.local' });
+    expect((fixture.nativeElement as HTMLElement).querySelector('#email')).toBeNull();
+    expect(html()).toContain('przy rejestracji z zaproszenia');
+  });
+
+  /**
+   * A lost optimistic race still has to say so. This used to be the `email_taken` test; that code is
+   * unreachable now, and `conflict` is the failure that still reaches this screen from a save.
+   */
+  it('maps a lost race onto its own message and keeps the admin on the form', async () => {
+    await createWith('m2', ACCOUNTLESS);
+
+    form().patchValue({ displayName: 'Zmieniony' });
     const submitted = (component() as unknown as { submit(): Promise<void> }).submit();
 
-    (await vi.waitFor(() => controller.expectOne('/api/admin/members'))).flush(
-      { reason: 'email_taken' },
+    (await vi.waitFor(() => controller.expectOne('/api/admin/members/m2'))).flush(
+      { reason: 'conflict' },
       { status: 409, statusText: 'Conflict' },
     );
 
     await submitted;
     fixture.detectChanges();
 
-    expect(html()).toContain('należy już do innego członka');
+    expect(html()).toContain('zmieniły się w międzyczasie');
 
     // The admin STAYS on the form with their input intact — navigating away on a failure would lose
     // everything they typed and tell them it saved.

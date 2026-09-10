@@ -47,22 +47,14 @@
         }
       </div>
 
-      <!-- READONLY, and readonly rather than disabled on purpose: a disabled control is dropped from
-           getRawValue()'s payload, which would post an empty code. The value comes from the
-           invitation link, so there is nothing here to type and no error branch to show — a code the
-           API refuses takes the visitor to /login instead, because a message under a box they cannot
-           edit would be a dead end. -->
+      <!-- TEXT, NOT AN INPUT. The code comes from the invitation link and there is nothing to type:
+           a readonly box would still look like somewhere to type. No error branch either — a code the
+           API refuses takes the visitor to /login, because a message under something they cannot edit
+           would be a dead end. -->
       <div class="field">
-        <label for="memberCode">Kod zaproszenia</label>
-        <input
-          id="memberCode"
-          type="text"
-          readonly
-          tabindex="-1"
-          autocomplete="off"
-          formControlName="memberCode"
-        />
-        <p class="hint">Kod pochodzi z linku od obsługi klubu i nie trzeba go zmieniać.</p>
+        <p class="field-label">Kod zaproszenia</p>
+        <p class="invitation-code" data-testid="invitation-code">{{ invitationCode }}</p>
+        <p class="hint">Kod pochodzi z linku od obsługi klubu.</p>
       </div>
 
       <button type="submit" class="button button--block" [disabled]="submitting()">

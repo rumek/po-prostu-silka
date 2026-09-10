@@ -44,25 +44,21 @@ export class Register {
   /**
    * The code comes from the LINK, never from the keyboard (S-17, IR-03).
    *
+   * NOT A FORM CONTROL, and deliberately so. It was a readonly input; a box the member cannot type
+   * into is still a box, and it invites them to try. It is displayed as TEXT and carried straight
+   * into the payload from here — which also removes the readonly-versus-disabled trap that a bound
+   * control brought with it, since there is no longer a control whose value could be dropped.
+   *
    * Read once from the snapshot: this route is not reused, so there is nothing to observe. The guard
    * has already refused an empty one, so by the time this runs in the browser there is a value —
    * the `?? ''` covers the prerender, where the guard deliberately decides nothing.
    */
-  private readonly invitationCode =
+  protected readonly invitationCode =
     inject(ActivatedRoute).snapshot.queryParamMap.get('invitationCode')?.trim() ?? '';
 
   protected readonly form = inject(FormBuilder).nonNullable.group({
     email: ['', [Validators.required, Validators.email]],
     password: ['', [Validators.required, Validators.minLength(MIN_PASSWORD_LENGTH)]],
-
-    // Seeded from the query and never edited. No client-side format rule beyond a length bound: the
-    // server normalises what arrives (case, the dash it printed, stray spaces), so anything stricter
-    // here would reject codes the API would have accepted.
-    //
-    // READONLY IN THE TEMPLATE, NOT `disable()`. A disabled control is dropped from getRawValue()'s
-    // payload on the template-bound path, which would post an empty code and turn every registration
-    // into a 400.
-    memberCode: [this.invitationCode, [Validators.required, Validators.maxLength(32)]],
   });
 
   protected readonly error = signal<string | null>(null);
@@ -86,8 +82,8 @@ export class Register {
         password: value.password,
 
         // Sent AS IT ARRIVED, dash and all: normalisation belongs to the API, which owns the
-        // alphabet. Only the whitespace a URL or a paste brings along has been stripped.
-        memberCode: value.memberCode.trim(),
+        // alphabet. Only the whitespace a URL or a paste brings along was stripped, on the way in.
+        memberCode: this.invitationCode,
       });
 
       // Straight to the dashboard (S-16, MP-03): the account works the moment it exists, and since
@@ -105,9 +101,9 @@ export class Register {
    * TWO KINDS OF FAILURE, AND THEY MUST NOT SHARE A HANDLER.
    *
    * <p>
-   * A REFUSED CODE LEAVES THE SCREEN. The field is readonly, so there is nothing here for the member
-   * to correct — an error message under a box they cannot touch is a dead end. They go to /login
-   * with a reason that screen renders, and the club issues a fresh invitation.
+   * A REFUSED CODE LEAVES THE SCREEN. The code is not a field at all, so there is nothing here for
+   * the member to correct — an error message under text they cannot edit is a dead end. They go to
+   * /login with a reason that screen renders, and the club issues a fresh invitation.
    * </p>
    *
    * <p>

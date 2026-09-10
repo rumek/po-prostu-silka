@@ -92,26 +92,26 @@ describe('Register', () => {
   // --- the invitation code (S-17) -------------------------------------------
 
   /** IR-03: the code arrives in the link and the member never types it. */
-  it('prefills the code field from the invitationCode query parameter', () => {
-    const input = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>(
-      '#memberCode',
-    )!;
+  it('shows the code from the invitationCode query parameter', () => {
+    const shown = (fixture.nativeElement as HTMLElement).querySelector(
+      '[data-testid="invitation-code"]',
+    );
 
-    expect(input.value).toBe(INVITATION_CODE);
+    expect(shown?.textContent?.trim()).toBe(INVITATION_CODE);
   });
 
   /**
-   * READONLY, not disabled. A disabled control is dropped from getRawValue()'s payload, which would
-   * post an empty code and turn every registration into a 400 — so the attribute this asserts is
-   * load-bearing rather than cosmetic.
+   * TEXT, NOT AN INPUT. A readonly box is still a box and invites the member to type into it; and
+   * with no bound control there is no readonly-versus-disabled trap left to fall into either.
    */
-  it('makes the code field readonly rather than disabled', () => {
-    const input = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>(
-      '#memberCode',
-    )!;
+  it('renders the code as text rather than as any form field', () => {
+    const compiled = fixture.nativeElement as HTMLElement;
 
-    expect(input.readOnly).toBe(true);
-    expect(input.disabled).toBe(false);
+    expect(compiled.querySelector('#memberCode')).toBeNull();
+    expect(compiled.querySelector('input[readonly]')).toBeNull();
+
+    // The form itself is down to the two things the member actually supplies.
+    expect(compiled.querySelectorAll('form input')).toHaveLength(2);
   });
 
   /**

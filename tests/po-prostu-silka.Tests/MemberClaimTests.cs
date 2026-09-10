@@ -75,7 +75,6 @@ public class MemberClaimTests(IntegrationTestFixture fixture)
             new
             {
                 displayName = displayName ?? $"Klubowicz {Guid.NewGuid():N}",
-                email = (string?)null,
                 phoneNumber = withContactDetails ? "501601701" : null,
                 street = withContactDetails ? "Kluczowa" : null,
                 houseNumber = withContactDetails ? "3" : null,
@@ -288,9 +287,15 @@ public class MemberClaimTests(IntegrationTestFixture fixture)
     }
 
     /// <summary>
-    /// A member the club recorded WITH an address of their own keeps it: the login address is filled
-    /// in only where there is nothing, never over the top. Identity holds the authoritative copy of
-    /// the login address, and the record's own is what the club will reach them at.
+    /// A record that ALREADY holds an address keeps it: the login address is filled in only where
+    /// there is nothing, never over the top. That is what `claimed.Email ??= request.Email` buys.
+    ///
+    /// <para>
+    /// Arranged through the DbContext rather than the admin API, and that is the point: since S-17
+    /// the admin surface cannot set an address at all, so the only rows in this state are ones
+    /// recorded before that change. The `??=` is defence for exactly them, and would otherwise look
+    /// like dead code to the next reader.
+    /// </para>
     /// </summary>
     [Fact]
     public async Task A_records_own_email_is_not_replaced_by_the_login_address()
@@ -298,21 +303,7 @@ public class MemberClaimTests(IntegrationTestFixture fixture)
         var admin = await AdminAsync();
         var recorded = $"desk-{Guid.NewGuid():N}@test.local";
 
-        var created = await admin.PostAsJsonAsync(
-            Members,
-            new
-            {
-                displayName = "Klubowicz Z Adresem",
-                email = recorded,
-                phoneNumber = (string?)null,
-                street = (string?)null,
-                houseNumber = (string?)null,
-                postalCode = (string?)null,
-                city = (string?)null,
-            });
-
-        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
-        var memberId = (await created.Content.ReadFromJsonAsync<CreatedBody>())!.Id;
+        var memberId = await fixture.CreateMemberAsync("Klubowicz Z Adresem", email: recorded);
 
         var code = (await (await admin.PostAsync($"{Members}/{memberId}/access-code", content: null))
             .Content.ReadFromJsonAsync<AccessCodeBody>())!.Code;

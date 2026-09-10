@@ -16,11 +16,14 @@ handed over in person.
 Settled with the user before planning; the anchors are `IR-01`–`IR-05` in
 `context/foundation/roadmap.md`:
 
-1. An admin records a member with no email address. That person gets no email and no push — an
-   accepted consequence, not a defect.
+1. An admin records a member with no email address — and cannot record one at all: the field left the
+   admin form and the `MemberRequest` contract together, corrected on review. That person gets no
+   email and no push — an accepted consequence, not a defect. The address arrives at registration and
+   becomes their login.
 2. `/register` is reachable ONLY with an `invitationCode` query parameter; without one the visitor is
    redirected to `/login`. No screen in the app links to registration.
-3. The code arrives in the query string, prefills the field, and the field is readonly.
+3. The code arrives in the query string and is shown as text, not as a form field. (It shipped as a
+   readonly input first and was corrected on review — a box nobody may type into still reads as one.)
 4. Registration asks for an email address and a password, and nothing else. Display name, phone and
    postal address come from the member record the code attaches to.
 5. Registration without a valid code is impossible, and the refusal lives in the API, not only in the

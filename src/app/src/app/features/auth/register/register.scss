@@ -7,11 +7,24 @@
   text-align: center;
 }
 
-// Marks the one field on this form the member may legitimately leave empty (S-14). Quiet, and part
-// of the label rather than a line under it: someone filling in a registration form should be able to
-// see at a glance which box they can skip.
-.optional {
-  color: var(--muted);
+// The invitation code is DISPLAYED, not entered (S-17), so it gets a label that is not a <label> —
+// there is no control for one to point at. Matches `.field label` in styles.scss so the block still
+// reads as part of the form rather than as loose prose beside it.
+.field-label {
   font-size: 0.875rem;
-  font-weight: 400;
+  font-weight: 500;
+}
+
+// Deliberately NOT styled as an input. It is set in the monospace face the code was designed to be
+// read in — the alphabet drops O/0 and I/1/L precisely so eight characters survive being read aloud
+// — and given a quiet fill that says "this is a value we are showing you", not "type here".
+.invitation-code {
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  background: var(--section-cool);
+  color: var(--ink);
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 1.125rem;
+  letter-spacing: 0.08em;
 }
