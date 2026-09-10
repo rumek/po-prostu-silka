@@ -18,18 +18,10 @@
 
     <!-- Text, not disabled inputs, and deliberately: a disabled field still reads as something that
          might become editable. The gym owns these two values (FR-006 as rewritten) and no endpoint
-         in this app changes either. -->
-    <dl>
-      <div class="readonly-field">
-        <dt>Imię i nazwisko</dt>
-        <dd>{{ user()?.displayName }}</dd>
-      </div>
-
-      <div class="readonly-field">
-        <dt>Adres e-mail</dt>
-        <dd>{{ user()?.email }}</dd>
-      </div>
-    </dl>
+         in this app changes either. The markup moved into app-readonly-field so /register renders
+         the invitation code the same way. -->
+    <app-readonly-field label="Imię i nazwisko" [value]="user()?.displayName" />
+    <app-readonly-field label="Adres e-mail" [value]="user()?.email" />
 
     <p class="hint">
       Imię, nazwisko i adres e-mail prowadzi obsługa siłowni. Jeśli coś się nie zgadza, daj nam

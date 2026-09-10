@@ -1,0 +1,19 @@
+// Moved here verbatim from profile.scss when this became a component (S-17 follow-up), so the
+// invitation code on /register renders identically to the two values /profile has always shown.
+//
+// `margin: 0` on the <dl> because the element now carries the list itself: the browser's default
+// description-list margins would stack on top of the spacing below and space the fields unevenly.
+.readonly-field {
+  margin: 0 0 var(--space-4);
+}
+
+.readonly-field dt {
+  margin-bottom: var(--space-1);
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.readonly-field dd {
+  margin: 0;
+  font-size: 1.0625rem;
+}

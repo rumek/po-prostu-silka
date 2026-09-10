@@ -11,6 +11,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/auth/auth.service';
 import { RegisterFailure } from '../../../core/auth/auth.models';
 import { MIN_PASSWORD_LENGTH } from '../../../core/auth/validation';
+import { ReadonlyField } from '../../../shared/readonly-field/readonly-field';
 
 /**
  * Registration (FR-001, narrowed to invitation-only by S-17). The account is created ACTIVE and
@@ -30,7 +31,7 @@ import { MIN_PASSWORD_LENGTH } from '../../../core/auth/validation';
  * </p>
  */
 @Component({
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ReactiveFormsModule, RouterLink, ReadonlyField],
   selector: 'app-register',
   styleUrl: './register.scss',
   templateUrl: './register.html',

@@ -93,20 +93,21 @@ describe('Register', () => {
 
   /** IR-03: the code arrives in the link and the member never types it. */
   it('shows the code from the invitationCode query parameter', () => {
-    const shown = (fixture.nativeElement as HTMLElement).querySelector(
-      '[data-testid="invitation-code"]',
-    );
+    const shown = (fixture.nativeElement as HTMLElement).querySelector('app-readonly-field dd');
 
     expect(shown?.textContent?.trim()).toBe(INVITATION_CODE);
   });
 
   /**
-   * TEXT, NOT AN INPUT. A readonly box is still a box and invites the member to type into it; and
-   * with no bound control there is no readonly-versus-disabled trap left to fall into either.
+   * TEXT, NOT AN INPUT, and through the SAME component /profile shows its un-editable values with —
+   * asserted on the element rather than on a class, because "looks like the profile screen" is the
+   * requirement. A readonly box is still a box and invites the member to type into it; and with no
+   * bound control there is no readonly-versus-disabled trap left to fall into either.
    */
-  it('renders the code as text rather than as any form field', () => {
+  it('renders the code through the shared readonly field, not as any form control', () => {
     const compiled = fixture.nativeElement as HTMLElement;
 
+    expect(compiled.querySelector('app-readonly-field')).not.toBeNull();
     expect(compiled.querySelector('#memberCode')).toBeNull();
     expect(compiled.querySelector('input[readonly]')).toBeNull();
 

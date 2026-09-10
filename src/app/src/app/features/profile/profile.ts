@@ -10,6 +10,7 @@ import {
 } from '@angular/forms';
 import { AuthService } from '../../core/auth/auth.service';
 import { ChangePasswordFailure, ProfileFailure } from '../../core/auth/auth.models';
+import { ReadonlyField } from '../../shared/readonly-field/readonly-field';
 import {
   MIN_PASSWORD_LENGTH,
   PHONE_PATTERN,
@@ -36,7 +37,7 @@ function passwordsMatch(group: AbstractControl): ValidationErrors | null {
  * those two values and nothing in this app changes them.
  */
 @Component({
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, ReadonlyField],
   selector: 'app-profile',
   styleUrl: './profile.scss',
   templateUrl: './profile.html',
