@@ -9,7 +9,7 @@ main_goal: speed
 top_blocker: none
 milestone_id: invitation-only-registration
 milestone_seq: 5
-milestone_status: open
+milestone_status: closed
 ---
 
 # Roadmap: Po Prostu Siłka
@@ -20,7 +20,11 @@ milestone_status: open
 
 ## Milestone
 
-**M-5: An account is created only by invitation** — Status: open
+**M-5: An account is created only by invitation** — Status: closed (2026-09-10)
+
+> CLOSED, and no successor opened. S-17 was M-5's only slice and it is `done`, so the "Done when"
+> below is satisfied. The full entry is in `## Milestone History`; this section stays as written
+> until `/10x-roadmap` opens M-6 over it.
 
 - **Intent:** Registration stops being a public door. The club's desk is where a person enters the
   records, and the only way to attach a login to those records is an invitation code handed over in
@@ -113,8 +117,8 @@ back on the login screen.
 
 > "North star" here means the smallest end-to-end slice whose successful delivery would prove the core
 > product hypothesis. M-1's was S-09 (email + push on class changes), M-2's was S-14 (the claim path),
-> M-3's was S-15 (the plan card) and M-4's was S-16 (the karnet refusal); all shipped, and their
-> entries live in `## Milestone History`.
+> M-3's was S-15 (the plan card), M-4's was S-16 (the karnet refusal) and M-5's was S-17 above; all
+> shipped, and their entries live in `## Milestone History`.
 
 ## At a glance
 
@@ -139,7 +143,7 @@ back on the login screen.
 | S-14 | member-entity-and-accountless-members | admin keeps a record for someone with no account; that person later claims it with a code | S-02, S-08, S-11, S-13 | M-2 AM-001–AM-006 | done |
 | S-15 | plan-card-prescription-detail | member reads their plan card with the muscle group, a prescribed duration where the trainer set one, an info icon to the exercise, and the note set off as a callout | S-10, S-11 | M-3 MS-001–MS-004 | done |
 | S-16 | membership-pass-and-staff-booking | admin issues a karnet and books a member in; a trainer books into their own classes; a member with no valid karnet is refused; nobody self-books and nobody waits for approval | S-01, S-04, S-08, S-14 | M-4 MP-01–MP-07 (retires v1 US-01, FR-002, FR-003, FR-008, FR-009) | done        |
-| S-17 | invitation-only-registration | register only through an invitation link — the code is prefilled and readonly, the form asks for an email and a password, and there is no way in without a code | S-14, S-16 | M-5 IR-01–IR-06 (supersedes v1 FR-001's open self-registration) | done |
+| S-17 | invitation-only-registration | register only through an invitation link — the code is shown as text rather than typed, the form asks for an email and a password, and there is no way in without a code | S-14, S-16 | M-5 IR-01–IR-06 (supersedes v1 FR-001's open self-registration) | done |
 
 ## Streams
 
@@ -450,8 +454,8 @@ What's already in place in the codebase as of `2026-09-02` (auto-researched + us
 ### S-17: An account is created only by invitation
 
 - **Outcome:** user (admin) records a member without an email address and hands them an invitation
-  link; that person opens `/register?invitationCode=…`, finds the code already filled in and not
-  editable, supplies only an email address and a password, and lands on the record the club already
+  link; that person opens `/register?invitationCode=…`, finds the code shown to them rather than
+  asked for, supplies only an email address and a password, and lands on the record the club already
   keeps — its bookings, its karnet and its plan already there; opening `/register` without a code
   sends them to the login screen, and the API refuses a registration that carries no code.
 - **Change ID:** invitation-only-registration
@@ -496,7 +500,7 @@ What's already in place in the codebase as of `2026-09-02` (auto-researched + us
 | S-14       | member-entity-and-accountless-members | Member entity split from the account; accountless members and the claim code | no                    | Done — archived 2026-09-08                          |
 | S-15       | plan-card-prescription-detail    | Prescribed duration, muscle group, info icon and note callout on the plan card | no                    | Done — archived 2026-09-09                          |
 | S-16       | membership-pass-and-staff-booking | Membership pass gates booking; staff book on a member's behalf; approval retired | no                    | Done — archived 2026-09-09                          |
-| S-17       | invitation-only-registration     | Invitation-only registration with a prefilled, readonly code | yes                   | Run `/10x-plan invitation-only-registration` — M-5's only slice |
+| S-17       | invitation-only-registration     | Invitation-only registration; the code is shown as text, not typed | no                    | Done — archived 2026-09-10                          |
 
 ## Open Roadmap Questions
 
@@ -586,6 +590,47 @@ Resolved since the previous roadmap: the sender-domain question that gated F-03 
   - MP-07: A member's passes form a history and their validity ranges may not overlap, so any date
     resolves to at most one pass.
 
+- **M-5: An account is created only by invitation** (`invitation-only-registration`) — seq 5, opened
+  2026-09-09, closed 2026-09-10. Delivered S-17, its only slice: registration narrowed to claim-only
+  (the API refuses a request carrying no code, and the branch that created a fresh member record is
+  gone), `/register` put behind `invitationGuard` so it is reachable only with an `invitationCode`,
+  the form cut to an email address and a password beside the code, and a copyable invitation URL on
+  the admin's code panel. Closed with its "Done when" satisfied. Two things were corrected after the
+  three phases landed and before the close: the admin form stopped asking for an email address at all
+  (the field left `MemberRequest` with it, and `UpdateAsync` deliberately stopped assigning
+  `Member.Email` — with the form no longer sending one, that assignment would have wiped the login
+  address on any edit), and the invitation code stopped being a readonly input in favour of plain
+  text. Its "not in scope" line narrowed once during planning: IR-06 added the copy-link action,
+  because copying the link is part of issuing the invitation, leaving only generating, expiring and
+  revoking the code outside. Its scope anchors IR-01–IR-06 are preserved in this entry, because no
+  PRD version describes an invitation-only door — v1 FR-001 describes open self-registration, which
+  this milestone supersedes:
+  - IR-01: An admin records a member with no email address — and cannot record one at all: the field
+    left the admin form and the API contract together. That person receives no email and no push, and
+    that is an accepted consequence rather than a defect — the club reaches them at the desk. The
+    address arrives when they register with their invitation and becomes their login, which is the
+    only writer of one.
+  - IR-02: `/register` is reachable ONLY with an `invitationCode` query parameter. A request without
+    one is redirected to `/login`, and no screen in the app links to registration.
+  - IR-03: The code arrives in the query string and is DISPLAYED AS TEXT, not as a form field. A
+    person registering never types a code and never edits the one they were handed. It shipped first
+    as a readonly input and was corrected: a box the member cannot type into is still a box, and it
+    invites them to try.
+  - IR-04: Registration asks for an email address and a password, and nothing else. Display name,
+    phone number and postal address are no longer collected — they come from the member record the
+    code attaches to.
+  - IR-05: Registration without a valid code is impossible, and the refusal lives in the API rather
+    than only in the SPA. A code that is unknown, expired, revoked or already used is still refused
+    as one answer, for the account-enumeration reason S-14 recorded.
+  - IR-06: The admin can copy the whole invitation URL, not only the bare code. Added during
+    planning, deliberately widening this milestone: the link is what an admin pastes into a message,
+    and without it every invitation would have to be assembled by hand. The bare code stays copyable
+    beside it — it exists to be read down the phone, which is what its alphabet was designed for.
+
+  **Open when this closed:** the ten manual verification steps in S-17's plan
+  (`context/archive/2026-09-09-invitation-only-registration/plan.md`) were deferred to a deployed
+  environment and were still unchecked at archive time. Every automated gate was green.
+
 ## Done
 
 - **F-01: (foundation) Azure SQL Database (Basic DTU tier) provisioned and connected; EF Core installed with a bootstrapped DbContext; schema migrations run automatically on deploy; connection string lives in App Service settings; Always On re-verified.** — Archived 2026-08-31 → `context/archive/2026-08-31-persistence-foundation/`. Lesson: —.
@@ -607,4 +652,4 @@ Resolved since the previous roadmap: the sender-domain question that gated F-03 
 - **S-14: the admin creates a member record for someone who has never registered, edits and blocks it, assigns them a training plan and books them into a class; the admin issues a single-use code, and the person registers with it and lands on that record — their existing bookings and their active plan already there.** — Archived 2026-09-08 → `context/archive/2026-09-07-member-entity-and-accountless-members/`. Lesson: —.
 - **S-15: user (member) opens their plan and each exercise card shows which muscle group it trains, the duration the trainer prescribed where the exercise is measured in time, a distinct info icon leading to the exercise details, and the trainer's note set off as a callout.** — Archived 2026-09-09 → `context/archive/2026-09-08-plan-card-prescription-detail/`. Lesson: —.
 - **S-16: user (admin) issues a member a karnet — a type name, a validity range and a number of entries — and books that member into a class; a trainer does the same for the classes they instruct; the member opens the app, sees their karnet and how many entries are left, sees their upcoming classes and cannot book or cancel anything; a booking into a class the karnet does not cover, or with no entry left, is refused; a newly registered account is active immediately and there is no approvals tab.** — Archived 2026-09-09 → `context/archive/2026-09-09-membership-pass-and-staff-booking/`. Lesson: —.
-- **S-17: user (admin) records a member without an email address and hands them an invitation link; that person opens `/register?invitationCode=…`, finds the code already filled in and not editable, supplies only an email address and a password, and lands on the record the club already keeps — its bookings, its karnet and its plan already there; opening `/register` without a code sends them to the login screen, and the API refuses a registration that carries no code.** — Archived 2026-09-10 → `context/archive/2026-09-09-invitation-only-registration/`. Lesson: —.
+- **S-17: user (admin) records a member without an email address and hands them an invitation link; that person opens `/register?invitationCode=…`, finds the code shown to them rather than asked for, supplies only an email address and a password, and lands on the record the club already keeps — its bookings, its karnet and its plan already there; opening `/register` without a code sends them to the login screen, and the API refuses a registration that carries no code.** — Archived 2026-09-10 → `context/archive/2026-09-09-invitation-only-registration/`. Lesson: —.
