@@ -1,10 +1,10 @@
 ---
 change_id: invitation-only-registration
 title: An account is created only by invitation — code-gated registration, shortened form
-status: implementing
+status: archived
 created: 2026-09-09
-updated: 2026-09-09
-archived_at: null
+updated: 2026-09-10
+archived_at: 2026-09-10T09:15:32Z
 ---
 
 ## Notes
