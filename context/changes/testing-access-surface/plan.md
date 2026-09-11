@@ -307,8 +307,8 @@ The inventory test makes no HTTP calls. The theories add ~45 cases of single HTT
 
 #### Automated
 
-- [x] 3.1 The full suite passes
+- [x] 3.1 The full suite passes — f5100b2
 
 #### Manual
 
-- [x] 3.2 §6.2 tells an S-18 implementer which rule or theory to touch
+- [x] 3.2 §6.2 tells an S-18 implementer which rule or theory to touch — f5100b2
