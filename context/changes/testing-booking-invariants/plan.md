@@ -283,9 +283,9 @@ existing suite.
 
 #### Automated
 
-- [x] 1.1 The file builds warning-free
+- [x] 1.1 The file builds warning-free — 832b1c6
 - [x] 1.2 The booking suites pass — 832b1c6
-- [x] 1.3 Mutation check: UTC-date derivation turns at least two new tests red
+- [x] 1.3 Mutation check: UTC-date derivation turns at least two new tests red — 832b1c6
 
 #### Manual
 
@@ -295,9 +295,9 @@ existing suite.
 
 #### Automated
 
-- [x] 2.1 The file set builds warning-free
+- [x] 2.1 The file set builds warning-free — 832b1c6
 - [x] 2.2 The touched suites pass — 832b1c6
-- [x] 2.3 Mutation check: removing either pass-stamp rotation turns the new tests red
+- [x] 2.3 Mutation check: removing either pass-stamp rotation turns the new tests red — 832b1c6
 
 #### Manual
 
