@@ -47,7 +47,7 @@ research's job, see §1 principle #3).
 | # | Risk (failure scenario) | Impact | Likelihood | Source (evidence — not anchor) |
 |---|-------------------------|--------|------------|--------------------------------|
 | 1 | Two staff bookings race for the last spot in a class (or the last entry on a karnet) and both succeed — the class runs over capacity, or the pass over its entry pool | High | High | PRD §Guardrails "no overbooking"; PRD FR-008 Socrates note (simultaneous booking); roadmap S-16 risk (second concurrency invariant); interview Q1; hot-spot dir `src/Application/Scheduling` (31 file-changes/30d) |
-| 2 | A booking is admitted or refused wrongly — no karnet valid on the class's club-local date, no entry left, entries miscounted after a booking or class is cancelled, a trainer booking into a class they do not instruct | High | High | AGENTS.md hard rule (S-16); roadmap S-16 outcome; interview Q3; hot-spot dirs `src/Infrastructure/Scheduling` (27), `src/Domain/Scheduling` (23) |
+| 2 | A booking is admitted or refused wrongly — no karnet valid on the class's club-local date, no entry left, entries miscounted after a booking is released or its member is blocked, a trainer booking into a class they do not instruct | High | High | AGENTS.md hard rule (S-16); roadmap S-16 outcome; interview Q3; hot-spot dirs `src/Infrastructure/Scheduling` (27), `src/Domain/Scheduling` (23). Entries held by a club-cancelled class stay consumed by design (S-16) — an open product decision, roadmap Open Question 7, not a defect this risk covers |
 | 3 | A retired or closed door still opens — a member books or cancels their own spot, registration succeeds without an invitation code, the registration rate limit can be bypassed | High | High | interview Q2; roadmap S-16 risk ("the larger risk is subtraction"); roadmap S-17 risk (guard, link and API refusal must land together); roadmap S-18 relocates every endpoint |
 | 4 | A signed-in user reaches data or actions that are not theirs — a member reads another member's plan, bookings or contact details; the password reset reveals which addresses are registered | High | Medium | PRD NFR "personal data privacy"; PRD FR-026; roadmap S-13 risk (enumeration oracle); roadmap S-14 risk (authorization claims); hot-spot dirs `src/Application/Members` (34), `src/Application/Auth` (24) |
 | 5 | A class is cancelled or changed and a booked member receives no email or push — or someone not booked receives one | High | Medium | PRD §Guardrails "no missed cancellations"; PRD US-02; roadmap S-09 (M-1 north star) |
@@ -79,8 +79,8 @@ orchestrator updates Status as artifacts appear on disk.
 
 | # | Phase name | Goal (one line) | Risks covered | Test types | Status | Change folder |
 |---|------------|-----------------|---------------|------------|--------|---------------|
-| 1 | Booking invariants | Prove class capacity and the karnet entry pool hold under parallel requests and at date/entry boundaries | #1, #2 | integration (+ unit for pure date logic) | implementing | context/changes/testing-booking-invariants/ |
-| 2 | Access surface | Prove retired doors stay shut and ownership is checked, per route and per role | #3, #4 | integration (route × role matrix) + SPA guard specs | not started | — |
+| 1 | Booking invariants | Prove class capacity and the karnet entry pool hold under parallel requests and at date/entry boundaries | #1, #2 | integration (+ unit for pure date logic) | complete | context/changes/testing-booking-invariants/ |
+| 2 | Access surface | Prove retired doors stay shut and ownership is checked, per route and per role | #3, #4 | integration (route × role matrix) + SPA guard specs | planned | context/changes/testing-access-surface/ |
 | 3 | Frontend gate and API contract | Make SPA specs and lint block the deploy, and pin `reason` codes on both sides of the API | #6, #7 | CI gate + integration + SPA specs; post-edit hook (recommended local) | not started | — |
 | 4 | Class-change notification fan-out | Prove every booked member, and only they, is notified on cancel or change | #5 | integration with fake channels | not started | — |
 
@@ -150,7 +150,26 @@ the relevant rollout phase ships; before that, the sub-section reads
 
 ### 6.2 Adding an authorization test for a new or retired endpoint
 
-- TBD — see §3 Phase 2 (route × role matrix; ownership refusal; retired-capability refusal).
+- **Two layers, and a new route usually needs only the first.** `EndpointAuthorizationTests.cs`
+  reads every endpoint's authorization metadata: nothing under `/api` is anonymous except the four
+  auth routes, `/api/admin/*` is Admin except a named list of trainer routes, `/api/trainer/*` is
+  TrainerOrAdmin. A new route in an existing group is covered automatically. Touch the test only when
+  the PRODUCT changes who may reach something — then add the route to the allowlist or the trainer
+  list, citing the decision in a comment.
+- **HTTP refusal theories** (`EveryAdminRoute` / `EveryRoute`, anonymous 401 · member 403 · trainer
+  403) prove the policy actually refuses real users — metadata cannot see a policy redefined to admit
+  trainers. Add the route to its suite's theory data when it grants or reveals something (roles,
+  codes, passes, blocking). Reference: `MemberAdminEndpointTests.EveryAdminRoute`.
+- **Ownership** (a resource that belongs to someone) is never a policy question: test it over HTTP
+  with two real users, asserting the other's id is refused. Reference:
+  `MyPlanEndpointTests.A_member_cannot_see_another_members_plan`, the trainer tests in
+  `AdminBookingEndpointTests`.
+- **Retired routes**: assert with the caller who USED to be allowed; writes must be neither a success
+  nor a 409; GETs must not be JSON — an unmatched GET falls to the SPA fallback and can answer 200.
+  Never pin 405 vs 404.
+- **Oracle rule**: allowlists and exceptions come from the PRD or a slice decision and are asserted
+  to exist; never derive them from the endpoint data source.
+- **Run locally**: Docker running, then `dotnet test --filter FullyQualifiedName~EndpointAuthorizationTests` (no HTTP, milliseconds).
 
 ### 6.3 Adding an SPA spec that the deploy gate enforces
 
@@ -172,6 +191,9 @@ the relevant rollout phase ships; before that, the sub-section reads
   club-local date boundary no daytime test could reach, boundary tests computing their expectation
   with `ClubTime`, and two unasserted pass-stamp rotations. Entries consumed by a club-cancelled class
   were left unpinned and raised as roadmap Open Question 7.
+- **Phase 2 (access surface):** the scenario tests already existed; the gap was that nothing proved
+  EVERY endpoint authorized, with no fallback policy and S-18 about to re-create each route group.
+  Trainers seeing member emails on their class roster was left unpinned as roadmap Open Question 8.
 
 ## 7. What We Deliberately Don't Test
 

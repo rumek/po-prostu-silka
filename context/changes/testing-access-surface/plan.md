@@ -294,14 +294,14 @@ The inventory test makes no HTTP calls. The theories add ~45 cases of single HTT
 
 #### Automated
 
-- [x] 2.1 The test project builds warning-free
-- [x] 2.2 The touched suites pass
-- [x] 2.3 The SPA specs pass
-- [x] 2.4 Mutation check: Admin policy admitting trainers turns the trainer theories red
+- [x] 2.1 The test project builds warning-free — fa76790
+- [x] 2.2 The touched suites pass — fa76790
+- [x] 2.3 The SPA specs pass — fa76790
+- [x] 2.4 Mutation check: Admin policy admitting trainers turns the trainer theories red — fa76790
 
 #### Manual
 
-- [x] 2.5 The retired-route tests use an admin client
+- [x] 2.5 The retired-route tests use an admin client — fa76790
 
 ### Phase 3: Picker privacy, the open question, the cookbook
 

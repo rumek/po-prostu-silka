@@ -467,6 +467,32 @@ public class TrainingPlanEndpointTests(IntegrationTestFixture fixture)
     }
 
     /// <summary>
+    /// THE PICKER CARRIES NO EMAIL. It exists because /api/admin/members is Admin-only and "loosening
+    /// that endpoint instead would have handed every trainer the club's email list"
+    /// (TrainingPlanEndpoints) — and prd.md's privacy NFR keeps member data between the admin and the
+    /// member. A projection change that added the email would pass every other test in this file.
+    ///
+    /// <para>
+    /// Asserted on the RAW body, against a value rather than a field name: deserializing into the
+    /// current shape would only prove the fields it declares, which is a mirror of today's record.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public async Task The_member_picker_never_carries_an_email_address()
+    {
+        var email = $"picker-privacy-{Guid.NewGuid():N}@test.local";
+        var displayName = Unique("Picker Privacy");
+        await fixture.CreateUserAsync(email, AccountStatus.Active, ApplicationRoles.User, displayName);
+
+        var trainer = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveTrainerEmail);
+        var body = await trainer.GetStringAsync($"{Endpoint}/members");
+
+        // Listed — otherwise the absence below would prove nothing.
+        Assert.Contains(displayName, body, StringComparison.Ordinal);
+        Assert.DoesNotContain(email, body, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
     /// The literal segment is registered before the {id:guid} route. The guid constraint would save
     /// it anyway, but the ordering is the contract and this is what notices if it is reversed.
     /// </summary>
