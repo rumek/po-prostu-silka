@@ -1,15 +1,15 @@
 ---
 project: "Po Prostu Siłka"
-version: 3
+version: 4
 status: draft
 created: 2026-08-31
 updated: 2026-09-10
 prd_version: 1, 2
-main_goal: speed
+main_goal: quality
 top_blocker: none
-milestone_id: invitation-only-registration
-milestone_seq: 5
-milestone_status: closed
+milestone_id: code-structure
+milestone_seq: 6
+milestone_status: open
 ---
 
 # Roadmap: Po Prostu Siłka
@@ -20,57 +20,55 @@ milestone_status: closed
 
 ## Milestone
 
-**M-5: An account is created only by invitation** — Status: closed (2026-09-10)
+**M-6: The structure is enforced, not promised** — Status: open
 
-> CLOSED, and no successor opened. S-17 was M-5's only slice and it is `done`, so the "Done when"
-> below is satisfied. The full entry is in `## Milestone History`; this section stays as written
-> until `/10x-roadmap` opens M-6 over it.
-
-- **Intent:** Registration stops being a public door. The club's desk is where a person enters the
-  records, and the only way to attach a login to those records is an invitation code handed over in
-  person. What registration asks for shrinks to the two things the club cannot know for them: an
-  address to sign in with and a password.
-- **Source materials:** the user's own description, recorded as the `IR-NN` anchors below. No PRD
-  version describes an invitation-only door — v1 FR-001 describes open self-registration — so this
-  milestone supersedes published product scope, exactly as M-4 did.
+- **Intent:** The code stops growing in the two places it should not. On the server, the layering
+  `AGENTS.md` describes becomes something the compiler refuses to break, and the `*Endpoints` classes
+  stop being where every concern lives. In the SPA, a failure stops being told nine different ways
+  and the patterns copied from screen to screen get extracted once. Nothing a member or an admin can
+  see changes — this milestone is repaid in every slice after it, not in this one.
+- **Source materials:** the user's own description, recorded as the `CS-NN` anchors below, plus a
+  structural survey of `src/` and `src/app/` taken on 2026-09-10. No PRD version describes code
+  structure, so this milestone has no `FR`/`US` refs at all — the anchors are its whole trace.
 - **Done when:** every S-NN in this milestone is `done`.
 - **Scope anchors:**
-  - IR-01: An admin records a member with no email address — and, since the correction below, CANNOT
-    record one at all: the field left the admin form and the API contract together. That person
-    receives no email and no push, and that is an accepted consequence rather than a defect — the
-    club reaches them at the desk. The address arrives when they register with their invitation and
-    becomes their login, which is the only writer of one.
-  - IR-02: `/register` is reachable ONLY with an `invitationCode` query parameter. A request without
-    one is redirected to `/login`, and no screen in the app links to registration.
-  - IR-03: The code arrives in the query string and is DISPLAYED AS TEXT, not as a form field. A
-    person registering never types a code and never edits the one they were handed. It shipped first
-    as a readonly input and was corrected: a box the member cannot type into is still a box, and it
-    invites them to try.
-  - IR-04: Registration asks for an email address and a password, and nothing else. Display name,
-    phone number and postal address are no longer collected — they come from the member record the
-    code attaches to.
-  - IR-05: Registration without a valid code is impossible, and the refusal lives in the API rather
-    than only in the SPA. A code that is unknown, expired, revoked or already used is still refused
-    as one answer, for the account-enumeration reason S-14 recorded.
-  - IR-06: The admin can copy the whole invitation URL, not only the bare code. Added during
-    planning, deliberately widening this milestone: the link is what an admin pastes into a message,
-    and without it every invitation would have to be assembled by hand. The bare code stays copyable
-    beside it — it exists to be read down the phone, which is what its alphabet was designed for.
+  - CS-01: The layering table in `AGENTS.md` stops being a convention and becomes a compiler
+    constraint. `src/` splits into four projects — `Domain`, `Application`, `Infrastructure`, `Api` —
+    and Application and Domain lose the ability to see EF Core at all. The proof is one sentence:
+    adding `using Microsoft.EntityFrameworkCore;` to a file in Application must fail the build.
+  - CS-02: A `*Endpoints` class stops being the place where everything lives. It registers routes and
+    nothing else; the handler, its validation, its mapping, its ports and its resource-level
+    authorization move into Application, one file per use case.
+  - CS-03: **No behaviour changes on either side.** No route moves, no `reason` code is added or
+    renamed, no schema changes, no migration is regenerated or squashed. This is an anchor rather
+    than a footnote because it is the thing most likely to erode while someone is already inside a
+    1082-line file.
+  - CS-04: The app gains one way to tell a person that something failed. A toast component exists,
+    and the rule deciding whether a failure surfaces as a toast, a field error, a page banner or a
+    screen state is written down and applied everywhere — the component without the rule would only
+    add a tenth mechanism.
+  - CS-05: The nine error-display mechanisms collapse onto that rule; the ~20 hand-written
+    `HttpErrorResponse` unwraps collapse to one function; `notice()` stops meaning both success and
+    failure.
+  - CS-06: The patterns copied across screens are extracted once — the `reject()` helper (seven
+    byte-identical copies), the generation-counter race guard (~10 copies), the page-header block
+    (three copies plus three near-identical stylesheets), the four-signal form-state block (seven
+    copies).
+  - CS-07: No UI library is introduced, and no API contract is reshaped. `{ reason }` stays the
+    failure shape on both sides; `ProblemDetails` is deliberately not adopted, because the reason
+    codes are mirrored field-for-field by the SPA's discriminated unions and moving them is a
+    coordinated change this milestone declines to take on.
 
-**Naming, settled with the user:** the query parameter is `invitationCode`; the API contract keeps
-`memberCode`. Two names for one thing is a deliberate, recorded trade — the SPA reads the friendlier
-word out of the URL and sends the field the API already answers to, and no shipped contract moves.
+**Why one milestone and not two:** S-18 and S-19 share an intent and share nothing else. They touch
+disjoint files, have no prerequisite between them, and can be executed by separate agent runs at the
+same time. Splitting them into M-6 and M-7 would buy a tidier history and cost a serial dependency
+that does not exist.
 
-**Corrected after the first implementation, on the user's review:** two things the slice got wrong
-the first time. The admin form still asked for an email address, which contradicted IR-01's premise —
-the desk does not take one, and the club consciously forgoes notifications until the member registers.
-And the invitation code shipped as a readonly `<input>` rather than as text. Both are folded into
-IR-01 and IR-03 above rather than left as errata.
-
-**Not in scope, deliberately:** GENERATING, expiring and revoking the invitation. That admin surface
-shipped with S-14 and is untouched. Note the narrowing: this line used to say "issuing the
-invitation" outright, and IR-06 makes that no longer true — copying the link is part of issuing it,
-and the scope was extended on purpose rather than by drift.
+**Not in scope, deliberately:** enriching the Domain (moving invariants out of handlers and into
+entities); MediatR, FluentValidation, AutoMapper or a repository pattern; replacing `IResult` with a
+result union; moving component logic out of the large Angular screens into stores; Central Package
+Management for the four new project files. Each is a defensible next step and none of them is what
+this milestone is for.
 
 ## PRD addendum (M-2)
 
@@ -109,16 +107,18 @@ Mid-milestone, a second decision landed: a class stops being retyped text and be
 
 ## North star
 
-**S-17: Registration is reachable only through an invitation, and asks for almost nothing** — M-5 has
-one slice, so it is the north star by construction. It earns the name on the closed door rather than
-on the shortened form: the milestone's hypothesis is that nobody should be able to create an account
-the club did not hand out, and the only way to test that is to open `/register` with no code and land
-back on the login screen.
+**S-18: The layering is enforced by the compiler, not by convention** — M-6's hypothesis is that a
+rule nothing checks is not a rule, and S-18 is the only slice that can test it. The test is a single
+sentence and it either passes or it does not: adding `using Microsoft.EntityFrameworkCore;` to a file
+in Application must fail the build. Today the same edit compiles and leaves no trace. S-19 makes the
+SPA more consistent, which is worth doing and proves nothing — consistency can always be argued back
+out; a build error cannot.
 
 > "North star" here means the smallest end-to-end slice whose successful delivery would prove the core
-> product hypothesis. M-1's was S-09 (email + push on class changes), M-2's was S-14 (the claim path),
-> M-3's was S-15 (the plan card), M-4's was S-16 (the karnet refusal) and M-5's was S-17 above; all
-> shipped, and their entries live in `## Milestone History`.
+> product hypothesis — or, for a milestone like this one that ships nothing user-facing, the core
+> structural hypothesis. M-1's was S-09 (email + push on class changes), M-2's was S-14 (the claim
+> path), M-3's was S-15 (the plan card), M-4's was S-16 (the karnet refusal) and M-5's was S-17
+> (the closed registration door); all shipped, and their entries live in `## Milestone History`.
 
 ## At a glance
 
@@ -144,6 +144,8 @@ back on the login screen.
 | S-15 | plan-card-prescription-detail | member reads their plan card with the muscle group, a prescribed duration where the trainer set one, an info icon to the exercise, and the note set off as a callout | S-10, S-11 | M-3 MS-001–MS-004 | done |
 | S-16 | membership-pass-and-staff-booking | admin issues a karnet and books a member in; a trainer books into their own classes; a member with no valid karnet is refused; nobody self-books and nobody waits for approval | S-01, S-04, S-08, S-14 | M-4 MP-01–MP-07 (retires v1 US-01, FR-002, FR-003, FR-008, FR-009) | done        |
 | S-17 | invitation-only-registration | register only through an invitation link — the code is shown as text rather than typed, the form asks for an email and a password, and there is no way in without a code | S-14, S-16 | M-5 IR-01–IR-06 (supersedes v1 FR-001's open self-registration) | done |
+| S-18 | backend-layer-boundaries | (structural) nothing — the layering becomes a compiler constraint and the endpoint classes stop holding the logic | S-17 | M-6 CS-01, CS-02, CS-03 | ready |
+| S-19 | frontend-error-and-patterns | (structural) a failure is told one way instead of nine, and the patterns copied across screens are extracted once | S-17 | M-6 CS-04, CS-05, CS-06, CS-07 | ready |
 
 ## Streams
 
@@ -155,6 +157,7 @@ Navigation aid — groups items that share a Prerequisites chain. Canonical orde
 | B      | Notification delivery | `F-03` → `S-09`                                    | Carries the north star; `S-09` joins Stream C at `S-08`, which produces the bookings to notify against. |
 | C      | Scheduling & booking  | `S-03` → `S-05` → `S-06` → `S-07` → `S-08` → `S-12` | The longest chain and the milestone's critical path; `S-12` also joins from Stream D at `S-11`.  |
 | D      | Training domain       | `S-10` → `S-11` → `S-15`                           | Independent bounded context — a separate agent run can build it alongside the whole of Stream C. `S-15` extends the plan surface `S-11` created; it is M-3's only slice. |
+| E      | Code structure        | `S-18` · `S-19`                                    | M-6, and the first stream that is not about the product. The two slices are siblings, not a chain — they share an intent and no files, so the `·` is deliberate: either order, or both at once in separate agent runs. |
 
 ## Baseline
 
@@ -168,6 +171,25 @@ What's already in place in the codebase as of `2026-09-02` (auto-researched + us
 - **Observability:** absent — console logging only; application monitoring deliberately parked (see `## Parked`).
 
 **Correction recorded 2026-09-02.** `prd-v2.md` §Current System Overview states that members already book and cancel spots and already receive class-change notifications. Neither is true: there is no booking entity and no booking migration, and the only notification wired to the delivery foundation is account-approved. Booking is `S-08` and class-change notifications are `S-09`, both still ahead. This roadmap sequences from the verified codebase, not from that paragraph; `prd-v2`'s `FR-014` is therefore new work here, not preserved behaviour.
+
+**Structural survey recorded 2026-09-10 (M-6's input).** The baseline above is about which layers
+exist; M-6 is about the shape they are in, so the survey behind `S-18` and `S-19` is recorded here
+rather than in a slice body:
+
+- **Backend:** `src/` is ONE `.csproj` with `Domain`, `Application` and `Infrastructure` as folders.
+  Namespaces already read `po_prostu_silka.Domain.*` / `.Application.*` / `.Infrastructure.*`, so the
+  split into projects moves no namespace. Thirteen `*Endpoints` classes live in `Application/` and
+  each carries seven concerns at once; the five largest are `ClassEndpoints.cs` (1082 lines),
+  `MemberAdminEndpoints.cs` (928), `AuthEndpoints.cs` (812), `BookingEndpoints.cs` (798) and
+  `TrainingPlanEndpoints.cs` (746). The "Application must not reference EF Core" rule is currently
+  SATISFIED — and nothing checks it: not the compiler (one assembly), not an analyzer, not a test.
+- **Frontend:** no UI library; hand-written SCSS over the tokens in `src/styles.scss`. A failure is
+  shown nine different ways, the `HttpErrorResponse` unwrap is hand-written ~20 times in four
+  spellings, the `reject()` form helper exists in seven byte-identical copies, and there is no toast
+  component. The one interceptor handles 401 and nothing else.
+- **Safety net for both:** the 25 backend test files are HTTP integration tests over
+  `WebApplicationFactory<Program>` with a real SQL Server, so moving classes between projects changes
+  nothing they assert. The SPA has 44 colocated spec files.
 
 **Architecture intent (user-stated):** the domain is organised the DDD way — bounded contexts (membership, scheduling/booking, training, notifications), aggregates guarding invariants (class capacity), and domain events for cross-context reactions. This roadmap groups slices along those context lines; aggregate boundaries, repositories, and event mechanics are `/10x-plan`'s territory.
 
@@ -477,6 +499,65 @@ What's already in place in the codebase as of `2026-09-02` (auto-researched + us
   land together, because any one of them alone leaves a way in that the other two claim is closed.
 - **Status:** done
 
+### S-18: The layering is enforced by the compiler, not by convention
+
+- **Outcome:** (structural — nothing a member or an admin can see changes) `src/` becomes four
+  projects — `Domain`, `Application`, `Infrastructure`, `Api` — so that the layering table in
+  `AGENTS.md` is something the build refuses to break rather than something a reviewer has to
+  remember; and a `*Endpoints` class becomes route registration only, with the handler, its
+  validation, its mapping, its ports and its resource-level authorization moved into Application, one
+  file per use case.
+- **Change ID:** backend-layer-boundaries
+- **PRD refs:** M-6 CS-01, CS-02, CS-03. No PRD version describes code structure; the anchors in the
+  M-6 charter are this slice's whole trace.
+- **Prerequisites:** S-17 (nothing technical — the requirement is only that no product slice is
+  in flight, because the first phase renames the path of essentially the whole backend and any
+  concurrent branch under `src/` would conflict badly)
+- **Parallel with:** S-19 (disjoint files: S-18 never opens `src/app/`, S-19 never opens anything
+  else)
+- **Blockers:** —
+- **Unknowns:** — (three calls that could have gone either way were settled during research and are
+  recorded in the M-6 charter and this slice's `change.md`: handlers keep returning `IResult` rather
+  than a result union, `ApplicationUser` stays in `Domain` at the cost of one Identity package, and
+  the migrations stay in the same assembly as `AppDbContext` so no `MigrationsAssembly` and no
+  regeneration is needed)
+- **Risk:** three, in descending order. The first is the deploy pipeline: `.github/workflows/deploy.yml`
+  names `src/po-prostu-silka.csproj` in the publish step and in both `dotnet ef` invocations, and
+  stages the Angular build into `src/wwwroot` — all four paths cease to exist, so the workflow has to
+  change in the same commit as the split or the first merge to `main` breaks the deploy. The second
+  is review: the codebase is 55–70% comments, so the phases that move code produce diffs that look
+  enormous while changing nothing, and the only workable review question is "did any non-comment line
+  change?". The third is scope: being inside a 1082-line file is exactly when "while I'm here" wins,
+  and CS-03 exists to lose that argument in advance.
+- **Status:** ready
+
+### S-19: A failure is told one way, and the copied patterns are extracted once
+
+- **Outcome:** (structural — the words a person reads may change; what the app does does not) the SPA
+  gains a toast component and a written rule deciding whether a failure surfaces as a toast, a field
+  error, a page banner or a screen state; the nine existing error-display mechanisms collapse onto
+  that rule; the `HttpErrorResponse` unwrap becomes one function; and the patterns copied from screen
+  to screen — the `reject()` helper, the generation-counter race guard, the page-header block, the
+  four-signal form-state block — are extracted once.
+- **Change ID:** frontend-error-and-patterns
+- **PRD refs:** M-6 CS-04, CS-05, CS-06, CS-07. No PRD version describes SPA structure; v1's NFR on a
+  mobile-first, legible surface is the nearest published intent and this slice does not change it.
+- **Prerequisites:** S-17 (the most recently touched screens — `/register` and the admin's code panel
+  — are among the ones this slice rewrites the error handling of)
+- **Parallel with:** S-18
+- **Blockers:** —
+- **Unknowns:**
+  - Whether the four-signal form-state block becomes a functional helper or a base class — Owner:
+    `/10x-plan`. Block: no. (The repo uses no component inheritance and every shared component is
+    standalone, which argues for a helper, but it is a call the plan should make explicitly rather
+    than inherit.)
+- **Risk:** two. The first is that a toast component without the rule that decides when to use it
+  simply becomes a tenth way to show an error — which is why CS-04 puts the rule, not the component,
+  at the centre of the anchor. The second is the eager bundle: the toast host lives in the shell, so
+  it lands in the initial chunk, and `angular.json`'s 550 kB warning threshold is the one number this
+  slice can move.
+- **Status:** ready
+
 ## Backlog Handoff
 
 | Roadmap ID | Change ID                        | Suggested issue title                                        | Ready for `/10x-plan` | Notes                                              |
@@ -487,13 +568,13 @@ What's already in place in the codebase as of `2026-09-02` (auto-researched + us
 | S-01       | registration-and-approval        | Member registration with admin approval gate                 | no                    | Done — archived 2026-09-01                          |
 | S-02       | member-management                | Member list, filter, block/unblock                           | no                    | Done — archived 2026-09-01                          |
 | S-03       | class-schedule-and-admin         | Class schedule browsing and admin class management           | no                    | Done — archived 2026-09-02                          |
-| S-04       | trainer-role-and-assignment      | Grant and revoke the Trainer role from the member list       | yes                   | Run `/10x-plan trainer-role-and-assignment`         |
+| S-04       | trainer-role-and-assignment      | Grant and revoke the Trainer role from the member list       | no                    | Done — archived 2026-09-02                          |
 | S-05       | class-type-definitions           | Class type definitions with defaults and deactivation        | no                    | Needs S-03 closed                                   |
 | S-06       | occurrences-from-class-types     | Schedule occurrences from a class type; drop the room field  | no                    | Needs S-03, S-04, S-05                              |
 | S-07       | schedule-calendar-view           | Day/week calendar for member schedule and admin panel        | no                    | Needs S-06                                          |
 | S-08       | class-booking-and-cancel         | Class booking and cancellation with no-overbooking guarantee | no                    | Needs S-07; blocked on Open Question 1              |
 | S-09       | class-change-notifications       | Email + push notifications on class cancel/change            | no                    | North star; needs F-03, S-08                        |
-| S-10       | exercise-library                 | Exercise library management with instructional videos        | yes                   | Run `/10x-plan exercise-library` — best parallel lane |
+| S-10       | exercise-library                 | Exercise library management with instructional videos        | no                    | Done — archived 2026-09-04                          |
 | S-11       | training-plans                   | Training plan creation, assignment, and member view          | no                    | Done — archived 2026-09-06                          |
 | S-12       | member-and-admin-dashboards      | Member and admin dashboards                                  | no                    | Needs S-01, S-07, S-08, S-11                        |
 | S-13       | member-profile-edit              | Member profile, password change, and password reset          | no                    | Done — archived 2026-09-06                          |
@@ -501,6 +582,8 @@ What's already in place in the codebase as of `2026-09-02` (auto-researched + us
 | S-15       | plan-card-prescription-detail    | Prescribed duration, muscle group, info icon and note callout on the plan card | no                    | Done — archived 2026-09-09                          |
 | S-16       | membership-pass-and-staff-booking | Membership pass gates booking; staff book on a member's behalf; approval retired | no                    | Done — archived 2026-09-09                          |
 | S-17       | invitation-only-registration     | Invitation-only registration; the code is shown as text, not typed | no                    | Done — archived 2026-09-10                          |
+| S-18       | backend-layer-boundaries         | Split src/ into Domain/Application/Infrastructure/Api projects and thin the endpoint classes | yes                   | North star. Run `/10x-plan backend-layer-boundaries` |
+| S-19       | frontend-error-and-patterns      | One error path with a toast component; extract the patterns copied across screens | yes                   | Run `/10x-plan frontend-error-and-patterns` — parallel with S-18 |
 
 ## Open Roadmap Questions
 
@@ -510,6 +593,7 @@ What's already in place in the codebase as of `2026-09-02` (auto-researched + us
 4. **How dense can the full-week view get before it stops working?** — Owner: user. Block: none; a design-time check inside S-07. (v2 Open Question 2.)
 5. **What does a trainer eventually see after signing in?** — Owner: user. Block: none — explicitly out of scope for this milestone; the additive role model keeps the path open. (v2 Open Question 3.)
 6. **Is best-effort push acceptable on recent iOS, with a home-screen install required and email as the guaranteed channel?** — Owner: user. Block: none; sets S-09's acceptance bar.
+7. **Should cancelling a class give back the karnet entries its bookings held?** — Owner: user. Block: none. A class the club cancels keeps its bookings Active (S-09's design, so the fan-out and the member's history see them), and entries left is derived from active bookings — so every booked member loses an entry for a class they could not attend. S-16 recorded this as existing behaviour rather than a decision (`context/archive/2026-09-09-membership-pass-and-staff-booking/plan.md:88-90`). Surfaced by the `testing-booking-invariants` test rollout, which deliberately left it unpinned by any test until this is answered.
 
 Resolved since the previous roadmap: the sender-domain question that gated F-03 is closed — the foundation shipped and was archived.
 
