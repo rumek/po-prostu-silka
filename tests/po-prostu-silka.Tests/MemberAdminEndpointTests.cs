@@ -109,6 +109,93 @@ public class MemberAdminEndpointTests(IntegrationTestFixture fixture)
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
+    /// <summary>
+    /// EVERY route on the group, not just the list. These are the routes that block people, grant the
+    /// Trainer role and issue invitation codes, and the three facts above probe one of them. Each
+    /// request is refused before binding, so <see cref="Guid.Empty"/> and an empty body are enough.
+    /// Kept beside EndpointAuthorizationTests on purpose: that test reads which policy a route
+    /// carries, this one proves the policy actually refuses a real member and a real trainer.
+    /// </summary>
+    public static TheoryData<string, string> EveryAdminRoute => new()
+    {
+        { "GET", "/api/admin/members" },
+        { "POST", "/api/admin/members" },
+        { "GET", $"/api/admin/members/{Guid.Empty}" },
+        { "PUT", $"/api/admin/members/{Guid.Empty}" },
+        { "POST", $"/api/admin/members/{Guid.Empty}/block" },
+        { "POST", $"/api/admin/members/{Guid.Empty}/unblock" },
+        { "POST", $"/api/admin/members/{Guid.Empty}/roles/trainer" },
+        { "DELETE", $"/api/admin/members/{Guid.Empty}/roles/trainer" },
+        { "GET", $"/api/admin/members/{Guid.Empty}/access-code" },
+        { "POST", $"/api/admin/members/{Guid.Empty}/access-code" },
+        { "DELETE", $"/api/admin/members/{Guid.Empty}/access-code" },
+    };
+
+    private static HttpRequestMessage RequestFor(string method, string route) =>
+        new(new HttpMethod(method), route) { Content = JsonContent.Create(new { }) };
+
+    [Theory]
+    [MemberData(nameof(EveryAdminRoute))]
+    public async Task Every_admin_route_is_401_when_anonymous(string method, string route)
+    {
+        var response = await fixture.CreateClient().SendAsync(RequestFor(method, route));
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Theory]
+    [MemberData(nameof(EveryAdminRoute))]
+    public async Task Every_admin_route_refuses_a_member(string method, string route)
+    {
+        var member = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveMemberEmail);
+
+        Assert.Equal(HttpStatusCode.Forbidden, (await member.SendAsync(RequestFor(method, route))).StatusCode);
+    }
+
+    /// <summary>
+    /// A trainer is staff, and still not an admin: none of these routes is one S-16 or S-11 gave them.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(EveryAdminRoute))]
+    public async Task Every_admin_route_refuses_a_trainer(string method, string route)
+    {
+        var trainer = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveTrainerEmail);
+
+        Assert.Equal(HttpStatusCode.Forbidden, (await trainer.SendAsync(RequestFor(method, route))).StatusCode);
+    }
+
+    // --- the retired approval flow (S-16, MP-03) --------------------------------
+    //
+    // Asserted as absences, with an ADMIN client — the one caller who used to be allowed — so a
+    // refusal cannot be explained away as authorization. Neither test asserts a particular status:
+    // what proves the handler is gone is that it did not answer as a handler would.
+
+    [Fact]
+    public async Task Approving_an_account_is_no_longer_possible()
+    {
+        var admin = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveAdminEmail);
+        var (memberId, _, _) = await CreateMemberAsync(AccountStatus.Active);
+
+        var response = await admin.PostAsync($"/api/admin/members/{memberId}/approve", content: null);
+
+        // Not a success and not a 409: either would mean an approve handler ran and made a decision.
+        Assert.False(response.IsSuccessStatusCode, $"approve answered {(int)response.StatusCode}");
+        Assert.NotEqual(HttpStatusCode.Conflict, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task The_pending_list_is_no_longer_served()
+    {
+        var admin = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveAdminEmail);
+
+        var response = await admin.GetAsync("/api/admin/members/pending");
+
+        // NOT a status check. "pending" is not a Guid, so the path falls through to the SPA fallback,
+        // which answers GETs with the shell - a 200 that would satisfy any "refused?" status test while
+        // proving nothing. What a resurrected handler would return is JSON; the shell never is.
+        Assert.NotEqual("application/json", response.Content.Headers.ContentType?.MediaType);
+    }
+
     // --- Trainer role (S-04, prd-v2 FR-001/FR-002/FR-003) ----------------------
 
     private async Task<bool> HoldsTrainerAsync(string userId)

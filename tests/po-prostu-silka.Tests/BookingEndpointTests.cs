@@ -354,11 +354,12 @@ public class BookingEndpointTests(IntegrationTestFixture fixture)
     /// routes that let them are not merely hidden by the SPA — they do not exist.
     ///
     /// <para>
-    /// 405 RATHER THAN 404, and that is the app's routing rather than anything this test chose:
+    /// TODAY IT IS A 405, and that is the app's routing rather than anything this test chose:
     /// <c>MapFallbackToFile</c> claims every unmatched path for GET and HEAD only, so a POST or
     /// DELETE to a path nothing else maps ends up matching the fallback's PATTERN but not its method.
-    /// The distinction that matters is not which of the two it is — it is that the answer is neither
-    /// a 200 nor a 409, both of which would mean the handler ran.
+    /// The test therefore does NOT pin 405: a route reshuffle (roadmap S-18) can legitimately turn it
+    /// into a 404. What it asserts is the answer being neither a success nor a 409, both of which
+    /// would mean the handler ran.
     /// </para>
     ///
     /// <para>
@@ -380,7 +381,8 @@ public class BookingEndpointTests(IntegrationTestFixture fixture)
         var response = await member.SendAsync(
             new HttpRequestMessage(new HttpMethod(method), route));
 
-        Assert.Equal(HttpStatusCode.MethodNotAllowed, response.StatusCode);
+        Assert.False(response.IsSuccessStatusCode, $"{method} answered {(int)response.StatusCode}");
+        Assert.NotEqual(HttpStatusCode.Conflict, response.StatusCode);
     }
 
     // --- the happy path --------------------------------------------------------

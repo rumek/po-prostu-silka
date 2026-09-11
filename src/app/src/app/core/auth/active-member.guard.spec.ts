@@ -52,7 +52,7 @@ describe('activeMemberGuard', () => {
 
   // The core of D1: a pending member HAS a session, so bouncing them to /login would be wrong. They
   // belong on the screen that exists for them.
-  it('sends an authenticated but pending member to /pending', async () => {
+  it('sends an authenticated member who is not active to /login', async () => {
     configure('browser', {
       sessionResolved: () => true,
       isActive: () => false,

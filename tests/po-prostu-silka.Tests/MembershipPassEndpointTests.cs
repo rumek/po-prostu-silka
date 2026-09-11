@@ -371,6 +371,52 @@ public class MembershipPassEndpointTests(IntegrationTestFixture fixture)
             .SingleAsync();
     }
 
+    // --- who may reach the karnet routes ----------------------------------------
+
+    /// <summary>
+    /// Every karnet route, refused to everyone but the admin. Issuing and editing a pass decides who
+    /// may train (S-16), which makes these the routes a trainer or a member must never reach — and
+    /// <see cref="A_non_admin_is_refused"/> probes only one of them. Refused before binding, so empty
+    /// ids and an empty body are enough.
+    /// </summary>
+    public static TheoryData<string, string> EveryRoute => new()
+    {
+        { "GET", $"/api/admin/members/{Guid.Empty}/passes" },
+        { "POST", $"/api/admin/members/{Guid.Empty}/passes" },
+        { "PUT", $"/api/admin/members/{Guid.Empty}/passes/{Guid.Empty}" },
+        { "DELETE", $"/api/admin/members/{Guid.Empty}/passes/{Guid.Empty}" },
+    };
+
+    private static HttpRequestMessage RequestFor(string method, string route) =>
+        new(new HttpMethod(method), route) { Content = JsonContent.Create(new { }) };
+
+    [Theory]
+    [MemberData(nameof(EveryRoute))]
+    public async Task Every_karnet_route_is_401_when_anonymous(string method, string route)
+    {
+        var response = await fixture.CreateClient().SendAsync(RequestFor(method, route));
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Theory]
+    [MemberData(nameof(EveryRoute))]
+    public async Task Every_karnet_route_refuses_a_member(string method, string route)
+    {
+        var member = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveMemberEmail);
+
+        Assert.Equal(HttpStatusCode.Forbidden, (await member.SendAsync(RequestFor(method, route))).StatusCode);
+    }
+
+    [Theory]
+    [MemberData(nameof(EveryRoute))]
+    public async Task Every_karnet_route_refuses_a_trainer(string method, string route)
+    {
+        var trainer = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveTrainerEmail);
+
+        Assert.Equal(HttpStatusCode.Forbidden, (await trainer.SendAsync(RequestFor(method, route))).StatusCode);
+    }
+
     // --- the member's own karnet (MP-07) ---------------------------------------
 
     /// <summary>

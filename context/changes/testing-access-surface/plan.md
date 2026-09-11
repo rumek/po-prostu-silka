@@ -282,13 +282,13 @@ The inventory test makes no HTTP calls. The theories add ~45 cases of single HTT
 
 #### Automated
 
-- [x] 1.1 The test project builds warning-free
-- [x] 1.2 The inventory test passes
-- [x] 1.3 Mutation check: dropped policy, staff booking as Admin, management as TrainerOrAdmin are each red
+- [x] 1.1 The test project builds warning-free — b977e40
+- [x] 1.2 The inventory test passes — b977e40
+- [x] 1.3 Mutation check: dropped policy, staff booking as Admin, management as TrainerOrAdmin are each red — b977e40
 
 #### Manual
 
-- [x] 1.4 Every expected value cites its product source and none is read from the endpoint data source
+- [x] 1.4 Every expected value cites its product source and none is read from the endpoint data source — b977e40
 
 ### Phase 2: Refusals route by route, and retired doors
 
