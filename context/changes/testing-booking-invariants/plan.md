@@ -307,8 +307,8 @@ existing suite.
 
 #### Automated
 
-- [x] 3.1 The full suite passes
+- [x] 3.1 The full suite passes — f830720
 
 #### Manual
 
-- [x] 3.2 §6.1 is enough to add the next booking invariant test
+- [x] 3.2 §6.1 is enough to add the next booking invariant test — f830720
