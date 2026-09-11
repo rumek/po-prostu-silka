@@ -326,6 +326,51 @@ public class MembershipPassEndpointTests(IntegrationTestFixture fixture)
         Assert.Equal(Anchor.AddDays(20), updated.ValidTo);
     }
 
+    /// <summary>
+    /// The pass-side twin of BookingEndpointTests' <c>Lowering_capacity_rotates_the_class_stamp</c>:
+    /// lowering a karnet's entry count must rotate the PASS's stamp, because that is the pool a
+    /// concurrent booking is counting against at that moment.
+    ///
+    /// <para>
+    /// Deterministic on purpose. The interleaving that exposes a missing rotation - a booking that
+    /// read the old entry count, then commits after the edit - cannot be forced from the API, so a race
+    /// test would pass with or without the line. REMOVE <c>pass.ConcurrencyStamp = …</c> FROM
+    /// UpdatePassAsync AND THIS TEST FAILS.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public async Task Lowering_the_entry_count_rotates_the_pass_stamp()
+    {
+        var admin = await AdminAsync();
+        var memberId = await fixture.CreateMemberAsync("Stamp Me");
+
+        var created = await admin.PostAsJsonAsync(
+            $"/api/admin/members/{memberId}/passes", Request(Anchor, Anchor.AddDays(9), entries: 4));
+        var pass = await created.Content.ReadFromJsonAsync<MembershipPassView>();
+        Assert.NotNull(pass);
+
+        var before = await PassStampAsync(pass.Id);
+
+        var response = await admin.PutAsJsonAsync(
+            $"/api/admin/members/{memberId}/passes/{pass.Id}",
+            Request(Anchor, Anchor.AddDays(9), entries: 2));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotEqual(before, await PassStampAsync(pass.Id));
+    }
+
+    private async Task<string> PassStampAsync(Guid passId)
+    {
+        using var scope = fixture.Factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        return await db.MembershipPasses
+            .AsNoTracking()
+            .Where(p => p.Id == passId)
+            .Select(p => p.ConcurrencyStamp)
+            .SingleAsync();
+    }
+
     // --- the member's own karnet (MP-07) ---------------------------------------
 
     /// <summary>

@@ -215,6 +215,28 @@ public class AdminBookingEndpointTests(IntegrationTestFixture fixture)
         return (await response.Content.ReadFromJsonAsync<ClassBody>())!;
     }
 
+    /// <summary>
+    /// A class at an EXACT instant rather than the next sliding slot — for the karnet range tests,
+    /// which need to know the class's date without computing it (see the note above those tests).
+    /// </summary>
+    private async Task<ClassBody> ClassAtAsync(HttpClient admin, DateTimeOffset startsAt)
+    {
+        var type = await CreateTypeAsync(admin);
+        var trainerId = await CreateTrainerAsync(admin);
+
+        var response = await admin.PostAsJsonAsync(ClassesEndpoint, new
+        {
+            classTypeId = type.Id,
+            startsAt,
+            instructorMemberId = trainerId,
+            durationMinutes = 60,
+            capacity = 12,
+        });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        return (await response.Content.ReadFromJsonAsync<ClassBody>())!;
+    }
+
     /// <summary>A fresh admin client — the racers each need their own, so their scopes are separate.</summary>
     private Task<HttpClient> AdminClientAsync() => AdminAsync();
 
@@ -411,13 +433,15 @@ public class AdminBookingEndpointTests(IntegrationTestFixture fixture)
 
     // --- the karnet gate (S-16) ------------------------------------------------
 
-    /// <summary>
-    /// The class's club-local date, which is what the gate compares a pass's range against — NOT
-    /// today's date, and not UTC's. These suites schedule classes years out, so a test about the
-    /// range has to anchor on the class rather than on the clock.
-    /// </summary>
-    private static DateOnly DateOf(DateTimeOffset startsAt) =>
-        DateOnly.FromDateTime(po_prostu_silka.Domain.Scheduling.ClubTime.ToClubLocal(startsAt).DateTime);
+    // THE RANGE TESTS BELOW WRITE THEIR DATES BY HAND, on purpose. The gate compares a pass's range
+    // against the class's CLUB-LOCAL date, and a test that computed its expectation through ClubTime
+    // would share the conversion under test - it could never catch a bug in it. So every class here
+    // starts at a fixed instant, and the Warsaw reading of that instant is written in a comment
+    // beside it, checkable against a wall clock without running anything.
+    //
+    // 2038 AND ODD HOURS: the other suites slide their classes through these years at 10:00Z and
+    // 16:00Z, and the overlap rule is club-wide over one shared database. Nothing else uses 20:00Z,
+    // 22:30Z or 23:30Z, and every test below takes a day of its own.
 
     [Fact]
     public async Task A_member_with_no_karnet_cannot_be_booked()
@@ -441,12 +465,15 @@ public class AdminBookingEndpointTests(IntegrationTestFixture fixture)
     [Fact]
     public async Task A_karnet_that_ends_the_day_before_the_class_does_not_cover_it()
     {
-        var (admin, scheduled) = await ArrangeAsync();
+        var admin = await AdminAsync();
+
+        // 20:00Z on 10 March 2038 is 21:00 CET the same day in Warsaw - class date 2038-03-10.
+        var scheduled = await ClassAtAsync(
+            admin, new DateTimeOffset(2038, 3, 10, 20, 0, 0, TimeSpan.Zero));
         var memberId = await PasslessMemberAsync();
 
-        var classDate = DateOf(scheduled.StartsAt);
         await fixture.IssuePassAsync(
-            memberId, entryCount: 10, validFrom: classDate.AddDays(-30), validTo: classDate.AddDays(-1));
+            memberId, entryCount: 10, validFrom: new DateOnly(2038, 2, 8), validTo: new DateOnly(2038, 3, 9));
 
         var response = await BookAsync(admin, scheduled.Id, memberId);
 
@@ -461,12 +488,15 @@ public class AdminBookingEndpointTests(IntegrationTestFixture fixture)
     [Fact]
     public async Task A_karnet_that_starts_the_day_after_the_class_does_not_cover_it()
     {
-        var (admin, scheduled) = await ArrangeAsync();
+        var admin = await AdminAsync();
+
+        // 20:00Z on 17 March 2038 is 21:00 CET the same day in Warsaw - class date 2038-03-17.
+        var scheduled = await ClassAtAsync(
+            admin, new DateTimeOffset(2038, 3, 17, 20, 0, 0, TimeSpan.Zero));
         var memberId = await PasslessMemberAsync();
 
-        var classDate = DateOf(scheduled.StartsAt);
         await fixture.IssuePassAsync(
-            memberId, entryCount: 10, validFrom: classDate.AddDays(1), validTo: classDate.AddDays(30));
+            memberId, entryCount: 10, validFrom: new DateOnly(2038, 3, 18), validTo: new DateOnly(2038, 4, 16));
 
         var response = await BookAsync(admin, scheduled.Id, memberId);
 
@@ -481,14 +511,113 @@ public class AdminBookingEndpointTests(IntegrationTestFixture fixture)
     [Fact]
     public async Task A_karnet_covering_exactly_the_class_date_is_enough()
     {
-        var (admin, scheduled) = await ArrangeAsync();
+        var admin = await AdminAsync();
+
+        // 20:00Z on 24 March 2038 is 21:00 CET the same day in Warsaw (DST starts on the 28th) -
+        // class date 2038-03-24.
+        var scheduled = await ClassAtAsync(
+            admin, new DateTimeOffset(2038, 3, 24, 20, 0, 0, TimeSpan.Zero));
         var memberId = await PasslessMemberAsync();
 
-        var classDate = DateOf(scheduled.StartsAt);
+        var classDate = new DateOnly(2038, 3, 24);
         await fixture.IssuePassAsync(memberId, entryCount: 1, validFrom: classDate, validTo: classDate);
 
         Assert.Equal(
             HttpStatusCode.OK, (await BookAsync(admin, scheduled.Id, memberId)).StatusCode);
+    }
+
+    // --- the club-local date, across midnight ------------------------------------
+    //
+    // WHY THESE FOUR EXIST. Every other class in this file starts at a daytime hour, where the UTC
+    // date and the Warsaw date agree - so a gate that read the UTC date would pass all of them. These
+    // put the class just after midnight in Warsaw, which is still the previous day in UTC, and test
+    // both directions: the Warsaw date admits, the UTC date refuses. Summer and winter both, because
+    // the gap is two hours in one and one hour in the other.
+
+    /// <summary>
+    /// Summer (CEST, UTC+2): a class at 00:30 Warsaw on 15 July is covered by a karnet valid on the
+    /// 15th, even though the instant is still the 14th in UTC.
+    /// </summary>
+    [Fact]
+    public async Task A_summer_class_just_after_midnight_is_covered_by_a_karnet_for_the_warsaw_date()
+    {
+        var admin = await AdminAsync();
+
+        // 22:30Z on 14 July 2038 = 00:30 CEST on 15 July 2038 in Warsaw.
+        var scheduled = await ClassAtAsync(
+            admin, new DateTimeOffset(2038, 7, 14, 22, 30, 0, TimeSpan.Zero));
+        var memberId = await PasslessMemberAsync();
+
+        var warsawDate = new DateOnly(2038, 7, 15);
+        await fixture.IssuePassAsync(memberId, entryCount: 1, validFrom: warsawDate, validTo: warsawDate);
+
+        Assert.Equal(
+            HttpStatusCode.OK, (await BookAsync(admin, scheduled.Id, memberId)).StatusCode);
+    }
+
+    /// <summary>
+    /// The mirror of the test above: a karnet valid only on the UTC date of that instant does NOT
+    /// cover a class that is already the next day in Warsaw.
+    /// </summary>
+    [Fact]
+    public async Task A_summer_class_just_after_midnight_is_not_covered_by_a_karnet_for_the_utc_date()
+    {
+        var admin = await AdminAsync();
+
+        // 22:30Z on 21 July 2038 = 00:30 CEST on 22 July 2038 in Warsaw.
+        var scheduled = await ClassAtAsync(
+            admin, new DateTimeOffset(2038, 7, 21, 22, 30, 0, TimeSpan.Zero));
+        var memberId = await PasslessMemberAsync();
+
+        var utcDate = new DateOnly(2038, 7, 21);
+        await fixture.IssuePassAsync(memberId, entryCount: 1, validFrom: utcDate, validTo: utcDate);
+
+        var response = await BookAsync(admin, scheduled.Id, memberId);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal("no_valid_pass", await ReasonAsync(response));
+        Assert.Empty(await BookingsForAsync(scheduled.Id));
+    }
+
+    /// <summary>
+    /// Winter (CET, UTC+1): the same boundary with a one-hour gap.
+    /// </summary>
+    [Fact]
+    public async Task A_winter_class_just_after_midnight_is_covered_by_a_karnet_for_the_warsaw_date()
+    {
+        var admin = await AdminAsync();
+
+        // 23:30Z on 20 January 2038 = 00:30 CET on 21 January 2038 in Warsaw.
+        var scheduled = await ClassAtAsync(
+            admin, new DateTimeOffset(2038, 1, 20, 23, 30, 0, TimeSpan.Zero));
+        var memberId = await PasslessMemberAsync();
+
+        var warsawDate = new DateOnly(2038, 1, 21);
+        await fixture.IssuePassAsync(memberId, entryCount: 1, validFrom: warsawDate, validTo: warsawDate);
+
+        Assert.Equal(
+            HttpStatusCode.OK, (await BookAsync(admin, scheduled.Id, memberId)).StatusCode);
+    }
+
+    /// <summary>The winter mirror: the UTC date does not cover the Warsaw date.</summary>
+    [Fact]
+    public async Task A_winter_class_just_after_midnight_is_not_covered_by_a_karnet_for_the_utc_date()
+    {
+        var admin = await AdminAsync();
+
+        // 23:30Z on 27 January 2038 = 00:30 CET on 28 January 2038 in Warsaw.
+        var scheduled = await ClassAtAsync(
+            admin, new DateTimeOffset(2038, 1, 27, 23, 30, 0, TimeSpan.Zero));
+        var memberId = await PasslessMemberAsync();
+
+        var utcDate = new DateOnly(2038, 1, 27);
+        await fixture.IssuePassAsync(memberId, entryCount: 1, validFrom: utcDate, validTo: utcDate);
+
+        var response = await BookAsync(admin, scheduled.Id, memberId);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal("no_valid_pass", await ReasonAsync(response));
+        Assert.Empty(await BookingsForAsync(scheduled.Id));
     }
 
     /// <summary>
@@ -788,6 +917,60 @@ public class AdminBookingEndpointTests(IntegrationTestFixture fixture)
         // in the same class is untouched. A cascade keyed on the class would pass every assertion
         // above and fail this one.
         Assert.Equal(BookingStatus.Active, Assert.Single(rows, b => b.MemberId == other).Status);
+    }
+
+    /// <summary>
+    /// THE CASCADE GIVES THE ENTRY BACK. Blocking cancels the member's future bookings, and because
+    /// entries left is derived from active bookings, the entry those bookings held returns to the
+    /// karnet. Asserted twice, for two different failures:
+    ///
+    /// <para>
+    /// The PASS STAMP must rotate. Returning an entry makes a booking possible that was refused a
+    /// moment ago, so a booker whose entry check straddles the cascade must lose its save. REMOVE THE
+    /// ROTATION LOOP IN BookingStore.CancelActiveFutureForMemberAsync AND THE STAMP ASSERTION FAILS.
+    /// </para>
+    ///
+    /// <para>
+    /// And the entry must be USABLE again: after an unblock, the same one-entry karnet pays for a
+    /// different class. That is only possible if the cancelled booking stopped counting.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public async Task Blocking_a_member_returns_the_entries_their_future_bookings_held()
+    {
+        var admin = await AdminAsync();
+        var first = await AnotherClassAsync(admin);
+        var second = await AnotherClassAsync(admin);
+
+        var memberId = await PasslessMemberAsync();
+        var passId = await fixture.IssuePassAsync(
+            memberId, entryCount: 1, validFrom: WideFrom, validTo: WideTo);
+
+        Assert.Equal(HttpStatusCode.OK, (await BookAsync(admin, first.Id, memberId)).StatusCode);
+
+        var stampBefore = await PassStampAsync(passId);
+
+        var blocked = await admin.PostAsync($"/api/admin/members/{memberId}/block", content: null);
+        Assert.Equal(HttpStatusCode.OK, blocked.StatusCode);
+
+        Assert.Equal(0, await ActiveBookingsForPassAsync(passId));
+        Assert.NotEqual(stampBefore, await PassStampAsync(passId));
+
+        var unblocked = await admin.PostAsync($"/api/admin/members/{memberId}/unblock", content: null);
+        Assert.Equal(HttpStatusCode.OK, unblocked.StatusCode);
+
+        Assert.Equal(HttpStatusCode.OK, (await BookAsync(admin, second.Id, memberId)).StatusCode);
+    }
+
+    private async Task<string> PassStampAsync(Guid passId)
+    {
+        await using var db = NewContext();
+
+        return await db.MembershipPasses
+            .AsNoTracking()
+            .Where(p => p.Id == passId)
+            .Select(p => p.ConcurrencyStamp)
+            .SingleAsync();
     }
 
     /// <summary>
