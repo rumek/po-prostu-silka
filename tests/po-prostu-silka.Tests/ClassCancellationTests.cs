@@ -1,9 +1,14 @@
 using System.Net;
 using System.Net.Http.Json;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using po_prostu_silka.Application.Notifications;
 using po_prostu_silka.Domain;
 using po_prostu_silka.Domain.Notifications;
 using po_prostu_silka.Domain.Scheduling;
+using po_prostu_silka.Infrastructure.Notifications;
 using po_prostu_silka.Infrastructure.Persistence;
 
 namespace po_prostu_silka.Tests;
@@ -1050,6 +1055,118 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
         var stillListed = await admin.GetFromJsonAsync<List<ClassBookingBody>>(
             $"{Endpoint}/{cancelled.Id}/bookings");
         Assert.Single(stillListed!);
+    }
+
+    // --- delivered, not merely written ----------------------------------------
+
+    /// <summary>
+    /// THE ONLY TEST THAT CHALLENGES "AN OUTBOX ROW WRITTEN MEANS THE MEMBER WAS NOTIFIED".
+    ///
+    /// <para>
+    /// Every other test in this file stops at the rows; OutboxDeliveryTests proves the worker on rows it
+    /// wrote by hand. Neither ever puts a row the FAN-OUT produced through the worker, so a recipient
+    /// format the worker cannot resolve — a push row keyed on the endpoint instead of the subscription
+    /// id, say — would pass both. Here a real cancellation writes the rows and the real worker delivers
+    /// them; only the network edge is faked.
+    /// </para>
+    ///
+    /// <para>
+    /// The arrangement is every shape the recipient rule distinguishes: an account with a device, an
+    /// account without one, a member with no account but an address, a member with neither, and a
+    /// released booking.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public async Task A_cancellation_is_delivered_to_exactly_the_members_owed_it()
+    {
+        var (admin, type, trainerId) = await ArrangeAsync();
+        var scheduled = await PostClassAsync(admin, type.Id, trainerId, NextSlot());
+
+        var (withDevice, withDeviceId, withDeviceEmail) = await NewMemberAsync(deviceCount: 1);
+        var (withoutDevice, _, withoutDeviceEmail) = await NewMemberAsync();
+        await BookAsync(withDevice, scheduled.Id);
+        await BookAsync(withoutDevice, scheduled.Id);
+
+        var deskAddress = $"desk-{Guid.NewGuid():N}@test.local";
+        var accountlessId = await fixture.CreateMemberAsync("Doręczenie Bez Konta", email: deskAddress);
+        await fixture.IssuePassAsync(accountlessId);
+        await BookMemberAsync(accountlessId, scheduled.Id);
+
+        var unreachableId = await fixture.CreateMemberAsync("Doręczenie Bez Adresu");
+        await fixture.IssuePassAsync(unreachableId);
+        await BookMemberAsync(unreachableId, scheduled.Id);
+
+        var (released, releasedId, releasedEmail) = await NewMemberAsync(deviceCount: 1);
+        await BookAsync(released, scheduled.Id);
+        await ReleaseAsync(released, scheduled.Id);
+
+        Assert.Equal(
+            HttpStatusCode.OK, (await admin.PostAsync(CancelOf(scheduled.Id), content: null)).StatusCode);
+
+        var email = new FakeEmailSender();
+        var push = new FakePushSender();
+        await DeliverEverythingPendingAsync(email, push);
+
+        // Filtered by this class type's GUID-bearing name: the pass drains the whole shared table, and
+        // rows other tests left Pending are delivered to the same fakes.
+        Assert.Equal(
+            new[] { withDeviceEmail, withoutDeviceEmail, deskAddress }.Order().ToArray(),
+            email.Sent.Where(s => s.Subject.Contains(type.Name)).Select(s => s.To).Order().ToArray());
+
+        Assert.Equal(
+            (await DevicesOfAsync(withDeviceId)).Select(d => d.Endpoint).Order().ToArray(),
+            push.Sent.Where(s => s.Title.Contains(type.Name)).Select(s => s.Endpoint).Order().ToArray());
+
+        var releasedEndpoints = (await DevicesOfAsync(releasedId)).Select(d => d.Endpoint).ToHashSet();
+        Assert.DoesNotContain(email.Sent, s => s.To == releasedEmail);
+        Assert.DoesNotContain(push.Sent, s => releasedEndpoints.Contains(s.Endpoint));
+
+        // AND IN THE DATABASE. A row the pass never claimed would simply be missing from Sent above —
+        // which, for a recipient this test forgot to expect, looks exactly like success. Every row the
+        // cancellation wrote must have ended Sent.
+        var rows = await MessagesAboutAsync(type.Name);
+        Assert.NotEmpty(rows);
+        Assert.All(rows, m => Assert.Equal(OutboxStatus.Sent, m.Status));
+    }
+
+    /// <summary>
+    /// One pass of a standalone worker over the test database, delivering to the given fakes — the
+    /// same construction OutboxDeliveryTests uses, with two differences that are each load-bearing and
+    /// each fail SILENTLY when wrong.
+    ///
+    /// <para>
+    /// A REAL CLOCK. The host stamped these rows with the real current time as NextAttemptAt, so a
+    /// worker on OutboxDeliveryTests' fixed 2026-09-01 clock would find them all in the future, claim
+    /// nothing, and every "was not delivered" assertion would pass for the wrong reason.
+    /// </para>
+    ///
+    /// <para>
+    /// A DRAINING BATCH. Since the host stopped running its own worker, rows written by every other
+    /// fan-out test in the collection stay Pending in the same table; a pass claims by batch across all
+    /// of them, and the default of 20 could stop before reaching this test's rows.
+    /// </para>
+    /// </summary>
+    private async Task DeliverEverythingPendingAsync(FakeEmailSender email, FakePushSender push)
+    {
+        var options = Options.Create(new OutboxOptions { BatchSize = 1000 });
+
+        var collection = new ServiceCollection();
+        collection.AddLogging();
+        collection.AddDbContext<AppDbContext>(o => o.UseSqlServer(fixture.ConnectionString));
+        collection.AddSingleton<IEmailSender>(email);
+        collection.AddSingleton<IPushSender>(push);
+        collection.AddSingleton(options);
+        collection.AddSingleton(TimeProvider.System);
+
+        await using var services = collection.BuildServiceProvider();
+
+        var worker = new OutboxDeliveryWorker(
+            services.GetRequiredService<IServiceScopeFactory>(),
+            options,
+            TimeProvider.System,
+            services.GetRequiredService<ILogger<OutboxDeliveryWorker>>());
+
+        await worker.RunPassAsync(CancellationToken.None);
     }
 
     // --- atomicity and the race ------------------------------------------------

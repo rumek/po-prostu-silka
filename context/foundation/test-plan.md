@@ -82,7 +82,7 @@ orchestrator updates Status as artifacts appear on disk.
 | 1 | Booking invariants | Prove class capacity and the karnet entry pool hold under parallel requests and at date/entry boundaries | #1, #2 | integration (+ unit for pure date logic) | complete | context/changes/testing-booking-invariants/ |
 | 2 | Access surface | Prove retired doors stay shut and ownership is checked, per route and per role | #3, #4 | integration (route × role matrix) + SPA guard specs | complete | context/changes/testing-access-surface/ |
 | 3 | Frontend gate and API contract | Make SPA specs and lint block the deploy, and pin `reason` codes on both sides of the API | #6, #7 | CI gate + integration + SPA specs; post-edit hook + pre-commit (recommended local) | complete | context/changes/testing-frontend-gate-and-contract/ |
-| 4 | Class-change notification fan-out | Prove every booked member, and only they, is notified on cancel or change | #5 | integration with fake channels | planned | context/changes/testing-notification-fan-out/ |
+| 4 | Class-change notification fan-out | Prove every booked member, and only they, is notified on cancel or change | #5 | integration with fake channels | implementing | context/changes/testing-notification-fan-out/ |
 
 Order rationale: Phase 1 carries the top risk and the interview's Q1/Q3.
 Phase 2 must exist before S-18 relocates every endpoint. Phase 3 lands before
@@ -219,7 +219,38 @@ the relevant rollout phase ships; before that, the sub-section reads
 
 ### 6.5 Adding a notification fan-out test
 
-- TBD — see §3 Phase 4 (exactly-once per booked member per channel, via fake channels).
+- **Location**: `tests/po-prostu-silka.Tests/ClassCancellationTests.cs` owns both triggers — a cancel,
+  and an edit that moves the start time, duration or instructor of a booked, scheduled class. Capacity
+  edits, no-op edits and edits to a cancelled class are silent by rule and already pinned.
+- **Identity, never counts.** Assert WHO each row is addressed to: the email `Recipient` is the member's
+  address, the push `Recipient` is a subscription id. Take the expected values from the arrangement — the
+  address the test typed, the `PushSubscription` rows it inserted (`DevicesOfAsync`) — never from
+  `BookingQuery`, `ClassChangeNotification` or the subscription store. A count of "three emails" passes for
+  any wrong list of the right size.
+- **The member shapes to cover.** Since S-14 email comes from the member RECORD and push only through a
+  login. An account with devices, an account without, a member with no account but an address (email only),
+  a member with neither (skipped — book a reachable member alongside as a control), and a claimed member
+  whose login differs from the record (told at the record's address). Book accountless members through
+  `BookMemberAsync`; `BookAsync` needs a signed-in client.
+- **Finding your rows**: every class type carries a GUID in its name and the subject carries the name, so
+  `MessagesAboutAsync(type.Name)` returns exactly this test's rows in the shared table.
+- **Rows stay as written.** The integration host does NOT run `OutboxDeliveryWorker` (removed in
+  `TestAppFactory`), so a `Pending` row is a stable observation. If a test ever needs delivery, it builds
+  its own worker.
+- **Proving delivery** (the only way to challenge "a row written means the member was notified"): cancel
+  through the API, then build a standalone `OutboxDeliveryWorker` over the test database with
+  `FakeEmailSender`/`FakePushSender`, as `OutboxDeliveryTests.InitializeAsync` does, and call `RunPassAsync`.
+  Two settings are load-bearing, and each one gets wrong silently: a clock AT OR AFTER real time (the host
+  stamped the rows with real `NextAttemptAt`, so an old test clock claims nothing), and a batch large
+  enough to drain rows other tests left `Pending`. Filter the channels' `Sent` lists by the subject, and
+  assert this test's rows ended `Sent` in the database so an unclaimed row fails instead of passing.
+  Reference: `A_cancellation_is_delivered_to_exactly_the_members_owed_it`.
+- **Prove it bites**: read the account's email instead of the member's in `BookingQuery.GetForClassAsync`;
+  remove the blank-email guard in `ClassChangeNotification.FanOutAsync`; enqueue push rows with the
+  endpoint instead of the subscription id. Each should turn a named test red.
+- **Retry, backoff and dead-lettering** belong to `OutboxDeliveryTests` with synthetic rows — do not
+  re-test them through the fan-out.
+- **Run locally**: Docker running, then `dotnet test --filter FullyQualifiedName~ClassCancellationTests`.
 
 ### 6.6 Per-rollout-phase notes
 
@@ -242,6 +273,16 @@ the relevant rollout phase ships; before that, the sub-section reads
   sides already document it as unreachable, so it was left alone rather than raised as a question.
   §4 and §5's description of the post-edit hook was CORRECTED here — it runs the SPA checks, not the
   backend tests, because a Testcontainers SQL Server per edit breaks the per-edit budget.
+- **Phase 4 (notification fan-out):** both triggers were already tested, but only by COUNT — a recipient
+  list of the right size with the wrong people passed. S-14's identity split (email from the member
+  record, push only through a login, members with no account) had no fan-out test at all. The larger
+  finding was the test host itself: it ran the real `OutboxDeliveryWorker` with unconfigured senders, so
+  every fan-out row was dead-lettered within 15 seconds, `Pending` assertions held only on timing, and no
+  test could prove a written row reached a channel. The worker is now removed from the host, and one test
+  delivers a real cancellation through a standalone worker over fake channels. Pinned as current behaviour
+  by decision: a claimed member is told at the record's address, and moving a class then moving it back
+  sends two rounds. The response guidance for risk #5 was corrected in §2 — a permanent failure is
+  dead-lettered on the first attempt by design, so "retried rather than lost" overstated it.
 
 ## 7. What We Deliberately Don't Test
 

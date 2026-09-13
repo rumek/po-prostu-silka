@@ -383,8 +383,8 @@ None — no schema, no data, no runtime behaviour.
 
 #### Automated
 
-- [x] 2.1 The notification suite passes (`--filter ClassCancellationTests`)
-- [ ] 2.2 Backend tests pass (`dotnet test`)
+- [x] 2.1 The notification suite passes (`--filter ClassCancellationTests`) — 538062a
+- [x] 2.2 Backend tests pass (`dotnet test`) — 538062a
 
 #### Manual
 
@@ -396,7 +396,7 @@ None — no schema, no data, no runtime behaviour.
 
 #### Automated
 
-- [ ] 3.1 The end-to-end test passes (`--filter ClassCancellationTests`)
+- [x] 3.1 The end-to-end test passes (`--filter ClassCancellationTests`)
 - [ ] 3.2 Backend tests pass (`dotnet test`)
 
 #### Manual
