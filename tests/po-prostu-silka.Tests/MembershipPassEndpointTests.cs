@@ -282,6 +282,82 @@ public class MembershipPassEndpointTests(IntegrationTestFixture fixture)
     }
 
     /// <summary>
+    /// Revoking a pass whose entries are spent is refused with <c>has_active_bookings</c> - the last
+    /// karnet code the SPA maps (member-admin.models.ts) that no test pinned before the
+    /// testing-frontend-gate-and-contract rollout phase.
+    ///
+    /// <para>
+    /// The arrangement is deliberately made through the CLASS and BOOKING routes rather than by
+    /// writing a Booking row: entries left is DERIVED from active bookings (S-16), so a row inserted
+    /// behind the handler's back would prove the refusal fires on a state the product cannot actually
+    /// produce. The route under test is the pass DELETE, which is why the test lives here rather than
+    /// in the booking suite that owns the arrangement.
+    /// </para>
+    ///
+    /// <para>
+    /// 2039 is used by no other suite, and the club-wide overlap rule makes a shared instant a
+    /// cross-file failure rather than a local one - see test-plan.md §6.1 on slots.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public async Task A_pass_with_a_spent_entry_cannot_be_revoked()
+    {
+        var admin = await AdminAsync();
+        var memberId = await fixture.CreateMemberAsync("Karnet W Uzyciu");
+
+        var classStart = new DateTimeOffset(2039, 5, 10, 14, 0, 0, TimeSpan.Zero);
+
+        var trainerEmail = $"pass-trainer-{Guid.NewGuid():N}@test.local";
+        await fixture.CreateUserAsync(trainerEmail, AccountStatus.Active, ApplicationRoles.Trainer);
+        var members = await admin.GetFromJsonAsync<List<MemberRow>>("/api/admin/members");
+        var trainerId = members!.Single(m => m.Email == trainerEmail).Id;
+
+        var typeResponse = await admin.PostAsJsonAsync("/api/admin/class-types", new
+        {
+            name = $"Karnet Test {Guid.NewGuid():N}",
+            description = (string?)"Opis",
+            defaultDurationMinutes = 60,
+            defaultCapacity = 12,
+        });
+        Assert.Equal(HttpStatusCode.OK, typeResponse.StatusCode);
+        var type = (await typeResponse.Content.ReadFromJsonAsync<CreatedId>())!;
+
+        var classResponse = await admin.PostAsJsonAsync("/api/admin/classes", new
+        {
+            classTypeId = type.Id,
+            startsAt = classStart,
+            instructorMemberId = trainerId,
+            durationMinutes = 60,
+            capacity = 12,
+        });
+        Assert.Equal(HttpStatusCode.OK, classResponse.StatusCode);
+        var scheduled = (await classResponse.Content.ReadFromJsonAsync<CreatedId>())!;
+
+        // A karnet covering the class's club-local date, issued through the route under test's own
+        // sibling so the pass is exactly what the product would have produced.
+        var issued = await admin.PostAsJsonAsync(
+            $"/api/admin/members/{memberId}/passes",
+            Request(new DateOnly(2039, 5, 9), new DateOnly(2039, 5, 11)));
+        var pass = await issued.Content.ReadFromJsonAsync<MembershipPassView>();
+        Assert.NotNull(pass);
+
+        var booked = await admin.PostAsJsonAsync(
+            $"/api/admin/classes/{scheduled.Id}/bookings", new { memberId });
+        Assert.Equal(HttpStatusCode.OK, booked.StatusCode);
+
+        var refused = await admin.DeleteAsync($"/api/admin/members/{memberId}/passes/{pass.Id}");
+
+        Assert.Equal(HttpStatusCode.Conflict, refused.StatusCode);
+        Assert.Equal("has_active_bookings", await ReasonAsync(refused));
+
+        // Refused, not half-done: the karnet is still there for the admin to deal with.
+        Assert.Equal(1, await PassCountAsync(memberId));
+    }
+
+    /// <summary>Just the id, for the two arrangement POSTs above.</summary>
+    private sealed record CreatedId(Guid Id);
+
+    /// <summary>
     /// The nesting is enforced rather than decorative: without the MemberId comparison in the handler,
     /// addressing somebody else's pass through your own member's URL would work.
     /// </summary>

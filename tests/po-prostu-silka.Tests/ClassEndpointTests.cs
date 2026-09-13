@@ -330,6 +330,33 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
         Assert.Equal("time_conflict", (await moved.Content.ReadFromJsonAsync<FailureBody>())!.Reason);
     }
 
+    /// <summary>
+    /// The bounds on a duplicate batch, 1 to 8 weeks. Asserted for the CONTRACT rather than for the
+    /// arithmetic: <c>invalid_weeks</c> is in the SPA's ClassFailure union (class.models.ts) and was
+    /// the only class code no test pinned before the testing-frontend-gate-and-contract phase, so a
+    /// refactor could keep refusing while renaming the code, and only a screen would notice.
+    ///
+    /// <para>
+    /// The literals come from the rule - 8 weeks, "above this it is a recurring series, which the PRD
+    /// parks" - not from MaxDuplicateWeeks, which is the constant under test.
+    /// </para>
+    /// </summary>
+    [Theory]
+    [InlineData(0)]
+    [InlineData(9)]
+    public async Task The_duplicate_week_count_is_bounded(int weeks)
+    {
+        var (admin, type, trainerId) = await ArrangeAsync();
+        var source = await PostClassAsync(admin, type.Id, NextSlot(), trainerId);
+
+        var response = await admin.PostAsJsonAsync(
+            $"{Endpoint}/{source.Id}/duplicate", new { weeks });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(
+            "invalid_weeks", (await response.Content.ReadFromJsonAsync<FailureBody>())!.Reason);
+    }
+
     // --- FR-013: duplication still succeeds partially -------------------------
 
     [Fact]

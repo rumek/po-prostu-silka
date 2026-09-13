@@ -227,6 +227,26 @@ claiming coverage that is not there.
 writing tests. Codes verified as already asserted in this session: `no_valid_pass`, `no_entries_left`,
 `member_blocked`, `already_booked`, `class_full`, `class_started`, `class_cancelled`.
 
+**Adapted during implementation.** The inventory came back far smaller than this phase assumed, and
+two of the plan's premises were wrong:
+
+1. **The variable-built auth sites are already pinned.** `PasswordEndpointTests.cs` asserts
+   `invalid_current_password` (a Fact and a Theory row), `invalid_new_password` (on both change and
+   reset) and `invalid_token` (replay and malformed); `ProfileEndpointTests.cs` asserts
+   `invalid_postal_code`, `invalid_phone` and `invalid_city` through
+   `Contact_details_are_validated_exactly_as_at_registration`. The plan's "nothing pins them today"
+   came from a first-pass grep that only matched `Assert.Equal("<code>"` on ONE line, while these
+   assertions wrap onto two. Step 2 of this phase (writing those tests) is therefore dropped rather
+   than executed — duplicating them would add cost and no signal.
+2. **The whole catalogue is nearly covered.** Checking every one of the ~67 codes for presence in
+   `tests/` leaves exactly seven unasserted: `has_active_bookings`, `invalid_street`,
+   `invalid_house_number`, `invalid_weeks`, `invalid_weight`, `reps_too_long`, `note_too_long`.
+
+The phase's remaining work is those seven, each in the suite that owns its route. Coverage claims for
+the rest were spot-checked in context (not just by literal presence) for the class codes, the member
+codes, `invalid_display_name` and the booking codes — all are genuine assertions on a response
+`reason`.
+
 #### 2. Auth and profile refusals — the variable-built sites
 
 **Files**: `tests/po-prostu-silka.Tests/PasswordEndpointTests.cs`,
@@ -423,11 +443,11 @@ skips that install simply has no pre-commit hook, which is why CI is the gate th
 
 #### Automated
 
-- [x] 1.1 SPA specs pass (`npm test`)
-- [x] 1.2 SPA lint and format pass (`npm run quality:check`)
-- [x] 1.3 Backend tests pass (`dotnet test`)
-- [x] 1.4 Workflow file parses
-- [x] 1.5 `.claude/settings.json` is valid JSON
+- [x] 1.1 SPA specs pass (`npm test`) — 03fca04
+- [x] 1.2 SPA lint and format pass (`npm run quality:check`) — 03fca04
+- [x] 1.3 Backend tests pass (`dotnet test`) — 03fca04
+- [x] 1.4 Workflow file parses — 03fca04
+- [x] 1.5 `.claude/settings.json` is valid JSON — 03fca04
 
 #### Manual
 
@@ -440,8 +460,8 @@ skips that install simply has no pre-commit hook, which is why CI is the gate th
 
 #### Automated
 
-- [ ] 2.1 Backend tests pass (`dotnet test`)
-- [ ] 2.2 Scoped suites pass (`--filter` per suite)
+- [x] 2.1 Backend tests pass (`dotnet test`)
+- [x] 2.2 Scoped suites pass (`--filter` per suite)
 
 #### Manual
 
@@ -453,10 +473,10 @@ skips that install simply has no pre-commit hook, which is why CI is the gate th
 
 #### Automated
 
-- [ ] 3.1 SPA specs pass (`npm test`)
-- [ ] 3.2 SPA lint and format pass (`npm run quality:check`)
-- [ ] 3.3 The three failure specs pass individually via `--include`
-- [ ] 3.4 Backend tests pass (`dotnet test`)
+- [x] 3.1 SPA specs pass (`npm test`)
+- [x] 3.2 SPA lint and format pass (`npm run quality:check`)
+- [x] 3.3 The three failure specs pass individually via `--include`
+- [x] 3.4 Backend tests pass (`dotnet test`)
 
 #### Manual
 

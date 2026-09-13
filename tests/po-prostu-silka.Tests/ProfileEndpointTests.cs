@@ -208,12 +208,26 @@ public class ProfileEndpointTests(IntegrationTestFixture fixture)
     /// Same helper as registration, so the same input must produce the same reason code. A member
     /// who can save what the registration form refuses is the drift ContactDetails exists to stop.
     /// </summary>
+    /// <remarks>
+    /// The street and house-number rows were added by the testing-frontend-gate-and-contract rollout
+    /// phase: both codes are in the SPA's ContactFailureReason union and neither was asserted
+    /// anywhere. Their literals come from the rule - a field that trims to nothing is refused, and a
+    /// house number is capped at 20 characters - not from ContactDetails' own constants, which are
+    /// what these rows exist to catch changing.
+    /// </remarks>
     [Theory]
-    [InlineData("00001", null, null, "invalid_postal_code")]
-    [InlineData(null, "12345678", null, "invalid_phone")]
-    [InlineData(null, null, "   ", "invalid_city")]
+    [InlineData("00001", null, null, null, null, "invalid_postal_code")]
+    [InlineData(null, "12345678", null, null, null, "invalid_phone")]
+    [InlineData(null, null, "   ", null, null, "invalid_city")]
+    [InlineData(null, null, null, "   ", null, "invalid_street")]
+    [InlineData(null, null, null, null, "12345678901234567890A", "invalid_house_number")]
     public async Task Contact_details_are_validated_exactly_as_at_registration(
-        string? postalCode, string? phoneNumber, string? city, string expectedReason)
+        string? postalCode,
+        string? phoneNumber,
+        string? city,
+        string? street,
+        string? houseNumber,
+        string expectedReason)
     {
         var email = await CreateMemberWithoutContactDetailsAsync(AccountStatus.Active);
         var client = await fixture.CreateAuthenticatedClientAsync(email);
@@ -222,6 +236,8 @@ public class ProfileEndpointTests(IntegrationTestFixture fixture)
             "/api/profile",
             Profile(
                 phoneNumber: phoneNumber ?? "123456789",
+                street: street ?? "Piłsudskiego",
+                houseNumber: houseNumber ?? "12A/3",
                 postalCode: postalCode ?? "00-001",
                 city: city ?? "Warszawa"));
 

@@ -621,10 +621,17 @@ public class TrainingPlanEndpointTests(IntegrationTestFixture fixture)
         Assert.Equal(expected, response.StatusCode);
     }
 
+    /// <remarks>
+    /// The reason column was added by the testing-frontend-gate-and-contract rollout phase. The bound
+    /// was already pinned; the CODE was not, and the code is what the SPA's TrainingPlanFailure union
+    /// switches on - so a refactor could keep refusing 51 characters while renaming the answer, and
+    /// only a screen would notice.
+    /// </remarks>
     [Theory]
-    [InlineData(50, HttpStatusCode.OK)]
-    [InlineData(51, HttpStatusCode.BadRequest)]
-    public async Task The_reps_bound_is_enforced(int length, HttpStatusCode expected)
+    [InlineData(50, HttpStatusCode.OK, null)]
+    [InlineData(51, HttpStatusCode.BadRequest, "reps_too_long")]
+    public async Task The_reps_bound_is_enforced(
+        int length, HttpStatusCode expected, string? reason)
     {
         var (trainer, memberId, exerciseId) = await ArrangeAsync();
 
@@ -632,12 +639,19 @@ public class TrainingPlanEndpointTests(IntegrationTestFixture fixture)
             Endpoint, Request("x", memberId, Item(exerciseId, reps: new string('a', length))));
 
         Assert.Equal(expected, response.StatusCode);
+
+        if (reason is not null)
+        {
+            Assert.Equal(reason, (await response.Content.ReadFromJsonAsync<FailureBody>())!.Reason);
+        }
     }
 
+    /// <remarks>See The_reps_bound_is_enforced for why the reason column is asserted.</remarks>
     [Theory]
-    [InlineData(500, HttpStatusCode.OK)]
-    [InlineData(501, HttpStatusCode.BadRequest)]
-    public async Task The_note_bound_is_enforced(int length, HttpStatusCode expected)
+    [InlineData(500, HttpStatusCode.OK, null)]
+    [InlineData(501, HttpStatusCode.BadRequest, "note_too_long")]
+    public async Task The_note_bound_is_enforced(
+        int length, HttpStatusCode expected, string? reason)
     {
         var (trainer, memberId, exerciseId) = await ArrangeAsync();
 
@@ -645,6 +659,11 @@ public class TrainingPlanEndpointTests(IntegrationTestFixture fixture)
             Endpoint, Request("x", memberId, Item(exerciseId, note: new string('a', length))));
 
         Assert.Equal(expected, response.StatusCode);
+
+        if (reason is not null)
+        {
+            Assert.Equal(reason, (await response.Content.ReadFromJsonAsync<FailureBody>())!.Reason);
+        }
     }
 
     [Theory]
@@ -770,11 +789,13 @@ public class TrainingPlanEndpointTests(IntegrationTestFixture fixture)
     /// 999.99 is what decimal(5,2) holds. One step past it is a truncation error at the database if
     /// the endpoint does not refuse it first - the whole reason this bound exists in three places.
     /// </summary>
+    /// <remarks>See The_reps_bound_is_enforced for why the reason column is asserted.</remarks>
     [Theory]
-    [InlineData(999.99, HttpStatusCode.OK)]
-    [InlineData(1000.00, HttpStatusCode.BadRequest)]
-    [InlineData(-0.01, HttpStatusCode.BadRequest)]
-    public async Task The_weight_range_is_enforced(decimal weight, HttpStatusCode expected)
+    [InlineData(999.99, HttpStatusCode.OK, null)]
+    [InlineData(1000.00, HttpStatusCode.BadRequest, "invalid_weight")]
+    [InlineData(-0.01, HttpStatusCode.BadRequest, "invalid_weight")]
+    public async Task The_weight_range_is_enforced(
+        decimal weight, HttpStatusCode expected, string? reason)
     {
         var (trainer, memberId, exerciseId) = await ArrangeAsync();
 
@@ -782,6 +803,11 @@ public class TrainingPlanEndpointTests(IntegrationTestFixture fixture)
             Endpoint, Request("x", memberId, Item(exerciseId, weightKg: weight)));
 
         Assert.Equal(expected, response.StatusCode);
+
+        if (reason is not null)
+        {
+            Assert.Equal(reason, (await response.Content.ReadFromJsonAsync<FailureBody>())!.Reason);
+        }
     }
 
     [Fact]
