@@ -128,6 +128,32 @@ export interface ClassFailure {
 }
 
 /**
+ * Every reason in {@link ClassFailure}, as a value. See BOOKING_FAILURE_REASONS for why the object
+ * literal rather than an array: the `satisfies` clause is what makes completeness a build error.
+ *
+ * `invalid_range` is absent here for the same reason it is absent from the union - it is a read-path
+ * refusal carried by {@link ScheduleReadFailure}, not a write failure this table answers.
+ */
+export const CLASS_FAILURE_REASONS = Object.keys({
+  missing_field: true,
+  invalid_capacity: true,
+  invalid_duration: true,
+  starts_in_past: true,
+  invalid_weeks: true,
+  time_conflict: true,
+  unknown_class_type: true,
+  inactive_class_type: true,
+  class_type_immutable: true,
+  unknown_instructor: true,
+  instructor_not_trainer: true,
+  has_bookings: true,
+  capacity_below_bookings: true,
+  conflict: true,
+  class_started: true,
+  already_cancelled: true,
+} satisfies Record<ClassFailure['reason'], true>) as readonly ClassFailure['reason'][];
+
+/**
  * Why a schedule READ was refused. Mirrors the same `ClassFailure` record on the wire — the server
  * reuses that shape — but is a separate type here on purpose.
  *

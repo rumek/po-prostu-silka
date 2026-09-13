@@ -6,7 +6,7 @@
 >
 > Refresh: re-run `/10x-test-plan --refresh` when stale (see §8).
 >
-> Last updated: 2026-09-11
+> Last updated: 2026-09-13
 
 ## 1. Strategy
 
@@ -48,8 +48,8 @@ research's job, see §1 principle #3).
 |---|-------------------------|--------|------------|--------------------------------|
 | 1 | Two staff bookings race for the last spot in a class (or the last entry on a karnet) and both succeed — the class runs over capacity, or the pass over its entry pool | High | High | PRD §Guardrails "no overbooking"; PRD FR-008 Socrates note (simultaneous booking); roadmap S-16 risk (second concurrency invariant); interview Q1; hot-spot dir `src/Application/Scheduling` (31 file-changes/30d) |
 | 2 | A booking is admitted or refused wrongly — no karnet valid on the class's club-local date, no entry left, entries miscounted after a booking is released or its member is blocked, a trainer booking into a class they do not instruct | High | High | AGENTS.md hard rule (S-16); roadmap S-16 outcome; interview Q3; hot-spot dirs `src/Infrastructure/Scheduling` (27), `src/Domain/Scheduling` (23). Entries held by a club-cancelled class stay consumed by design (S-16) — an open product decision, roadmap Open Question 7, not a defect this risk covers |
-| 3 | A retired or closed door still opens — a member books or cancels their own spot, registration succeeds without an invitation code, the registration rate limit can be bypassed | High | High | interview Q2; roadmap S-16 risk ("the larger risk is subtraction"); roadmap S-17 risk (guard, link and API refusal must land together); roadmap S-18 relocates every endpoint |
-| 4 | A signed-in user reaches data or actions that are not theirs — a member reads another member's plan, bookings or contact details; the password reset reveals which addresses are registered | High | Medium | PRD NFR "personal data privacy"; PRD FR-026; roadmap S-13 risk (enumeration oracle); roadmap S-14 risk (authorization claims); hot-spot dirs `src/Application/Members` (34), `src/Application/Auth` (24) |
+| 3 | A retired or closed door still opens — a member books or cancels their own spot, registration succeeds without an invitation code, or a burst of registrations from one client is not capped (the per-address cap is a courtesy limit by design, not an authorization control) | High | High | interview Q2; roadmap S-16 risk ("the larger risk is subtraction"); roadmap S-17 risk (guard, link and API refusal must land together); roadmap S-18 relocates every endpoint |
+| 4 | A signed-in user reaches data or actions that are not theirs — a member reads another member's plan, bookings or contact details; the password reset reveals which addresses are registered | High | Medium | PRD NFR "personal data privacy"; PRD FR-026; roadmap S-13 risk (enumeration oracle); roadmap S-14 risk (authorization claims); hot-spot dirs `src/Application/Members` (34), `src/Application/Auth` (24); stronger likelihood signal from Phase 2 research: authorization is declared per route group with no fallback policy, and roadmap S-18 re-creates every group |
 | 5 | A class is cancelled or changed and a booked member receives no email or push — or someone not booked receives one | High | Medium | PRD §Guardrails "no missed cancellations"; PRD US-02; roadmap S-09 (M-1 north star) |
 | 6 | A structural refactor silently changes an API contract the SPA depends on (route, status, `reason` code), so the user sees the wrong message or a refused action looks successful | Medium | High | roadmap M-6 CS-03 and CS-07 (reason codes mirrored field-for-field by the SPA); S-18 and S-19 both `ready`; hot-spot dir `src/app/src/app/features` (345) |
 | 7 | An SPA regression (route guard, error display, form state) reaches production because no gate runs the frontend specs or lint | Medium | High | interview Q4; deploy workflow gates on the backend test run only; hot-spot dirs `src/app/src/app/core` (112), `src/app/src/app/shared` (77) |
@@ -80,8 +80,8 @@ orchestrator updates Status as artifacts appear on disk.
 | # | Phase name | Goal (one line) | Risks covered | Test types | Status | Change folder |
 |---|------------|-----------------|---------------|------------|--------|---------------|
 | 1 | Booking invariants | Prove class capacity and the karnet entry pool hold under parallel requests and at date/entry boundaries | #1, #2 | integration (+ unit for pure date logic) | complete | context/changes/testing-booking-invariants/ |
-| 2 | Access surface | Prove retired doors stay shut and ownership is checked, per route and per role | #3, #4 | integration (route × role matrix) + SPA guard specs | planned | context/changes/testing-access-surface/ |
-| 3 | Frontend gate and API contract | Make SPA specs and lint block the deploy, and pin `reason` codes on both sides of the API | #6, #7 | CI gate + integration + SPA specs; post-edit hook (recommended local) | not started | — |
+| 2 | Access surface | Prove retired doors stay shut and ownership is checked, per route and per role | #3, #4 | integration (route × role matrix) + SPA guard specs | complete | context/changes/testing-access-surface/ |
+| 3 | Frontend gate and API contract | Make SPA specs and lint block the deploy, and pin `reason` codes on both sides of the API | #6, #7 | CI gate + integration + SPA specs; post-edit hook + pre-commit (recommended local) | complete | context/changes/testing-frontend-gate-and-contract/ |
 | 4 | Class-change notification fan-out | Prove every booked member, and only they, is notified on cancel or change | #5 | integration with fake channels | not started | — |
 
 Order rationale: Phase 1 carries the top risk and the interview's Q1/Q3.
@@ -102,7 +102,7 @@ colocated SPA spec files; no e2e.
 | SPA unit | Vitest (via `ng test`) + jsdom | 4.x / 28.x | Colocated `*.spec.ts`; not yet run in CI — see Phase 3 |
 | SPA lint/format | ESLint + Prettier (`npm run quality:check`) | 10.x / 3.x | Not yet run in CI — see Phase 3 |
 | e2e | none | — | Deliberately none: no risk above needs the full deployed shape that integration + SPA specs cannot give more cheaply |
-| AI-native (local) | post-edit hook running the targeted backend tests — checked: 2026-09-11 | n/a | When NOT to use: on edits outside booking/access code, or as a substitute for the CI gate; configured in a later lesson |
+| AI-native (local) | post-edit hook (`.claude/hooks/post-edit-spa.sh`) running Prettier, ESLint and the edited file's colocated spec — checked: 2026-09-13 | n/a | Corrected in Phase 3: this row used to promise "the targeted backend tests". Backend tests are deliberately NOT hooked — Testcontainers starts a SQL Server (30-60s), which breaks "per-edit stays fast". The spec half is scoped to `core/` and `shared/`. When NOT to use: as a substitute for the CI gate |
 
 **Stack grounding tools (current session):**
 - Docs: Context7 — available; not queried, since the rollout adopts no tool the repo does not already use; checked: 2026-09-11
@@ -117,9 +117,10 @@ colocated SPA spec files; no e2e.
 | backend build + typecheck | local + CI | required (wired) | compile and nullability drift |
 | backend integration tests (`dotnet test`) | local + CI, gates deploy | required (wired) | logic, authorization and concurrency regressions |
 | SPA typecheck via production build | CI | required (wired) | template and type drift |
-| SPA specs (`npm test`) | local + CI | required after §3 Phase 3 | guard, error-display and form regressions |
-| SPA lint + format (`npm run quality:check`) | local + CI | required after §3 Phase 3 | style and lint drift |
-| post-edit hook | local (agent loop) | recommended after §3 Phase 3 | booking/access regressions at edit time |
+| SPA specs (`npm test`) | local + CI, gates deploy | required (wired) | guard, error-display and form regressions |
+| SPA lint + format (`npm run quality:check`) | local + CI, gates deploy | required (wired) | style and lint drift |
+| post-edit hook | local (agent loop) | recommended (wired) | SPA format, lint and colocated-spec regressions at edit time |
+| pre-commit (lefthook) | local (git) | recommended (wired) | the same format and lint checks on staged SPA files, including edits that never passed through the agent |
 
 ## 6. Cookbook Patterns
 
@@ -173,11 +174,46 @@ the relevant rollout phase ships; before that, the sub-section reads
 
 ### 6.3 Adding an SPA spec that the deploy gate enforces
 
-- TBD — see §3 Phase 3 (guard and error-display specs; `reason`-code mapping).
+- **Location**: colocated with the file under test — `foo.ts` beside `foo.spec.ts`, under
+  `src/app/src/app/`. There is no separate test tree.
+- **The gate**: `npm run quality:check` and `npm test` run in `.github/workflows/deploy.yml` BEFORE
+  `dotnet test`, the publish and the migrations, so a red spec or a lint error aborts the run while
+  the previous artifact is still serving.
+- **A failure table** is a `Record<Union['reason'], string>` keyed by the union itself, so a new code
+  fails the BUILD rather than falling through to the fallback message. Its spec iterates the exported
+  `*_FAILURE_REASONS` list (§6.4) — never a hand-copied array with a count assertion, which is a
+  second oracle that goes stale silently.
+- **What a table's spec proves**: a message for every reason; the fallback for an unknown, `undefined`
+  or `null` reason; and that refusals leading to DIFFERENT actions do not read alike.
+- **Run one file**: `npx ng test --include src/app/core/<area>/<file>.spec.ts` from `src/app`
+  (`--watch` is false outside a TTY). This is exactly what the post-edit hook runs.
+- **Reference specs**: `core/admin/membership-pass-failure.spec.ts` (list-driven),
+  `core/scheduling/booking-failure.spec.ts`, `core/scheduling/class-failure.spec.ts`.
+- **Prove it bites**: delete one entry from the table's `MESSAGES` — the build fails; make it fall
+  through instead (cast the `Record` to `Partial`) — the spec fails. Revert both.
 
 ### 6.4 Pinning an API failure contract
 
-- TBD — see §3 Phase 3 (status + `reason` asserted on both sides).
+- **Where**: the suite that owns the ROUTE, never a separate contract suite — `ProfileEndpointTests`
+  for profile refusals, `MembershipPassEndpointTests` for karnet ones. Where the arrangement lives
+  elsewhere (a karnet refusal needs a class and a booking), bring the arrangement to the route's
+  suite rather than the assertion to the arrangement's.
+- **What to assert**: the status and the `reason` TOGETHER, over HTTP, through the suite's own
+  `private sealed record FailureBody(string Reason)` — each file declares its own by convention.
+- **Which codes are worth it**: the ones the SPA maps. Every union under `src/app/src/app/core/**`
+  mirrors a `*Failure` record field-for-field and the code is what the screens switch on, so a
+  refusal whose status is pinned but whose code is not can be renamed in silence. That was exactly
+  the gap in the training-plan bounds: three tests asserting `BadRequest` and no code.
+- **Which to skip**: codes reachable only by losing an optimistic race (`conflict`, `member_changed`)
+  — §6.1's rule against races that pass either way applies — and `invalid_registration`, which is
+  Identity's unrecognised-error fallback and cannot be provoked deterministically.
+- **Oracle rule**: the expected code is a literal written from the rule and from the TS union it
+  mirrors, never read back from the production constant under test. Name the mirrored file in a
+  comment on the test.
+- **Both halves, no bridge**: the backend test proves the API still answers the code; the exported
+  reason list plus its spec (§6.3) proves the SPA still handles it. Nothing parses TypeScript from
+  C#, and nothing should — a generated bridge would fail the moment either side moved.
+- **Run locally**: Docker running, then `dotnet test --filter FullyQualifiedName~<Suite>`.
 
 ### 6.5 Adding a notification fan-out test
 
@@ -194,6 +230,16 @@ the relevant rollout phase ships; before that, the sub-section reads
 - **Phase 2 (access surface):** the scenario tests already existed; the gap was that nothing proved
   EVERY endpoint authorized, with no fallback policy and S-18 about to re-create each route group.
   Trainers seeing member emails on their class roster was left unpinned as roadmap Open Question 8.
+- **Phase 3 (frontend gate and API contract):** the specs were verified green BEFORE the gate was
+  switched on — the order §2 requires. The contract turned out to be nearly covered already: of the
+  ~67 codes only seven were unasserted (`has_active_bookings`, `invalid_street`,
+  `invalid_house_number`, `invalid_weeks`, `invalid_weight`, `reps_too_long`, `note_too_long`), and
+  three of those had tests pinning the STATUS but not the code, so they were extended rather than
+  duplicated. Left unpinned on purpose: race-only codes and `invalid_registration`.
+  `pending_approval` survives in the SPA's `LoginFailureReason` with no producer since S-01; both
+  sides already document it as unreachable, so it was left alone rather than raised as a question.
+  §4 and §5's description of the post-edit hook was CORRECTED here — it runs the SPA checks, not the
+  backend tests, because a Testcontainers SQL Server per edit breaks the per-edit budget.
 
 ## 7. What We Deliberately Don't Test
 

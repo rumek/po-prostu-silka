@@ -133,8 +133,12 @@ if [ -n "$SPEC" ]; then
   check "Spec run ($SPEC)" npx ng test --include "$SPEC"
 fi
 
+# STDERR, not stdout. On exit 2 the agent is handed the hook's STDERR; a report written to stdout is
+# dropped, so the edit is blocked with no reason given - which is strictly worse than no hook at all.
+# Found the hard way: this hook blocked two edits in its own implementation session and the only thing
+# the agent saw was "No stderr output".
 if [ "$FAILED" -ne 0 ]; then
-  printf '%s' "$REPORT"
+  printf '%s' "$REPORT" >&2
   exit 2
 fi
 

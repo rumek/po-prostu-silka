@@ -255,3 +255,21 @@ export interface MembershipPassFailure {
     | 'has_active_bookings'
     | 'conflict';
 }
+
+/**
+ * Every reason in {@link MembershipPassFailure}, as a value. See BOOKING_FAILURE_REASONS in
+ * core/scheduling/booking.models.ts for why the object literal - the `satisfies` clause is what makes
+ * a missing entry a build error rather than a stale count in a spec.
+ */
+export const MEMBERSHIP_PASS_FAILURE_REASONS = Object.keys({
+  member_blocked: true,
+  invalid_type_name: true,
+  invalid_range: true,
+  invalid_entry_count: true,
+  overlapping_pass: true,
+  has_active_bookings: true,
+  conflict: true,
+} satisfies Record<
+  MembershipPassFailure['reason'],
+  true
+>) as readonly MembershipPassFailure['reason'][];

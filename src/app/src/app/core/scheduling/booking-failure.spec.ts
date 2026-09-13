@@ -1,5 +1,5 @@
 import { bookingFailureMessage } from './booking-failure';
-import { BookingFailure } from './booking.models';
+import { BOOKING_FAILURE_REASONS } from './booking.models';
 
 /**
  * The table exists so every staff surface describes the same refusal with the same words. These tests
@@ -10,23 +10,11 @@ import { BookingFailure } from './booking.models';
  * asserted in that voice.
  */
 describe('bookingFailureMessage', () => {
-  // Every reason in the union, listed by hand. If BookingFailure grows a reason, the Record in
-  // booking-failure.ts fails the build — and this list going stale is caught by the count assertion.
-  const REASONS: BookingFailure['reason'][] = [
-    'class_cancelled',
-    'class_started',
-    'already_booked',
-    'class_full',
-    'member_blocked',
-    'no_valid_pass',
-    'no_entries_left',
-    'conflict',
-  ];
-
   it('has a message for every reason the API can return', () => {
-    expect(REASONS.length).toBe(8);
-
-    for (const reason of REASONS) {
+    // BOOKING_FAILURE_REASONS replaced a hand-copied array guarded by expect(REASONS.length).toBe(8).
+    // Its `satisfies` clause makes completeness a BUILD error, where the count only caught a stale
+    // list once somebody remembered to bump the number.
+    for (const reason of BOOKING_FAILURE_REASONS) {
       const message = bookingFailureMessage(reason);
 
       expect(message.length).toBeGreaterThan(0);

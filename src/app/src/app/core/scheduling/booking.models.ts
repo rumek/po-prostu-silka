@@ -80,3 +80,25 @@ export interface BookingFailure {
     | 'no_entries_left'
     | 'conflict';
 }
+
+/**
+ * Every reason in {@link BookingFailure}, as a value.
+ *
+ * <h2>Why the object literal</h2>
+ *
+ * `satisfies Record<BookingFailure['reason'], true>` makes the COMPILER check the list is complete:
+ * omit a reason and the build fails here. The specs used to hand-copy this list and guard it with
+ * `expect(REASONS.length).toBe(n)` - a second oracle that only caught a stale list after someone
+ * remembered to bump the number. A union cannot be enumerated at runtime, so this is the cheapest
+ * construct that turns "the list is complete" into a build-time fact.
+ */
+export const BOOKING_FAILURE_REASONS = Object.keys({
+  class_cancelled: true,
+  class_started: true,
+  already_booked: true,
+  class_full: true,
+  member_blocked: true,
+  no_valid_pass: true,
+  no_entries_left: true,
+  conflict: true,
+} satisfies Record<BookingFailure['reason'], true>) as readonly BookingFailure['reason'][];
