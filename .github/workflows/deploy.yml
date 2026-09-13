@@ -23,11 +23,31 @@ jobs:
           cache: 'npm'
           cache-dependency-path: src/app/package-lock.json
 
+      - name: Install SPA dependencies
+        working-directory: src/app
+        run: npm ci
+
+      # The SPA's own checks are part of the deploy gate as of the testing-frontend-gate-and-contract
+      # rollout phase (test-plan.md §5). Both were verified GREEN before being wired: §2 names
+      # "switching the gate on while specs are red, then muting them" as the anti-pattern, so the
+      # order was verify, then wire - never the reverse.
+      #
+      # Cheapest first: quality:check is seconds of lint + format, the build is the SPA's only
+      # typecheck, and the spec run pays a bundling cost of its own on top of ~60s of tests.
+      - name: Check SPA lint and formatting
+        working-directory: src/app
+        run: npm run quality:check
+
       - name: Build Angular (static)
         working-directory: src/app
-        run: |
-          npm ci
-          npm run build
+        run: npm run build
+
+      # AFTER the build and BEFORE the backend tests, the publish and any migration - a red spec
+      # aborts the run while the previous artifact is still serving and the production database is
+      # untouched. Same reasoning as the backend test step below, one layer earlier.
+      - name: Run SPA specs
+        working-directory: src/app
+        run: npm test
 
       - name: Stage Angular output into wwwroot
         run: |

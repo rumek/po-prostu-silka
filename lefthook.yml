@@ -1,0 +1,30 @@
+# Pre-commit gate for the Angular workspace.
+#
+# WHY, GIVEN THE AGENT HOOK AND CI
+# --------------------------------
+# The PostToolUse hook (.claude/hooks/post-edit-spa.sh) only sees edits the agent made. This layer
+# catches the rest: a manual fix in an editor, a merge resolution, a commit from a session with no
+# hook configured. CI stays the gate that actually matters - a clone that never ran `npm install` has
+# no git hook at all - but every failure caught here is one CI round-trip saved.
+#
+# CHECK, NEVER WRITE
+# ------------------
+# Prettier runs in --check mode. The `prettier --write {staged_files} && git add {staged_files}`
+# pattern from Lefthook's own examples silently changes what is being committed, so the diff the
+# author reviewed is not the diff that lands. Refusing the commit and letting `npm run quality:fix`
+# do the writing keeps that boundary intact.
+#
+# `root:` makes both commands run inside src/app (where package.json, .prettierrc and
+# eslint.config.js live) and rewrites {staged_files} to paths relative to it.
+pre-commit:
+  parallel: true
+  commands:
+    format:
+      root: "src/app/"
+      glob: "*.{ts,html,scss}"
+      run: npx prettier --check {staged_files}
+    lint:
+      # ts and html only - eslint.config.js's lintFilePatterns do not cover scss.
+      root: "src/app/"
+      glob: "*.{ts,html}"
+      run: npx eslint {staged_files}
