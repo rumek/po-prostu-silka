@@ -67,7 +67,7 @@ not to this test rollout.
 | #2 | Boundary cases follow the S-16 rules: first and last validity day in club time, a class near midnight where UTC and club-local dates differ, the last entry, an entry returned after a cancellation | "Entries left is a stored number to assert against" — it is derived from active bookings | The club-local date rule, how entries are derived, which roles may book into which class | integration; unit only for pure date logic | assertion copied from the derivation code; skipping time-zone edges |
 | #3 | Every retired capability is refused for every role, and its SPA route is gone or redirects | "Removing the button removed the capability" | The route inventory against the S-16/S-17 retired list; rate-limit configuration and how tests can exercise it | integration (route × role matrix) + SPA guard spec | testing only the UI; a matrix generated from today's routes, which would bless the leftovers |
 | #4 | User A is refused user B's resources by id; the reset endpoint answers identically (status, body, timing class) for registered and unknown addresses | "Authenticated means authorized" | Ownership checks per resource; the member/login split from S-14; the reset response shape | integration | testing only the own-resource happy path |
-| #5 | Cancelling or changing a class queues exactly one message per channel for each actively booked member with an address or device, and none for anyone else; a failed send is retried rather than lost | "An outbox row written means the member was notified" | The fan-out rule, the existing fake channels, retry semantics | integration with fake channels | asserting only on an outbox count; mocking the dispatcher itself |
+| #5 | Cancelling or changing a class queues exactly one message per channel for each actively booked member with an address or device — addressed to THAT member — and none for anyone else; a failed send is retried on the backoff schedule and, if it still fails, dead-lettered and surfaced by `/health` rather than silently dropped (corrected by Phase 4 research: a permanent failure is dead-lettered on the first attempt by design, so "retried rather than lost" overstated it) | "An outbox row written means the member was notified"; "a `Pending` row observed in the integration host is a stable observation" (Phase 4 research: the test host runs the real delivery worker) | The fan-out rule, including the member/login identity split since S-14 (email from the member record, push only through a login); the existing fake channels; retry semantics; whether the test host runs the delivery worker | integration with fake channels | asserting only on an outbox count (a wrong-but-same-size recipient list passes); mocking the dispatcher itself |
 | #6 | Each failure the SPA handles still returns the same status and `reason` from the API, and the SPA maps each known reason to its intended display | "The suite is green after the move, so nothing changed" | The reason-code catalogue on both sides; which endpoints the SPA calls | integration assertions on `reason` + SPA service specs | snapshotting whole response bodies |
 | #7 | A failing spec or a lint error blocks the deploy | "44 specs exist, so the SPA is covered" | Whether the specs pass today; how the current workflow is structured | CI gate | switching the gate on while specs are red, then muting them |
 
@@ -82,12 +82,14 @@ orchestrator updates Status as artifacts appear on disk.
 | 1 | Booking invariants | Prove class capacity and the karnet entry pool hold under parallel requests and at date/entry boundaries | #1, #2 | integration (+ unit for pure date logic) | complete | context/changes/testing-booking-invariants/ |
 | 2 | Access surface | Prove retired doors stay shut and ownership is checked, per route and per role | #3, #4 | integration (route × role matrix) + SPA guard specs | complete | context/changes/testing-access-surface/ |
 | 3 | Frontend gate and API contract | Make SPA specs and lint block the deploy, and pin `reason` codes on both sides of the API | #6, #7 | CI gate + integration + SPA specs; post-edit hook + pre-commit (recommended local) | complete | context/changes/testing-frontend-gate-and-contract/ |
-| 4 | Class-change notification fan-out | Prove every booked member, and only they, is notified on cancel or change | #5 | integration with fake channels | not started | — |
+| 4 | Class-change notification fan-out | Prove every booked member, and only they, is notified on cancel or change | #5 | integration with fake channels | planned | context/changes/testing-notification-fan-out/ |
 
 Order rationale: Phase 1 carries the top risk and the interview's Q1/Q3.
 Phase 2 must exist before S-18 relocates every endpoint. Phase 3 lands before
-or alongside S-19. Phase 4 is high-impact but the area has been stable since
-S-09.
+or alongside S-19. Phase 4 is high-impact; its delivery machinery has been stable
+since S-09, but S-14 changed the fan-out's inputs — email comes from the member
+record and a member may have no account — without the notification tests growing
+those cases (corrected by Phase 4 research).
 
 ## 4. Stack
 

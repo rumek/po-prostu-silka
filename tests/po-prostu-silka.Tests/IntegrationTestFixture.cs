@@ -3,11 +3,14 @@ using System.Net.Http.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using po_prostu_silka.Domain;
 using po_prostu_silka.Domain.Members;
+using po_prostu_silka.Infrastructure.Notifications;
 using po_prostu_silka.Infrastructure.Persistence;
 using Testcontainers.MsSql;
 
@@ -397,6 +400,27 @@ public class IntegrationTestFixture : IAsyncLifetime
                     // nothing" fallback.
                     ["App:BaseUrl"] = TestAppBaseUrl,
                 }));
+
+            // NO DELIVERY WORKER IN THE TEST HOST (testing-notification-fan-out).
+            //
+            // Left registered, OutboxDeliveryWorker runs a pass every 15 seconds against the shared
+            // container with the senders Program.cs picks for a non-Development environment — ACS and
+            // WebPush, both unconfigured here, both answering Permanent. So every row a fan-out test
+            // wrote was claimed and dead-lettered within one poll, and any assertion that read a row
+            // as Pending was racing that loop. Nothing in the host needs delivery: the tests that do
+            // (OutboxDeliveryTests, and the end-to-end cancellation test) build their own worker over
+            // fake channels and drive it with RunPassAsync.
+            //
+            // Single, not RemoveAll: if the registration ever changes shape, the host should fail to
+            // start here rather than silently keep a worker running.
+            builder.ConfigureTestServices(services =>
+            {
+                var worker = services.Single(d =>
+                    d.ServiceType == typeof(IHostedService)
+                    && d.ImplementationType == typeof(OutboxDeliveryWorker));
+
+                services.Remove(worker);
+            });
         }
     }
 }
