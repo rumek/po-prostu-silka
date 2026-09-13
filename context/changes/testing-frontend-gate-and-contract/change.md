@@ -1,7 +1,7 @@
 ---
 change_id: testing-frontend-gate-and-contract
 title: Testing frontend gate and contract
-status: implementing
+status: implemented
 created: 2026-09-13
 updated: 2026-09-13
 archived_at: null

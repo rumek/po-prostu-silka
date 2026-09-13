@@ -381,6 +381,15 @@ line.
   both `membership-pass-failure.ts` and the new exported list; revert.
 - Delete one message from `MESSAGES` in `membership-pass-failure.ts`: the build fails; make it fall
   through instead (cast the Record to `Partial`) and the new spec fails. Revert both.
+
+**Adapted during implementation.** The second half of that check cannot be performed as written.
+Casting the `Record` to `Partial` makes the lookup `string | undefined`, which the function's `string`
+return type rejects — so the BUILD fails (TS2322) and the spec never runs. Everything the compiler can
+see is caught before a spec gets a turn, which is the design working as intended, but it leaves the
+spec's own assertions unproven. What proves them is a mutation the compiler cannot see: set one message
+to the exact fallback sentence. Types stay valid, the build passes, and the spec fails on both
+`not.toContain('Spróbuj ponownie za chwilę')` and the rule that the three blocking refusals must not
+read alike — 2 of 3 tests red. That is the mutation row 3.6 was verified with.
 - Read §6.3 and §6.4 as someone who has not seen this change: they say where to put a new spec and how
   to pin a new refusal, without needing the plan.
 
@@ -451,35 +460,35 @@ skips that install simply has no pre-commit hook, which is why CI is the gate th
 
 #### Manual
 
-- [ ] 1.6 Formatting error in a `core/` spec surfaces through the hook, then goes quiet on revert
-- [ ] 1.7 Broken `core/` spec runs only that file through the hook
-- [ ] 1.8 Edit outside `src/app/` exits silently
-- [ ] 1.9 `git commit` refuses a badly formatted staged SPA file
+- [x] 1.6 Formatting error in a `core/` spec surfaces through the hook, then goes quiet on revert — 03fca04
+- [x] 1.7 Broken `core/` spec runs only that file through the hook — 03fca04
+- [x] 1.8 Edit outside `src/app/` exits silently — 03fca04
+- [x] 1.9 `git commit` refuses a badly formatted staged SPA file — 03fca04
 
 ### Phase 2: The backend half of the reason contract
 
 #### Automated
 
-- [x] 2.1 Backend tests pass (`dotnet test`)
-- [x] 2.2 Scoped suites pass (`--filter` per suite)
+- [x] 2.1 Backend tests pass (`dotnet test`) — 95956a6
+- [x] 2.2 Scoped suites pass (`--filter` per suite) — 95956a6
 
 #### Manual
 
-- [ ] 2.3 Changing one asserted literal in `src/` turns the new test red
-- [ ] 2.4 Swapping a variable-built ternary's branches turns a new test red
-- [ ] 2.5 Testcontainers SQL Server comes up
+- [x] 2.3 Changing one asserted literal in `src/` turns the new test red — 95956a6
+- [x] 2.4 Swapping a variable-built ternary's branches turns a new test red — 95956a6
+- [x] 2.5 Testcontainers SQL Server comes up — 95956a6
 
 ### Phase 3: The SPA half, and the cookbook
 
 #### Automated
 
-- [x] 3.1 SPA specs pass (`npm test`)
-- [x] 3.2 SPA lint and format pass (`npm run quality:check`)
-- [x] 3.3 The three failure specs pass individually via `--include`
-- [x] 3.4 Backend tests pass (`dotnet test`)
+- [x] 3.1 SPA specs pass (`npm test`) — 26b7ced
+- [x] 3.2 SPA lint and format pass (`npm run quality:check`) — 26b7ced
+- [x] 3.3 The three failure specs pass individually via `--include` — 26b7ced
+- [x] 3.4 Backend tests pass (`dotnet test`) — 26b7ced
 
 #### Manual
 
-- [ ] 3.5 Adding a union member fails the build in both table and list
-- [ ] 3.6 A fallen-through message fails the new karnet spec
-- [ ] 3.7 §6.3 and §6.4 stand on their own for a new reader
+- [x] 3.5 Adding a union member fails the build in both table and list — 26b7ced
+- [x] 3.6 A fallen-through message fails the new karnet spec — 26b7ced
+- [x] 3.7 §6.3 and §6.4 stand on their own for a new reader — 26b7ced
