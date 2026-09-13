@@ -54,10 +54,11 @@ public class BookingQuery(AppDbContext db) : IBookingQuery
         // Active only, ordered by when they booked, so the admin sees who was first - which is the
         // club's own tie-breaker when a class has to shrink.
         //
-        // Email is nullable on ApplicationUser because Identity allows it; every account this app
-        // creates has one, since registration is by email. The coalesce is a contract detail rather
-        // than a real case - the SPA renders a string, and a null crossing the wire as an absent
-        // field would break its type for a row that cannot exist.
+        // The email is the MEMBER's, not the account's, and since S-14 a null one is a real case: a
+        // person recorded at the desk may never have given an address. The coalesce turns that into
+        // the blank string ClassChangeNotification skips, so nobody without an address is enqueued a
+        // message that could only fail - and the SPA's roster still receives a string rather than an
+        // absent field. Pinned by ClassCancellationTests' accountless-member cases.
         await db.Bookings
             .AsNoTracking()
             .Where(b => b.ClassId == classId && b.Status == BookingStatus.Active)

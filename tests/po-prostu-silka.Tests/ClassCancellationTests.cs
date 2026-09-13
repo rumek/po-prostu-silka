@@ -237,6 +237,40 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
     /// <summary>Mirrors ClassBooking — only what ReleaseAsync needs to find the right row.</summary>
     private sealed record ClassBookingRow(Guid BookingId, Guid MemberId);
 
+    /// <summary>Mirrors AccessCodeView — only the code, which is what registration needs.</summary>
+    private sealed record AccessCodeBody(string Code);
+
+    /// <summary>
+    /// Books a member addressed by MEMBER id through the staff route. <see cref="BookAsync"/> starts
+    /// from a signed-in client and so cannot reach a member with no account — the case S-14 made
+    /// common and the fan-out tests below exist for.
+    /// </summary>
+    private async Task BookMemberAsync(Guid memberId, Guid classId)
+    {
+        var admin = await AdminAsync();
+
+        var response = await admin.PostAsJsonAsync(
+            $"/api/admin/classes/{classId}/bookings", new { memberId });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    /// <summary>
+    /// The push subscriptions an account holds, read back as ARRANGEMENT data: these are the rows
+    /// <see cref="NewMemberAsync"/> inserted, so they are the expected push recipients. Reading them
+    /// through ClassChangeNotification or the subscription store would make the expectation share its
+    /// oracle with the code under test.
+    /// </summary>
+    private async Task<List<PushSubscription>> DevicesOfAsync(string userId)
+    {
+        await using var db = NewContext();
+
+        return await db.PushSubscriptions.AsNoTracking().Where(p => p.UserId == userId).ToListAsync();
+    }
+
+    private static string[] RecipientsOn(IEnumerable<OutboxMessage> messages, NotificationChannel channel) =>
+        messages.Where(m => m.Channel == channel).Select(m => m.Recipient).Order().ToArray();
+
     /// <summary>
     /// Writes a class straight into the database, bypassing the API — the only way to arrange a
     /// class in the PAST, which <c>starts_in_past</c> refuses at creation.
@@ -455,22 +489,22 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
         var scheduled = await PostClassAsync(admin, type.Id, trainerId, NextSlot());
 
         // Three members: one with no device, one with a phone, one with a phone and a laptop.
-        var (plain, _, _) = await NewMemberAsync();
-        var (oneDevice, _, _) = await NewMemberAsync(deviceCount: 1);
-        var (twoDevices, _, _) = await NewMemberAsync(deviceCount: 2);
+        var (plain, _, plainEmail) = await NewMemberAsync();
+        var (oneDevice, oneDeviceId, oneDeviceEmail) = await NewMemberAsync(deviceCount: 1);
+        var (twoDevices, twoDevicesId, twoDevicesEmail) = await NewMemberAsync(deviceCount: 2);
 
         await BookAsync(plain, scheduled.Id);
         await BookAsync(oneDevice, scheduled.Id);
         await BookAsync(twoDevices, scheduled.Id);
 
         // Someone who released their spot is owed nothing — the recipient list is ACTIVE bookings.
-        var (released, _, _) = await NewMemberAsync(deviceCount: 1);
+        var (released, releasedId, releasedEmail) = await NewMemberAsync(deviceCount: 1);
         await BookAsync(released, scheduled.Id);
         await ReleaseAsync(released, scheduled.Id);
 
         // And a member booked on a DIFFERENT class of the same type must not be swept in.
         var other = await PostClassAsync(admin, type.Id, trainerId, NextSlot());
-        var (bystander, _, _) = await NewMemberAsync(deviceCount: 1);
+        var (bystander, bystanderId, bystanderEmail) = await NewMemberAsync(deviceCount: 1);
         await BookAsync(bystander, other.Id);
 
         Assert.Equal(
@@ -478,8 +512,29 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
 
         var messages = await MessagesAboutAsync(type.Name);
 
-        Assert.Equal(3, messages.Count(m => m.Channel == NotificationChannel.Email));
-        Assert.Equal(3, messages.Count(m => m.Channel == NotificationChannel.Push));
+        // IDENTITY, NOT COUNTS (testing-notification-fan-out). Counting three emails and three pushes
+        // passed for any list of the right SIZE — a recipient query that returned the released member
+        // in place of a booked one would have kept every number and stayed green. The expected
+        // recipients are what this test arranged: the addresses NewMemberAsync generated and the
+        // subscription rows it inserted. The counts follow from set equality rather than standing in
+        // for it.
+        Assert.Equal(
+            new[] { plainEmail, oneDeviceEmail, twoDevicesEmail }.Order().ToArray(),
+            RecipientsOn(messages, NotificationChannel.Email));
+
+        var bookedDevices = (await DevicesOfAsync(oneDeviceId))
+            .Concat(await DevicesOfAsync(twoDevicesId))
+            .Select(d => d.Id.ToString());
+
+        Assert.Equal(bookedDevices.Order().ToArray(), RecipientsOn(messages, NotificationChannel.Push));
+
+        // And nothing addressed to either of the people who hold no spot on this class, on any channel.
+        var owedNothing = new[] { releasedEmail, bystanderEmail }
+            .Concat((await DevicesOfAsync(releasedId)).Select(d => d.Id.ToString()))
+            .Concat((await DevicesOfAsync(bystanderId)).Select(d => d.Id.ToString()))
+            .ToHashSet();
+
+        Assert.DoesNotContain(messages, m => owedNothing.Contains(m.Recipient));
 
         // Pending, so the worker's next pass picks them up. Nothing here delivers.
         Assert.All(messages, m => Assert.Equal(OutboxStatus.Pending, m.Status));
@@ -497,6 +552,114 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
 
         Assert.Equal(ClassStatus.Cancelled, await StatusOfAsync(scheduled.Id));
         Assert.Empty(await MessagesAboutAsync(type.Name));
+    }
+
+    // --- the member shapes S-14 introduced -------------------------------------
+    //
+    // Since S-14 a booking belongs to a MEMBER record, and a member need not have a login. Email is
+    // read off that record; push is reached only through a login. Every fan-out test above books
+    // account holders, so none of them could tell these rules apart from "whoever has an account".
+
+    /// <summary>
+    /// A person recorded at the desk with an address and no account: told by email, and never by push
+    /// — there is no login, so there is no device to reach.
+    /// </summary>
+    [Fact]
+    public async Task A_member_with_no_account_is_emailed_at_the_recorded_address_and_never_pushed()
+    {
+        var (admin, type, trainerId) = await ArrangeAsync();
+        var scheduled = await PostClassAsync(admin, type.Id, trainerId, NextSlot());
+
+        var address = $"desk-{Guid.NewGuid():N}@test.local";
+        var memberId = await fixture.CreateMemberAsync("Bez Konta Z Adresem", email: address);
+        await fixture.IssuePassAsync(memberId);
+        await BookMemberAsync(memberId, scheduled.Id);
+
+        Assert.Equal(
+            HttpStatusCode.OK, (await admin.PostAsync(CancelOf(scheduled.Id), content: null)).StatusCode);
+
+        var messages = await MessagesAboutAsync(type.Name);
+
+        Assert.Equal([address], RecipientsOn(messages, NotificationChannel.Email));
+        Assert.Empty(RecipientsOn(messages, NotificationChannel.Push));
+    }
+
+    /// <summary>
+    /// A person recorded with neither an account nor an address is owed nothing the outbox could
+    /// deliver: a row with a blank recipient would fail on every attempt and burn the retry budget.
+    ///
+    /// <para>
+    /// BOOKED ALONGSIDE A MEMBER WHO IS OWED A MESSAGE, and that control is load-bearing: without it
+    /// "no row for them" is indistinguishable from "the fan-out did not run at all".
+    /// </para>
+    /// </summary>
+    [Fact]
+    public async Task A_member_with_no_account_and_no_address_is_skipped_while_the_rest_are_told()
+    {
+        var (admin, type, trainerId) = await ArrangeAsync();
+        var scheduled = await PostClassAsync(admin, type.Id, trainerId, NextSlot());
+
+        var unreachableId = await fixture.CreateMemberAsync("Bez Konta Bez Adresu");
+        await fixture.IssuePassAsync(unreachableId);
+        await BookMemberAsync(unreachableId, scheduled.Id);
+
+        var (reachable, reachableId, reachableEmail) = await NewMemberAsync(deviceCount: 1);
+        await BookAsync(reachable, scheduled.Id);
+
+        Assert.Equal(
+            HttpStatusCode.OK, (await admin.PostAsync(CancelOf(scheduled.Id), content: null)).StatusCode);
+
+        var messages = await MessagesAboutAsync(type.Name);
+
+        Assert.Equal([reachableEmail], RecipientsOn(messages, NotificationChannel.Email));
+        Assert.Equal(
+            (await DevicesOfAsync(reachableId)).Select(d => d.Id.ToString()).ToArray(),
+            RecipientsOn(messages, NotificationChannel.Push));
+
+        Assert.DoesNotContain(messages, m => string.IsNullOrWhiteSpace(m.Recipient));
+    }
+
+    /// <summary>
+    /// A member recorded at the desk with address A who later registers through their invitation with
+    /// address B is told at A — the address on the club's record, not the one they log in with.
+    ///
+    /// <para>
+    /// PINNED AS CURRENT BEHAVIOUR, BY DECISION (testing-notification-fan-out plan). The rule is S-14's:
+    /// a claim fills the record's address in only where there is none — <c>claimed.Email ??=
+    /// request.Email</c> in AuthEndpoints.RegisterAsync — and MemberClaimTests
+    /// .A_records_own_email_is_not_replaced_by_the_login_address pins that half. This test pins the
+    /// other half: the fan-out reads the RECORD, so a change that starts reading the login's address
+    /// has to come through here knowingly.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public async Task A_claimed_member_is_told_at_the_recorded_address_not_the_login_address()
+    {
+        var (admin, type, trainerId) = await ArrangeAsync();
+        var scheduled = await PostClassAsync(admin, type.Id, trainerId, NextSlot());
+
+        var recorded = $"desk-{Guid.NewGuid():N}@test.local";
+        var login = $"login-{Guid.NewGuid():N}@test.local";
+
+        var memberId = await fixture.CreateMemberAsync("Klubowicz Po Rejestracji", email: recorded);
+        await fixture.IssuePassAsync(memberId);
+
+        var code = (await (await admin.PostAsync($"/api/admin/members/{memberId}/access-code", content: null))
+            .Content.ReadFromJsonAsync<AccessCodeBody>())!.Code;
+
+        var registered = await fixture.CreateClient().PostAsJsonAsync(
+            "/api/auth/register", new { email = login, password = TestUsers.Password, memberCode = code });
+        Assert.Equal(HttpStatusCode.OK, registered.StatusCode);
+
+        await BookMemberAsync(memberId, scheduled.Id);
+
+        Assert.Equal(
+            HttpStatusCode.OK, (await admin.PostAsync(CancelOf(scheduled.Id), content: null)).StatusCode);
+
+        var messages = await MessagesAboutAsync(type.Name);
+
+        Assert.Equal([recorded], RecipientsOn(messages, NotificationChannel.Email));
+        Assert.DoesNotContain(messages, m => m.Recipient == login);
     }
 
     [Fact]
@@ -625,8 +788,8 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
         var startsAt = NextSlot();
         var scheduled = await PostClassAsync(admin, type.Id, trainerId, startsAt);
 
-        var (first, _, _) = await NewMemberAsync();
-        var (second, _, _) = await NewMemberAsync(deviceCount: 1);
+        var (first, _, firstEmail) = await NewMemberAsync();
+        var (second, secondId, secondEmail) = await NewMemberAsync(deviceCount: 1);
         await BookAsync(first, scheduled.Id);
         await BookAsync(second, scheduled.Id);
 
@@ -638,9 +801,14 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
 
         var messages = await MessagesAboutAsync(type.Name);
 
-        // Two members, one of them with a phone: two emails and one push.
-        Assert.Equal(2, messages.Count(m => m.Channel == NotificationChannel.Email));
-        Assert.Single(messages, m => m.Channel == NotificationChannel.Push);
+        // Two members, one of them with a phone: two emails and one push — addressed to THEM. The edit
+        // resolves recipients through the same query the cancel does, and this is what keeps that true.
+        Assert.Equal(
+            new[] { firstEmail, secondEmail }.Order().ToArray(),
+            RecipientsOn(messages, NotificationChannel.Email));
+        Assert.Equal(
+            (await DevicesOfAsync(secondId)).Select(d => d.Id.ToString()).ToArray(),
+            RecipientsOn(messages, NotificationChannel.Push));
 
         // BOTH TIMES, in the club's wall clock. "18:00 -> 18:00" is what a message built from the
         // tracked entity after the mutation would say.
@@ -776,6 +944,72 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
                 .StatusCode);
 
         Assert.Empty(await MessagesAboutAsync(type.Name));
+    }
+
+    /// <summary>
+    /// Moved forward, then moved back: two rounds, each true when it was sent, even though the class
+    /// ends where it started.
+    ///
+    /// <para>
+    /// PINNED AS CURRENT BEHAVIOUR, BY DECISION (testing-notification-fan-out plan). A member who read
+    /// "18:00 -> 20:00" and planned around it must be told "20:00 -> 18:00"; a "dedupe" that netted the
+    /// two edits out would leave them believing the first message. This test is what makes such a
+    /// change arrive knowingly.
+    /// </para>
+    ///
+    /// <para>
+    /// The rounds are told apart by CONTENT, not by CreatedAt: two requests a few milliseconds apart
+    /// give no ordering worth trusting, and the claim under test is only that each change was reported
+    /// in its own direction.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public async Task Moving_a_class_and_moving_it_back_sends_two_rounds_each_in_its_own_direction()
+    {
+        var (admin, type, trainerId) = await ArrangeAsync();
+        var startsAt = NextSlot();
+        var scheduled = await PostClassAsync(admin, type.Id, trainerId, startsAt);
+
+        var (member, _, email) = await NewMemberAsync();
+        await BookAsync(member, scheduled.Id);
+
+        var moved = startsAt.AddHours(2);
+
+        Assert.Equal(
+            HttpStatusCode.OK,
+            (await PutClassAsync(admin, scheduled.Id, type.Id, trainerId, moved)).StatusCode);
+        Assert.Equal(
+            HttpStatusCode.OK,
+            (await PutClassAsync(admin, scheduled.Id, type.Id, trainerId, startsAt)).StatusCode);
+
+        var emails = (await MessagesAboutAsync(type.Name))
+            .Where(m => m.Channel == NotificationChannel.Email)
+            .ToList();
+
+        Assert.Equal(2, emails.Count);
+        Assert.All(emails, m => Assert.Equal(email, m.Recipient));
+
+        Assert.Single(emails, m => ReportsMove(m.Body, from: startsAt, to: moved));
+        Assert.Single(emails, m => ReportsMove(m.Body, from: moved, to: startsAt));
+    }
+
+    /// <summary>
+    /// True when the body's change line names <paramref name="from"/> before the arrow and
+    /// <paramref name="to"/> after it. Wall-clock readings come from ClubWallClockOf, for the reason its
+    /// own comment gives.
+    /// </summary>
+    private static bool ReportsMove(string body, DateTimeOffset from, DateTimeOffset to)
+    {
+        var arrow = body.IndexOf("->", StringComparison.Ordinal);
+        if (arrow < 0)
+        {
+            return false;
+        }
+
+        var before = body.LastIndexOf(ClubWallClockOf(from), arrow, StringComparison.Ordinal);
+        var after = body.IndexOf(ClubWallClockOf(to), arrow, StringComparison.Ordinal);
+
+        return before >= 0 && after > arrow;
     }
 
     // --- S-09 phase 2: the read path ------------------------------------------

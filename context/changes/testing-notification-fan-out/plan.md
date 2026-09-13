@@ -371,9 +371,9 @@ None — no schema, no data, no runtime behaviour.
 
 #### Automated
 
-- [x] 1.1 Backend tests pass (`dotnet test`)
-- [x] 1.2 The delivery suite still passes on its own worker
-- [x] 1.3 The host no longer starts the worker (no `Outbox worker started` in the detailed log)
+- [x] 1.1 Backend tests pass (`dotnet test`) — 50f0698
+- [x] 1.2 The delivery suite still passes on its own worker — 50f0698
+- [x] 1.3 The host no longer starts the worker (no `Outbox worker started` in the detailed log) — 50f0698
 
 #### Manual
 
@@ -383,7 +383,7 @@ None — no schema, no data, no runtime behaviour.
 
 #### Automated
 
-- [ ] 2.1 The notification suite passes (`--filter ClassCancellationTests`)
+- [x] 2.1 The notification suite passes (`--filter ClassCancellationTests`)
 - [ ] 2.2 Backend tests pass (`dotnet test`)
 
 #### Manual
