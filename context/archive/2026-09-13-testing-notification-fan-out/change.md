@@ -1,10 +1,10 @@
 ---
 change_id: testing-notification-fan-out
 title: Prove class-change notifications reach every booked member and only them
-status: implemented
+status: archived
 created: 2026-09-13
 updated: 2026-09-14
-archived_at: null
+archived_at: 2026-09-14T05:28:05Z
 ---
 
 ## Notes
