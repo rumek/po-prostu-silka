@@ -1,10 +1,10 @@
 ---
 change_id: testing-booking-invariants
 title: Testing booking invariants
-status: implemented
+status: archived
 created: 2026-09-11
-updated: 2026-09-11
-archived_at: null
+updated: 2026-09-14
+archived_at: 2026-09-14T05:38:08Z
 ---
 
 ## Notes
