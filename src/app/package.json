@@ -10,7 +10,9 @@
     "serve:ssr:app": "node dist/app/server/server.mjs",
     "lint": "ng lint",
     "quality:check": "prettier --check . && ng lint",
-    "quality:fix": "prettier --write . && ng lint --fix"
+    "quality:fix": "prettier --write . && ng lint --fix",
+    "e2e": "playwright test",
+    "e2e:stage": "ng build && node -e \"require('fs').cpSync('dist/app/browser', '../wwwroot', { recursive: true })\""
   },
   "private": true,
   "packageManager": "npm@11.12.1",
@@ -38,6 +40,7 @@
     "@angular/cli": "^22.1.6",
     "@angular/compiler-cli": "^22.1.0",
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.63.0",
     "@types/express": "^5.0.1",
     "@types/node": "^20.17.19",
     "angular-eslint": "22.2.0",

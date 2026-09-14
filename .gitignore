@@ -498,3 +498,9 @@ publish-profile.xml
 /.claude/.10x-cli-manifest.json
 /.claude/.10x*
 /.claude/prompts/mvp-check.md
+
+# Playwright (src/app) - run artifacts and the saved auth cookie, never committed
+**/playwright/.auth/
+test-results/
+playwright-report/
+blob-report/

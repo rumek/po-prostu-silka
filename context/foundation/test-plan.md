@@ -94,7 +94,7 @@ those cases (corrected by Phase 4 research).
 ## 4. Stack
 
 Test profile: **meaningful** — 23 backend integration test files and 44
-colocated SPA spec files; no e2e.
+colocated SPA spec files; one browser-level (e2e) spec plus its seed, local only.
 
 | Layer | Tool | Version | Notes |
 |-------|------|---------|-------|
@@ -103,13 +103,13 @@ colocated SPA spec files; no e2e.
 | external edges | hand-written fake email/push channels in the test project | n/a | Mock only at the delivery edge |
 | SPA unit | Vitest (via `ng test`) + jsdom | 4.x / 28.x | Colocated `*.spec.ts`; not yet run in CI — see Phase 3 |
 | SPA lint/format | ESLint + Prettier (`npm run quality:check`) | 10.x / 3.x | Not yet run in CI — see Phase 3 |
-| e2e | none | — | Deliberately none: no risk above needs the full deployed shape that integration + SPA specs cannot give more cheaply |
+| e2e | Playwright (`@playwright/test`, Chromium) | 1.63.0 | Added 2026-09-14 as a deliberately small layer, not a promotion of any risk above: §1 principle #1 still stands, and every risk in §2 keeps its cheaper primary layer. One spec (anonymous visitor on a guarded route → login → dashboard) complements #3's SPA guard specs by proving guard, auth API, cookie and database together. Runs against the shipped shape — the API serving the built SPA from `wwwroot` — never `ng serve`, which has no `/api` proxy. Local only; not in CI. See §6.6 |
 | AI-native (local) | post-edit hook (`.claude/hooks/post-edit-spa.sh`) running Prettier, ESLint and the edited file's colocated spec — checked: 2026-09-13 | n/a | Corrected in Phase 3: this row used to promise "the targeted backend tests". Backend tests are deliberately NOT hooked — Testcontainers starts a SQL Server (30-60s), which breaks "per-edit stays fast". The spec half is scoped to `core/` and `shared/`. When NOT to use: as a substitute for the CI gate |
 
 **Stack grounding tools (current session):**
-- Docs: Context7 — available; not queried, since the rollout adopts no tool the repo does not already use; checked: 2026-09-11
-- Search: Exa — available; not used for the same reason; checked: 2026-09-11
-- Runtime/browser: Claude in Chrome — available; not used, e2e is out of scope (see above); Playwright MCP not available in current session; checked: 2026-09-11
+- Docs: Context7 — available; queried for Playwright's `webServer` and setup-project/`storageState` configuration when the e2e layer was added; checked: 2026-09-14
+- Search: Exa — available; not used, Context7 covered the one new tool; checked: 2026-09-11
+- Runtime/browser: Playwright CLI (`npx playwright test`) — installed in `src/app`, used to run and break-verify the e2e spec; Claude in Chrome — available, not used; Playwright MCP not available in current session; checked: 2026-09-14
 - Provider/platform: Linear — available; no quality-gate relevance; GitHub MCP not available in current session; checked: 2026-09-11
 
 ## 5. Quality Gates
@@ -123,6 +123,7 @@ colocated SPA spec files; no e2e.
 | SPA lint + format (`npm run quality:check`) | local + CI, gates deploy | required (wired) | style and lint drift |
 | post-edit hook | local (agent loop) | recommended (wired) | SPA format, lint and colocated-spec regressions at edit time |
 | pre-commit (lefthook) | local (git) | recommended (wired) | the same format and lint checks on staged SPA files, including edits that never passed through the agent |
+| e2e (`npm run e2e` from `src/app`) | local only | optional (not wired to CI) | a guarded route rendering for an anonymous visitor, or a valid sign-in not opening the app, across guard + auth API + cookie + database |
 
 ## 6. Cookbook Patterns
 
@@ -252,7 +253,30 @@ the relevant rollout phase ships; before that, the sub-section reads
   re-test them through the fan-out.
 - **Run locally**: Docker running, then `dotnet test --filter FullyQualifiedName~ClassCancellationTests`.
 
-### 6.6 Per-rollout-phase notes
+### 6.6 Adding a browser-level (e2e) spec
+
+- **First ask whether it belongs here.** A risk earns an e2e spec only when it crosses several
+  boundaries (routing, auth, API, database) or exists only in the rendered UI. If an integration test
+  or an SPA spec can prove it, write that instead — §1 principle #1.
+- **Location**: `src/app/e2e/`, one test per file, named after the scenario. Model it on
+  `e2e/seed.spec.ts`; the rules are in `e2e/CLAUDE.md` (role-based locators, wait for state never
+  time, unique `Date.now()`-suffixed data, cleanup in the same test).
+- **Auth**: specs start signed in as the seeded admin through the `setup` project, which logs in via
+  `POST /api/auth/login` and saves `playwright/.auth/admin.json` (gitignored). Only a spec whose risk
+  IS the login form opts out with `test.use({ storageState: { cookies: [], origins: [] } })`.
+- **The app under test**: `playwright.config.ts` runs `npm run e2e:stage` (build the SPA, copy it into
+  `src/wwwroot`) then `dotnet run` on http://localhost:5264, and waits for `/health`. Locally it
+  reuses a server already listening there — which then serves whatever bundle is in `wwwroot`.
+- **Beware the second line of defence.** `authInterceptor` sends any 401 to `/login`, so "the visitor
+  ended up on `/login`" passes even with every route guard removed. The reference spec asserts instead
+  that no member-data request (`/api/*` outside `/api/auth/*`) was sent before the login screen showed.
+- **Reference spec**: `e2e/guarded-route-redirects-to-login.spec.ts`.
+- **Prove it bites**: make `authGuard` and `activeMemberGuard` return `true` — the spec fails on the
+  `/api/bookings/mine` request. Revert, and re-run the suite so `wwwroot` is rebuilt from clean code.
+- **Run locally**: Docker running and migrations applied, then from `src/app`
+  `npx playwright test e2e/<file>.spec.ts` (one spec) or `npm run e2e` (all).
+
+### 6.7 Per-rollout-phase notes
 
 (Appended by each rollout phase as it lands.)
 
@@ -293,8 +317,8 @@ the relevant rollout phase ships; before that, the sub-section reads
 ## 8. Freshness Ledger
 
 - Strategy (§1–§5) last reviewed: 2026-09-11
-- Stack versions last verified: 2026-09-11
-- AI-native tool references last verified: 2026-09-11
+- Stack versions last verified: 2026-09-14 (e2e row added)
+- AI-native tool references last verified: 2026-09-14
 
 Refresh (`/10x-test-plan --refresh`) when:
 
