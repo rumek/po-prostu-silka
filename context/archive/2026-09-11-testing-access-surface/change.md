@@ -1,10 +1,10 @@
 ---
 change_id: testing-access-surface
 title: Testing the access surface — retired doors and resource ownership
-status: implemented
+status: archived
 created: 2026-09-11
-updated: 2026-09-11
-archived_at: null
+updated: 2026-09-14
+archived_at: 2026-09-14T05:40:24Z
 ---
 
 ## Notes
