@@ -153,6 +153,12 @@ than silently keep the worker running.
 
 - Comment out the removal: the `Outbox worker started` line returns in the detailed log; restore it.
 
+**Adapted during implementation.** The removal was disabled by replacing it with `_ = worker;` rather than
+by commenting it out. The first attempt passed `// services.Remove(worker);` as a shell argument, and Git
+Bash's path conversion rewrites an argument that starts with `//` into `/`, so the file received
+`/ services.Remove(worker);` and the build failed (CS1525) — the check ran but verified nothing. The
+substitute compiles and skips the removal exactly as a comment would; with it the log line returned.
+
 **Implementation Note**: After this phase and its automated verification, pause for manual confirmation
 before Phase 2.
 
@@ -182,6 +188,12 @@ count-only assertions.
 recipients are the ids of the `PushSubscription` rows that same helper inserted, read back by user id as
 arrangement data. Set equality per channel, so the counts follow from identity rather than standing in for
 it. `NewMemberAsync` already returns the email; returning the arranged subscription ids is a helper change.
+
+**Adapted during implementation.** `NewMemberAsync` keeps its three-element return. Widening the tuple would
+have broken every existing call site written as `var (x, _, _) = await NewMemberAsync()`, so the subscription
+ids come from a separate helper, `DevicesOfAsync(userId)`, which reads back the `PushSubscription` rows
+`NewMemberAsync` inserted. The contract is unchanged: expected push recipients are arrangement data, never
+read through `ClassChangeNotification` or the subscription store.
 
 #### 2. Identity on the edit trigger
 
@@ -377,7 +389,7 @@ None — no schema, no data, no runtime behaviour.
 
 #### Manual
 
-- [ ] 1.4 Commenting out the removal brings the log line back
+- [x] 1.4 Commenting out the removal brings the log line back — 50f0698
 
 ### Phase 2: Recipients identified on the outbox rows
 
@@ -388,19 +400,19 @@ None — no schema, no data, no runtime behaviour.
 
 #### Manual
 
-- [ ] 2.3 Reading the account's email in the projection turns the claimed and accountless tests red
-- [ ] 2.4 Removing the blank-email guard turns the accountless-without-email test red
-- [ ] 2.5 Push rows keyed on the endpoint turn the cancel identity assertion red
+- [x] 2.3 Reading the account's email in the projection turns the claimed and accountless tests red — 538062a
+- [x] 2.4 Removing the blank-email guard turns the accountless-without-email test red — 538062a
+- [x] 2.5 Push rows keyed on the endpoint turn the cancel identity assertion red — 538062a
 
 ### Phase 3: Delivered to the channel, and the cookbook
 
 #### Automated
 
-- [x] 3.1 The end-to-end test passes (`--filter ClassCancellationTests`)
-- [ ] 3.2 Backend tests pass (`dotnet test`)
+- [x] 3.1 The end-to-end test passes (`--filter ClassCancellationTests`) — 2acfd63
+- [x] 3.2 Backend tests pass (`dotnet test`) — 2acfd63
 
 #### Manual
 
-- [ ] 3.3 Push rows keyed on the endpoint turn the end-to-end test red
-- [ ] 3.4 A worker clock before the real now turns the end-to-end test red
-- [ ] 3.5 §6.5 reads on its own for a new reader
+- [x] 3.3 Push rows keyed on the endpoint turn the end-to-end test red — 2acfd63
+- [x] 3.4 A worker clock before the real now turns the end-to-end test red — 2acfd63
+- [x] 3.5 §6.5 reads on its own for a new reader — 2acfd63

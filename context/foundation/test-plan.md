@@ -6,7 +6,7 @@
 >
 > Refresh: re-run `/10x-test-plan --refresh` when stale (see §8).
 >
-> Last updated: 2026-09-13
+> Last updated: 2026-09-14
 
 ## 1. Strategy
 
@@ -82,7 +82,7 @@ orchestrator updates Status as artifacts appear on disk.
 | 1 | Booking invariants | Prove class capacity and the karnet entry pool hold under parallel requests and at date/entry boundaries | #1, #2 | integration (+ unit for pure date logic) | complete | context/changes/testing-booking-invariants/ |
 | 2 | Access surface | Prove retired doors stay shut and ownership is checked, per route and per role | #3, #4 | integration (route × role matrix) + SPA guard specs | complete | context/changes/testing-access-surface/ |
 | 3 | Frontend gate and API contract | Make SPA specs and lint block the deploy, and pin `reason` codes on both sides of the API | #6, #7 | CI gate + integration + SPA specs; post-edit hook + pre-commit (recommended local) | complete | context/changes/testing-frontend-gate-and-contract/ |
-| 4 | Class-change notification fan-out | Prove every booked member, and only they, is notified on cancel or change | #5 | integration with fake channels | implementing | context/changes/testing-notification-fan-out/ |
+| 4 | Class-change notification fan-out | Prove every booked member, and only they, is notified on cancel or change | #5 | integration with fake channels | complete | context/changes/testing-notification-fan-out/ |
 
 Order rationale: Phase 1 carries the top risk and the interview's Q1/Q3.
 Phase 2 must exist before S-18 relocates every endpoint. Phase 3 lands before
