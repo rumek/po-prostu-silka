@@ -1,10 +1,10 @@
 ---
 change_id: backend-layer-boundaries
 title: Compiler-enforced layer boundaries and thin endpoint classes
-status: impl_reviewed
+status: archived
 created: 2026-09-18
 updated: 2026-09-19
-archived_at: null
+archived_at: 2026-09-19T14:45:42Z
 ---
 
 ## Notes

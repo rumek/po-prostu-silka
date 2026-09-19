@@ -3,7 +3,7 @@ project: "Po Prostu Siłka"
 version: 4
 status: draft
 created: 2026-08-31
-updated: 2026-09-18
+updated: 2026-09-19
 prd_version: 1, 2
 main_goal: quality
 top_blocker: none
@@ -738,3 +738,4 @@ Resolved since the previous roadmap: the sender-domain question that gated F-03 
 - **S-15: user (member) opens their plan and each exercise card shows which muscle group it trains, the duration the trainer prescribed where the exercise is measured in time, a distinct info icon leading to the exercise details, and the trainer's note set off as a callout.** — Archived 2026-09-09 → `context/archive/2026-09-08-plan-card-prescription-detail/`. Lesson: —.
 - **S-16: user (admin) issues a member a karnet — a type name, a validity range and a number of entries — and books that member into a class; a trainer does the same for the classes they instruct; the member opens the app, sees their karnet and how many entries are left, sees their upcoming classes and cannot book or cancel anything; a booking into a class the karnet does not cover, or with no entry left, is refused; a newly registered account is active immediately and there is no approvals tab.** — Archived 2026-09-09 → `context/archive/2026-09-09-membership-pass-and-staff-booking/`. Lesson: —.
 - **S-17: user (admin) records a member without an email address and hands them an invitation link; that person opens `/register?invitationCode=…`, finds the code shown to them rather than asked for, supplies only an email address and a password, and lands on the record the club already keeps — its bookings, its karnet and its plan already there; opening `/register` without a code sends them to the login screen, and the API refuses a registration that carries no code.** — Archived 2026-09-10 → `context/archive/2026-09-09-invitation-only-registration/`. Lesson: —.
+- **S-18: (structural — nothing a member or an admin can see changes) `src/` becomes four projects — `Domain`, `Application`, `Infrastructure`, `Api` — so that the layering table in `AGENTS.md` is something the build refuses to break rather than something a reviewer has to remember; and a `*Endpoints` class becomes route registration only, with the handler, its validation, its mapping, its ports and its resource-level authorization moved into Application, one file per use case.** — Archived 2026-09-19 → `context/archive/2026-09-18-backend-layer-boundaries/`. Lesson: —.
