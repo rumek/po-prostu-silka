@@ -55,6 +55,41 @@ Frontend, from `src/app/` (npm 11, pinned via `packageManager`): `npm start` (de
 - C#: nullable reference types and implicit usings are enabled — keep new code warning-free under `<Nullable>enable</Nullable>`.
 - Angular: formatting/linting is enforced by Prettier and angular-eslint (@src/app/eslint.config.js), not by hand.
 
+### How a failure reaches the user (S-19)
+
+Every failure in the SPA takes **one of four outlets**, and which one is not a taste call. Before
+S-19 there were nine display mechanisms and ten separately worded generic fallbacks; the point of
+this rule is that a new screen makes exactly one decision instead of inventing a tenth mechanism.
+
+The **words** always come from a table, never from the screen: `core/http/failure-messages.ts`
+builds every `*FailureMessage` table, one per `*Failure` union, and a union without a table fails
+`core/http/failure-contract.spec.ts`. A screen decides the outlet; it never writes the sentence.
+
+1. **Field error** — the refusal names a control the user can correct on the form in front of
+   them. The words come from the union's table; the form decides only *which control*. Set it with
+   `state.reject(control, errors)` from `shared/forms/form-state.ts`.
+2. **Form banner** — `.alert` with `role="alert"`, inside the form — the refusal concerns the
+   submission as a whole, names no single control, or naming one would disclose something.
+   **Login is permanently in this bucket and never in the first**: a field-level "no such account"
+   tells an attacker which e-mails exist. `login.spec.ts` pins this.
+3. **Toast** — `shared/toast/toast.service.ts` — the action finished somewhere that is not a form
+   and the screen stays put: row actions, list activations, overlay actions, clipboard. It carries
+   `success` and `info` as well as `error`; `info` is what a recovered conflict ("lista była
+   nieaktualna — odświeżono") becomes, which is neither. Errors persist until dismissed;
+   `success` and `info` time out.
+4. **Screen state** — the screen could not be populated at all (`loadFailed`, `notFound`).
+   **Never a toast**: there would be nothing behind it to read.
+
+Transport failures — a 401/403, a 404, a 429, a 5xx, an offline browser — route by the same four
+outlets, but their words come from `core/http/transport-messages.ts` rather than from a union
+table. `classifyFailure` in `core/http/failure.ts` is what tells them apart; nothing unwraps
+`.error.reason` by hand. A 409 is **not** a transport kind — it always carries a `reason`, so it
+is a business refusal like any other.
+
+`z-index` values come from the `--z-*` scale in `src/styles.scss`. Never write a literal: nothing
+in this app opens a stacking context, so every fixed surface resolves at the document root and the
+four numbers only work as a set.
+
 ## Commits & CI
 
 History has no established commit convention yet — short imperative subjects until one is defined. CI is `.github/workflows/deploy.yml`: it runs the SPA specs and `dotnet test po-prostu-silka.slnx`, then publishes `src/Api/po-prostu-silka.Api.csproj` to Azure App Service and applies migrations with `dotnet ef`, on merge to `main`.

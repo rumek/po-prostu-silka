@@ -1,15 +1,9 @@
 // Layout only — colours come from src/styles.scss tokens.
 
-// BELOW the overlays, and the exact number matters. class-details-overlay, class-create-overlay and
-// class-bookings-overlay each declare `z-index: 10` and are position: fixed with aria-modal="true".
-// This bar renders AFTER </main> in app.html, and neither App's :host (display: flex) nor .shell-main
-// (a flex item with no z-index) opens a stacking context — so all four resolve at the root, where an
-// EQUAL z-index is broken by document order and the bar, being later, paints OVER the modal. That is
-// what 10 did here, and a modal a navigation bar sits on top of is not modal.
-//
-// Hence 5: strictly under the overlays rather than tied with them. First entry in what should become
-// a shared scale; anything added above this bar must declare a value above 10.
-$bottom-nav-z: 5;
+// BELOW the overlays, and the exact number matters — but the number itself no longer lives here.
+// S-19 turned "what should become a shared scale" into one: --z-skip-link / --z-bottom-nav /
+// --z-overlay / --z-toast in src/styles.scss, which is also where the reasoning for the ordering
+// now sits. Change the relationship there, not here.
 
 :host {
   display: contents;
@@ -20,7 +14,7 @@ $bottom-nav-z: 5;
   right: 0;
   bottom: 0;
   left: 0;
-  z-index: 5;
+  z-index: var(--z-bottom-nav);
   margin: 12px 20px;
   // The home indicator on a notched iPhone sits over the bottom of the viewport. This resolves to 0px
   // everywhere else — and would resolve to 0px there too without viewport-fit=cover in index.html.

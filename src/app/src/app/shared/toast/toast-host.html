@@ -1,0 +1,23 @@
+<!-- aria-hidden, and deliberately: the words reach a screen reader through LiveAnnouncer instead.
+     See the component docblock for why a disappearing live region is worse than no live region. -->
+<div class="toast-host" aria-hidden="true">
+  @for (toast of toasts.toasts(); track toast.id) {
+    <div class="toast" [class]="'toast--' + toast.tone">
+      <span class="toast-message">{{ toast.message }}</span>
+
+      <!-- Present on every tone, not only the persistent one: a stack of confirmations on a phone
+           is something a user should be able to clear without waiting it out. tabindex="-1" because
+           the host is aria-hidden — a focusable control inside hidden content is a trap for keyboard
+           users, and the pointer is the only way here by design. -->
+      <button
+        type="button"
+        class="toast-dismiss"
+        tabindex="-1"
+        title="Zamknij"
+        (click)="dismiss(toast)"
+      >
+        ×
+      </button>
+    </div>
+  }
+</div>

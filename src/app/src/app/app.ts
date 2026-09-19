@@ -3,6 +3,7 @@ import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/rou
 import { AuthService } from './core/auth/auth.service';
 import { PushPrompt } from './features/notifications/push-prompt';
 import { BottomNav } from './shared/bottom-nav/bottom-nav';
+import { ToastHost } from './shared/toast/toast-host';
 
 /**
  * The application shell: brand, the authenticated-only controls, and the routed view.
@@ -11,7 +12,7 @@ import { BottomNav } from './shared/bottom-nav/bottom-nav';
  * resolved by a guard mid-navigation, and signals already do that.
  */
 @Component({
-  imports: [BottomNav, PushPrompt, RouterOutlet, RouterLink, RouterLinkActive],
+  imports: [BottomNav, PushPrompt, RouterOutlet, RouterLink, RouterLinkActive, ToastHost],
   selector: 'app-root',
   styleUrl: './app.scss',
   templateUrl: './app.html',

@@ -784,10 +784,10 @@ cost of migrating by area rather than in one commit, and it is bounded by Phase 
 
 #### Automated
 
-- [x] 1.1 Unit tests pass: `npm test` from `src/app/`
-- [x] 1.2 The three existing failure specs pass without modification
-- [x] 1.3 New specs cover `classifyFailure` for each `FailureKind`, including offline and a body-less 500
-- [x] 1.4 Lint and format pass: `npm run quality:check` from `src/app/`
+- [x] 1.1 Unit tests pass: `npm test` from `src/app/` — 5b0b876
+- [x] 1.2 The three existing failure specs pass without modification — 5b0b876
+- [x] 1.3 New specs cover `classifyFailure` for each `FailureKind`, including offline and a body-less 500 — 5b0b876
+- [x] 1.4 Lint and format pass: `npm run quality:check` from `src/app/` — 5b0b876
 
 #### Manual
 
@@ -797,11 +797,11 @@ cost of migrating by area rather than in one commit, and it is bounded by Phase 
 
 #### Automated
 
-- [ ] 2.1 Unit tests pass: `npm test` from `src/app/`
-- [ ] 2.2 Toast spec covers three tones, auto-dismiss, persistence, and `LiveAnnouncer`
-- [ ] 2.3 `createFormState` spec covers `reject` setting errors and marking touched
-- [ ] 2.4 Lint and format pass: `npm run quality:check` from `src/app/`
-- [ ] 2.5 Build succeeds and the initial bundle is reported: `npm run build`
+- [x] 2.1 Unit tests pass: `npm test` from `src/app/`
+- [x] 2.2 Toast spec covers three tones, auto-dismiss, persistence, and `LiveAnnouncer`
+- [x] 2.3 `createFormState` spec covers `reject` setting errors and marking touched
+- [x] 2.4 Lint and format pass: `npm run quality:check` from `src/app/`
+- [x] 2.5 Build succeeds and the initial bundle is reported: `npm run build`
 
 #### Manual
 

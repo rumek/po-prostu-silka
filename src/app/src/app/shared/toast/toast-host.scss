@@ -1,0 +1,115 @@
+// Layout and tone only — the palette lives in src/styles.scss.
+
+:host {
+  display: contents;
+}
+
+.toast-host {
+  position: fixed;
+  right: var(--space-5);
+  bottom: var(--space-5);
+  left: auto;
+  // Above the overlays on purpose — an action taken inside an open panel has to be able to report
+  // its own failure. The whole scale and the reasoning behind its ordering live in src/styles.scss.
+  z-index: var(--z-toast);
+  display: flex;
+  flex-direction: column;
+  // Newest nearest the edge the eye is already on.
+  gap: var(--space-2);
+  // The host spans nothing it does not have to: a full-width fixed layer would swallow clicks on
+  // whatever sits under it, and the individual toasts re-enable pointer events for themselves.
+  pointer-events: none;
+  max-width: min(26rem, calc(100vw - 2 * var(--space-5)));
+}
+
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--ground);
+  box-shadow: var(--shadow-card);
+  color: var(--ink);
+  font-size: 0.9375rem;
+  pointer-events: auto;
+  // The app's first entrance animation. Guarded below — see the media query.
+  animation: toast-enter 160ms ease-out;
+}
+
+.toast-message {
+  flex: 1;
+  // Long unbroken strings (an e-mail, a code) must wrap rather than widen the panel — the same
+  // reason the overlays carry this.
+  overflow-wrap: anywhere;
+}
+
+.toast-dismiss {
+  flex-shrink: 0;
+  padding: 0 var(--space-1);
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 1.125rem;
+  line-height: 1;
+  opacity: 0.6;
+  cursor: pointer;
+
+  &:hover {
+    opacity: 1;
+  }
+}
+
+// The three tones. Only the left edge and the ground change — a toast is a note, not a banner, and
+// three fully coloured panels stacked on a phone would read as an error state whatever they said.
+.toast--success {
+  border-left: 3px solid var(--success);
+  background: var(--success-bg);
+}
+
+.toast--info {
+  border-left: 3px solid var(--line-strong);
+  background: var(--section-cool);
+}
+
+.toast--error {
+  border-left: 3px solid var(--danger);
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+@keyframes toast-enter {
+  from {
+    opacity: 0;
+    transform: translateY(var(--space-2));
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+// This app has exactly one other motion guard (plan-builder.scss) because it has exactly one other
+// animation. A toast that slides in without this is the first accessibility regression of its class.
+@media (prefers-reduced-motion: reduce) {
+  .toast {
+    animation: none;
+  }
+}
+
+@media (max-width: 30rem) {
+  .toast-host {
+    // Full width, and clearing the fixed bar the same way .shell-main does: one tab's height plus
+    // its 1px border-top, plus the home indicator. The shared token is what keeps this in step with
+    // bottom-nav.scss rather than drifting from it.
+    right: var(--space-4);
+    left: var(--space-4);
+    bottom: calc(
+      var(--bottom-nav-tab-height) + 1px + var(--space-5) + env(safe-area-inset-bottom) + 12px
+    );
+    max-width: none;
+  }
+}

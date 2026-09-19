@@ -95,6 +95,12 @@
   --danger: #8c2f22;
   --danger-bg: #f7e8e4;
 
+  // The second, added with the toast (S-19). A confirmation that reads in the warm brown reads as
+  // "something happened" rather than "it worked"; green is the only thing that says the latter
+  // without a word. Desaturated to sit inside this palette rather than shout over it.
+  --success: #3f6b47;
+  --success-bg: #e6efe6;
+
   --font-display: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
   --font-body:
     'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
@@ -117,6 +123,26 @@
   // need this number. They were hard-coded separately once and drifted (48px vs 52px) the moment the
   // bar went icon-only.
   --bottom-nav-tab-height: 52px;
+
+  // -----------------------------------------------------------------------------
+  // The stacking scale (S-19).
+  //
+  // These four numbers only work as a set, which is exactly why they are tokens. Neither App's
+  // :host nor .shell-main opens a stacking context, so every one of these surfaces resolves at the
+  // document ROOT — an equal z-index there is broken by document order, and the bottom nav renders
+  // after </main>. That is how the bar once painted over a modal.
+  //
+  // Before S-19 the same coordination was maintained by a comment in bottom-nav.scss asking future
+  // contributors to "declare a value above 10". --bottom-nav-tab-height exists because that style
+  // of coordination already failed once on a different number.
+  // -----------------------------------------------------------------------------
+
+  --z-skip-link: 1;
+  --z-bottom-nav: 5;
+  --z-overlay: 10;
+  // Above the overlays on purpose: an action taken INSIDE an open overlay has to be able to report
+  // its own failure, and a toast behind the panel that triggered it is a toast nobody reads.
+  --z-toast: 20;
 }
 
 // -----------------------------------------------------------------------------

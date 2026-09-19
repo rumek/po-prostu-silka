@@ -56,6 +56,12 @@
   <router-outlet />
 </main>
 
+<!-- Mounted once, outside every route and outside every gate: a toast can be raised from the login
+     screen as readily as from the admin's member list, and the outlet that shows it must not depend
+     on who is signed in. Sibling of <main> rather than inside it so it is not clipped or scrolled by
+     the routed view. -->
+<app-toast-host />
+
 <!-- The phone's navigation. Inside the same isAuthenticated() gate the header's nav uses, and for the
      same reason: the shell renders before any guard runs, so until sessionResolved flips every role
      signal reads false. The bar itself is role-blind — see BottomNav. -->
