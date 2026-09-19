@@ -1,8 +1,9 @@
 using po_prostu_silka.Application.Persistence;
 using po_prostu_silka.Domain;
 using po_prostu_silka.Domain.Scheduling;
+using po_prostu_silka.Application.Scheduling;
 
-namespace po_prostu_silka.Application.Scheduling;
+namespace po_prostu_silka.Api.Endpoints.Scheduling;
 
 /// <summary>
 /// The admin's class-type definitions (prd-v2 FR-004, FR-005, FR-006, FR-007) — the layer that gives

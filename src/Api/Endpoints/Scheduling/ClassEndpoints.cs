@@ -5,8 +5,9 @@ using po_prostu_silka.Application.Persistence;
 using po_prostu_silka.Domain;
 using po_prostu_silka.Domain.Members;
 using po_prostu_silka.Domain.Scheduling;
+using po_prostu_silka.Application.Scheduling;
 
-namespace po_prostu_silka.Application.Scheduling;
+namespace po_prostu_silka.Api.Endpoints.Scheduling;
 
 /// <summary>
 /// The class schedule (prd.md FR-007) and the admin's management of it (prd-v2 US-01, FR-008 –

@@ -2,8 +2,9 @@ using Microsoft.AspNetCore.Mvc;
 using po_prostu_silka.Application.Persistence;
 using po_prostu_silka.Domain;
 using po_prostu_silka.Domain.Members;
+using po_prostu_silka.Application.Members;
 
-namespace po_prostu_silka.Application.Members;
+namespace po_prostu_silka.Api.Endpoints.Members;
 
 /// <summary>
 /// The admin's karnet surface (S-16, MP-04..MP-06): issue a pass, read a member's history, correct a

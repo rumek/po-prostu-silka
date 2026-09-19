@@ -75,7 +75,7 @@ public static class UpdateProfile
             // middle of a refactor that promised to change nothing. Do not "tidy" this to
             // typeof(UpdateProfile).
             loggerFactory
-                .CreateLogger(typeof(ProfileEndpoints))
+                .CreateLogger("po_prostu_silka.Application.Members.ProfileEndpoints")
                 .LogError(
                     "Profile update failed for user {UserId}. Errors: {Errors}",
                     user.Id,

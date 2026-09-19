@@ -19,7 +19,7 @@ namespace po_prostu_silka.Application.Auth;
 /// </para>
 ///
 /// <para>
-/// THE LOGGER CATEGORY IS PINNED to typeof(AuthEndpoints); see Register for why.
+/// THE LOGGER CATEGORY IS PINNED to "po_prostu_silka.Application.Auth.AuthEndpoints"; see Register for why.
 /// </para>
 /// </summary>
 public static class ForgotPassword
@@ -106,7 +106,7 @@ public static class ForgotPassword
         catch (Exception exception)
         {
             loggerFactory
-                .CreateLogger(typeof(AuthEndpoints))
+                .CreateLogger("po_prostu_silka.Application.Auth.AuthEndpoints")
                 .LogError(
                     exception,
                     "Password reset could not be queued. The caller was answered normally so the "

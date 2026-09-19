@@ -6,8 +6,10 @@ using po_prostu_silka.Application.Notifications;
 using po_prostu_silka.Application.Persistence;
 using po_prostu_silka.Domain;
 using po_prostu_silka.Domain.Members;
+using po_prostu_silka.Application.Auth;
+using po_prostu_silka.Api.Auth;
 
-namespace po_prostu_silka.Application.Auth;
+namespace po_prostu_silka.Api.Endpoints.Auth;
 
 /// <summary>
 /// The authentication surface: create an account, establish a session, inspect it, refresh it,

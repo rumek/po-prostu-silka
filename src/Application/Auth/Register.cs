@@ -19,7 +19,7 @@ namespace po_prostu_silka.Application.Auth;
 /// </para>
 ///
 /// <para>
-/// THE LOGGER CATEGORY IS PINNED to typeof(AuthEndpoints) rather than this class. The
+/// THE LOGGER CATEGORY IS PINNED to "po_prostu_silka.Application.Auth.AuthEndpoints" rather than this class. The
 /// category is a string that reaches Azure log queries, so it is observable behaviour and
 /// CS-03 covers it. Do not "tidy" it to typeof(Register).
 /// </para>
@@ -177,7 +177,7 @@ public static class Register
             // the ActiveMember policy's status check, fails its RequireRole, and the admin surface
             // here is approve-only. Better to undo the registration and let them retry than to leave
             // an account that can be approved and still cannot do anything.
-            var logger = loggerFactory.CreateLogger(typeof(AuthEndpoints));
+            var logger = loggerFactory.CreateLogger("po_prostu_silka.Application.Auth.AuthEndpoints");
             logger.LogError(
                 "Role assignment failed for new user {UserId}; deleting the account. Errors: {Errors}",
                 user.Id,
@@ -240,7 +240,7 @@ public static class Register
             // nothing in the admin surface creates a member for an existing account. Undo the
             // registration and let them retry rather than leave an account that can be approved and
             // still cannot do anything.
-            var memberLogger = loggerFactory.CreateLogger(typeof(AuthEndpoints));
+            var memberLogger = loggerFactory.CreateLogger("po_prostu_silka.Application.Auth.AuthEndpoints");
             memberLogger.LogError(
                 ex,
                 "Member record could not be linked for new user {UserId}; deleting the account.",

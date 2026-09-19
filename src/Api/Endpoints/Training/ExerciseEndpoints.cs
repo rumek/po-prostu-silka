@@ -1,8 +1,9 @@
 using po_prostu_silka.Application.Persistence;
 using po_prostu_silka.Domain;
 using po_prostu_silka.Domain.Training;
+using po_prostu_silka.Application.Training;
 
-namespace po_prostu_silka.Application.Training;
+namespace po_prostu_silka.Api.Endpoints.Training;
 
 /// <summary>
 /// The admin's exercise library (prd.md FR-018, FR-019) — the first surface in the training context

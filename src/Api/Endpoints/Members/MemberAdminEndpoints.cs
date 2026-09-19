@@ -5,8 +5,9 @@ using po_prostu_silka.Application.Persistence;
 using po_prostu_silka.Application.Scheduling;
 using po_prostu_silka.Domain;
 using po_prostu_silka.Domain.Members;
+using po_prostu_silka.Application.Members;
 
-namespace po_prostu_silka.Application.Members;
+namespace po_prostu_silka.Api.Endpoints.Members;
 
 /// <summary>
 /// The admin's member surface: the full member list (S-02), the records of people who have never

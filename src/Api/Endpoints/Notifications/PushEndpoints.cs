@@ -1,4 +1,6 @@
-namespace po_prostu_silka.Application.Notifications;
+using po_prostu_silka.Application.Notifications;
+
+namespace po_prostu_silka.Api.Endpoints.Notifications;
 
 /// <summary>
 /// Lets a browser register itself for Web Push.

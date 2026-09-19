@@ -5,8 +5,9 @@ using po_prostu_silka.Application.Persistence;
 using po_prostu_silka.Domain;
 using po_prostu_silka.Domain.Members;
 using po_prostu_silka.Domain.Training;
+using po_prostu_silka.Application.Training;
 
-namespace po_prostu_silka.Application.Training;
+namespace po_prostu_silka.Api.Endpoints.Training;
 
 /// <summary>
 /// Training-plan authoring (prd.md FR-015, FR-016) - the write half of S-11.

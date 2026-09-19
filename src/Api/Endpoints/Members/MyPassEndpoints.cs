@@ -1,6 +1,7 @@
 using po_prostu_silka.Domain;
+using po_prostu_silka.Application.Members;
 
-namespace po_prostu_silka.Application.Members;
+namespace po_prostu_silka.Api.Endpoints.Members;
 
 /// <summary>
 /// The member's own karnet (S-16, MP-07) — the read half of the pass, and the only pass surface a

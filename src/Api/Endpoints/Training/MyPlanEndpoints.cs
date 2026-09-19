@@ -1,6 +1,7 @@
 using po_prostu_silka.Domain;
+using po_prostu_silka.Application.Training;
 
-namespace po_prostu_silka.Application.Training;
+namespace po_prostu_silka.Api.Endpoints.Training;
 
 /// <summary>
 /// The member's own training plan (prd.md FR-017, FR-020) - the read half of S-11.

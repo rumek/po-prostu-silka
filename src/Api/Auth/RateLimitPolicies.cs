@@ -1,6 +1,6 @@
 using System.Net;
 
-namespace po_prostu_silka.Application.Auth;
+namespace po_prostu_silka.Api.Auth;
 
 /// <summary>
 /// Names of the rate-limiting policies configured in Program.cs.

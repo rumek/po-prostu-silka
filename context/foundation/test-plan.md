@@ -265,7 +265,8 @@ the relevant rollout phase ships; before that, the sub-section reads
   `POST /api/auth/login` and saves `playwright/.auth/admin.json` (gitignored). Only a spec whose risk
   IS the login form opts out with `test.use({ storageState: { cookies: [], origins: [] } })`.
 - **The app under test**: `playwright.config.ts` runs `npm run e2e:stage` (build the SPA, copy it into
-  `src/wwwroot`) then `dotnet run` on http://localhost:5264, and waits for `/health`. Locally it
+  `src/Api/wwwroot`) then `dotnet run --project ../Api/po-prostu-silka.Api.csproj` on
+  http://localhost:5264, and waits for `/health`. Locally it
   reuses a server already listening there — which then serves whatever bundle is in `wwwroot`.
 - **Beware the second line of defence.** `authInterceptor` sends any 401 to `/login`, so "the visitor
   ended up on `/login`" passes even with every route guard removed. The reference spec asserts instead

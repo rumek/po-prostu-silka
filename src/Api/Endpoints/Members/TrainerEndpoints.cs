@@ -1,6 +1,7 @@
 using po_prostu_silka.Domain;
+using po_prostu_silka.Application.Members;
 
-namespace po_prostu_silka.Application.Members;
+namespace po_prostu_silka.Api.Endpoints.Members;
 
 /// <summary>
 /// The people an occurrence may name as its instructor (prd-v2 FR-009).

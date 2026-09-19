@@ -1,4 +1,6 @@
-namespace po_prostu_silka.Application.Members;
+using po_prostu_silka.Application.Members;
+
+namespace po_prostu_silka.Api.Endpoints.Members;
 
 /// <summary>
 /// The member's own account surface.

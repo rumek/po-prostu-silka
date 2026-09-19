@@ -777,6 +777,24 @@ nominal.
 **Contract**: Delete both `<Using>` items. `Microsoft.AspNetCore.Http` stays — handlers return `IResult`.
 Verify by build, not by grep: if a file still needs one, the build says so by name.
 
+**Adapted during implementation — this is where the logger pin and the move collided.** The plan told
+phase 3 and phase 6 to pin the logger category with `typeof(AuthEndpoints)` / `typeof(ProfileEndpoints)`
+AND told phase 7 to move those classes to `Api`. Both cannot hold: `Application` may not reference
+`Api`. The resolution keeps the behaviour the pin was protecting — the category is a **string**, so it
+is now pinned as the literal `"po_prostu_silka.Application.Auth.AuthEndpoints"` (and the `Members`
+equivalent), which is exactly what `typeof(...)` produced before the move. Six call sites across
+`Register`, `ForgotPassword` and `UpdateProfile`. This is strictly better than the `typeof`: it states
+the contract instead of deriving it from a type that only existed to supply a name.
+
+**And one consequence that needed its own decision: `AD0001` × 120.**
+`Microsoft.AspNetCore.Analyzers.RouteHandlers.RouteHandlerAnalyzer` throws
+`IndexOutOfRangeException` on every route handler passed as a method group whose method lives in a
+REFERENCED assembly — which is precisely the shape this slice produces. Isolated by experiment rather
+than assumed: baseline 120 for 60 `Map*` calls (two each), +2 for one added cross-assembly binding, +0
+for a same-assembly one. Suppressed with `<NoWarn>$(NoWarn);AD0001</NoWarn>` in
+`po-prostu-silka.Api.csproj` only, with the trigger, the exception, the SDK version and a re-test
+instruction recorded inline. The code is not changing to placate a crashing analyzer.
+
 #### 4. DI registration — what must not change
 
 **File**: `src/Api/Program.cs`
@@ -806,6 +824,13 @@ that reference must survive.
 `context/archive/`**; the 14 stale `Mirrors … (path)` citations across the SPA are S-19's or a later
 slice's business, and the three naming `ContactDetails.cs` / `MembershipPassRules.cs` survive because
 `src/Application/` remains a real folder.
+
+**Adapted during implementation — only two of the four documents were edited, on purpose.**
+`test-plan.md` and `deploy-plan.md` carried statements a reader would ACT on (the e2e staging path, and
+a claim that the csproj still excludes `app\**`), so both were corrected. `roadmap.md`'s S-18 **Risk**
+block and `deploy-plan.md`'s dated bootstrap log were left alone: they record what was feared and what
+was done at the time, and rewriting either would erase the record rather than fix a path. `prd-v2.md`
+turned out to carry no stale path at all.
 
 ### Success Criteria:
 
@@ -975,11 +1000,11 @@ revert is atomic.
 
 #### Automated
 
-- [x] 6.1 `dotnet build po-prostu-silka.slnx -c Release` → 0 warnings, 0 errors
-- [x] 6.2 `dotnet test po-prostu-silka.slnx` green, no test file edited
-- [x] 6.3 `EndpointAuthorizationTests` green
-- [x] 6.4 Route-literal diff empty against `<scratch>/routes-before.txt`
-- [x] 6.5 No `*Endpoints` file contains a method other than `Map*Endpoints`
+- [x] 6.1 `dotnet build po-prostu-silka.slnx -c Release` → 0 warnings, 0 errors — 1953975
+- [x] 6.2 `dotnet test po-prostu-silka.slnx` green, no test file edited — 1953975
+- [x] 6.3 `EndpointAuthorizationTests` green — 1953975
+- [x] 6.4 Route-literal diff empty against `<scratch>/routes-before.txt` — 1953975
+- [x] 6.5 No `*Endpoints` file contains a method other than `Map*Endpoints` — 1953975
 
 #### Manual
 
@@ -991,12 +1016,12 @@ revert is atomic.
 
 #### Automated
 
-- [ ] 7.1 `dotnet build po-prostu-silka.slnx -c Release` → 0 warnings, 0 errors
-- [ ] 7.2 `dotnet test po-prostu-silka.slnx` green, no test file edited
-- [ ] 7.3 `EndpointAuthorizationTests` green
-- [ ] 7.4 Route-literal diff empty against `<scratch>/routes-before.txt`
-- [ ] 7.5 No `IEndpointRouteBuilder` / `MapGroup` / `RequireAuthorization` under `src/Application/`
-- [ ] 7.6 Migration script still byte-identical to the phase-1 baseline
+- [x] 7.1 `dotnet build po-prostu-silka.slnx -c Release` → 0 warnings, 0 errors
+- [x] 7.2 `dotnet test po-prostu-silka.slnx` green, no test file edited
+- [x] 7.3 `EndpointAuthorizationTests` green
+- [x] 7.4 Route-literal diff empty against `<scratch>/routes-before.txt`
+- [x] 7.5 No `IEndpointRouteBuilder` / `MapGroup` / `RequireAuthorization` under `src/Application/`
+- [x] 7.6 Migration script still byte-identical to the phase-1 baseline
 
 #### Manual
 

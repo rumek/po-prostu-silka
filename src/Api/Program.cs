@@ -21,6 +21,13 @@ using po_prostu_silka.Infrastructure.Training;
 using po_prostu_silka.Infrastructure.Authorization;
 using po_prostu_silka.Infrastructure.Identity;
 using po_prostu_silka.Infrastructure.Persistence;
+using po_prostu_silka.Api.Auth;
+using po_prostu_silka.Api.Endpoints.Auth;
+using po_prostu_silka.Api.Endpoints.Members;
+using po_prostu_silka.Api.Endpoints.Notifications;
+using po_prostu_silka.Api.Endpoints.Scheduling;
+using po_prostu_silka.Api.Endpoints.Training;
+using po_prostu_silka.Infrastructure.Auth;
 
 var builder = WebApplication.CreateBuilder(args);
 

@@ -5,8 +5,9 @@ using po_prostu_silka.Application.Persistence;
 using po_prostu_silka.Domain;
 using po_prostu_silka.Domain.Members;
 using po_prostu_silka.Domain.Scheduling;
+using po_prostu_silka.Application.Scheduling;
 
-namespace po_prostu_silka.Application.Scheduling;
+namespace po_prostu_silka.Api.Endpoints.Scheduling;
 
 /// <summary>
 /// Booking and releasing a spot (prd.md FR-010, FR-014; S-16 MP-01 and MP-02).
