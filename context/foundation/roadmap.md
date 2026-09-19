@@ -3,7 +3,7 @@ project: "Po Prostu Siłka"
 version: 4
 status: draft
 created: 2026-08-31
-updated: 2026-09-10
+updated: 2026-09-18
 prd_version: 1, 2
 main_goal: quality
 top_blocker: none
@@ -144,7 +144,7 @@ out; a build error cannot.
 | S-15 | plan-card-prescription-detail | member reads their plan card with the muscle group, a prescribed duration where the trainer set one, an info icon to the exercise, and the note set off as a callout | S-10, S-11 | M-3 MS-001–MS-004 | done |
 | S-16 | membership-pass-and-staff-booking | admin issues a karnet and books a member in; a trainer books into their own classes; a member with no valid karnet is refused; nobody self-books and nobody waits for approval | S-01, S-04, S-08, S-14 | M-4 MP-01–MP-07 (retires v1 US-01, FR-002, FR-003, FR-008, FR-009) | done        |
 | S-17 | invitation-only-registration | register only through an invitation link — the code is shown as text rather than typed, the form asks for an email and a password, and there is no way in without a code | S-14, S-16 | M-5 IR-01–IR-06 (supersedes v1 FR-001's open self-registration) | done |
-| S-18 | backend-layer-boundaries | (structural) nothing — the layering becomes a compiler constraint and the endpoint classes stop holding the logic | S-17 | M-6 CS-01, CS-02, CS-03 | ready |
+| S-18 | backend-layer-boundaries | (structural) nothing — the layering becomes a compiler constraint and the endpoint classes stop holding the logic | S-17 | M-6 CS-01, CS-02, CS-03 | in-progress |
 | S-19 | frontend-error-and-patterns | (structural) a failure is told one way instead of nine, and the patterns copied across screens are extracted once | S-17 | M-6 CS-04, CS-05, CS-06, CS-07 | ready |
 
 ## Streams
@@ -529,7 +529,7 @@ rather than in a slice body:
   enormous while changing nothing, and the only workable review question is "did any non-comment line
   change?". The third is scope: being inside a 1082-line file is exactly when "while I'm here" wins,
   and CS-03 exists to lose that argument in advance.
-- **Status:** ready
+- **Status:** in-progress
 
 ### S-19: A failure is told one way, and the copied patterns are extracted once
 

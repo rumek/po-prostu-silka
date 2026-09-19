@@ -1,0 +1,45 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>po_prostu_silka.Application</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Domain\po-prostu-silka.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      NO PackageReference, deliberately - a package list of zero is itself the signal that this
+      layer is clean. Everything non-BCL that Application uses comes from the ASP.NET Core shared
+      framework:
+        - UserManager (28 sites) and SignInManager (5 sites). Both ship in the shared framework,
+          so they do NOT depend on Domain's Identity.Stores package.
+        - Microsoft.AspNetCore.Mvc for [FromBody] (5 files).
+        - The Http / Routing / Builder types covered by the <Using /> items below.
+
+      Microsoft.AspNetCore.Identity.EntityFrameworkCore must NEVER appear here: it is the EF
+      Core-backed Identity store and belongs to Infrastructure. Adding it would put EF Core one
+      transitive hop from this project and quietly undo what the split is for.
+    -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      Replaces the global usings the Web SDK used to contribute for free. Each is here because
+      files in this project fail to compile without it; the counts are from the pre-split survey.
+
+      Http is permanent: handlers return IResult.
+      Routing and Builder are TEMPORARY - they exist only while the *Endpoints route-registration
+      classes still live in this project. Phase 7 moves those to Api and deletes both items, which
+      is what makes "the application layer does not know about HTTP routing" a compiler constraint
+      rather than a naming convention.
+    -->
+    <Using Include="Microsoft.AspNetCore.Http" />          <!-- IResult, Results, HttpContext - 14 files -->
+    <Using Include="Microsoft.AspNetCore.Routing" />       <!-- IEndpointRouteBuilder - 13 files; removed in phase 7 -->
+    <Using Include="Microsoft.AspNetCore.Builder" />       <!-- MapGet, RequireAuthorization - 13 files; removed in phase 7 -->
+    <Using Include="Microsoft.Extensions.Logging" />       <!-- ILogger / ILoggerFactory - 3 files -->
+  </ItemGroup>
+
+</Project>

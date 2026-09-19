@@ -51,11 +51,12 @@ and [`context/foundation/infrastructure.md`](context/foundation/infrastructure.m
 ## Repository layout
 
 ```
-src/                     .NET Web API (po-prostu-silka.csproj, Program.cs)
+src/                     the .NET backend as four projects + the SPA workspace
   Domain/                entities and rules — references nothing
-  Application/           endpoints and use cases — references Domain
-  Infrastructure/        EF Core, Identity, email, push — the only layer that touches EF Core
+  Application/           use cases and ports — references Domain
+  Infrastructure/        EF Core, Identity, email, push — the only project that touches EF Core
     Persistence/         AppDbContext, entity configurations, migrations
+  Api/                   the host (Program.cs, appsettings, wwwroot) — publishes as po-prostu-silka.dll
   app/                   the Angular workspace (its own package.json); source in src/app/src/app/
     e2e/                 Playwright specs
 tests/po-prostu-silka.Tests/   backend integration tests
@@ -75,7 +76,9 @@ CLI (`dotnet tool install --global dotnet-ef`).
 docker compose up -d
 
 # 2. Apply migrations — the app does not migrate on startup
-dotnet ef database update --project src
+dotnet ef database update \
+  --project src/Infrastructure/po-prostu-silka.Infrastructure.csproj \
+  --startup-project src/Api/po-prostu-silka.Api.csproj
 
 # 3. Build the SPA into the API's wwwroot
 cd src/app
@@ -84,11 +87,11 @@ npm run e2e:stage
 cd ../..
 
 # 4. Run the API, which also serves the SPA
-dotnet run --project src
+dotnet run --project src/Api/po-prostu-silka.Api.csproj
 ```
 
 Open <http://localhost:5264>. On startup a development admin account is seeded from
-`src/appsettings.Development.json` (`AdminSeed`); those credentials are development-only. Check
+`src/Api/appsettings.Development.json` (`AdminSeed`); those credentials are development-only. Check
 database connectivity with `GET /health`.
 
 For frontend work, `npm start` in `src/app/` runs the Angular dev server on <http://localhost:4200>.

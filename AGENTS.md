@@ -12,27 +12,30 @@
 
 ## Project structure
 
-- `src/` — .NET Web API (`po-prostu-silka.csproj`, `Program.cs`), organised in DDD layers (see below).
+- `src/` — the .NET backend as **four projects**: `Domain/`, `Application/`, `Infrastructure/` and `Api/` (the host, `Program.cs`). Shared MSBuild properties live in `src/Directory.Build.props`.
 - `src/app/` — the full Angular workspace (its own `package.json`, `angular.json`); Angular source is at `src/app/src/app/`. Don't confuse the two `src` levels.
 - `context/` — foundation docs and change logs (see @context/foundation/README.md).
 
-### Layering (convention — not compiler-enforced)
+### Layering (enforced by the compiler)
 
-One project, three layers as folders. Bounded contexts (membership, scheduling, training, notifications) become subfolders within them as their slices land.
+Four projects, one per layer. Bounded contexts (membership, scheduling, training, notifications) become subfolders within them as their slices land.
 
-| Layer | May reference |
+| Project | May reference |
 | --- | --- |
-| `src/Domain/` | nothing |
+| `src/Domain/` | nothing but the BCL and one Identity package (see below) |
 | `src/Application/` | `Domain` |
-| `src/Infrastructure/` | `Domain`, `Application` — and it is the **only** layer that may reference EF Core |
+| `src/Infrastructure/` | `Domain`, `Application` — and it is the **only** project that may reference EF Core |
+| `src/Api/` | `Application`, `Infrastructure` — the host, and the `dotnet ef` startup project |
 
 - EF Core artifacts (`AppDbContext`, entity configurations, migrations) live under `src/Infrastructure/Persistence/`. Never put a `using Microsoft.EntityFrameworkCore` in `Domain` or `Application`.
 - Entity configuration goes in `IEntityTypeConfiguration<T>` classes under `Infrastructure/Persistence/Configurations/` — they are auto-discovered by `ApplyConfigurationsFromAssembly`, so don't accumulate fluent config in `OnModelCreating`.
-- Because nothing enforces this, it rots silently. If it does, the escalation is splitting into separate `.csproj` projects so the compiler enforces it.
+- **This is now a build constraint, not a convention.** Adding `using Microsoft.EntityFrameworkCore;` to a file in `Domain` or `Application` fails `dotnet build` with CS0234. The escalation that used to be "split into separate projects if it rots" has been taken (S-18).
+- **"Domain references nothing" is no longer literally true**, and the exception is deliberate: `Domain` carries `Microsoft.Extensions.Identity.Stores`, because `ApplicationUser : IdentityUser` and `IdentityUser` lives there. `IdentityUser` is Identity, **not** EF Core, and the rule the build enforces names EF Core specifically. Do not "fix" this by moving `ApplicationUser` to `Infrastructure`.
+- The one remaining hole is a package: adding an EF-Core-bearing `PackageReference` to `Application.csproj` would compile. That is a visible, reviewable csproj diff — there is deliberately no architecture test.
 
 ### Database
 
-- Local dev runs SQL Server in Docker: `docker compose up -d` (root `docker-compose.yml`), connection string in `src/appsettings.Development.json`. A real engine, not SQLite — locking semantics must match Azure SQL for the no-overbooking guarantee.
+- Local dev runs SQL Server in Docker: `docker compose up -d` (root `docker-compose.yml`), connection string in `src/Api/appsettings.Development.json`. A real engine, not SQLite — locking semantics must match Azure SQL for the no-overbooking guarantee.
 - Production is Azure SQL (Basic DTU). The connection string comes from the App Service connection string named `Default`, type `SQLAzure` — both exact values matter, since the platform maps `SQLAZURECONNSTR_Default` back onto `ConnectionStrings:Default`.
 - `GET /health` opens a real DB connection; use it to check connectivity rather than inferring it.
 - Migrations must be reversible (working `Down`). Rollback redeploys the previous artifact but does **not** roll back schema, so destructive changes lag one release behind the code that stops needing them.
@@ -40,7 +43,7 @@ One project, three layers as folders. Bounded contexts (membership, scheduling, 
 
 ## Build, test, and dev commands
 
-Backend, from `src/`: `dotnet build`, `dotnet run`, `dotnet list package --vulnerable` (the audit used at bootstrap). Tests live in `tests/po-prostu-silka.Tests/` — run them from the repo root with `dotnet test`. They are integration tests: `IntegrationTestFixture` boots the real app via `WebApplicationFactory<Program>` against a real SQL Server started by Testcontainers, so behaviour that depends on the engine (filtered unique indexes, locking) is actually exercised. CI gates the deploy on `dotnet test`.
+Backend, from the repo root: `dotnet build po-prostu-silka.slnx`, `dotnet run --project src/Api/po-prostu-silka.Api.csproj`, `dotnet list package --vulnerable` (the audit used at bootstrap). `dotnet ef` needs both projects: `--project src/Infrastructure/po-prostu-silka.Infrastructure.csproj --startup-project src/Api/po-prostu-silka.Api.csproj`. Tests live in `tests/po-prostu-silka.Tests/` — run them from the repo root with `dotnet test`. They are integration tests: `IntegrationTestFixture` boots the real app via `WebApplicationFactory<Program>` against a real SQL Server started by Testcontainers, so behaviour that depends on the engine (filtered unique indexes, locking) is actually exercised. CI gates the deploy on `dotnet test`.
 
 Frontend, from `src/app/` (npm 11, pinned via `packageManager`): `npm start` (dev server), `npm test` (unit tests via Vitest), `npm run quality:check` / `quality:fix` (Prettier + ESLint — run `quality:check` before committing frontend changes).
 
@@ -54,4 +57,4 @@ Frontend, from `src/app/` (npm 11, pinned via `packageManager`): `npm start` (de
 
 ## Commits & CI
 
-History has no established commit convention yet (2 bootstrap commits) — short imperative subjects until one is defined. CI is planned as GitHub Actions auto-deploying to Azure App Service on merge, but no workflow exists yet; don't reference CI checks that aren't there.
+History has no established commit convention yet — short imperative subjects until one is defined. CI is `.github/workflows/deploy.yml`: it runs the SPA specs and `dotnet test po-prostu-silka.slnx`, then publishes `src/Api/po-prostu-silka.Api.csproj` to Azure App Service and applies migrations with `dotnet ef`, on merge to `main`.

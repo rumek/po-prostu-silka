@@ -51,8 +51,8 @@ jobs:
 
       - name: Stage Angular output into wwwroot
         run: |
-          mkdir -p src/wwwroot
-          cp -r src/app/dist/app/browser/. src/wwwroot/
+          mkdir -p src/Api/wwwroot
+          cp -r src/app/dist/app/browser/. src/Api/wwwroot/
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
@@ -67,7 +67,7 @@ jobs:
         run: dotnet test po-prostu-silka.slnx -c Release
 
       - name: Publish API (includes wwwroot)
-        run: dotnet publish src/po-prostu-silka.csproj -c Release -o ./publish
+        run: dotnet publish src/Api/po-prostu-silka.Api.csproj -c Release -o ./publish
 
       # ----------------------------------------------------------------------
       # Migrations run BEFORE the deploy, so a failed migration aborts the run
@@ -82,7 +82,8 @@ jobs:
       - name: Generate idempotent migration script (review artifact)
         run: |
           dotnet ef migrations script --idempotent \
-            --project src/po-prostu-silka.csproj \
+            --project src/Infrastructure/po-prostu-silka.Infrastructure.csproj \
+            --startup-project src/Api/po-prostu-silka.Api.csproj \
             --output migrations.sql
           echo "--- migration script ($(wc -l < migrations.sql) lines) ---"
 
@@ -120,7 +121,8 @@ jobs:
       - name: Apply migrations to Azure SQL
         run: |
           dotnet ef database update \
-            --project src/po-prostu-silka.csproj \
+            --project src/Infrastructure/po-prostu-silka.Infrastructure.csproj \
+            --startup-project src/Api/po-prostu-silka.Api.csproj \
             --connection "${{ secrets.AZURE_SQL_CONNECTION_STRING }}"
 
       # if: always() is load-bearing - without it a failed migration leaves the

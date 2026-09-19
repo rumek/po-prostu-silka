@@ -1,0 +1,49 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <!-- Program.cs declares no namespace (top-level statements), and `public partial class Program`
+         at the bottom is what WebApplicationFactory<Program> binds to. Keeping the root namespace
+         at po_prostu_silka preserves both. -->
+    <RootNamespace>po_prostu_silka</RootNamespace>
+    <!--
+      PINNED, and load-bearing twice. Do not change it to match the project file name.
+
+      1. Microsoft.AspNetCore.Mvc.Testing emits a WebApplicationFactoryContentRootAttribute into the
+         TEST assembly keyed by the entry-point assembly name. Holding the name constant keeps that
+         key stable across the split, so a stale test obj/ cannot yield the confusing
+         "could not find a part of the path ...\src".
+      2. `dotnet publish` produces po-prostu-silka.dll, which is what App Service starts. Holding the
+         name constant means the deploy artifact is byte-for-byte the same shape as before the split.
+    -->
+    <AssemblyName>po-prostu-silka</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- BOTH are needed, not just Infrastructure: the 13 Map*Endpoints() extension methods live in
+         Application until phase 7, and the Testing-only probes at the bottom of Program.cs use
+         AuthorizationPolicies from Infrastructure. -->
+    <ProjectReference Include="..\Application\po-prostu-silka.Application.csproj" />
+    <ProjectReference Include="..\Infrastructure\po-prostu-silka.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.11" />
+    <!--
+      The SECOND copy of the design-time tooling, and it is not redundant: Infrastructure declares it
+      with PrivateAssets="all", which does not flow transitively. Api is the `dotnet ef` startup
+      project, so without its own reference every migration command fails with "your startup project
+      doesn't reference Microsoft.EntityFrameworkCore.Design".
+    -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.11" PrivateAssets="all" />
+  </ItemGroup>
+
+  <!--
+    NO <Compile Remove="app\**" /> block. The old single project sat at src/ and therefore contained
+    src/app/ (the Angular workspace), which had to be excluded by hand. This project's directory is
+    src/Api/, so src/app/ is a sibling of the four projects and belongs to none of them.
+
+    NO <Using /> items either: the Web SDK supplies them, and this is the one project that should
+    have them.
+  -->
+
+</Project>

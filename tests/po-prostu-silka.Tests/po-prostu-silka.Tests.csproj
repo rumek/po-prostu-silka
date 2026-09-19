@@ -22,7 +22,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\po-prostu-silka.csproj" />
+    <!-- One reference is enough: Application, Infrastructure and Domain flow transitively through
+         the host. The Api project pins <AssemblyName>po-prostu-silka</AssemblyName> so the
+         WebApplicationFactoryContentRootAttribute key this project emits stays stable across the
+         split. -->
+    <ProjectReference Include="..\..\src\Api\po-prostu-silka.Api.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -7,13 +7,15 @@ Empty as of F-01 (`persistence-foundation`) — the folder exists to establish t
 before the first slice needs it. F-02 onward fill it in, one subfolder per bounded context
 (membership, scheduling, training, notifications).
 
-**Layering rule** (convention, not compiler-enforced — this is a single project):
+**Layering rule** (enforced by the compiler — these are four separate projects):
 
-| Layer | May reference |
+| Project | May reference |
 | --- | --- |
-| `Domain` | nothing |
+| `Domain` | nothing but the BCL and one Identity package |
 | `Application` | `Domain` |
-| `Infrastructure` | `Domain`, `Application` — and it is the **only** layer that may reference EF Core |
+| `Infrastructure` | `Domain`, `Application` — and it is the **only** project that may reference EF Core |
+| `Api` | `Application`, `Infrastructure` — the host |
 
-If this boundary starts to rot, the escalation is splitting into separate `.csproj` projects
-so the compiler enforces it. That was deliberately deferred — see the plan's "What We're NOT Doing".
+That escalation has been taken (S-18): an EF Core `using` here fails `dotnet build` with CS0234,
+so the boundary can no longer rot quietly. The one remaining hole is adding an EF-Core-bearing
+`PackageReference` to `po-prostu-silka.Application.csproj`, which is a reviewable csproj diff.

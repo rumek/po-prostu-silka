@@ -1,0 +1,58 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>po_prostu_silka.Infrastructure</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Domain\po-prostu-silka.Domain.csproj" />
+    <ProjectReference Include="..\Application\po-prostu-silka.Application.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Adapters here take ILogger, IConfiguration and BackgroundService; the health check and the
+         DI extension points need the hosting abstractions. -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      THIS IS THE ONLY PROJECT THAT MAY REFERENCE EF CORE. That sentence used to be a line in
+      AGENTS.md that nothing checked; it is now the reason these four packages sit here and not
+      one folder up.
+    -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.11" />
+    <!-- Design-time only: generates migrations, must not flow to the published output.
+         PrivateAssets="all" does NOT flow transitively, which is why Api declares its own copy -
+         it is the `dotnet ef` startup project and needs the tooling in its own reference set. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.11" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="10.0.11" />
+    <!--
+      EF Core-backed Identity store. The core Identity services and the cookie handler ship in the
+      ASP.NET Core shared framework, so this is the only package needed.
+      Microsoft.AspNetCore.Identity.UI is deliberately absent: it scaffolds Razor Pages for a
+      server-rendered login, and this app authenticates an Angular SPA through its own endpoints.
+    -->
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.11" />
+    <!-- Azure Communication Services email. Sends through the Azure Managed Domain provisioned in
+         F-03 phase 1; the sender address is configuration, not a constant. -->
+    <PackageReference Include="Azure.Communication.Email" Version="1.1.0" />
+    <!--
+      Web Push with VAPID. Chosen over the more widely-cited "WebPush" package deliberately: this one
+      is actively maintained and integrates with IHttpClientFactory, where WebPush 1.0.x is
+      effectively dormant. Do not swap it back without re-checking that.
+    -->
+    <PackageReference Include="Lib.Net.Http.WebPush" Version="3.3.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Replaces Web SDK global usings this project's files relied on; counts from the pre-split
+         survey. EF Core itself is imported per file, not globally - the imports are the evidence
+         that this is the layer that owns persistence. -->
+    <Using Include="Microsoft.Extensions.Logging" />              <!-- 5 files -->
+    <Using Include="Microsoft.Extensions.DependencyInjection" />  <!-- 2 files -->
+    <Using Include="Microsoft.Extensions.Configuration" />        <!-- 2 files -->
+    <Using Include="Microsoft.Extensions.Hosting" />              <!-- BackgroundService - 1 file -->
+  </ItemGroup>
+
+</Project>

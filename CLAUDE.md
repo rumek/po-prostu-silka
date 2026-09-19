@@ -6,22 +6,27 @@
 Full contributor guidance lives in @AGENTS.md — read it before touching `src/`. The rules
 below are the ones most easily broken by accident.
 
-- **Layering.** `src/` is one project with three folders: `Domain` (references nothing) →
-  `Application` (references Domain) → `Infrastructure` (references both). **Only
-  `Infrastructure` may reference EF Core.** Nothing enforces this but convention.
+- **Layering.** `src/` is **four projects**: `Domain` → `Application` (references Domain) →
+  `Infrastructure` (references both) → `Api` (the host). **Only `Infrastructure` may reference
+  EF Core**, and the compiler now enforces it — an EF Core `using` in `Domain` or `Application`
+  fails the build with CS0234. `Domain` does carry one Identity package for `ApplicationUser`;
+  that is deliberate, since `IdentityUser` is not EF Core.
 - **EF Core lives in `src/Infrastructure/Persistence/`** — DbContext, entity
   configurations, and migrations. Entity config goes in `IEntityTypeConfiguration<T>`
   classes under `Configurations/`; they are auto-discovered, so don't grow
   `OnModelCreating`.
 - **`AppDbContextFactory` is deliberate, not a bug.** Its placeholder connection string is
   never used to connect — it exists so `dotnet ef` works without runtime config. Commands
-  that connect get a real string via `--connection`.
+  that connect get a real string via `--connection`. Every `dotnet ef` invocation needs both
+  projects: `--project src/Infrastructure/po-prostu-silka.Infrastructure.csproj
+  --startup-project src/Api/po-prostu-silka.Api.csproj`.
 - **Migrations must have a working `Down`.** Rollback redeploys the previous artifact but
   does not roll back schema; destructive changes lag one release.
 - **`nuget.config` pins nuget.org only.** Keep the `<clear />` — this machine has private
   feeds the CI runner cannot reach.
 - **Local DB:** `docker compose up -d` (real SQL Server, not SQLite — locking semantics
-  must match Azure SQL). Check connectivity with `GET /health`.
+  must match Azure SQL). Check connectivity with `GET /health`. Run the app with
+  `dotnet run --project src/Api/po-prostu-silka.Api.csproj`.
 
 <!-- BEGIN @przeprogramowani/10x-cli -->
 

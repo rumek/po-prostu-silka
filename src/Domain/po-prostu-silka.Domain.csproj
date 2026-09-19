@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- Matches the namespace every file in this folder already declares, so the split moves no
+         file's namespace and changes no `using` anywhere - in src/ or in the test project. -->
+    <RootNamespace>po_prostu_silka.Domain</RootNamespace>
+  </PropertyGroup>
+
+  <!--
+    NO ProjectReference. This is the innermost layer and the whole point of the split: Domain
+    referencing anything is a compile error, not a code-review note.
+  -->
+
+  <ItemGroup>
+    <!--
+      The one package Domain gets, and the reason "Domain references nothing" is no longer
+      literally true. ApplicationUser : IdentityUser, and IdentityUser lives here - NOT in
+      Microsoft.EntityFrameworkCore. The layering rule this split enforces names EF Core
+      specifically, so this does not weaken it.
+
+      Do not "fix" this by moving ApplicationUser to Infrastructure: that was considered and
+      rejected (context/archive/2026-08-31-auth-identity-foundation/plan.md:201-204), because
+      UserManager<ApplicationUser> appears in 8 Application files and an IUserAccounts port
+      covering registration, sign-in, reset tokens, security stamps, roles and claims is a bigger
+      and riskier slice than this one, for no operational gain.
+    -->
+    <PackageReference Include="Microsoft.Extensions.Identity.Stores" Version="10.0.11" />
+  </ItemGroup>
+
+  <!--
+    NO <Using /> items. Domain needs none of the nine global usings the Web SDK used to contribute;
+    it is a clean class library over the BCL plus the one Identity type above.
+  -->
+
+</Project>

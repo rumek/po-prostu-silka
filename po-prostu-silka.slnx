@@ -1,6 +1,9 @@
 <Solution>
   <Folder Name="/src/">
-    <Project Path="src/po-prostu-silka.csproj" />
+    <Project Path="src/Domain/po-prostu-silka.Domain.csproj" />
+    <Project Path="src/Application/po-prostu-silka.Application.csproj" />
+    <Project Path="src/Infrastructure/po-prostu-silka.Infrastructure.csproj" />
+    <Project Path="src/Api/po-prostu-silka.Api.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/po-prostu-silka.Tests/po-prostu-silka.Tests.csproj" />
