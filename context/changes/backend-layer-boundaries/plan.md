@@ -546,6 +546,24 @@ boundary is the handler body, so it becomes one file bound from two `Map*` calls
 duplicate logic, which is a behaviour change disguised as reorganization. `GetAccessCode` +
 `RevokeAccessCode` are two bodies and therefore two files.
 
+**Adapted during implementation — three mechanical facts for phases 5 and 6.**
+
+1. `GrantTrainerAsync` / `RevokeTrainerAsync` are not bound directly to the shared body: each is a
+   one-line delegating wrapper. All three live in `ChangeTrainerRole.cs`, bound as
+   `ChangeTrainerRole.GrantAsync` and `.RevokeAsync`.
+2. **Shared helpers need their own file too, and they are not always obvious from the route list.**
+   `MemberAdminEndpoints.TryReadRequest` (2 callers) became `MemberRequestReader`;
+   `MembershipPassEndpoints`' `TryReadRequest` + `EntriesUsedAsync` + `ViewOfAsync` became
+   `MembershipPassProjection`. Note both files declared a *differently-bodied* method with the same
+   name `TryReadRequest` — they are unrelated and must not be merged.
+3. **Constants travel with their sole user.** `MemberAdminEndpoints.CodeAttempts` had exactly one
+   consumer and moved into `IssueAccessCode` with its doc comment. This does **not** apply to the
+   class-limit constants in phase 5, which are duplicated deliberately and stay put.
+
+**And one caution about the extraction itself:** a moved method's calls to its former siblings are not
+rewritten by moving it — the compiler catches each as CS0103, which is the intended safety net, but
+expect a build-fix round after every split rather than treating a green first build as the norm.
+
 ### Success Criteria:
 
 #### Automated Verification:
@@ -879,24 +897,24 @@ revert is atomic.
 
 #### Automated
 
-- [x] 3.1 `dotnet build po-prostu-silka.slnx -c Release` → 0 warnings, 0 errors
-- [x] 3.2 `dotnet test po-prostu-silka.slnx` green, no test file edited
-- [x] 3.3 `EndpointAuthorizationTests` green
-- [x] 3.4 Route-literal diff empty against `<scratch>/routes-before.txt`
+- [x] 3.1 `dotnet build po-prostu-silka.slnx -c Release` → 0 warnings, 0 errors — 99e1822
+- [x] 3.2 `dotnet test po-prostu-silka.slnx` green, no test file edited — 99e1822
+- [x] 3.3 `EndpointAuthorizationTests` green — 99e1822
+- [x] 3.4 Route-literal diff empty against `<scratch>/routes-before.txt` — 99e1822
 
 #### Manual
 
-- [x] 3.5 Convention reviewed and approved before repeating on eleven files
-- [x] 3.6 No non-comment line changed inside any moved handler body
+- [x] 3.5 Convention reviewed and approved before repeating on eleven files — 99e1822
+- [x] 3.6 No non-comment line changed inside any moved handler body — 99e1822
 
 ### Phase 4: Handler split — Members
 
 #### Automated
 
-- [ ] 4.1 `dotnet build po-prostu-silka.slnx -c Release` → 0 warnings, 0 errors
-- [ ] 4.2 `dotnet test po-prostu-silka.slnx` green, no test file edited
-- [ ] 4.3 `EndpointAuthorizationTests` green
-- [ ] 4.4 Route-literal diff empty against `<scratch>/routes-before.txt`
+- [x] 4.1 `dotnet build po-prostu-silka.slnx -c Release` → 0 warnings, 0 errors
+- [x] 4.2 `dotnet test po-prostu-silka.slnx` green, no test file edited
+- [x] 4.3 `EndpointAuthorizationTests` green
+- [x] 4.4 Route-literal diff empty against `<scratch>/routes-before.txt`
 
 #### Manual
 
