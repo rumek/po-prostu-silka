@@ -1,3 +1,4 @@
+import { createFailureMessages } from '../http/failure-messages';
 import { ClassFailure } from './class.models';
 
 /**
@@ -59,15 +60,7 @@ const UNKNOWN = 'Nie udało się zapisać zajęć. Spróbuj ponownie za chwilę.
 /**
  * The message for a refusal reason.
  *
- * Takes `unknown` rather than the union so callers can hand over whatever came off the wire: a
- * server one version ahead can name a reason this build has never heard of, and that has to read as
- * a message rather than as `undefined`.
+ * Built by the shared factory, which owns the `Object.hasOwn` guard and the `unknown`
+ * parameter type — see `core/http/failure-messages.ts`.
  */
-export function classFailureMessage(reason: unknown): string {
-  // `hasOwn`, not `in`: `in` walks the prototype chain, so a server reason of "constructor" or
-  // "toString" would return a FUNCTION typed as string and render as source text — and a server one
-  // version ahead is the whole case this fallback exists for.
-  return typeof reason === 'string' && Object.hasOwn(MESSAGES, reason)
-    ? MESSAGES[reason as ClassFailure['reason']]
-    : UNKNOWN;
-}
+export const classFailureMessage = createFailureMessages(MESSAGES, UNKNOWN);

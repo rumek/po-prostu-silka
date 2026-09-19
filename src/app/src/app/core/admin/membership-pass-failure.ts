@@ -1,3 +1,4 @@
+import { createFailureMessages } from '../http/failure-messages';
 import { MembershipPassFailure } from './member-admin.models';
 
 /**
@@ -6,10 +7,9 @@ import { MembershipPassFailure } from './member-admin.models';
  * <h2>A full Record, not a Partial</h2>
  *
  * Keyed by the reason union itself, so adding a reason to `MembershipPassFailure` fails the BUILD
- * here rather than falling through to a generic message. `booking-failure.ts`'s `ADMIN_MESSAGES` is
- * a `Partial` for a reason that does not apply to this file — it deliberately restates only the
- * person-relative half of a table it shares — and that shape is a known soft spot precisely because
- * a new reason slips through it silently. This one does not repeat it.
+ * here rather than falling through to a generic message. Every table in the app now follows this
+ * rule; the `Partial` half-table this comment used to contrast against (`ADMIN_MESSAGES`) was
+ * retired with self-service booking in S-16.
  *
  * <h2>Every message names what to do next</h2>
  *
@@ -36,14 +36,7 @@ const UNKNOWN = 'Nie udało się zapisać karnetu. Spróbuj ponownie za chwilę.
 /**
  * The message for a refusal reason.
  *
- * Takes `unknown` rather than the union so callers can hand over whatever came off the wire: a
- * server one version ahead can name a reason this build has never heard of, and that has to read as
- * a message rather than as `undefined`.
+ * Built by the shared factory, which owns the `Object.hasOwn` guard and the `unknown`
+ * parameter type — see `core/http/failure-messages.ts`.
  */
-export function membershipPassFailureMessage(reason: unknown): string {
-  // `hasOwn`, not `in`: `in` walks the prototype chain, so a server reason of "constructor" or
-  // "toString" would return a FUNCTION typed as string and render as source text.
-  return typeof reason === 'string' && Object.hasOwn(MESSAGES, reason)
-    ? MESSAGES[reason as MembershipPassFailure['reason']]
-    : UNKNOWN;
-}
+export const membershipPassFailureMessage = createFailureMessages(MESSAGES, UNKNOWN);
