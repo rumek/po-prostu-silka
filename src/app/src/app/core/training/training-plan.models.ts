@@ -143,3 +143,59 @@ export interface TrainingPlanFailure {
     | 'member_changed'
     | 'conflict';
 }
+
+/**
+ * The bounds the plan builder and the plan message table both need.
+ *
+ * Moved out of `plan-builder.ts` in S-19 for the reason CLASS_TYPE_BOUNDS and EXERCISE_BOUNDS were:
+ * fourteen of this union's seventeen refusal sentences quote one of these numbers, and a sentence
+ * that quotes a limit the form owns privately drifts the first time that limit moves.
+ *
+ * Every bound matches a constant in TrainingPlanEndpoints, which in turn matches a column in
+ * TrainingPlanConfiguration / TrainingPlanItemConfiguration. Keep all three in step — a client bound
+ * looser than the server's turns ordinary typing into an unexplained 400.
+ */
+export const TRAINING_PLAN_BOUNDS = {
+  maxName: 120,
+  maxReps: 50,
+  maxNote: 500,
+  maxItems: 50,
+  minSets: 1,
+  maxSets: 20,
+  minRest: 0,
+  maxRest: 3600,
+  // ONE, NOT ZERO — the single place duration does not mirror rest. A zero-second rest is a real
+  // prescription ("straight into the next set"); a zero-second exercise is a slip. Mirrors
+  // MinDurationSeconds/MaxDurationSeconds in TrainingPlanEndpoints.
+  minDuration: 1,
+  maxDuration: 3600,
+  minWeight: 0,
+  maxWeight: 999.99,
+} as const;
+
+/**
+ * Every reason in {@link TrainingPlanFailure}, as a value. See BOOKING_FAILURE_REASONS in
+ * core/scheduling/booking.models.ts for why the object literal.
+ */
+export const TRAINING_PLAN_FAILURE_REASONS = Object.keys({
+  missing_field: true,
+  name_too_long: true,
+  no_items: true,
+  too_many_items: true,
+  invalid_sets: true,
+  reps_too_long: true,
+  invalid_weight: true,
+  invalid_rest: true,
+  invalid_duration: true,
+  note_too_long: true,
+  unknown_exercise: true,
+  inactive_exercise: true,
+  duplicate_exercise: true,
+  member_not_found: true,
+  member_not_active: true,
+  member_changed: true,
+  conflict: true,
+} satisfies Record<
+  TrainingPlanFailure['reason'],
+  true
+>) as readonly TrainingPlanFailure['reason'][];

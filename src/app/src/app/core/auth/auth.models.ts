@@ -209,3 +209,45 @@ export type ResetPasswordFailureReason = 'invalid_token' | 'invalid_new_password
 export interface ResetPasswordFailure {
   reason: ResetPasswordFailureReason;
 }
+
+/**
+ * Every reason in {@link LoginFailure}, as a value. See BOOKING_FAILURE_REASONS in
+ * core/scheduling/booking.models.ts for why the object literal — the `satisfies` clause is what
+ * makes a missing entry a build error rather than a stale count in a spec.
+ */
+export const LOGIN_FAILURE_REASONS = Object.keys({
+  invalid_credentials: true,
+  pending_approval: true,
+  blocked: true,
+} satisfies Record<LoginFailureReason, true>) as readonly LoginFailureReason[];
+
+/** Every reason in {@link RegisterFailure}, as a value. */
+export const REGISTER_FAILURE_REASONS = Object.keys({
+  email_taken: true,
+  invalid_password: true,
+  invalid_email: true,
+  invalid_member_code: true,
+  unknown_member_code: true,
+  invalid_registration: true,
+} satisfies Record<RegisterFailureReason, true>) as readonly RegisterFailureReason[];
+
+/** Every {@link ContactFailureReason}, as a value. `ProfileFailure['reason']` is this same union. */
+export const CONTACT_FAILURE_REASONS = Object.keys({
+  invalid_phone: true,
+  invalid_street: true,
+  invalid_house_number: true,
+  invalid_postal_code: true,
+  invalid_city: true,
+} satisfies Record<ContactFailureReason, true>) as readonly ContactFailureReason[];
+
+/** Every reason in {@link ChangePasswordFailure}, as a value. */
+export const CHANGE_PASSWORD_FAILURE_REASONS = Object.keys({
+  invalid_current_password: true,
+  invalid_new_password: true,
+} satisfies Record<ChangePasswordFailureReason, true>) as readonly ChangePasswordFailureReason[];
+
+/** Every reason in {@link ResetPasswordFailure}, as a value. */
+export const RESET_PASSWORD_FAILURE_REASONS = Object.keys({
+  invalid_token: true,
+  invalid_new_password: true,
+} satisfies Record<ResetPasswordFailureReason, true>) as readonly ResetPasswordFailureReason[];

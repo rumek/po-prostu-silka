@@ -80,3 +80,45 @@ export interface ExerciseFailure {
     | 'invalid_video_url'
     | 'name_taken';
 }
+
+/**
+ * The bounds the exercise form and the exercise message table both need.
+ *
+ * Moved out of `exercise-form.ts` in S-19 for the reason CLASS_TYPE_BOUNDS was: a refusal message
+ * that quotes a limit the form owns privately drifts the first time that limit moves.
+ *
+ * Every length matches a HasMaxLength in ExerciseConfiguration AND the check in
+ * ExerciseEndpoints.Validate — keep all three in step, since a client bound looser than the column
+ * turns ordinary typing into a 500. `maxVideoUrl` is the one that guards no column: the server
+ * stores the parsed id rather than the pasted link, so it only stops an absurd paste reaching the
+ * parser (mirrors MaxVideoUrlLength in ExerciseEndpoints).
+ */
+export const EXERCISE_BOUNDS = {
+  maxName: 200,
+  maxDescription: 1000,
+  maxMuscleGroup: 100,
+  maxDifficulty: 50,
+  maxEquipment: 200,
+  maxPreparation: 2000,
+  maxStartingPosition: 2000,
+  maxExecution: 4000,
+  maxVideoUrl: 2048,
+} as const;
+
+/**
+ * Every reason in {@link ExerciseFailure}, as a value. See BOOKING_FAILURE_REASONS in
+ * core/scheduling/booking.models.ts for why the object literal.
+ */
+export const EXERCISE_FAILURE_REASONS = Object.keys({
+  missing_field: true,
+  name_too_long: true,
+  description_too_long: true,
+  muscle_group_too_long: true,
+  difficulty_too_long: true,
+  equipment_too_long: true,
+  preparation_too_long: true,
+  starting_position_too_long: true,
+  execution_too_long: true,
+  invalid_video_url: true,
+  name_taken: true,
+} satisfies Record<ExerciseFailure['reason'], true>) as readonly ExerciseFailure['reason'][];

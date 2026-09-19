@@ -62,3 +62,38 @@ export interface ClassTypeFailure {
     | 'description_too_long'
     | 'name_taken';
 }
+
+/**
+ * The bounds the class-type form and the class-type message table both need.
+ *
+ * <h2>Why they moved here (S-19)</h2>
+ *
+ * They were private to `class-type-form.ts`, which was fine while the form was also the only place
+ * that wrote the sentences. The sentences now live in `class-type-failure.ts`, and a message that
+ * quotes a bound the form owns privately is a message that drifts the first time the bound moves.
+ * Beside the union they belong to, both consumers import one definition.
+ *
+ * Every value matches ClassTypeEndpoints.Validate, and the two lengths also match
+ * ClassTypeConfiguration's columns. Keep all of them in step.
+ */
+export const CLASS_TYPE_BOUNDS = {
+  minDuration: 1,
+  maxDuration: 480,
+  minCapacity: 1,
+  maxCapacity: 200,
+  maxName: 200,
+  maxDescription: 1000,
+} as const;
+
+/**
+ * Every reason in {@link ClassTypeFailure}, as a value. See BOOKING_FAILURE_REASONS in
+ * core/scheduling/booking.models.ts for why the object literal.
+ */
+export const CLASS_TYPE_FAILURE_REASONS = Object.keys({
+  missing_field: true,
+  name_too_long: true,
+  invalid_duration: true,
+  invalid_capacity: true,
+  description_too_long: true,
+  name_taken: true,
+} satisfies Record<ClassTypeFailure['reason'], true>) as readonly ClassTypeFailure['reason'][];

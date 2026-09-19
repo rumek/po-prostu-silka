@@ -169,3 +169,11 @@ export const CLASS_FAILURE_REASONS = Object.keys({
 export interface ScheduleReadFailure {
   reason: 'invalid_range';
 }
+
+/** Every reason in {@link ScheduleReadFailure}, as a value. See CLASS_FAILURE_REASONS above. */
+export const SCHEDULE_READ_FAILURE_REASONS = Object.keys({
+  invalid_range: true,
+} satisfies Record<
+  ScheduleReadFailure['reason'],
+  true
+>) as readonly ScheduleReadFailure['reason'][];

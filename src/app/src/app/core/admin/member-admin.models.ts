@@ -189,11 +189,18 @@ export interface AccessCodeView {
 
 /**
  * Mirrors AccessCodeFailure. `has_account` — the member already logs in, so there is nothing to
- * claim; `conflict` — a lost optimistic race (or the generator lost every retry), which means the
- * list is stale and must be refetched.
+ * claim; `member_blocked` — the target is blocked and a code would let them back in;
+ * `conflict` — a lost optimistic race (or the generator lost every retry), which means the list is
+ * stale and must be refetched.
+ *
+ * `member_blocked` WAS MISSING UNTIL S-19, and the API has emitted it all along
+ * (`src/Application/Members/IssueAccessCode.cs:61`, a 409). The screen said the right sentence
+ * anyway only because its message helper was typed `string | undefined` rather than by the union —
+ * which is precisely the hole `createFailureMessages` closes. The backend record's own doc comment
+ * omits it too; adding it here is type-only and changes no behaviour.
  */
 export interface AccessCodeFailure {
-  reason: 'has_account' | 'conflict';
+  reason: 'has_account' | 'member_blocked' | 'conflict';
 }
 
 /**
@@ -273,3 +280,44 @@ export const MEMBERSHIP_PASS_FAILURE_REASONS = Object.keys({
   MembershipPassFailure['reason'],
   true
 >) as readonly MembershipPassFailure['reason'][];
+
+/**
+ * Every reason in {@link MemberFailure}, as a value. See BOOKING_FAILURE_REASONS in
+ * core/scheduling/booking.models.ts for why the object literal — the `satisfies` clause is what
+ * makes a missing entry a build error rather than a stale count in a spec.
+ */
+export const MEMBER_FAILURE_REASONS = Object.keys({
+  invalid_display_name: true,
+  conflict: true,
+  invalid_phone: true,
+  invalid_street: true,
+  invalid_house_number: true,
+  invalid_postal_code: true,
+  invalid_city: true,
+} satisfies Record<MemberFailure['reason'], true>) as readonly MemberFailure['reason'][];
+
+/** Every reason in {@link TrainerRoleFailure}, as a value. */
+export const TRAINER_ROLE_FAILURE_REASONS = Object.keys({
+  not_active: true,
+  failed: true,
+  no_account: true,
+} satisfies Record<TrainerRoleFailure['reason'], true>) as readonly TrainerRoleFailure['reason'][];
+
+/** Every reason in {@link BlockFailure}, as a value. */
+export const BLOCK_FAILURE_REASONS = Object.keys({
+  is_admin: true,
+  conflict: true,
+} satisfies Record<BlockFailure['reason'], true>) as readonly BlockFailure['reason'][];
+
+/** Every reason in {@link UnblockFailure}, as a value. One entry, same construct — see
+ * `unblock-failure.ts` for why the single-reason union is not treated as an exception. */
+export const UNBLOCK_FAILURE_REASONS = Object.keys({
+  conflict: true,
+} satisfies Record<UnblockFailure['reason'], true>) as readonly UnblockFailure['reason'][];
+
+/** Every reason in {@link AccessCodeFailure}, as a value. */
+export const ACCESS_CODE_FAILURE_REASONS = Object.keys({
+  has_account: true,
+  member_blocked: true,
+  conflict: true,
+} satisfies Record<AccessCodeFailure['reason'], true>) as readonly AccessCodeFailure['reason'][];

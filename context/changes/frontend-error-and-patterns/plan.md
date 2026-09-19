@@ -394,6 +394,25 @@ that reads correctly both under a field and in a banner.
 `UnblockFailure` has one reason and no explainer today (`members.ts:191-194`); it still gets a
 table, because the point is that every union has one.
 
+**Adapted during implementation.** Three things the plan did not anticipate:
+
+1. **The seventeenth union is `ScheduleReadFailure`** (`class.models.ts:169`), not a fourteenth
+   auth/admin table — the plan's file list names thirteen new modules, and `ProfileFailure` turns
+   out to BE `ContactFailureReason` rather than a union of its own. So the count lands at seventeen
+   via `contact-failure.ts` (serving `/profile`, the member form and registration's legacy codes)
+   plus `schedule-read-failure.ts`, which nothing renders today and which exists so the rule has no
+   exceptions.
+2. **The bounds had to move first.** Thirty-odd sentences quote a numeric limit (`maxName`,
+   `maxSets`, …) that was a `const` private to the form component. A table quoting a number the form
+   owns privately drifts the moment the number moves, so the limits became `CLASS_TYPE_BOUNDS`,
+   `EXERCISE_BOUNDS` and `TRAINING_PLAN_BOUNDS` beside their unions, imported by both the table and
+   the form.
+3. **The person-relative admin sentences lost the member's name.** `members.ts` interpolated
+   `member.displayName` into the trainer-role and access-code refusals. A table keyed by a reason
+   returns a sentence, not a template, so these now read "ta osoba" — the wording
+   `booking-failure.ts` already settled on in S-16 for the same reason. They are read immediately
+   after acting on that member's own row, so the subject is never in doubt.
+
 #### 2. Exhaustiveness arrays
 
 **Files**: `core/auth/auth.models.ts`, `core/scheduling/class-type.models.ts`,
@@ -797,11 +816,11 @@ cost of migrating by area rather than in one commit, and it is bounded by Phase 
 
 #### Automated
 
-- [x] 2.1 Unit tests pass: `npm test` from `src/app/`
-- [x] 2.2 Toast spec covers three tones, auto-dismiss, persistence, and `LiveAnnouncer`
-- [x] 2.3 `createFormState` spec covers `reject` setting errors and marking touched
-- [x] 2.4 Lint and format pass: `npm run quality:check` from `src/app/`
-- [x] 2.5 Build succeeds and the initial bundle is reported: `npm run build`
+- [x] 2.1 Unit tests pass: `npm test` from `src/app/` — 20e0513
+- [x] 2.2 Toast spec covers three tones, auto-dismiss, persistence, and `LiveAnnouncer` — 20e0513
+- [x] 2.3 `createFormState` spec covers `reject` setting errors and marking touched — 20e0513
+- [x] 2.4 Lint and format pass: `npm run quality:check` from `src/app/` — 20e0513
+- [x] 2.5 Build succeeds and the initial bundle is reported: `npm run build` — 20e0513
 
 #### Manual
 
@@ -814,10 +833,10 @@ cost of migrating by area rather than in one commit, and it is bounded by Phase 
 
 #### Automated
 
-- [ ] 3.1 Unit tests pass: `npm test` from `src/app/`
-- [ ] 3.2 `failure-contract.spec.ts` covers all 17 unions and fails on a union without a table
-- [ ] 3.3 Type checking passes as part of `npm run build`
-- [ ] 3.4 Lint and format pass: `npm run quality:check` from `src/app/`
+- [x] 3.1 Unit tests pass: `npm test` from `src/app/`
+- [x] 3.2 `failure-contract.spec.ts` covers all 17 unions and fails on a union without a table
+- [x] 3.3 Type checking passes as part of `npm run build`
+- [x] 3.4 Lint and format pass: `npm run quality:check` from `src/app/`
 
 #### Manual
 
