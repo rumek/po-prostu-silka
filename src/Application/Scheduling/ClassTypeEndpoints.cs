@@ -27,35 +27,11 @@ namespace po_prostu_silka.Application.Scheduling;
 /// </summary>
 public static class ClassTypeEndpoints
 {
-    /// <summary>
-    /// Bounds on a default duration. The floor matches ClassEndpoints.Validate — a zero-length class
-    /// would make every overlap check meaningless. The ceiling is eight hours: past that it is a
-    /// typo (600 for 60), not a class.
-    /// </summary>
-    private const int MinDurationMinutes = 1;
 
-    private const int MaxDurationMinutes = 480;
 
-    /// <summary>
-    /// Bounds on a default capacity. The floor matches ClassEndpoints.Validate — a class nobody can
-    /// book is not a class. The ceiling is far above any room this club has, and exists only to
-    /// catch a slipped digit.
-    /// </summary>
-    private const int MinCapacity = 1;
 
-    private const int MaxCapacity = 200;
 
-    /// <summary>
-    /// Matches ClassTypeConfiguration's column length. Keep the two in step.
-    ///
-    /// NOT optional to check. Without it a longer name reaches SQL Server, which refuses the INSERT
-    /// with "String or binary data would be truncated" - an unhandled DbUpdateException, i.e. a 500
-    /// for what is ordinary bad input. Every column with a HasMaxLength needs its own guard here.
-    /// </summary>
-    private const int MaxNameLength = 200;
 
-    /// <summary>Matches ClassTypeConfiguration's column length. Keep the two in step.</summary>
-    private const int MaxDescriptionLength = 1000;
 
     public static IEndpointRouteBuilder MapClassTypeEndpoints(this IEndpointRouteBuilder app)
     {
@@ -63,254 +39,17 @@ public static class ClassTypeEndpoints
             .WithTags("Schedule")
             .RequireAuthorization(AuthorizationPolicyNames.Admin);
 
-        admin.MapGet("/", GetAllAsync);
-        admin.MapGet("/{id:guid}", GetByIdAsync);
-        admin.MapPost("/", CreateAsync);
-        admin.MapPut("/{id:guid}", UpdateAsync);
+        admin.MapGet("/", GetClassTypes.HandleAsync);
+        admin.MapGet("/{id:guid}", GetClassType.HandleAsync);
+        admin.MapPost("/", CreateClassType.HandleAsync);
+        admin.MapPut("/{id:guid}", UpdateClassType.HandleAsync);
 
         // Two verbs rather than a boolean on the edit payload, for the same reason the member
         // surface exposes block/unblock instead of a status patch: the action the admin took is
         // legible in the request, and an edit cannot perform it by accident.
-        admin.MapPost("/{id:guid}/deactivate", DeactivateAsync);
-        admin.MapPost("/{id:guid}/activate", ActivateAsync);
+        admin.MapPost("/{id:guid}/deactivate", DeactivateClassType.HandleAsync);
+        admin.MapPost("/{id:guid}/activate", ActivateClassType.HandleAsync);
 
         return app;
     }
-
-    /// <summary>
-    /// Every type, active and inactive, active first and then by name.
-    ///
-    /// UNFILTERED, deliberately. The screen's "pokaż nieaktywne" toggle filters what it already
-    /// holds; a server-side flag would make every flick of that toggle a round trip. A single club's
-    /// type list is a handful of rows, so there is nothing to page.
-    /// </summary>
-    private static async Task<IResult> GetAllAsync(
-        IClassTypeQuery query,
-        CancellationToken cancellationToken) =>
-        Results.Ok(await query.GetAllAsync(cancellationToken));
-
-    /// <summary>
-    /// One type, for the edit form — so opening /admin/class-types/:id directly costs one row
-    /// instead of the whole list. Same reasoning as ClassEndpoints.GetByIdAsync.
-    /// </summary>
-    private static async Task<IResult> GetByIdAsync(
-        Guid id,
-        IClassTypeStore store,
-        CancellationToken cancellationToken)
-    {
-        var found = await store.FindAsync(id, cancellationToken);
-
-        return found is null ? Results.NotFound() : Results.Ok(ToDto(found));
-    }
-
-    private static async Task<IResult> CreateAsync(
-        ClassTypeRequest request,
-        IClassTypeStore store,
-        IUnitOfWork unitOfWork,
-        TimeProvider timeProvider,
-        CancellationToken cancellationToken)
-    {
-        var invalid = Validate(request);
-        if (invalid is not null)
-        {
-            return invalid;
-        }
-
-        var name = request.Name.Trim();
-
-        if (await store.IsNameTakenAsync(name, null, cancellationToken))
-        {
-            return Results.Json(new ClassTypeFailure("name_taken"), statusCode: 409);
-        }
-
-        var created = new ClassType
-        {
-            Id = Guid.NewGuid(),
-            Name = name,
-            Description = NormalizeDescription(request.Description),
-            DefaultDurationMinutes = request.DefaultDurationMinutes,
-            DefaultCapacity = request.DefaultCapacity,
-            IsActive = true,
-            CreatedAt = timeProvider.GetUtcNow(),
-        };
-
-        store.Add(created);
-        await unitOfWork.SaveChangesAsync(cancellationToken);
-
-        return Results.Ok(ToDto(created));
-    }
-
-    /// <summary>
-    /// Replaces every field of a type. Editing the name or description propagates to every
-    /// occurrence that references it, past ones included — that is FR-007's identity-by-reference
-    /// half, and it is what makes a correction apply everywhere at once.
-    ///
-    /// The numbers do NOT propagate: they were copied onto each occurrence when it was created, so
-    /// changing them here affects only occurrences scheduled from now on. That asymmetry is what
-    /// keeps a type edit from moving the capacity the no-overbooking guarantee is checked against.
-    /// </summary>
-    private static async Task<IResult> UpdateAsync(
-        Guid id,
-        ClassTypeRequest request,
-        IClassTypeStore store,
-        IUnitOfWork unitOfWork,
-        CancellationToken cancellationToken)
-    {
-        var existing = await store.FindAsync(id, cancellationToken);
-        if (existing is null)
-        {
-            return Results.NotFound();
-        }
-
-        var invalid = Validate(request);
-        if (invalid is not null)
-        {
-            return invalid;
-        }
-
-        var name = request.Name.Trim();
-
-        // Excluding its own id, or every edit that keeps the name would collide with itself.
-        if (await store.IsNameTakenAsync(name, id, cancellationToken))
-        {
-            return Results.Json(new ClassTypeFailure("name_taken"), statusCode: 409);
-        }
-
-        existing.Name = name;
-        existing.Description = NormalizeDescription(request.Description);
-        existing.DefaultDurationMinutes = request.DefaultDurationMinutes;
-        existing.DefaultCapacity = request.DefaultCapacity;
-
-        // No concurrency token on ClassType, and SaveChangesAsync rather than TrySaveChangesAsync -
-        // the same deliberate departure from the MemberAdminEndpoints pattern that ClassStore
-        // records: exactly one admin account is ever seeded (AdminSeeder), so there is no second
-        // writer to lose a race against. A second admin makes this last-write-wins, at which point
-        // ClassType needs a ConcurrencyStamp and these handlers need the 409.
-        await unitOfWork.SaveChangesAsync(cancellationToken);
-
-        return Results.Ok(ToDto(existing));
-    }
-
-    /// <summary>
-    /// Retires a type: it leaves every selection, and the occurrences referencing it are untouched
-    /// (FR-006). No uniqueness check is needed — deactivating only ever RELEASES a name.
-    ///
-    /// Idempotent. Deactivating an already-inactive type is a 200, not a refusal: nothing is gained
-    /// by failing, and the screen would have to explain an error that means "already done".
-    /// </summary>
-    private static async Task<IResult> DeactivateAsync(
-        Guid id,
-        IClassTypeStore store,
-        IUnitOfWork unitOfWork,
-        CancellationToken cancellationToken)
-    {
-        var existing = await store.FindAsync(id, cancellationToken);
-        if (existing is null)
-        {
-            return Results.NotFound();
-        }
-
-        existing.IsActive = false;
-        await unitOfWork.SaveChangesAsync(cancellationToken);
-
-        return Results.Ok(ToDto(existing));
-    }
-
-    /// <summary>
-    /// Puts a retired type back into circulation.
-    ///
-    /// <para>
-    /// THE UNIQUENESS CHECK HERE IS NOT DECORATION. Deactivating releases a name, so another type
-    /// may have claimed it in the meantime. Reactivating blindly would violate
-    /// IX_ClassTypes_Name_Active and surface as an unhandled DbUpdateException — a 500 for what is
-    /// really a conflict the admin can resolve. The request carries no name, which is exactly why
-    /// this is easy to miss.
-    /// </para>
-    ///
-    /// <para>
-    /// Checked unconditionally rather than only when currently inactive: excluding this type's own
-    /// id makes the check a no-op for an already-active type (the filtered index guarantees no other
-    /// active type holds the name), so idempotency costs nothing and there is one path to reason
-    /// about instead of two.
-    /// </para>
-    /// </summary>
-    private static async Task<IResult> ActivateAsync(
-        Guid id,
-        IClassTypeStore store,
-        IUnitOfWork unitOfWork,
-        CancellationToken cancellationToken)
-    {
-        var existing = await store.FindAsync(id, cancellationToken);
-        if (existing is null)
-        {
-            return Results.NotFound();
-        }
-
-        if (await store.IsNameTakenAsync(existing.Name, id, cancellationToken))
-        {
-            return Results.Json(new ClassTypeFailure("name_taken"), statusCode: 409);
-        }
-
-        existing.IsActive = true;
-        await unitOfWork.SaveChangesAsync(cancellationToken);
-
-        return Results.Ok(ToDto(existing));
-    }
-
-    /// <summary>
-    /// The rules shared by create and edit. Hand-rolled, like every other validation in this
-    /// codebase — there is no validation library here and adding one for four fields is not
-    /// warranted.
-    /// </summary>
-    private static IResult? Validate(ClassTypeRequest request)
-    {
-        // Description is the one genuinely optional field in the scheduling context, so it is
-        // absent from this check on purpose.
-        if (string.IsNullOrWhiteSpace(request.Name))
-        {
-            return Results.Json(new ClassTypeFailure("missing_field"), statusCode: 400);
-        }
-
-        // Measured on the TRIMMED value, like the description below and like the write itself.
-        if (request.Name.Trim().Length > MaxNameLength)
-        {
-            return Results.Json(new ClassTypeFailure("name_too_long"), statusCode: 400);
-        }
-
-        // Measured on the TRIMMED value, which is what gets stored - otherwise trailing whitespace
-        // could be refused for a description that fits.
-        if (NormalizeDescription(request.Description) is { Length: > MaxDescriptionLength })
-        {
-            return Results.Json(new ClassTypeFailure("description_too_long"), statusCode: 400);
-        }
-
-        if (request.DefaultDurationMinutes is < MinDurationMinutes or > MaxDurationMinutes)
-        {
-            return Results.Json(new ClassTypeFailure("invalid_duration"), statusCode: 400);
-        }
-
-        if (request.DefaultCapacity is < MinCapacity or > MaxCapacity)
-        {
-            return Results.Json(new ClassTypeFailure("invalid_capacity"), statusCode: 400);
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// Trims, and collapses "absent" to a single representation. A whitespace-only description and a
-    /// missing one mean the same thing to a reader, so they must not be two different values in the
-    /// database — otherwise the screen needs to test for both.
-    /// </summary>
-    private static string? NormalizeDescription(string? description) =>
-        string.IsNullOrWhiteSpace(description) ? null : description.Trim();
-
-    private static ClassTypeSummary ToDto(ClassType entity) =>
-        new(entity.Id,
-            entity.Name,
-            entity.Description,
-            entity.DefaultDurationMinutes,
-            entity.DefaultCapacity,
-            entity.IsActive,
-            entity.CreatedAt);
 }

@@ -616,7 +616,25 @@ The hardest phase: `ClassEndpoints.cs` (1082, 8 routes), `BookingEndpoints.cs` (
 never used. **Drop it** as the handler moves; the signature is being rewritten anyway.
 
 The four class-limit constants stay duplicated across `ClassEndpoints` and `ClassTypeEndpoints`, with
-their existing comments. Do not consolidate.
+their existing comments. Do not consolidate. They now live in `ClassRequestValidator` and
+`ClassTypeValidator` respectively — both `private`, both still (1, 480, 1, 200), and each carries the
+"duplicated on purpose" note so neither can be mistaken for a copy that drifted.
+
+**Adapted during implementation — three things this phase surfaced.**
+
+1. **Two methods defeat a single-line signature match and were moved by hand**: `ResolveRange`
+   (nested tuple return type) and `ValidateInstructorAsync` (declaration split across two lines).
+   Anything scripted over these files must assert what it matched rather than assume full coverage —
+   a silent miss here leaves a method behind in a file that is about to move to `Api`.
+2. **Only three of the fourteen extracted constants became `public`**: `MaxAttempts` (read by
+   `ReleaseBooking` as well as the protocol) and the two schedule-window bounds (read by both schedule
+   handlers). The other eleven are used solely inside their own validator and were left `private` —
+   the split is an opportunity to narrow them, not a reason to widen everything.
+3. **`MayActOn`'s warning now exists in two places, deliberately.** The long-form warning stays at the
+   registration site in `BookingEndpoints` (where someone adding a route will read it) and a copy
+   travels with the check into `BookingAuthorization` (where someone editing the check will). This is
+   the one duplication this phase adds on purpose; the plan asked for the comment to follow the check,
+   and removing it from the registration site would have defeated its original purpose.
 
 ### Success Criteria:
 
@@ -911,10 +929,10 @@ revert is atomic.
 
 #### Automated
 
-- [x] 4.1 `dotnet build po-prostu-silka.slnx -c Release` → 0 warnings, 0 errors
-- [x] 4.2 `dotnet test po-prostu-silka.slnx` green, no test file edited
-- [x] 4.3 `EndpointAuthorizationTests` green
-- [x] 4.4 Route-literal diff empty against `<scratch>/routes-before.txt`
+- [x] 4.1 `dotnet build po-prostu-silka.slnx -c Release` → 0 warnings, 0 errors — 2f8fb5e
+- [x] 4.2 `dotnet test po-prostu-silka.slnx` green, no test file edited — 2f8fb5e
+- [x] 4.3 `EndpointAuthorizationTests` green — 2f8fb5e
+- [x] 4.4 Route-literal diff empty against `<scratch>/routes-before.txt` — 2f8fb5e
 
 #### Manual
 
@@ -924,10 +942,10 @@ revert is atomic.
 
 #### Automated
 
-- [ ] 5.1 `dotnet build po-prostu-silka.slnx -c Release` → 0 warnings, 0 errors
-- [ ] 5.2 `dotnet test po-prostu-silka.slnx` green, no test file edited
-- [ ] 5.3 `EndpointAuthorizationTests` green, both `/api/admin/classes` groups distinct
-- [ ] 5.4 Route-literal diff empty against `<scratch>/routes-before.txt`
+- [x] 5.1 `dotnet build po-prostu-silka.slnx -c Release` → 0 warnings, 0 errors
+- [x] 5.2 `dotnet test po-prostu-silka.slnx` green, no test file edited
+- [x] 5.3 `EndpointAuthorizationTests` green, both `/api/admin/classes` groups distinct
+- [x] 5.4 Route-literal diff empty against `<scratch>/routes-before.txt`
 
 #### Manual
 
