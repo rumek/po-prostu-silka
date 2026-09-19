@@ -979,7 +979,7 @@ revert is atomic.
 
 #### Manual
 
-- [ ] 4.5 `ChangeTrainerRole` is one file bound from two routes, policies intact
+- [x] 4.5 `ChangeTrainerRole` is one file bound from two routes, policies intact — 2f8fb5e
 
 ### Phase 5: Handler split — Scheduling
 
@@ -992,9 +992,9 @@ revert is atomic.
 
 #### Manual
 
-- [ ] 5.5 Both `/api/admin/classes` groups in their original files with original policies
-- [ ] 5.6 `MayActOn` warning comment sits with the check it warns about
-- [ ] 5.7 `TryBookAsync` body unchanged line-for-line; retry bound still 10
+- [x] 5.5 Both `/api/admin/classes` groups in their original files with original policies — 9d11ba5
+- [x] 5.6 `MayActOn` warning comment sits with the check it warns about — 9d11ba5
+- [x] 5.7 `TryBookAsync` body unchanged line-for-line; retry bound still 10 — 9d11ba5
 
 ### Phase 6: Handler split — Auth and Training
 
@@ -1008,24 +1008,24 @@ revert is atomic.
 
 #### Manual
 
-- [ ] 6.6 `/api/admin/plans/members` resolves ahead of `/{id:guid}`
-- [ ] 6.7 Both `/api/admin/exercises` groups exist with distinct policies
-- [ ] 6.8 The 60 reason codes unchanged, spot-checked against the SPA
+- [x] 6.6 `/api/admin/plans/members` resolves ahead of `/{id:guid}` — 1953975
+- [x] 6.7 Both `/api/admin/exercises` groups exist with distinct policies — 1953975
+- [x] 6.8 The 60 reason codes unchanged, spot-checked against the SPA — 1953975
 
 ### Phase 7: Registration moves to Api
 
 #### Automated
 
-- [x] 7.1 `dotnet build po-prostu-silka.slnx -c Release` → 0 warnings, 0 errors
-- [x] 7.2 `dotnet test po-prostu-silka.slnx` green, no test file edited
-- [x] 7.3 `EndpointAuthorizationTests` green
-- [x] 7.4 Route-literal diff empty against `<scratch>/routes-before.txt`
-- [x] 7.5 No `IEndpointRouteBuilder` / `MapGroup` / `RequireAuthorization` under `src/Application/`
-- [x] 7.6 Migration script still byte-identical to the phase-1 baseline
+- [x] 7.1 `dotnet build po-prostu-silka.slnx -c Release` → 0 warnings, 0 errors — 448b72c
+- [x] 7.2 `dotnet test po-prostu-silka.slnx` green, no test file edited — 448b72c
+- [x] 7.3 `EndpointAuthorizationTests` green — 448b72c
+- [x] 7.4 Route-literal diff empty against `<scratch>/routes-before.txt` — 448b72c
+- [x] 7.5 No `IEndpointRouteBuilder` / `MapGroup` / `RequireAuthorization` under `src/Application/` — 448b72c
+- [x] 7.6 Migration script still byte-identical to the phase-1 baseline — 448b72c
 
 #### Manual
 
-- [ ] 7.7 CS-01 proof re-run and recorded; probe reverted
-- [ ] 7.8 Test host starts — `AddHostedService<OutboxDeliveryWorker>()` still generic-typed
-- [ ] 7.9 Full manual walkthrough: health, booking, plan, registration, notifications
-- [ ] 7.10 `AGENTS.md` describes what the build now enforces
+- [x] 7.7 CS-01 proof re-run and recorded; probe reverted — 448b72c
+- [x] 7.8 Test host starts — `AddHostedService<OutboxDeliveryWorker>()` still generic-typed — 448b72c
+- [x] 7.9 Full manual walkthrough: health, booking, plan, registration, notifications — 448b72c
+- [x] 7.10 `AGENTS.md` describes what the build now enforces — 448b72c
