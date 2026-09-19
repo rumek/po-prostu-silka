@@ -16,10 +16,6 @@
   </label>
 </div>
 
-@if (notice()) {
-  <p class="notice" role="status">{{ notice() }}</p>
-}
-
 @if (loading()) {
   <p class="notice" role="status">Wczytywanie…</p>
 } @else if (loadFailed()) {

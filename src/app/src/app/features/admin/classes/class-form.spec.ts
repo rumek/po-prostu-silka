@@ -333,7 +333,9 @@ describe('ClassForm', () => {
     await settle();
 
     expect(input('startsAt').getAttribute('aria-invalid')).toBe('true');
-    expect(el().textContent).toContain('odbywają się już inne zajęcia');
+    // THE TABLE'S SENTENCE, not the template's. Until S-19 this block wrote its own wording, so one
+    // time_conflict read two ways depending on whether it landed under the field or in a banner.
+    expect(el().textContent).toContain('O tej porze są już inne zajęcia');
     expect(el().querySelector('.alert')).toBeNull();
   });
 
@@ -365,7 +367,8 @@ describe('ClassForm', () => {
     await settle();
 
     expect(select('instructorMemberId').getAttribute('aria-invalid')).toBe('true');
-    expect(el().textContent).toContain('nie jest już aktywnym prowadzącym');
+    // Likewise: the table's one sentence for both instructor refusals.
+    expect(el().textContent).toContain('listy aktywnych trenerów');
   });
 
   /** The type control is disabled while editing, so these carry a banner rather than a field error. */

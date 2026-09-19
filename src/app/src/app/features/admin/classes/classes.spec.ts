@@ -9,6 +9,7 @@ import { By } from '@angular/platform-browser';
 import { provideRouter } from '@angular/router';
 import { ScheduledClass } from '../../../core/scheduling/class.models';
 import { ScheduleCalendar } from '../../../shared/calendar/schedule-calendar';
+import { ToastService } from '../../../shared/toast/toast.service';
 import { Classes } from './classes';
 
 /**
@@ -98,6 +99,25 @@ describe('Classes', () => {
     return element().textContent ?? '';
   }
 
+  /**
+   * What this screen SAYS, as opposed to what it renders.
+   *
+   * Since S-19 every outcome of a row action goes to the toast rather than to a `.notice` banner
+   * inside this component — the toast host is mounted once in the shell, so it is deliberately not
+   * in this fixture. Reading the service reads the same thing the admin sees, and it also exposes
+   * the TONE, which the single banner never carried.
+   */
+  function toastText(): string {
+    return TestBed.inject(ToastService)
+      .toasts()
+      .map((toast) => toast.message)
+      .join(' ');
+  }
+
+  function toastTone(): string | undefined {
+    return TestBed.inject(ToastService).toasts().at(-1)?.tone;
+  }
+
   function tiles(): HTMLElement[] {
     return Array.from(element().querySelectorAll('.calendar-tile'));
   }
@@ -185,8 +205,11 @@ describe('Classes', () => {
 
     // A batch where some weeks collided is a partial success, and saying "done" would leave the admin
     // believing in classes that were never created.
-    expect(html()).toContain('Utworzono 2 kopie');
-    expect(html()).toContain('Pominięto tydzień 3, 4');
+    expect(toastText()).toContain('Utworzono 2 kopie');
+    expect(toastText()).toContain('Pominięto tydzień 3, 4');
+    // `info`, not `success`: something the admin asked for did NOT happen, and a green tick over a
+    // partial result would be the wrong answer.
+    expect(toastTone()).toBe('info');
 
     adminRequests()[0].flush([JOGA]);
     await settle();
@@ -204,8 +227,9 @@ describe('Classes', () => {
     controller.expectOne('/api/admin/classes/c1/duplicate').flush({ created: 4, skippedWeeks: [] });
     await settle();
 
-    expect(html()).toContain('Utworzono 4 kopie');
-    expect(html()).not.toContain('Pominięto');
+    expect(toastText()).toContain('Utworzono 4 kopie');
+    expect(toastText()).not.toContain('Pominięto');
+    expect(toastTone()).toBe('success');
 
     adminRequests()[0].flush([JOGA]);
     await settle();
@@ -256,7 +280,9 @@ describe('Classes', () => {
     await settle();
 
     expect(tiles().length).toBe(1);
-    expect(html()).toContain('Nie udało się');
+    // A server fault now names itself instead of reading as a scheduling rule (S-19).
+    expect(toastText()).toContain('po naszej stronie');
+    expect(toastTone()).toBe('error');
   });
 
   // --- failure and the past --------------------------------------------------
@@ -346,7 +372,8 @@ describe('Classes', () => {
 
     // Back to 18:00 exactly, and said out loud — a block that silently returns reads as a bug.
     expect(tileFor('Joga').textContent).toContain('18:00');
-    expect(html()).toContain('O tej porze są już inne zajęcia');
+    expect(toastText()).toContain('O tej porze są już inne zajęcia');
+    expect(toastTone()).toBe('error');
     // The class that was not touched is untouched.
     expect(tileFor('Pilates').textContent).toContain('20:00');
   });
@@ -473,7 +500,7 @@ describe('Classes', () => {
     // "Cannot" without "why" reads as a broken button. The reason points at Zapisani, which is
     // where the admin can do something about it.
     expect(tiles().length).toBe(1);
-    expect(html()).toContain('ktoś się już zapisał');
+    expect(toastText()).toContain('ktoś się już zapisał');
   });
 
   it('withholds Zapisani in a past week along with the rest of the actions', async () => {
@@ -552,8 +579,9 @@ describe('Classes', () => {
     expect(tileFor('Pilates')).not.toBeUndefined();
 
     // Saying so is the only place the admin learns the messages went out.
-    expect(html()).toContain('Odwołano „Crossfit”');
-    expect(html()).toContain('3 osoby');
+    expect(toastText()).toContain('Odwołano „Crossfit”');
+    expect(toastText()).toContain('3 osoby');
+    expect(toastTone()).toBe('success');
   });
 
   it('names class_started rather than saying only that it failed', async () => {
@@ -571,7 +599,8 @@ describe('Classes', () => {
     await settle();
 
     expect(tiles().length).toBe(1);
-    expect(html()).toContain('już się rozpoczęły');
+    expect(toastText()).toContain('już się rozpoczęły');
+    expect(toastTone()).toBe('error');
   });
 
   /**
@@ -609,7 +638,7 @@ describe('Classes', () => {
     controller.expectOne('/api/admin/classes/c1/cancel').flush({ ...JOGA, status: 'Cancelled' });
     await settle();
 
-    expect(html()).toContain('Odwołano „Joga”');
+    expect(toastText()).toContain('Odwołano „Joga”');
     expect(tiles().length).toBe(0);
   });
 

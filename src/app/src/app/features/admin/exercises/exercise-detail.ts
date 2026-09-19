@@ -1,10 +1,10 @@
-import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { ExerciseService } from '../../../core/training/exercise.service';
 import { ExerciseSummary } from '../../../core/training/exercise.models';
 import { embedUrl, isVideoId } from '../../../core/training/youtube';
+import { classifyFailure } from '../../../core/http/failure';
 
 /**
  * One exercise, laid out for reading (prd.md FR-018, FR-019).
@@ -67,7 +67,9 @@ export class ExerciseDetail implements OnInit {
     try {
       this.exercise.set(await this.exercises.getById(this.id));
     } catch (failure) {
-      if ((failure as HttpErrorResponse)?.status === 404) {
+      // Outlet 4 — a screen that could not be populated at all. `notFound` is now a KIND rather
+      // than a hand-written status test, so a 404 here reads the same way it does everywhere else.
+      if (classifyFailure(failure).kind === 'notFound') {
         this.notFound.set(true);
       } else {
         this.loadFailed.set(true);

@@ -1,19 +1,17 @@
-import { HttpErrorResponse } from '@angular/common/http';
 import { Component, HostListener, OnInit, computed, inject, signal } from '@angular/core';
 import { DOCUMENT, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { MemberAdminService } from '../../../core/admin/member-admin.service';
+import { accessCodeFailureMessage } from '../../../core/admin/access-code-failure';
+import { blockFailureMessage } from '../../../core/admin/block-failure';
+import { trainerRoleFailureMessage } from '../../../core/admin/trainer-role-failure';
+import { unblockFailureMessage } from '../../../core/admin/unblock-failure';
 import { ROLES } from '../../../core/auth/roles';
-import {
-  AccessCodeFailure,
-  AccessCodeView,
-  BlockFailure,
-  Member,
-  MemberFilter,
-  TrainerRoleFailure,
-  UnblockFailure,
-} from '../../../core/admin/member-admin.models';
+import { classifyFailure } from '../../../core/http/failure';
+import { transportMessage } from '../../../core/http/transport-messages';
+import { ToastService } from '../../../shared/toast/toast.service';
+import { AccessCodeView, Member, MemberFilter } from '../../../core/admin/member-admin.models';
 
 /** The filter positions, including "everyone". `null` means no filter parameter is sent. */
 type StatusFilter = MemberFilter | null;
@@ -59,8 +57,15 @@ export class Members implements OnInit {
   /** Id of the row whose action failed. Cleared when that row is retried. */
   protected readonly failedId = signal<string | null>(null);
 
-  /** A list-level message — a stale row, or a refused action that retrying cannot fix. */
-  protected readonly notice = signal<string | null>(null);
+  /**
+   * Every message this screen produces goes through the toast (S-19, outlet 3).
+   *
+   * It used to be a `.notice` banner pinned above the list. A row action is taken from a row and
+   * reported the moment it finishes, with the list still in front of the admin — outlet 3 exactly.
+   * The banner also had to be cleared by hand at the top of five different methods, which is how a
+   * stale "kod unieważniony" could outlive the row it described.
+   */
+  private readonly toast = inject(ToastService);
 
   /** Id of the row whose action menu is open, or null. At most one is ever open. */
   protected readonly openMenuId = signal<string | null>(null);
@@ -151,7 +156,6 @@ export class Members implements OnInit {
     }
 
     this.filter.set(next);
-    this.notice.set(null);
     this.failedId.set(null);
 
     // The panel belongs to a row that may not survive the new filter, and a code left floating over
@@ -172,10 +176,7 @@ export class Members implements OnInit {
         // would reach every screen the ActiveMember policy guards.
         accountStatus: row.userId ? 'Blocked' : null,
       }),
-      (reason) =>
-        reason === 'is_admin'
-          ? `${member.displayName} zarządza klubem i nie może zostać zablokowany.`
-          : null,
+      blockFailureMessage,
     );
   }
 
@@ -188,9 +189,9 @@ export class Members implements OnInit {
         membershipStatus: 'Active',
         accountStatus: row.userId ? 'Active' : null,
       }),
-      // No named reason left to map: unblocking an already-active member is a no-op the API reports
-      // as success, so the only failure here is the generic conflict the shared handler covers.
-      () => null,
+      // One reason, and it is the stale-list conflict — see unblock-failure.ts for why the union
+      // still gets a table rather than being treated as the exception.
+      unblockFailureMessage,
     );
   }
 
@@ -293,12 +294,7 @@ export class Members implements OnInit {
           ? row.roles.filter((name) => name !== ROLES.trainer)
           : [...row.roles, ROLES.trainer],
       }),
-      (reason) =>
-        reason === 'not_active'
-          ? `${member.displayName} nie jest aktywny — rolę Trenera można zmienić tylko aktywnemu koncie.`
-          : reason === 'no_account'
-            ? `${member.displayName} nie ma konta — rola Trenera wymaga logowania.`
-            : null,
+      trainerRoleFailureMessage,
     );
   }
 
@@ -333,13 +329,12 @@ export class Members implements OnInit {
     this.closeMenu();
     this.closeCode();
     this.failedId.set(null);
-    this.notice.set(null);
     this.setBusy(member.id, true);
 
     try {
       await this.members.revokeAccessCode(member.id);
       this.patchRow(member.id, (row) => ({ ...row, hasAccessCode: false }));
-      this.notice.set(`Kod dla ${member.displayName} został unieważniony.`);
+      this.toast.success(`Kod dla ${member.displayName} został unieważniony.`);
     } catch (failure) {
       await this.handleCodeFailure(member, failure);
     } finally {
@@ -427,7 +422,6 @@ export class Members implements OnInit {
   ): Promise<void> {
     this.closeCode();
     this.failedId.set(null);
-    this.notice.set(null);
     this.codeMemberId.set(member.id);
     this.setBusy(member.id, true);
 
@@ -451,28 +445,23 @@ export class Members implements OnInit {
    * than patched, as everywhere else here.
    */
   private async handleCodeFailure(member: Member, failure: unknown): Promise<void> {
-    const response = failure as HttpErrorResponse;
+    const info = classifyFailure(failure);
 
-    if (response?.status === 409) {
-      const reason = (response.error as AccessCodeFailure | undefined)?.reason;
+    // A 429, a 500 or a dead network is not a stale list, and refetching would only fail again.
+    const transport = transportMessage(info);
+    if (transport !== null) {
+      this.toast.error(transport);
+      this.failedId.set(member.id);
+      return;
+    }
 
-      this.notice.set(this.codeFailureMessage(member, reason));
+    if (info.status === 409) {
+      this.announce(info.reason, accessCodeFailureMessage(info.reason));
       await this.load();
       return;
     }
 
     this.failedId.set(member.id);
-  }
-
-  private codeFailureMessage(member: Member, reason: string | undefined): string {
-    switch (reason) {
-      case 'has_account':
-        return `${member.displayName} ma już konto — kod nie jest potrzebny.`;
-      case 'member_blocked':
-        return `${member.displayName} jest zablokowany — odblokuj, zanim wydasz kod.`;
-      default:
-        return 'Lista była nieaktualna — odświeżono.';
-    }
   }
 
   // --- row menu -------------------------------------------------------------
@@ -570,12 +559,11 @@ export class Members implements OnInit {
     member: Member,
     action: () => Promise<void>,
     patch: (row: Member) => Member,
-    explain: (reason: string | undefined) => string | null,
+    message: (reason: unknown) => string,
   ): Promise<void> {
     const generation = this.generation;
 
     this.failedId.set(null);
-    this.notice.set(null);
     this.setBusy(member.id, true);
 
     try {
@@ -591,13 +579,17 @@ export class Members implements OnInit {
 
       this.patchRow(member.id, patch);
     } catch (failure) {
-      const response = failure as HttpErrorResponse;
+      const info = classifyFailure(failure);
 
-      if (response?.status === 409) {
-        const reason = (
-          response.error as BlockFailure | UnblockFailure | TrainerRoleFailure | undefined
-        )?.reason;
-        this.notice.set(explain(reason) ?? 'Lista była nieaktualna — odświeżono.');
+      const transport = transportMessage(info);
+      if (transport !== null) {
+        this.toast.error(transport);
+        this.failedId.set(member.id);
+        return;
+      }
+
+      if (info.status === 409) {
+        this.announce(info.reason, message(info.reason));
         await this.load();
         return;
       }
@@ -608,6 +600,23 @@ export class Members implements OnInit {
     } finally {
       this.setBusy(member.id, false);
     }
+  }
+
+  /**
+   * Reports a 409 in the right TONE.
+   *
+   * All of these refetch, but they do not all mean the same thing. `conflict` and `failed` say
+   * nothing was wrong except the timing — the list had moved, and it has just been reloaded — which
+   * is neither a success nor a failure, and is precisely what `info` exists for. Everything else
+   * names a rule the admin has to do something about, and that is an error.
+   */
+  private announce(reason: string | undefined, message: string): void {
+    if (reason === undefined || reason === 'conflict' || reason === 'failed') {
+      this.toast.info(message);
+      return;
+    }
+
+    this.toast.error(message);
   }
 
   /** Replaces one row in place. Never removes it — see `mutate`. */

@@ -1,15 +1,15 @@
 <h1>{{ editingId() ? 'Edytuj typ zajęć' : 'Nowy typ zajęć' }}</h1>
 
-@if (loading()) {
+@if (state.loading()) {
   <p class="notice" role="status">Wczytywanie…</p>
-} @else if (loadFailed()) {
+} @else if (state.loadFailed()) {
   <p class="alert" role="alert">
     Nie udało się wczytać tego typu zajęć.
     <a class="link-button" routerLink="/admin/class-types">Wróć do listy</a>
   </p>
 } @else {
-  @if (error()) {
-    <p class="alert" role="alert">{{ error() }}</p>
+  @if (state.error()) {
+    <p class="alert" role="alert">{{ state.error() }}</p>
   }
 
   <form class="panel" [formGroup]="form" (ngSubmit)="submit()">
@@ -27,12 +27,12 @@
         zajęciach, które już się odbyły.
       </p>
       @if (form.controls.name.touched && form.controls.name.invalid) {
-        @if (form.controls.name.hasError('nameTaken')) {
-          <p class="field-error">
-            Aktywny typ o tej nazwie już istnieje. Wybierz inną nazwę albo dezaktywuj tamten typ.
-          </p>
+        <!-- The server's answer comes from the table via `server`; the other two branches are the
+             CLIENT-side checks, which the server never saw. -->
+        @if (form.controls.name.hasError('server')) {
+          <p class="field-error">{{ form.controls.name.getError('server') }}</p>
         } @else if (form.controls.name.hasError('maxlength')) {
-          <p class="field-error">Nazwa może mieć najwyżej {{ maxName }} znaków.</p>
+          <p class="field-error">{{ failureMessage('name_too_long') }}</p>
         } @else {
           <p class="field-error">Podaj nazwę typu zajęć.</p>
         }
@@ -53,7 +53,11 @@
         przed zapisaniem.
       </p>
       @if (form.controls.description.touched && form.controls.description.invalid) {
-        <p class="field-error">Opis może mieć najwyżej {{ maxDescription }} znaków.</p>
+        <p class="field-error">
+          {{
+            form.controls.description.getError('server') ?? failureMessage('description_too_long')
+          }}
+        </p>
       }
     </div>
 
@@ -73,7 +77,12 @@
       @if (
         form.controls.defaultDurationMinutes.touched && form.controls.defaultDurationMinutes.invalid
       ) {
-        <p class="field-error">Czas trwania musi mieścić się w zakresie 1–480 minut.</p>
+        <p class="field-error">
+          {{
+            form.controls.defaultDurationMinutes.getError('server') ??
+              failureMessage('invalid_duration')
+          }}
+        </p>
       }
     </div>
 
@@ -94,13 +103,17 @@
         które już zaplanowano.
       </p>
       @if (form.controls.defaultCapacity.touched && form.controls.defaultCapacity.invalid) {
-        <p class="field-error">Liczba miejsc musi mieścić się w zakresie 1–200.</p>
+        <p class="field-error">
+          {{
+            form.controls.defaultCapacity.getError('server') ?? failureMessage('invalid_capacity')
+          }}
+        </p>
       }
     </div>
 
     <div class="class-type-form-actions">
-      <button type="submit" class="button" [disabled]="submitting()">
-        {{ submitting() ? 'Zapisywanie…' : 'Zapisz' }}
+      <button type="submit" class="button" [disabled]="state.submitting()">
+        {{ state.submitting() ? 'Zapisywanie…' : 'Zapisz' }}
       </button>
       <a class="link-button" routerLink="/admin/class-types">Anuluj</a>
     </div>

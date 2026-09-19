@@ -1,9 +1,9 @@
 <div class="panel">
   <h1>{{ editing() ? 'Edytuj członka' : 'Nowy członek' }}</h1>
 
-  @if (loading()) {
+  @if (state.loading()) {
     <p class="notice" role="status">Wczytywanie…</p>
-  } @else if (loadFailed()) {
+  } @else if (state.loadFailed()) {
     <p class="alert" role="alert">
       Nie udało się wczytać danych członka.
       <a class="link-button" routerLink="/admin/members">Wróć do listy</a>
@@ -23,8 +23,8 @@
         </p>
       }
 
-      @if (error()) {
-        <p class="alert" role="alert">{{ error() }}</p>
+      @if (state.error()) {
+        <p class="alert" role="alert">{{ state.error() }}</p>
       }
 
       <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
@@ -40,7 +40,12 @@
             "
           />
           @if (form.controls.displayName.touched && form.controls.displayName.invalid) {
-            <p class="field-error">Podaj imię i nazwisko (maksymalnie 100 znaków).</p>
+            <p class="field-error">
+              {{
+                form.controls.displayName.getError('server') ??
+                  failureMessage('invalid_display_name')
+              }}
+            </p>
           }
         </div>
 
@@ -72,7 +77,9 @@
             "
           />
           @if (form.controls.phoneNumber.touched && form.controls.phoneNumber.invalid) {
-            <p class="field-error">Podaj numer telefonu w formacie 123 456 789.</p>
+            <p class="field-error">
+              {{ form.controls.phoneNumber.getError('server') ?? failureMessage('invalid_phone') }}
+            </p>
           }
         </div>
 
@@ -98,7 +105,11 @@
             "
           />
           @if (form.controls.postalCode.touched && form.controls.postalCode.invalid) {
-            <p class="field-error">Podaj kod pocztowy w formacie 00-000.</p>
+            <p class="field-error">
+              {{
+                form.controls.postalCode.getError('server') ?? failureMessage('invalid_postal_code')
+              }}
+            </p>
           }
         </div>
 
@@ -108,8 +119,8 @@
         </div>
 
         <div class="form-actions">
-          <button type="submit" class="button" [disabled]="submitting()">
-            {{ submitting() ? 'Zapisywanie…' : 'Zapisz' }}
+          <button type="submit" class="button" [disabled]="state.submitting()">
+            {{ state.submitting() ? 'Zapisywanie…' : 'Zapisz' }}
           </button>
           <a class="button button--secondary" routerLink="/admin/members">Anuluj</a>
         </div>

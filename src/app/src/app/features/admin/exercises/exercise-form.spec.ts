@@ -185,7 +185,7 @@ describe('ExerciseForm', () => {
     ).flush({ reason: 'name_taken' }, { status: 409, statusText: 'Conflict' });
     await settle();
 
-    expect(html()).toContain('Aktywne ćwiczenie o tej nazwie już istnieje');
+    expect(html()).toContain('już zajęta przez inne aktywne ćwiczenie');
     expect(input('name').getAttribute('aria-invalid')).toBe('true');
   });
 
@@ -209,7 +209,7 @@ describe('ExerciseForm', () => {
     ).flush({ reason: 'invalid_video_url' }, { status: 400, statusText: 'Bad Request' });
     await settle();
 
-    expect(html()).toContain('To nie wygląda na link do filmu na YouTube');
+    expect(html()).toContain('link do filmu na YouTube');
     expect(input('videoUrl').getAttribute('aria-invalid')).toBe('true');
   });
 

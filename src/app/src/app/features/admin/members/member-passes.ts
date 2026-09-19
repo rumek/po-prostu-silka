@@ -1,4 +1,3 @@
-import { HttpErrorResponse } from '@angular/common/http';
 import { DatePipe } from '@angular/common';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -10,6 +9,10 @@ import {
   MembershipPassView,
 } from '../../../core/admin/member-admin.models';
 import { membershipPassFailureMessage } from '../../../core/admin/membership-pass-failure';
+import { classifyFailure } from '../../../core/http/failure';
+import { transportMessage } from '../../../core/http/transport-messages';
+import { createFormState } from '../../../shared/forms/form-state';
+import { ToastService } from '../../../shared/toast/toast.service';
 
 /**
  * Bounds mirrored from MembershipPassRules (src/Application/Members/MembershipPassRules.cs).
@@ -59,15 +62,18 @@ export class MemberPasses implements OnInit {
   protected readonly member = signal<MemberDetail | null>(null);
 
   protected readonly passes = signal<MembershipPassView[]>([]);
-  protected readonly loading = signal(true);
-  protected readonly loadFailed = signal(false);
+  protected readonly state = createFormState();
   private generation = 0;
 
   /** The pass being edited, or null while the form is issuing a new one. */
   protected readonly editingId = signal<string | null>(null);
 
-  protected readonly submitting = signal(false);
-  protected readonly error = signal<string | null>(null);
+  /**
+   * Revoking is a ROW action, so it reports through the toast (outlet 3) while the issue form keeps
+   * its banner (outlet 2). Same screen, two outlets, and the rule is what decides which: the form
+   * banner sits above the controls the admin would correct, and a revoked row has no such controls.
+   */
+  private readonly toast = inject(ToastService);
 
   /** The row whose revoke is in flight, so only that row's button shows a busy state. */
   protected readonly revokingId = signal<string | null>(null);
@@ -94,8 +100,8 @@ export class MemberPasses implements OnInit {
   async ngOnInit(): Promise<void> {
     const id = this.route.snapshot.paramMap.get('id');
     if (id === null) {
-      this.loadFailed.set(true);
-      this.loading.set(false);
+      this.state.loadFailed.set(true);
+      this.state.loading.set(false);
       return;
     }
 
@@ -115,8 +121,8 @@ export class MemberPasses implements OnInit {
   protected async load(): Promise<void> {
     const generation = ++this.generation;
 
-    this.loading.set(true);
-    this.loadFailed.set(false);
+    this.state.loading.set(true);
+    this.state.loadFailed.set(false);
 
     try {
       const rows = await this.members.getPasses(this.memberId());
@@ -132,10 +138,10 @@ export class MemberPasses implements OnInit {
       }
 
       this.passes.set([]);
-      this.loadFailed.set(true);
+      this.state.loadFailed.set(true);
     } finally {
       if (generation === this.generation) {
-        this.loading.set(false);
+        this.state.loading.set(false);
       }
     }
   }
@@ -149,7 +155,7 @@ export class MemberPasses implements OnInit {
    */
   protected edit(pass: MembershipPassView): void {
     this.editingId.set(pass.id);
-    this.error.set(null);
+    this.state.error.set(null);
 
     this.form.setValue({
       typeName: pass.typeName,
@@ -161,7 +167,7 @@ export class MemberPasses implements OnInit {
 
   protected cancelEdit(): void {
     this.editingId.set(null);
-    this.error.set(null);
+    this.state.error.set(null);
     this.form.reset({ typeName: '', validFrom: '', validTo: '', entryCount: 10 });
   }
 
@@ -175,7 +181,7 @@ export class MemberPasses implements OnInit {
     // one-field answer. The API enforces it too — this is a courtesy, never the boundary.
     const { validFrom, validTo } = this.form.getRawValue();
     if (validTo < validFrom) {
-      this.error.set(membershipPassFailureMessage('invalid_range'));
+      this.state.error.set(membershipPassFailureMessage('invalid_range'));
       return;
     }
 
@@ -187,12 +193,12 @@ export class MemberPasses implements OnInit {
         (new Date(validTo).getTime() - new Date(validFrom).getTime()) / (24 * 60 * 60 * 1000),
       ) + 1;
     if (spanDays > MAX_VALIDITY_DAYS) {
-      this.error.set(`Karnet nie może obejmować więcej niż ${MAX_VALIDITY_DAYS} dni.`);
+      this.state.error.set(`Karnet nie może obejmować więcej niż ${MAX_VALIDITY_DAYS} dni.`);
       return;
     }
 
-    this.submitting.set(true);
-    this.error.set(null);
+    this.state.submitting.set(true);
+    this.state.error.set(null);
 
     const request: IssuePassRequest = this.form.getRawValue();
     const passId = this.editingId();
@@ -210,19 +216,15 @@ export class MemberPasses implements OnInit {
       // returned is already stale the moment anybody books.
       await this.load();
     } catch (failure) {
-      this.error.set(
-        membershipPassFailureMessage(
-          failure instanceof HttpErrorResponse ? failure.error?.reason : null,
-        ),
-      );
+      this.state.error.set(messageFor(failure));
     } finally {
-      this.submitting.set(false);
+      this.state.submitting.set(false);
     }
   }
 
   protected async revoke(pass: MembershipPassView): Promise<void> {
     this.revokingId.set(pass.id);
-    this.error.set(null);
+    this.state.error.set(null);
 
     try {
       await this.members.revokePass(this.memberId(), pass.id);
@@ -233,15 +235,25 @@ export class MemberPasses implements OnInit {
         this.cancelEdit();
       }
 
+      this.toast.success('Karnet został usunięty.');
       await this.load();
     } catch (failure) {
-      this.error.set(
-        membershipPassFailureMessage(
-          failure instanceof HttpErrorResponse ? failure.error?.reason : null,
-        ),
-      );
+      this.toast.error(messageFor(failure));
     } finally {
       this.revokingId.set(null);
     }
   }
+}
+
+/**
+ * The words for a refused karnet write.
+ *
+ * `transportMessage` first, because a 429, a 500 or a dead network is not a karnet rule — it used to
+ * read as "nie udało się zapisać karnetu", which invites the admin to correct dates that were never
+ * the problem.
+ */
+function messageFor(failure: unknown): string {
+  const info = classifyFailure(failure);
+
+  return transportMessage(info) ?? membershipPassFailureMessage(info.reason);
 }

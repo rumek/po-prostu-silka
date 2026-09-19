@@ -1,15 +1,16 @@
-import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit, inject, signal } from '@angular/core';
-import {
-  AbstractControl,
-  FormBuilder,
-  ReactiveFormsModule,
-  ValidationErrors,
-  Validators,
-} from '@angular/forms';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ExerciseService } from '../../../core/training/exercise.service';
-import { ExerciseFailure, ExerciseSummary } from '../../../core/training/exercise.models';
+import {
+  EXERCISE_BOUNDS,
+  ExerciseFailure,
+  ExerciseSummary,
+} from '../../../core/training/exercise.models';
+import { exerciseFailureMessage } from '../../../core/training/exercise-failure';
+import { classifyFailure } from '../../../core/http/failure';
+import { transportMessage } from '../../../core/http/transport-messages';
+import { createFormState } from '../../../shared/forms/form-state';
 import { isVideoId, watchUrl } from '../../../core/training/youtube';
 
 /**
@@ -17,21 +18,17 @@ import { isVideoId, watchUrl } from '../../../core/training/youtube';
  * ExerciseEndpoints.Validate. Keep all three in step — a client bound that is looser than the
  * column turns ordinary typing into a 500.
  */
-const MAX_NAME = 200;
-const MAX_DESCRIPTION = 1000;
-const MAX_MUSCLE_GROUP = 100;
-const MAX_DIFFICULTY = 50;
-const MAX_EQUIPMENT = 200;
-const MAX_PREPARATION = 2000;
-const MAX_STARTING_POSITION = 2000;
-const MAX_EXECUTION = 4000;
-
-/**
- * Mirrors MaxVideoUrlLength in ExerciseEndpoints. The one bound here that guards no column - the
- * server stores the parsed id, not the pasted link - so it exists only to stop an absurd paste
- * reaching the parser.
- */
-const MAX_VIDEO_URL = 2048;
+const {
+  maxName: MAX_NAME,
+  maxDescription: MAX_DESCRIPTION,
+  maxMuscleGroup: MAX_MUSCLE_GROUP,
+  maxDifficulty: MAX_DIFFICULTY,
+  maxEquipment: MAX_EQUIPMENT,
+  maxPreparation: MAX_PREPARATION,
+  maxStartingPosition: MAX_STARTING_POSITION,
+  maxExecution: MAX_EXECUTION,
+  maxVideoUrl: MAX_VIDEO_URL,
+} = EXERCISE_BOUNDS;
 
 /**
  * Create and edit an exercise (prd.md FR-018, FR-019), in one component distinguished by the route
@@ -90,12 +87,10 @@ export class ExerciseForm implements OnInit {
   /** Null when creating; the exercise id when editing. Drives the title, the verb and the endpoint. */
   protected readonly editingId = signal<string | null>(null);
 
-  protected readonly loading = signal(false);
-  protected readonly loadFailed = signal(false);
-  protected readonly submitting = signal(false);
+  protected readonly state = createFormState();
 
-  /** A form-level message, for failures that belong to no single control. */
-  protected readonly error = signal<string | null>(null);
+  /** The table, exposed so a field says the same thing whoever caught the rule. */
+  protected readonly failureMessage = exerciseFailureMessage;
 
   /** Distinct values already used in the library, offered as datalist options. */
   protected readonly muscleGroups = signal<string[]>([]);
@@ -112,7 +107,7 @@ export class ExerciseForm implements OnInit {
     }
 
     this.editingId.set(id);
-    this.loading.set(true);
+    this.state.loading.set(true);
 
     try {
       const existing = await this.exercises.getById(id);
@@ -132,9 +127,9 @@ export class ExerciseForm implements OnInit {
         videoUrl: isVideoId(existing.videoId) ? watchUrl(existing.videoId) : '',
       });
     } catch {
-      this.loadFailed.set(true);
+      this.state.loadFailed.set(true);
     } finally {
-      this.loading.set(false);
+      this.state.loading.set(false);
     }
   }
 
@@ -156,8 +151,8 @@ export class ExerciseForm implements OnInit {
       return;
     }
 
-    this.error.set(null);
-    this.submitting.set(true);
+    this.state.error.set(null);
+    this.state.submitting.set(true);
 
     const value = this.form.getRawValue();
 
@@ -186,7 +181,7 @@ export class ExerciseForm implements OnInit {
     } catch (failure) {
       this.applyFailure(failure);
     } finally {
-      this.submitting.set(false);
+      this.state.submitting.set(false);
     }
   }
 
@@ -195,52 +190,54 @@ export class ExerciseForm implements OnInit {
    * Follows class-type-form.ts's applyFailure/reject pair.
    */
   private applyFailure(failure: unknown): void {
-    const reason = ((failure as HttpErrorResponse)?.error as ExerciseFailure | undefined)?.reason;
+    const info = classifyFailure(failure);
+
+    // A 429, a 500 or a dead network belongs to no control.
+    const transport = transportMessage(info);
+    if (transport !== null) {
+      this.state.error.set(transport);
+      return;
+    }
+
+    const reason = info.reason as ExerciseFailure['reason'] | undefined;
+    const message = exerciseFailureMessage(reason);
 
     switch (reason) {
       case 'name_taken':
-        this.reject(this.form.controls.name, { nameTaken: true });
-        return;
       case 'name_too_long':
-        this.reject(this.form.controls.name, { maxlength: true });
+        this.state.reject(this.form.controls.name, { server: message });
         return;
       case 'description_too_long':
-        this.reject(this.form.controls.description, { maxlength: true });
+        this.state.reject(this.form.controls.description, { server: message });
         return;
       case 'muscle_group_too_long':
-        this.reject(this.form.controls.muscleGroup, { maxlength: true });
+        this.state.reject(this.form.controls.muscleGroup, { server: message });
         return;
       case 'difficulty_too_long':
-        this.reject(this.form.controls.difficulty, { maxlength: true });
+        this.state.reject(this.form.controls.difficulty, { server: message });
         return;
       case 'equipment_too_long':
-        this.reject(this.form.controls.equipment, { maxlength: true });
+        this.state.reject(this.form.controls.equipment, { server: message });
         return;
       case 'preparation_too_long':
-        this.reject(this.form.controls.preparation, { maxlength: true });
+        this.state.reject(this.form.controls.preparation, { server: message });
         return;
       case 'starting_position_too_long':
-        this.reject(this.form.controls.startingPosition, { maxlength: true });
+        this.state.reject(this.form.controls.startingPosition, { server: message });
         return;
       case 'execution_too_long':
-        this.reject(this.form.controls.execution, { maxlength: true });
+        this.state.reject(this.form.controls.execution, { server: message });
         return;
       case 'invalid_video_url':
-        this.reject(this.form.controls.videoUrl, { invalidVideoUrl: true });
+        this.state.reject(this.form.controls.videoUrl, { server: message });
         return;
       case 'missing_field':
         this.form.markAllAsTouched();
-        this.error.set('Uzupełnij nazwę ćwiczenia.');
+        this.state.error.set(message);
         return;
       default:
-        this.error.set('Nie udało się zapisać ćwiczenia. Spróbuj ponownie za chwilę.');
+        this.state.error.set(message);
     }
-  }
-
-  private reject(control: AbstractControl, errors: ValidationErrors): void {
-    control.setErrors(errors);
-    // Required: the template only reveals errors on touched controls.
-    control.markAsTouched();
   }
 }
 

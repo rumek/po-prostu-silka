@@ -1,9 +1,12 @@
-import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { MemberAdminService } from '../../../core/admin/member-admin.service';
+import { memberFailureMessage } from '../../../core/admin/member-failure';
 import { MemberFailure, MemberRequest } from '../../../core/admin/member-admin.models';
+import { classifyFailure } from '../../../core/http/failure';
+import { transportMessage } from '../../../core/http/transport-messages';
+import { createFormState } from '../../../shared/forms/form-state';
 import { PHONE_PATTERN, POSTAL_CODE_PATTERN } from '../../../core/auth/validation';
 
 /**
@@ -48,10 +51,10 @@ export class MemberForm implements OnInit {
   /** True once the record being edited turns out to have a login behind it. */
   protected readonly hasAccount = signal(false);
 
-  protected readonly loading = signal(false);
-  protected readonly loadFailed = signal(false);
-  protected readonly submitting = signal(false);
-  protected readonly error = signal<string | null>(null);
+  protected readonly state = createFormState();
+
+  /** The table, exposed so a field says the same thing whoever caught the rule. */
+  protected readonly failureMessage = memberFailureMessage;
 
   protected readonly form = inject(FormBuilder).nonNullable.group({
     displayName: ['', [Validators.required, Validators.maxLength(100)]],
@@ -87,7 +90,7 @@ export class MemberForm implements OnInit {
     }
 
     this.memberId.set(id);
-    this.loading.set(true);
+    this.state.loading.set(true);
 
     try {
       const member = await this.members.getMember(id);
@@ -102,9 +105,9 @@ export class MemberForm implements OnInit {
         city: member.city ?? '',
       });
     } catch {
-      this.loadFailed.set(true);
+      this.state.loadFailed.set(true);
     } finally {
-      this.loading.set(false);
+      this.state.loading.set(false);
     }
   }
 
@@ -118,12 +121,12 @@ export class MemberForm implements OnInit {
     // with whichever field it reaches first; catching it here names the whole rule instead.
     if (this.anyContactFilled() && !this.allContactFilled()) {
       this.form.markAllAsTouched();
-      this.error.set('Uzupełnij wszystkie dane adresowe albo zostaw je puste.');
+      this.state.error.set('Uzupełnij wszystkie dane adresowe albo zostaw je puste.');
       return;
     }
 
-    this.error.set(null);
-    this.submitting.set(true);
+    this.state.error.set(null);
+    this.state.submitting.set(true);
 
     try {
       const request = this.toRequest();
@@ -137,9 +140,9 @@ export class MemberForm implements OnInit {
 
       await this.router.navigate(['/admin/members']);
     } catch (failure) {
-      this.error.set(this.messageFor(failure));
+      this.applyFailure(failure);
     } finally {
-      this.submitting.set(false);
+      this.state.submitting.set(false);
     }
   }
 
@@ -171,33 +174,56 @@ export class MemberForm implements OnInit {
   }
 
   /**
-   * Maps the API's failure vocabulary onto Polish. The five contact codes are the same strings the
-   * profile form already answers to — deliberately, so both screens say the same thing about the
-   * same rule.
+   * Routes a refusal to the control that caused it — outlet 1 of the rule in AGENTS.md.
    *
-   * There is no email branch since S-17: this form does not send an address, so the endpoint cannot
-   * answer with one of the two codes that used to concern it.
+   * THIS SCREEN USED TO BE THE ODD ONE OUT: it banner-ed all seven reasons, including the five
+   * contact codes that name a specific box, where `/profile` already put the same five codes on the
+   * same five controls through the same server helper. Now both do the same thing with the same
+   * sentences, and `invalid_display_name` and `conflict` stay in the banner because neither of them
+   * is a contact field — `conflict` is not a field at all.
    */
-  private messageFor(failure: unknown): string {
-    const reason = ((failure as HttpErrorResponse)?.error as MemberFailure | undefined)?.reason;
+  private applyFailure(failure: unknown): void {
+    const info = classifyFailure(failure);
 
-    switch (reason) {
-      case 'invalid_display_name':
-        return 'Podaj imię i nazwisko (maksymalnie 100 znaków).';
-      case 'conflict':
-        return 'Dane zmieniły się w międzyczasie. Odśwież i spróbuj ponownie.';
-      case 'invalid_phone':
-        return 'Podaj numer telefonu jako dziewięć cyfr.';
-      case 'invalid_street':
-        return 'Podaj nazwę ulicy.';
-      case 'invalid_house_number':
-        return 'Podaj numer domu.';
-      case 'invalid_postal_code':
-        return 'Podaj kod pocztowy w formacie 00-000.';
-      case 'invalid_city':
-        return 'Podaj miejscowość.';
-      default:
-        return 'Nie udało się zapisać. Spróbuj ponownie.';
+    // A 429, a 500 or a dead network belongs to no field.
+    const transport = transportMessage(info);
+    if (transport !== null) {
+      this.state.error.set(transport);
+      return;
     }
+
+    const reason = info.reason as MemberFailure['reason'] | undefined;
+
+    if (reason === 'invalid_display_name') {
+      this.state.reject(this.form.controls.displayName, {
+        server: memberFailureMessage(reason),
+      });
+      return;
+    }
+
+    const control = reason === undefined ? undefined : CONTROL_FOR_REASON[reason];
+
+    if (control === undefined) {
+      this.state.error.set(memberFailureMessage(info.reason));
+      return;
+    }
+
+    this.state.reject(this.form.controls[control], { server: memberFailureMessage(reason) });
   }
 }
+
+/**
+ * Which control each contact refusal belongs to. The words are the table's; this is the mapping —
+ * the same split `profile.ts` makes over the same five reasons.
+ *
+ * `Partial`, because `MemberFailure` also carries two reasons that belong to no contact field.
+ */
+const CONTROL_FOR_REASON: Partial<
+  Record<MemberFailure['reason'], 'phoneNumber' | 'street' | 'houseNumber' | 'postalCode' | 'city'>
+> = {
+  invalid_phone: 'phoneNumber',
+  invalid_street: 'street',
+  invalid_house_number: 'houseNumber',
+  invalid_postal_code: 'postalCode',
+  invalid_city: 'city',
+};

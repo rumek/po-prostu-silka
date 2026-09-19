@@ -3,6 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { ExerciseSummary } from '../../../core/training/exercise.models';
+import { ToastService } from '../../../shared/toast/toast.service';
 import { Exercises } from './exercises';
 
 const PRZYSIAD: ExerciseSummary = {
@@ -63,6 +64,23 @@ describe('Exercises', () => {
 
   function html(): string {
     return (fixture.nativeElement as HTMLElement).textContent ?? '';
+  }
+
+  /**
+   * What this screen SAYS, as opposed to what it renders.
+   *
+   * Since S-19 a row action reports through the toast rather than a `.notice` banner inside this
+   * component — the host is mounted once in the shell, so it is deliberately not in this fixture.
+   */
+  function toastText(): string {
+    return TestBed.inject(ToastService)
+      .toasts()
+      .map((toast) => toast.message)
+      .join(' ');
+  }
+
+  function toastTone(): string | undefined {
+    return TestBed.inject(ToastService).toasts().at(-1)?.tone;
   }
 
   function rows(): HTMLElement[] {
@@ -197,7 +215,8 @@ describe('Exercises', () => {
     });
     await settle();
 
-    expect(html()).toContain('został');
+    expect(toastText()).toContain('zostało dezaktywowane');
+    expect(toastTone()).toBe('success');
     expect(html()).toContain('Pokaż nieaktywne');
     expect(rows().length).toBe(0);
   });
@@ -220,7 +239,9 @@ describe('Exercises', () => {
     );
     await settle();
 
-    expect(html()).toContain('jest teraz zajęta');
+    // The TABLE's sentence now — see the class-types spec for the same note.
+    expect(toastText()).toContain('już zajęta');
+    expect(toastTone()).toBe('error');
   });
 
   /** The row opens the exercise for reading; editing is one step further in, from the detail screen. */

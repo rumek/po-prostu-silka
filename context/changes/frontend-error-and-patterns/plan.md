@@ -560,6 +560,22 @@ territory. `class-bookings-overlay.ts:140-149`'s ad-hoc 404 branch becomes
 control mapping and takes every sentence from the table. The optimistic rollback behaviour is
 preserved exactly; only the message source changes.
 
+**Adapted during implementation.** Two things:
+
+1. **The overlays are not "pure toast territory".** The create overlay and the bookings overlay's
+   add-a-member picker are FORMS, so under the Phase 2 rule their refusals are outlet 2 and stay
+   inside the overlay — which is also what manual check 5.7 asks for. Releasing a spot keeps its
+   per-row message for the same reason: the admin is looking straight at the row. What changed in
+   all three is the source (`classifyFailure` + the table) and the addition of a transport branch,
+   not the surface. `class-bookings-overlay`'s ad-hoc `status === 404` test did become
+   `classifyFailure`'s `notFound` kind as planned.
+2. **Eight spec assertions read a message out of the screen's own DOM.** The toast host is mounted
+   once in the shell, so it is deliberately not in a component fixture; those assertions now read
+   `ToastService` instead, which also lets them pin the TONE — the distinction the single `.notice`
+   banner could never carry. Five more assertions moved to the table's wording, which is the
+   double-wording this slice set out to collapse (`time_conflict`, the two instructor refusals, and
+   `name_taken` on both list screens and both forms).
+
 #### 3. Class types and exercises
 
 **Files**: `features/admin/class-types/class-types.ts`, `class-type-form.ts`,
@@ -857,10 +873,10 @@ cost of migrating by area rather than in one commit, and it is bounded by Phase 
 
 #### Automated
 
-- [x] 4.1 Unit tests pass: `npm test` from `src/app/`
-- [x] 4.2 `login.spec.ts` passes without modification (non-disclosure anchor unmodified; three 500/429 assertions rewritten — see the Phase 4 adaptation note)
-- [x] 4.3 No `HttpErrorResponse` unwrap remains in `features/auth/` or `features/profile/`
-- [x] 4.4 Lint and format pass: `npm run quality:check` from `src/app/`
+- [x] 4.1 Unit tests pass: `npm test` from `src/app/` — 5b452c0
+- [x] 4.2 `login.spec.ts` passes without modification (non-disclosure anchor unmodified; three 500/429 assertions rewritten — see the Phase 4 adaptation note) — 5b452c0
+- [x] 4.3 No `HttpErrorResponse` unwrap remains in `features/auth/` or `features/profile/` — 5b452c0
+- [x] 4.4 Lint and format pass: `npm run quality:check` from `src/app/` — 5b452c0
 
 #### Manual
 
@@ -872,10 +888,10 @@ cost of migrating by area rather than in one commit, and it is bounded by Phase 
 
 #### Automated
 
-- [ ] 5.1 Unit tests pass: `npm test` from `src/app/`
-- [ ] 5.2 `member-passes.spec.ts` exists and covers its refusal paths
-- [ ] 5.3 No `HttpErrorResponse` unwrap remains in `features/admin/`
-- [ ] 5.4 Lint and format pass: `npm run quality:check` from `src/app/`
+- [x] 5.1 Unit tests pass: `npm test` from `src/app/`
+- [x] 5.2 `member-passes.spec.ts` exists and covers its refusal paths
+- [x] 5.3 No `HttpErrorResponse` unwrap remains in `features/admin/`
+- [x] 5.4 Lint and format pass: `npm run quality:check` from `src/app/`
 
 #### Manual
 

@@ -1,33 +1,28 @@
-import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit, inject, signal } from '@angular/core';
-import {
-  AbstractControl,
-  FormBuilder,
-  ReactiveFormsModule,
-  ValidationErrors,
-  Validators,
-} from '@angular/forms';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ClassTypeService } from '../../../core/scheduling/class-type.service';
-import { ClassTypeFailure } from '../../../core/scheduling/class-type.models';
+import { CLASS_TYPE_BOUNDS, ClassTypeFailure } from '../../../core/scheduling/class-type.models';
+import { classTypeFailureMessage } from '../../../core/scheduling/class-type-failure';
+import { classifyFailure } from '../../../core/http/failure';
+import { transportMessage } from '../../../core/http/transport-messages';
+import { createFormState } from '../../../shared/forms/form-state';
 
-/** Matches the server's floor in ClassTypeEndpoints.Validate. Keep the two in step. */
-const MIN_DURATION = 1;
-
-/** Matches the server's ceiling in ClassTypeEndpoints.Validate. Keep the two in step. */
-const MAX_DURATION = 480;
-
-/** Matches the server's floor in ClassTypeEndpoints.Validate. Keep the two in step. */
-const MIN_CAPACITY = 1;
-
-/** Matches the server's ceiling in ClassTypeEndpoints.Validate. Keep the two in step. */
-const MAX_CAPACITY = 200;
-
-/** Matches ClassTypeConfiguration's column length and the server's check. Keep all three in step. */
-const MAX_NAME = 200;
-
-/** Matches ClassTypeConfiguration's column length and the server's check. Keep all three in step. */
-const MAX_DESCRIPTION = 1000;
+/**
+ * The bounds, now shared with `class-type-failure.ts` (S-19).
+ *
+ * They were `const`s here, and the refusal sentences that quote them lived in this file too — so
+ * the pair could not drift. The sentences moved to the table, so the numbers moved beside the union
+ * they belong to. `CLASS_TYPE_BOUNDS` mirrors ClassTypeEndpoints.Validate; keep them in step.
+ */
+const {
+  minDuration: MIN_DURATION,
+  maxDuration: MAX_DURATION,
+  minCapacity: MIN_CAPACITY,
+  maxCapacity: MAX_CAPACITY,
+  maxName: MAX_NAME,
+  maxDescription: MAX_DESCRIPTION,
+} = CLASS_TYPE_BOUNDS;
 
 /**
  * Create and edit a class type (prd-v2 FR-004, FR-005), in one component distinguished by the route
@@ -71,12 +66,10 @@ export class ClassTypeForm implements OnInit {
   /** Null when creating; the type id when editing. Drives the title, the verb and the endpoint. */
   protected readonly editingId = signal<string | null>(null);
 
-  protected readonly loading = signal(false);
-  protected readonly loadFailed = signal(false);
-  protected readonly submitting = signal(false);
+  protected readonly state = createFormState();
 
-  /** A form-level message, for failures that belong to no single control. */
-  protected readonly error = signal<string | null>(null);
+  /** The table, exposed so a field says the same thing whoever caught the rule. */
+  protected readonly failureMessage = classTypeFailureMessage;
 
   async ngOnInit(): Promise<void> {
     const id = this.route.snapshot.paramMap.get('id');
@@ -85,7 +78,7 @@ export class ClassTypeForm implements OnInit {
     }
 
     this.editingId.set(id);
-    this.loading.set(true);
+    this.state.loading.set(true);
 
     try {
       const existing = await this.classTypes.getById(id);
@@ -98,9 +91,9 @@ export class ClassTypeForm implements OnInit {
         defaultCapacity: existing.defaultCapacity,
       });
     } catch {
-      this.loadFailed.set(true);
+      this.state.loadFailed.set(true);
     } finally {
-      this.loading.set(false);
+      this.state.loading.set(false);
     }
   }
 
@@ -111,8 +104,8 @@ export class ClassTypeForm implements OnInit {
       return;
     }
 
-    this.error.set(null);
-    this.submitting.set(true);
+    this.state.error.set(null);
+    this.state.submitting.set(true);
 
     const value = this.form.getRawValue();
     const description = value.description.trim();
@@ -137,7 +130,7 @@ export class ClassTypeForm implements OnInit {
     } catch (failure) {
       this.applyFailure(failure);
     } finally {
-      this.submitting.set(false);
+      this.state.submitting.set(false);
     }
   }
 
@@ -146,36 +139,38 @@ export class ClassTypeForm implements OnInit {
    * Follows class-form.ts's applyFailure/reject pair.
    */
   private applyFailure(failure: unknown): void {
-    const reason = ((failure as HttpErrorResponse)?.error as ClassTypeFailure | undefined)?.reason;
+    const info = classifyFailure(failure);
+
+    // A 429, a 500 or a dead network belongs to no control.
+    const transport = transportMessage(info);
+    if (transport !== null) {
+      this.state.error.set(transport);
+      return;
+    }
+
+    const reason = info.reason as ClassTypeFailure['reason'] | undefined;
+    const message = classTypeFailureMessage(reason);
 
     switch (reason) {
       case 'name_taken':
-        this.reject(this.form.controls.name, { nameTaken: true });
-        return;
       case 'name_too_long':
-        this.reject(this.form.controls.name, { maxlength: true });
+        this.state.reject(this.form.controls.name, { server: message });
         return;
       case 'invalid_duration':
-        this.reject(this.form.controls.defaultDurationMinutes, { min: true });
+        this.state.reject(this.form.controls.defaultDurationMinutes, { server: message });
         return;
       case 'invalid_capacity':
-        this.reject(this.form.controls.defaultCapacity, { min: true });
+        this.state.reject(this.form.controls.defaultCapacity, { server: message });
         return;
       case 'description_too_long':
-        this.reject(this.form.controls.description, { maxlength: true });
+        this.state.reject(this.form.controls.description, { server: message });
         return;
       case 'missing_field':
         this.form.markAllAsTouched();
-        this.error.set('Uzupełnij wszystkie wymagane pola.');
+        this.state.error.set(message);
         return;
       default:
-        this.error.set('Nie udało się zapisać typu zajęć. Spróbuj ponownie za chwilę.');
+        this.state.error.set(message);
     }
-  }
-
-  private reject(control: AbstractControl, errors: ValidationErrors): void {
-    control.setErrors(errors);
-    // Required: the template only reveals errors on touched controls.
-    control.markAsTouched();
   }
 }

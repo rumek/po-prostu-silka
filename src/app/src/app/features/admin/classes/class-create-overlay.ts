@@ -1,10 +1,11 @@
-import { HttpErrorResponse } from '@angular/common/http';
 import { DatePipe } from '@angular/common';
 import { Component, OnInit, computed, inject, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MemberAdminService } from '../../../core/admin/member-admin.service';
 import { TrainerSummary } from '../../../core/admin/member-admin.models';
 import { classFailureMessage } from '../../../core/scheduling/class-failure';
+import { classifyFailure } from '../../../core/http/failure';
+import { transportMessage } from '../../../core/http/transport-messages';
 import { ClassService } from '../../../core/scheduling/class.service';
 import { ClassTypeService } from '../../../core/scheduling/class-type.service';
 import { ClassTypeSummary } from '../../../core/scheduling/class-type.models';
@@ -150,11 +151,13 @@ export class ClassCreateOverlay implements OnInit {
 
       this.created.emit();
     } catch (failure) {
-      const reason = ((failure as HttpErrorResponse)?.error as { reason?: string } | undefined)
-        ?.reason;
+      const info = classifyFailure(failure);
 
-      // The same words class-form uses for the same refusal — that is what classFailureMessage is for.
-      this.error.set(classFailureMessage(reason));
+      // IN THE OVERLAY, not in a toast — this is a form, so a refusal is outlet 2 and belongs above
+      // the controls the admin would change. The same words class-form uses for the same refusal,
+      // which is what classFailureMessage is for; and a 429 or a 500 now says so instead of
+      // suggesting another time.
+      this.error.set(transportMessage(info) ?? classFailureMessage(info.reason));
     } finally {
       this.saving.set(false);
     }

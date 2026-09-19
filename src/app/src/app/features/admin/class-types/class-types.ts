@@ -1,8 +1,11 @@
-import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ClassTypeService } from '../../../core/scheduling/class-type.service';
-import { ClassTypeFailure, ClassTypeSummary } from '../../../core/scheduling/class-type.models';
+import { ClassTypeSummary } from '../../../core/scheduling/class-type.models';
+import { classTypeFailureMessage } from '../../../core/scheduling/class-type-failure';
+import { classifyFailure } from '../../../core/http/failure';
+import { transportMessage } from '../../../core/http/transport-messages';
+import { ToastService } from '../../../shared/toast/toast.service';
 
 /**
  * The admin's class-type definitions (prd-v2 FR-005, FR-006).
@@ -51,7 +54,14 @@ export class ClassTypes implements OnInit {
   protected readonly failedId = signal<string | null>(null);
 
   /** A list-level message — a refusal that retrying cannot fix. */
-  protected readonly notice = signal<string | null>(null);
+  /**
+   * Everything this screen says goes to the toast (S-19, outlet 3).
+   *
+   * Both messages here answer a ROW action — an activation that took effect, or one the server
+   * refused — taken from a list the admin stays looking at. The `.notice` banner it replaces had to
+   * be cleared by hand in four separate methods, which is what the comment below used to be about.
+   */
+  private readonly toast = inject(ToastService);
 
   /** See members.ts — nothing cancels an in-flight request, so the last RESPONSE would otherwise win. */
   private generation = 0;
@@ -68,7 +78,6 @@ export class ClassTypes implements OnInit {
 
     // A message about rows that are about to be replaced does not survive them. Without this, a
     // retry after a failed activation renders the old name_taken notice above a fresh list.
-    this.notice.set(null);
     this.failedId.set(null);
 
     try {
@@ -90,7 +99,6 @@ export class ClassTypes implements OnInit {
   }
 
   protected toggleInactive(): void {
-    this.notice.set(null);
     this.failedId.set(null);
     this.showInactive.update((shown) => !shown);
   }
@@ -110,7 +118,6 @@ export class ClassTypes implements OnInit {
    */
   private async setActive(row: ClassTypeSummary, active: boolean): Promise<void> {
     this.failedId.set(null);
-    this.notice.set(null);
     this.setBusy(row.id, true);
 
     try {
@@ -122,23 +129,29 @@ export class ClassTypes implements OnInit {
 
       // Deactivating while the filter is off makes the row vanish, and absence is a poor
       // confirmation — the admin cannot tell it from a failed request. Say what happened.
-      this.notice.set(
+      this.toast.success(
         active
           ? `Typ „${updated.name}” jest znowu aktywny.`
           : `Typ „${updated.name}” został dezaktywowany. Zaznacz „Pokaż nieaktywne”, aby go zobaczyć.`,
       );
     } catch (failure) {
-      const reason = ((failure as HttpErrorResponse)?.error as ClassTypeFailure | undefined)
-        ?.reason;
+      const info = classifyFailure(failure);
+
+      // A 429, a 500 or a dead network is not a name clash — it says so itself now.
+      const transport = transportMessage(info);
+      if (transport !== null) {
+        this.toast.error(transport);
+        this.failedId.set(row.id);
+        return;
+      }
 
       // Activation is the one action that can be refused for a reason the admin can actually fix,
       // and it has no control to attach the message to — the request carries no name. Deactivating
       // released this name, and another type has claimed it since.
-      if (reason === 'name_taken') {
-        this.notice.set(
-          `Nazwa „${row.name}” jest teraz zajęta przez inny aktywny typ. ` +
-            'Zmień nazwę tamtego typu albo go dezaktywuj, zanim przywrócisz ten.',
-        );
+      if (info.reason === 'name_taken') {
+        // THE TABLE'S SENTENCE. This screen used to write its own, longer version for the one
+        // refusal that reaches both here and the form — so the same name clash read two ways.
+        this.toast.error(classTypeFailureMessage(info.reason));
         return;
       }
 

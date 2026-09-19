@@ -3,6 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { ClassTypeSummary } from '../../../core/scheduling/class-type.models';
+import { ToastService } from '../../../shared/toast/toast.service';
 import { ClassTypes } from './class-types';
 
 const JOGA: ClassTypeSummary = {
@@ -49,6 +50,23 @@ describe('ClassTypes', () => {
 
   function html(): string {
     return (fixture.nativeElement as HTMLElement).textContent ?? '';
+  }
+
+  /**
+   * What this screen SAYS, as opposed to what it renders.
+   *
+   * Since S-19 a row action reports through the toast rather than a `.notice` banner inside this
+   * component — the host is mounted once in the shell, so it is deliberately not in this fixture.
+   */
+  function toastText(): string {
+    return TestBed.inject(ToastService)
+      .toasts()
+      .map((toast) => toast.message)
+      .join(' ');
+  }
+
+  function toastTone(): string | undefined {
+    return TestBed.inject(ToastService).toasts().at(-1)?.tone;
   }
 
   function rows(): HTMLElement[] {
@@ -139,7 +157,8 @@ describe('ClassTypes', () => {
     });
     await settle();
 
-    expect(html()).toContain('został dezaktywowany');
+    expect(toastText()).toContain('został dezaktywowany');
+    expect(toastTone()).toBe('success');
   });
 
   it('reactivates an inactive type', async () => {
@@ -176,7 +195,10 @@ describe('ClassTypes', () => {
     );
     await settle();
 
-    expect(html()).toContain('jest teraz zajęta');
+    // The TABLE's sentence now — this screen used to write its own, longer version of the one
+    // refusal that also reaches the form, so a name clash read two ways.
+    expect(toastText()).toContain('już zajęta');
+    expect(toastTone()).toBe('error');
     expect(html()).toContain('Zumba');
     // Still inactive: a refused activation must not look like it worked.
     expect(html()).toContain('Nieaktywny');

@@ -1,9 +1,11 @@
-import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { classFailureMessage } from '../../../core/scheduling/class-failure';
+import { classifyFailure } from '../../../core/http/failure';
+import { transportMessage } from '../../../core/http/transport-messages';
+import { ToastService } from '../../../shared/toast/toast.service';
 import { ClassService } from '../../../core/scheduling/class.service';
 import { ScheduledClass } from '../../../core/scheduling/class.models';
 import {
@@ -65,7 +67,14 @@ export class Classes {
   protected readonly failedId = signal<string | null>(null);
 
   /** A screen-level message — the duplicate outcome, or a refusal retrying cannot fix. */
-  protected readonly notice = signal<string | null>(null);
+  /**
+   * Everything this screen says goes to the toast (S-19, outlet 3).
+   *
+   * Every message here answers a ROW action taken on a calendar the admin stays looking at — a
+   * reschedule that rolled back, a duplicate that skipped a week, a cancellation that notified
+   * people. It used to be a banner that ten different methods had to remember to clear.
+   */
+  private readonly toast = inject(ToastService);
 
   /** Which class has its duplicate control open, and for how many weeks. */
   protected readonly duplicating = signal<ScheduledClass | null>(null);
@@ -153,7 +162,6 @@ export class Classes {
 
   /** A gesture on empty grid (prd-v2 FR-019). The calendar withholds it entirely in a past week. */
   protected openCreate(range: DrawnRange): void {
-    this.notice.set(null);
     this.failedId.set(null);
     this.duplicating.set(null);
     this.confirmingDelete.set(null);
@@ -191,7 +199,6 @@ export class Classes {
     // previous window's rows over the one now on screen.
     const generation = this.generation;
 
-    this.notice.set(null);
     this.failedId.set(null);
     this.rows.update((rows) =>
       rows.map((candidate) =>
@@ -217,20 +224,17 @@ export class Classes {
       }
 
       // Back to exactly what was on screen before the gesture — the block returns to its old slot,
-      // which is the only honest picture once the server has refused.
+      // which is the only honest picture once the server has refused. UNCHANGED by S-19: only where
+      // the words come from moved.
       this.rows.set(before);
 
-      const reason = ((failure as HttpErrorResponse)?.error as { reason?: string } | undefined)
-        ?.reason;
-
-      this.notice.set(classFailureMessage(reason));
+      this.toast.error(messageFor(failure));
     } finally {
       this.setBusy(row.id, false);
     }
   }
 
   protected openDuplicate(row: ScheduledClass): void {
-    this.notice.set(null);
     this.failedId.set(null);
     this.confirmingDelete.set(null);
     this.confirmingCancel.set(null);
@@ -240,7 +244,6 @@ export class Classes {
 
   /** Opens the sign-up list for a class (prd.md FR-014). */
   protected openBookings(row: ScheduledClass): void {
-    this.notice.set(null);
     this.failedId.set(null);
     this.duplicating.set(null);
     this.confirmingDelete.set(null);
@@ -295,7 +298,6 @@ export class Classes {
 
   protected async duplicate(row: ScheduledClass): Promise<void> {
     this.failedId.set(null);
-    this.notice.set(null);
     this.setBusy(row.id, true);
 
     try {
@@ -305,24 +307,31 @@ export class Classes {
       // The whole point of the endpoint's contract: say what actually happened, per week. Doubly so
       // now that the copies land in weeks this view is not showing — the message is the only place
       // the admin learns they exist.
-      this.notice.set(
+      // `info` rather than `success` when weeks were skipped: something did NOT happen that the
+      // admin asked for, and a green tick over that would be the wrong answer.
+      const outcome =
         result.skippedWeeks.length === 0
           ? `Utworzono ${result.created} ${this.copiesWord(result.created)} w kolejnych tygodniach.`
           : `Utworzono ${result.created} ${this.copiesWord(result.created)}. ` +
-              `Pominięto tydzień ${result.skippedWeeks.join(', ')} — o tej porze są już inne zajęcia.`,
-      );
+            `Pominięto tydzień ${result.skippedWeeks.join(', ')} — o tej porze są już inne zajęcia.`;
+
+      if (result.skippedWeeks.length === 0) {
+        this.toast.success(outcome);
+      } else {
+        this.toast.info(outcome);
+      }
 
       await this.reload();
     } catch (failure) {
-      const reason = ((failure as HttpErrorResponse)?.error as { reason?: string } | undefined)
-        ?.reason;
+      const info = classifyFailure(failure);
 
-      if (reason === 'invalid_weeks') {
+      if (info.reason === 'invalid_weeks') {
         // Through the shared table, so this reads the same here as it would anywhere else.
-        this.notice.set(classFailureMessage(reason));
+        this.toast.error(classFailureMessage(info.reason));
         return;
       }
 
+      this.toast.error(messageFor(failure));
       this.failedId.set(row.id);
     } finally {
       this.setBusy(row.id, false);
@@ -330,7 +339,6 @@ export class Classes {
   }
 
   protected confirmDelete(row: ScheduledClass): void {
-    this.notice.set(null);
     this.failedId.set(null);
     this.duplicating.set(null);
     this.confirmingCancel.set(null);
@@ -344,7 +352,6 @@ export class Classes {
 
   protected async remove(row: ScheduledClass): Promise<void> {
     this.failedId.set(null);
-    this.notice.set(null);
     this.setBusy(row.id, true);
 
     try {
@@ -358,17 +365,16 @@ export class Classes {
       // NAMED, not a generic "nie udało się". Since S-08 the likely refusal is has_bookings, and
       // "someone signed up" is the difference between a broken button and a rule the admin can act
       // on — by opening Zapisani, which is right there.
-      const reason = ((failure as HttpErrorResponse)?.error as { reason?: string } | undefined)
-        ?.reason;
+      const info = classifyFailure(failure);
 
-      this.notice.set(classFailureMessage(reason));
+      this.toast.error(messageFor(failure));
       this.failedId.set(row.id);
 
       // The dead end S-09 closes. The tile offered "Usuń" because every booking on this class has
       // since been released; the server refuses anyway, because it counts bookings that ever
       // existed. Cancelling is the action the admin actually wanted, and it is now one click away
       // instead of unreachable.
-      if (reason === 'has_bookings' && row.status === 'Scheduled') {
+      if (info.reason === 'has_bookings' && row.status === 'Scheduled') {
         this.deleteBlockedBy.set(row);
       }
     } finally {
@@ -399,7 +405,6 @@ export class Classes {
   }
 
   protected confirmCancel(row: ScheduledClass): void {
-    this.notice.set(null);
     this.failedId.set(null);
     this.deleteBlockedBy.set(null);
     this.duplicating.set(null);
@@ -427,7 +432,6 @@ export class Classes {
    */
   protected async cancel(row: ScheduledClass): Promise<void> {
     this.failedId.set(null);
-    this.notice.set(null);
     this.deleteBlockedBy.set(null);
     this.setBusy(row.id, true);
 
@@ -446,7 +450,7 @@ export class Classes {
 
       // Says what actually happened, like the duplicate outcome does. The messages are the point of
       // the action, and nothing else on this screen will ever show that they went out.
-      this.notice.set(
+      this.toast.success(
         told === 0
           ? `Odwołano „${row.name}”.`
           : `Odwołano „${row.name}”. Powiadomiliśmy ${told} ${this.peopleWord(told)}.`,
@@ -457,10 +461,7 @@ export class Classes {
       }
 
       // class_started and already_cancelled both land here, and both read through the shared table.
-      const reason = ((failure as HttpErrorResponse)?.error as { reason?: string } | undefined)
-        ?.reason;
-
-      this.notice.set(classFailureMessage(reason));
+      this.toast.error(messageFor(failure));
       this.failedId.set(row.id);
     } finally {
       this.setBusy(row.id, false);
@@ -517,4 +518,16 @@ export class Classes {
       return next;
     });
   }
+}
+
+/**
+ * The words for a refused class write.
+ *
+ * `transportMessage` first: a 429, a 500 or a dead network is not a scheduling rule, and telling the
+ * admin to "wybierz inny termin" over one would send them to change a time that was never wrong.
+ */
+function messageFor(failure: unknown): string {
+  const info = classifyFailure(failure);
+
+  return transportMessage(info) ?? classFailureMessage(info.reason);
 }

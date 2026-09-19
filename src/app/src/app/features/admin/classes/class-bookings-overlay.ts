@@ -1,10 +1,11 @@
-import { HttpErrorResponse } from '@angular/common/http';
 import { DatePipe } from '@angular/common';
 import { Component, OnInit, computed, inject, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Member } from '../../../core/admin/member-admin.models';
 import { MemberAdminService } from '../../../core/admin/member-admin.service';
 import { bookingFailureMessage } from '../../../core/scheduling/booking-failure';
+import { classifyFailure } from '../../../core/http/failure';
+import { transportMessage } from '../../../core/http/transport-messages';
 import { BookingService } from '../../../core/scheduling/booking.service';
 import { ClassBooking } from '../../../core/scheduling/booking.models';
 import { ScheduledClass } from '../../../core/scheduling/class.models';
@@ -135,18 +136,17 @@ export class ClassBookingsOverlay implements OnInit {
       this.booked.emit(updated);
       await this.load();
     } catch (error) {
-      const response = error as HttpErrorResponse;
+      const info = classifyFailure(error);
 
-      // A 404 here is the member, not the class: the class is on screen. Somebody deleted the record
-      // between the picker loading and the admin choosing from it.
-      this.addFailure.set(
-        response?.status === 404
-          ? 'Nie znaleziono tej osoby — lista mogła się zmienić.'
-          : // ONE TABLE SINCE S-16. It used to need a third-person overlay (adminBookingFailureMessage)
-            // because the shared messages addressed the member directly; MP-01 removed the member-facing
-            // surfaces, so the shared table is now written in this screen's voice to begin with.
-            bookingFailureMessage((response?.error as { reason?: string } | undefined)?.reason),
-      );
+      // A 404 here is the MEMBER, not the class: the class is on screen. Somebody deleted the record
+      // between the picker loading and the admin choosing from it. That used to be an ad-hoc
+      // `status === 404` test; it is now a kind, and the sentence comes from transport-messages
+      // along with 429, 5xx and offline — which this branch never distinguished at all.
+      //
+      // ONE TABLE SINCE S-16. It used to need a third-person overlay (adminBookingFailureMessage)
+      // because the shared messages addressed the member directly; MP-01 removed the member-facing
+      // surfaces, so the shared table is now written in this screen's voice to begin with.
+      this.addFailure.set(transportMessage(info) ?? bookingFailureMessage(info.reason));
     } finally {
       this.adding.set(false);
     }
@@ -185,13 +185,12 @@ export class ClassBookingsOverlay implements OnInit {
 
       this.released.emit();
     } catch (error) {
-      const reason = ((error as HttpErrorResponse)?.error as { reason?: string } | undefined)
-        ?.reason;
+      const info = classifyFailure(error);
 
-      // Kept on the ROW rather than raised to the screen: the refusal is about one person's spot,
-      // and the admin is looking straight at it.
+      // Kept on the ROW rather than raised to the screen or to a toast: the refusal is about one
+      // person's spot, and the admin is looking straight at it.
       this.failedId.set(booking.bookingId);
-      this.failure.set(bookingFailureMessage(reason));
+      this.failure.set(transportMessage(info) ?? bookingFailureMessage(info.reason));
     } finally {
       this.setBusy(booking.bookingId, false);
     }

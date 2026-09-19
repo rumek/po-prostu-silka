@@ -2,10 +2,6 @@
   <h1>Zajęcia</h1>
 </div>
 
-@if (notice()) {
-  <p class="notice" role="status">{{ notice() }}</p>
-}
-
 @if (isPast()) {
   <!-- A withheld action needs a reason, or it reads as broken rather than deliberate. -->
   <p class="hint classes-past" role="status">

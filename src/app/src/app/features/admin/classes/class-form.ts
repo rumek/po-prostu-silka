@@ -1,12 +1,5 @@
-import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit, inject, signal } from '@angular/core';
-import {
-  AbstractControl,
-  FormBuilder,
-  ReactiveFormsModule,
-  ValidationErrors,
-  Validators,
-} from '@angular/forms';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { MemberAdminService } from '../../../core/admin/member-admin.service';
 import { TrainerSummary } from '../../../core/admin/member-admin.models';
@@ -15,6 +8,9 @@ import { ClassTypeService } from '../../../core/scheduling/class-type.service';
 import { ClassFailure } from '../../../core/scheduling/class.models';
 import { ClassTypeSummary } from '../../../core/scheduling/class-type.models';
 import { classFailureMessage } from '../../../core/scheduling/class-failure';
+import { classifyFailure } from '../../../core/http/failure';
+import { transportMessage } from '../../../core/http/transport-messages';
+import { createFormState } from '../../../shared/forms/form-state';
 import { fromLocalInputValue, toLocalInputValue } from '../../../core/scheduling/local-datetime';
 
 /** Matches the server's bounds in ClassEndpoints.Validate. Keep the two in step. */
@@ -92,12 +88,18 @@ export class ClassForm implements OnInit {
 
   protected readonly trainers = signal<TrainerSummary[]>([]);
 
-  protected readonly loading = signal(true);
-  protected readonly loadFailed = signal(false);
-  protected readonly submitting = signal(false);
+  protected readonly state = createFormState();
 
   /** A form-level message, for failures that belong to no single control. */
-  protected readonly error = signal<string | null>(null);
+  /**
+   * The table, exposed to the template.
+   *
+   * THIS IS WHAT MAKES THE DOCBLOCK BELOW TRUE. It said the words come from `classFailureMessage`
+   * and meant it only on the banner branches — the template wrote its own sentence for
+   * `time_conflict` and `starts_in_past`, so one refusal read two ways depending on where it landed
+   * (`class-failure.ts:34` vs `class-form.html:76-79`). Now the form decides only WHICH control.
+   */
+  protected readonly failureMessage = classFailureMessage;
 
   /**
    * Nothing to pick from. After the schedule wipe this is the FIRST screen an admin reaches, so a
@@ -111,7 +113,7 @@ export class ClassForm implements OnInit {
     const id = this.route.snapshot.paramMap.get('id');
     this.editingId.set(id);
 
-    this.loading.set(true);
+    this.state.loading.set(true);
 
     try {
       // In parallel: neither depends on the other, and the form needs both before it can render.
@@ -137,9 +139,9 @@ export class ClassForm implements OnInit {
         this.noTrainers.set(trainers.length === 0);
       }
     } catch {
-      this.loadFailed.set(true);
+      this.state.loadFailed.set(true);
     } finally {
-      this.loading.set(false);
+      this.state.loading.set(false);
     }
   }
 
@@ -232,8 +234,8 @@ export class ClassForm implements OnInit {
       return;
     }
 
-    this.error.set(null);
-    this.submitting.set(true);
+    this.state.error.set(null);
+    this.state.submitting.set(true);
 
     // getRawValue, not value: the type control is DISABLED when editing, and `value` omits disabled
     // controls. The API requires classTypeId on an edit too — it is how it detects an attempted
@@ -260,7 +262,7 @@ export class ClassForm implements OnInit {
     } catch (failure) {
       this.applyFailure(failure);
     } finally {
-      this.submitting.set(false);
+      this.state.submitting.set(false);
     }
   }
 
@@ -272,20 +274,29 @@ export class ClassForm implements OnInit {
    * this form and the calendar's create overlay cannot describe the same refusal differently.
    */
   private applyFailure(failure: unknown): void {
-    const reason = ((failure as HttpErrorResponse)?.error as ClassFailure | undefined)?.reason;
+    const info = classifyFailure(failure);
+
+    // A 429, a 500 or a dead network is not a scheduling rule and belongs to no control.
+    const transport = transportMessage(info);
+    if (transport !== null) {
+      this.state.error.set(transport);
+      return;
+    }
+
+    const reason = info.reason as ClassFailure['reason'] | undefined;
 
     switch (reason) {
       case 'time_conflict':
-        this.reject(this.form.controls.startsAt, { timeConflict: true });
-        return;
       case 'starts_in_past':
-        this.reject(this.form.controls.startsAt, { startsInPast: true });
+        this.state.reject(this.form.controls.startsAt, { server: classFailureMessage(reason) });
         return;
       case 'invalid_capacity':
-        this.reject(this.form.controls.capacity, { min: true });
+        this.state.reject(this.form.controls.capacity, { server: classFailureMessage(reason) });
         return;
       case 'invalid_duration':
-        this.reject(this.form.controls.durationMinutes, { min: true });
+        this.state.reject(this.form.controls.durationMinutes, {
+          server: classFailureMessage(reason),
+        });
         return;
       case 'unknown_class_type':
       case 'inactive_class_type':
@@ -293,24 +304,20 @@ export class ClassForm implements OnInit {
         // The control is disabled while editing, so setErrors alone would not show anything — the
         // banner carries these. They all mean the same thing to the admin: this type cannot be used
         // for this class, reload and start again.
-        this.error.set(classFailureMessage(reason));
+        this.state.error.set(classFailureMessage(reason));
         return;
       case 'unknown_instructor':
       case 'instructor_not_trainer':
-        this.reject(this.form.controls.instructorMemberId, { notATrainer: true });
+        this.state.reject(this.form.controls.instructorMemberId, {
+          server: classFailureMessage(reason),
+        });
         return;
       case 'missing_field':
         this.form.markAllAsTouched();
-        this.error.set(classFailureMessage(reason));
+        this.state.error.set(classFailureMessage(reason));
         return;
       default:
-        this.error.set(classFailureMessage(reason));
+        this.state.error.set(classFailureMessage(reason));
     }
-  }
-
-  private reject(control: AbstractControl, errors: ValidationErrors): void {
-    control.setErrors(errors);
-    // Required: the template only reveals errors on touched controls.
-    control.markAsTouched();
   }
 }

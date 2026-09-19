@@ -1,9 +1,12 @@
-import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ExerciseService } from '../../../core/training/exercise.service';
-import { ExerciseFailure, ExerciseSummary } from '../../../core/training/exercise.models';
+import { ExerciseSummary } from '../../../core/training/exercise.models';
 import { isVideoId, thumbnailUrl } from '../../../core/training/youtube';
+import { exerciseFailureMessage } from '../../../core/training/exercise-failure';
+import { classifyFailure } from '../../../core/http/failure';
+import { transportMessage } from '../../../core/http/transport-messages';
+import { ToastService } from '../../../shared/toast/toast.service';
 
 /**
  * The admin's exercise library (prd.md FR-018, FR-019).
@@ -53,7 +56,14 @@ export class Exercises implements OnInit {
   protected readonly failedId = signal<string | null>(null);
 
   /** A list-level message — a refusal that retrying cannot fix. */
-  protected readonly notice = signal<string | null>(null);
+  /**
+   * Everything this screen says goes to the toast (S-19, outlet 3).
+   *
+   * Both messages here answer a ROW action — an activation that took effect, or one the server
+   * refused — taken from a list the admin stays looking at. The `.notice` banner it replaces had to
+   * be cleared by hand in four separate methods, which is what the comment below used to be about.
+   */
+  private readonly toast = inject(ToastService);
 
   /**
    * Ids whose thumbnail failed to load. YouTube serves these, so a 404 (deleted video) or an offline
@@ -76,7 +86,6 @@ export class Exercises implements OnInit {
 
     // A message about rows that are about to be replaced does not survive them. Without this, a
     // retry after a failed activation renders the old name_taken notice above a fresh list.
-    this.notice.set(null);
     this.failedId.set(null);
 
     try {
@@ -98,7 +107,6 @@ export class Exercises implements OnInit {
   }
 
   protected toggleInactive(): void {
-    this.notice.set(null);
     this.failedId.set(null);
     this.showInactive.update((shown) => !shown);
   }
@@ -131,7 +139,6 @@ export class Exercises implements OnInit {
    */
   private async setActive(row: ExerciseSummary, active: boolean): Promise<void> {
     this.failedId.set(null);
-    this.notice.set(null);
     this.setBusy(row.id, true);
 
     try {
@@ -143,22 +150,29 @@ export class Exercises implements OnInit {
 
       // Deactivating while the filter is off makes the row vanish, and absence is a poor
       // confirmation — the admin cannot tell it from a failed request. Say what happened.
-      this.notice.set(
+      this.toast.success(
         active
           ? `Ćwiczenie „${updated.name}” jest znowu aktywne.`
           : `Ćwiczenie „${updated.name}” zostało dezaktywowane. Zaznacz „Pokaż nieaktywne”, aby je zobaczyć.`,
       );
     } catch (failure) {
-      const reason = ((failure as HttpErrorResponse)?.error as ExerciseFailure | undefined)?.reason;
+      const info = classifyFailure(failure);
+
+      // A 429, a 500 or a dead network is not a name clash — it says so itself now.
+      const transport = transportMessage(info);
+      if (transport !== null) {
+        this.toast.error(transport);
+        this.failedId.set(row.id);
+        return;
+      }
 
       // Activation is the one action that can be refused for a reason the admin can actually fix,
       // and it has no control to attach the message to — the request carries no name. Deactivating
       // released this name, and another exercise has claimed it since.
-      if (reason === 'name_taken') {
-        this.notice.set(
-          `Nazwa „${row.name}” jest teraz zajęta przez inne aktywne ćwiczenie. ` +
-            'Zmień nazwę tamtego ćwiczenia albo je dezaktywuj, zanim przywrócisz to.',
-        );
+      if (info.reason === 'name_taken') {
+        // THE TABLE'S SENTENCE. This screen used to write its own, longer version for the one
+        // refusal that reaches both here and the form — so the same name clash read two ways.
+        this.toast.error(exerciseFailureMessage(info.reason));
         return;
       }
 

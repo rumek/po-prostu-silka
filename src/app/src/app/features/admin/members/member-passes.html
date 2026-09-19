@@ -6,7 +6,7 @@
   </p>
 
   <!-- The desk's first question, answered in one line rather than by reading the table. -->
-  @if (!loading() && !loadFailed()) {
+  @if (!state.loading() && !state.loadFailed()) {
     @if (current(); as live) {
       <p class="notice" role="status">
         Aktywny karnet: <strong>{{ live.typeName }}</strong> — zostało
@@ -23,8 +23,8 @@
   <div class="card">
     <h2 class="section-title">{{ editing() ? 'Edytuj karnet' : 'Wystaw karnet' }}</h2>
 
-    @if (error()) {
-      <p class="alert" role="alert">{{ error() }}</p>
+    @if (state.error()) {
+      <p class="alert" role="alert">{{ state.error() }}</p>
     }
 
     <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
@@ -90,8 +90,8 @@
       </div>
 
       <div class="form-actions">
-        <button type="submit" class="button" [disabled]="submitting()">
-          {{ submitting() ? 'Zapisuję…' : editing() ? 'Zapisz zmiany' : 'Wystaw karnet' }}
+        <button type="submit" class="button" [disabled]="state.submitting()">
+          {{ state.submitting() ? 'Zapisuję…' : editing() ? 'Zapisz zmiany' : 'Wystaw karnet' }}
         </button>
 
         @if (editing()) {
@@ -103,9 +103,9 @@
 
   <h2 class="section-title">Historia karnetów</h2>
 
-  @if (loading()) {
+  @if (state.loading()) {
     <p class="notice" role="status">Wczytywanie…</p>
-  } @else if (loadFailed()) {
+  } @else if (state.loadFailed()) {
     <p class="alert" role="alert">
       Nie udało się wczytać karnetów.
       <button type="button" class="link-button" (click)="load()">Spróbuj ponownie</button>

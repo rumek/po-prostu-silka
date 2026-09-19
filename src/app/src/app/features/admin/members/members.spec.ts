@@ -3,6 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { Member } from '../../../core/admin/member-admin.models';
+import { ToastService } from '../../../shared/toast/toast.service';
 import { Members } from './members';
 
 const ANNA: Member = {
@@ -96,6 +97,7 @@ const GRAZYNA: Member = {
 describe('Members', () => {
   let fixture: ComponentFixture<Members>;
   let controller: HttpTestingController;
+  let toasts: ToastService;
 
   /** Creates the component and answers its initial unfiltered request with `rows`. */
   async function createWith(rows: Member[]) {
@@ -107,6 +109,7 @@ describe('Members', () => {
     });
 
     controller = TestBed.inject(HttpTestingController);
+    toasts = TestBed.inject(ToastService);
     fixture = TestBed.createComponent(Members);
 
     (await vi.waitFor(() => controller.expectOne('/api/admin/members'))).flush(rows);
@@ -118,6 +121,25 @@ describe('Members', () => {
 
   function html(): string {
     return (fixture.nativeElement as HTMLElement).textContent ?? '';
+  }
+
+  /**
+   * What this screen SAYS, as opposed to what it renders.
+   *
+   * Since S-19 every message from a row action goes to the toast rather than to a `.notice` banner
+   * inside this component — the toast host is mounted once in the shell, so it is deliberately not
+   * in this fixture. Reading the service is therefore reading the same thing the admin sees, and it
+   * also lets the tone be asserted, which the banner never carried.
+   */
+  function toastText(): string {
+    return toasts
+      .toasts()
+      .map((toast) => toast.message)
+      .join(' ');
+  }
+
+  function toastTone(): string | undefined {
+    return toasts.toasts().at(-1)?.tone;
   }
 
   function rows(): HTMLElement[] {
@@ -360,7 +382,9 @@ describe('Members', () => {
     (await vi.waitFor(() => controller.expectOne('/api/admin/members'))).flush([ANNA]);
     await settle();
 
-    expect(html()).toContain('zarządza klubem');
+    expect(toastText()).toContain('zarządza klubem');
+    // A rule the admin has to do something about, so it is an error and does not time out.
+    expect(toastTone()).toBe('error');
     expect(html()).toContain('Aktywny');
   });
 
@@ -380,7 +404,10 @@ describe('Members', () => {
     ]);
     await settle();
 
-    expect(html()).toContain('nieaktualna');
+    expect(toastText()).toContain('nieaktualna');
+    // NOT an error: nothing was wrong except the timing, and the list has just been reloaded. This
+    // is the distinction the single `.notice` banner could not draw — see AGENTS.md, outlet 3.
+    expect(toastTone()).toBe('info');
     expect(html()).toContain('Zablokowany');
   });
 
@@ -536,7 +563,11 @@ describe('Members', () => {
     ]);
     await settle();
 
-    expect(html()).toContain('nie jest aktywny');
+    // "nie jest aktywna", not "aktywny": the sentence no longer interpolates the member's display
+    // name (S-19 — a table keyed by a reason returns a sentence, not a template), so it is phrased
+    // in the third person the way booking-failure.ts already was.
+    expect(toastText()).toContain('nie jest aktywna');
+    expect(toastTone()).toBe('error');
     expect(html()).toContain('Zablokowany');
   });
 
@@ -656,7 +687,8 @@ describe('Members', () => {
     request.flush(null, { status: 204, statusText: 'No Content' });
     await settle();
 
-    expect(html()).toContain('unieważniony');
+    expect(toastText()).toContain('unieważniony');
+    expect(toastTone()).toBe('success');
     expect(menuLabels(rows()[0])).not.toContain('Pokaż kod klubowicza');
   });
 
@@ -732,7 +764,8 @@ describe('Members', () => {
     (await vi.waitFor(() => controller.expectOne('/api/admin/members'))).flush([ANNA]);
     await settle();
 
-    expect(html()).toContain('ma już konto');
+    expect(toastText()).toContain('ma już konto');
+    expect(toastTone()).toBe('error');
     expect(html()).not.toContain('ABCD-2345');
   });
 });

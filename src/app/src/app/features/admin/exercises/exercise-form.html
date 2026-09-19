@@ -1,15 +1,15 @@
 <h1>{{ editingId() ? 'Edytuj ćwiczenie' : 'Nowe ćwiczenie' }}</h1>
 
-@if (loading()) {
+@if (state.loading()) {
   <p class="notice" role="status">Wczytywanie…</p>
-} @else if (loadFailed()) {
+} @else if (state.loadFailed()) {
   <p class="alert" role="alert">
     Nie udało się wczytać tego ćwiczenia.
     <a class="link-button" routerLink="/admin/exercises">Wróć do listy</a>
   </p>
 } @else {
-  @if (error()) {
-    <p class="alert" role="alert">{{ error() }}</p>
+  @if (state.error()) {
+    <p class="alert" role="alert">{{ state.error() }}</p>
   }
 
   <form class="panel" [formGroup]="form" (ngSubmit)="submit()">
@@ -26,12 +26,12 @@
         Jedyne wymagane pole. Dwa aktywne ćwiczenia nie mogą nazywać się tak samo.
       </p>
       @if (form.controls.name.touched && form.controls.name.invalid) {
-        @if (form.controls.name.hasError('nameTaken')) {
-          <p class="field-error">
-            Aktywne ćwiczenie o tej nazwie już istnieje. Wybierz inną nazwę albo dezaktywuj tamto.
-          </p>
+        <!-- The server's answer comes from the table via `server`; the other two branches are the
+             CLIENT-side checks, which the server never saw. -->
+        @if (form.controls.name.hasError('server')) {
+          <p class="field-error">{{ form.controls.name.getError('server') }}</p>
         } @else if (form.controls.name.hasError('maxlength')) {
-          <p class="field-error">Nazwa może mieć najwyżej {{ maxName }} znaków.</p>
+          <p class="field-error">{{ failureMessage('name_too_long') }}</p>
         } @else {
           <p class="field-error">Podaj nazwę ćwiczenia.</p>
         }
@@ -48,7 +48,11 @@
         [attr.aria-invalid]="form.controls.description.touched && form.controls.description.invalid"
       ></textarea>
       @if (form.controls.description.touched && form.controls.description.invalid) {
-        <p class="field-error">Opis może mieć najwyżej {{ maxDescription }} znaków.</p>
+        <p class="field-error">
+          {{
+            form.controls.description.getError('server') ?? failureMessage('description_too_long')
+          }}
+        </p>
       }
     </div>
 
@@ -74,7 +78,12 @@
           }
         </datalist>
         @if (form.controls.muscleGroup.touched && form.controls.muscleGroup.invalid) {
-          <p class="field-error">Grupa mięśniowa może mieć najwyżej {{ maxMuscleGroup }} znaków.</p>
+          <p class="field-error">
+            {{
+              form.controls.muscleGroup.getError('server') ??
+                failureMessage('muscle_group_too_long')
+            }}
+          </p>
         }
       </div>
 
@@ -94,7 +103,11 @@
           }
         </datalist>
         @if (form.controls.difficulty.touched && form.controls.difficulty.invalid) {
-          <p class="field-error">Trudność może mieć najwyżej {{ maxDifficulty }} znaków.</p>
+          <p class="field-error">
+            {{
+              form.controls.difficulty.getError('server') ?? failureMessage('difficulty_too_long')
+            }}
+          </p>
         }
       </div>
     </div>
@@ -109,7 +122,9 @@
         [attr.aria-invalid]="form.controls.equipment.touched && form.controls.equipment.invalid"
       />
       @if (form.controls.equipment.touched && form.controls.equipment.invalid) {
-        <p class="field-error">Sprzęt może mieć najwyżej {{ maxEquipment }} znaków.</p>
+        <p class="field-error">
+          {{ form.controls.equipment.getError('server') ?? failureMessage('equipment_too_long') }}
+        </p>
       }
     </div>
 
@@ -123,7 +138,11 @@
         [attr.aria-invalid]="form.controls.preparation.touched && form.controls.preparation.invalid"
       ></textarea>
       @if (form.controls.preparation.touched && form.controls.preparation.invalid) {
-        <p class="field-error">Przygotowanie może mieć najwyżej {{ maxPreparation }} znaków.</p>
+        <p class="field-error">
+          {{
+            form.controls.preparation.getError('server') ?? failureMessage('preparation_too_long')
+          }}
+        </p>
       }
     </div>
 
@@ -140,7 +159,10 @@
       ></textarea>
       @if (form.controls.startingPosition.touched && form.controls.startingPosition.invalid) {
         <p class="field-error">
-          Pozycja startowa może mieć najwyżej {{ maxStartingPosition }} znaków.
+          {{
+            form.controls.startingPosition.getError('server') ??
+              failureMessage('starting_position_too_long')
+          }}
         </p>
       }
     </div>
@@ -158,7 +180,9 @@
         To jest tekst, który członek czyta między seriami — pisz krótkimi zdaniami.
       </p>
       @if (form.controls.execution.touched && form.controls.execution.invalid) {
-        <p class="field-error">Wykonanie może mieć najwyżej {{ maxExecution }} znaków.</p>
+        <p class="field-error">
+          {{ form.controls.execution.getError('server') ?? failureMessage('execution_too_long') }}
+        </p>
       }
     </div>
 
@@ -178,15 +202,14 @@
       </p>
       @if (form.controls.videoUrl.touched && form.controls.videoUrl.invalid) {
         <p class="field-error">
-          To nie wygląda na link do filmu na YouTube. Sprawdź, czy nie jest to link do playlisty
-          albo do kanału.
+          {{ form.controls.videoUrl.getError('server') ?? failureMessage('invalid_video_url') }}
         </p>
       }
     </div>
 
     <div class="exercise-form-actions">
-      <button type="submit" class="button" [disabled]="submitting()">
-        {{ submitting() ? 'Zapisywanie…' : 'Zapisz' }}
+      <button type="submit" class="button" [disabled]="state.submitting()">
+        {{ state.submitting() ? 'Zapisywanie…' : 'Zapisz' }}
       </button>
       <a class="link-button" routerLink="/admin/exercises">Anuluj</a>
     </div>

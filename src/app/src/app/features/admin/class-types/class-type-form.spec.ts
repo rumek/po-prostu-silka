@@ -193,7 +193,7 @@ describe('ClassTypeForm', () => {
     await settle();
 
     expect(field('name').getAttribute('aria-invalid')).toBe('true');
-    expect(el().textContent).toContain('Aktywny typ o tej nazwie już istnieje');
+    expect(el().textContent).toContain('już zajęta przez inny aktywny typ');
     expect(el().querySelector('.alert')).toBeNull();
   });
 
