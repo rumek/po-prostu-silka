@@ -476,9 +476,37 @@ route order stay in the `*Endpoints` file, untouched.
 `ProfileEndpoints.cs:114` builds its logger category from `typeof(ProfileEndpoints)`. **Keep that
 `typeof` after the move**, with a comment stating it is pinned so the Azure log category string does not
 change mid-refactor (CS-03). The same rule applies to `AuthEndpoints.cs:389`, `:452`, `:660` in phase 6.
+Done: the pin now lives in `UpdateProfile.HandleAsync` with the reason inline, and `ProfileEndpoints`
+carries a pointer to it so the `typeof` reference does not look like a leftover.
 
 `PushEndpoints` is the only surface with no failure record — it answers bare `Results.BadRequest()`.
 Do not give it one.
+
+**Adapted during implementation — two more dead injected parameters, dropped here.**
+`MyPlanEndpoints.GetMineAsync` and `GetMyExerciseAsync` each took a
+`UserManager<ApplicationUser>` that is bound per request and never read; both resolve the caller from
+the principal's member claim instead. They are dropped with the handlers, under the same decision the
+plan records for the two in `BookingEndpoints` and `TrainingPlanEndpoints`. Research §E.2 stated there
+were exactly two in the repo; there are at least four, so **treat its count as a floor, not an
+inventory, when phases 5 and 6 reach those files** — check each signature against its body rather than
+against the list.
+
+**A caution about how that was found.** An automated unused-parameter scan written for this reported
+237 dead parameters, including ones plainly used (`ITrainerQuery query` in `GetTrainers`). The bug was
+in the scan, not the code — it located the method body with `rindex(')')` and so compared against a
+truncated body. The four real cases were confirmed by reading the bodies. Do not resurrect that script;
+if phases 5–6 want a systematic sweep, use the compiler (`dotnet build` with IDE0060 elevated) rather
+than a regex.
+
+**Convention established by this pilot** (the reason the phase exists):
+
+- One file per handler body, named for the use case — `GetMyPass.cs`, `UpdateProfile.cs`,
+  `Subscribe.cs` — not for the route and not for the endpoint class.
+- The class is `public static` and named for the use case; the method is uniformly `HandleAsync`
+  (or `Handle` when the handler is synchronous, as `GetVapidKey` is). Uniform naming is what makes
+  the binding line read as a use-case reference: `group.MapPut("/", UpdateProfile.HandleAsync)`.
+- The handler's doc comment travels with the handler. The endpoint class keeps only the doc that is
+  about the GROUP — its policy, its prefix, why it is a separate group.
 
 ### Success Criteria:
 
@@ -835,31 +863,31 @@ revert is atomic.
 
 #### Automated
 
-- [x] 2.1 `dotnet build po-prostu-silka.slnx -c Release` → 0 warnings, 0 errors
-- [x] 2.2 `dotnet test po-prostu-silka.slnx` green, no test file edited
-- [x] 2.3 `EndpointAuthorizationTests` green
-- [x] 2.4 No new `using po_prostu_silka.Infrastructure` in Application/Domain
-- [x] 2.5 No record, interface or enum left in an endpoint file — grep returns 0 for all 13 (65 declarations moved)
+- [x] 2.1 `dotnet build po-prostu-silka.slnx -c Release` → 0 warnings, 0 errors — e6b882d
+- [x] 2.2 `dotnet test po-prostu-silka.slnx` green, no test file edited — e6b882d
+- [x] 2.3 `EndpointAuthorizationTests` green — e6b882d
+- [x] 2.4 No new `using po_prostu_silka.Infrastructure` in Application/Domain — e6b882d
+- [x] 2.5 No record, interface or enum left in an endpoint file — grep returns 0 for all 13 (65 declarations moved) — e6b882d
 
 #### Manual
 
-- [x] 2.6 Moved interfaces and records byte-identical apart from indentation
-- [x] 2.7 No `*Endpoints` file declares an interface
-- [x] 2.8 The 16 `*Failure` records kept every `reason` string unchanged
+- [x] 2.6 Moved interfaces and records byte-identical apart from indentation — e6b882d
+- [x] 2.7 No `*Endpoints` file declares an interface — e6b882d
+- [x] 2.8 The 16 `*Failure` records kept every `reason` string unchanged — e6b882d
 
 ### Phase 3: Handler split — pilot
 
 #### Automated
 
-- [ ] 3.1 `dotnet build po-prostu-silka.slnx -c Release` → 0 warnings, 0 errors
-- [ ] 3.2 `dotnet test po-prostu-silka.slnx` green, no test file edited
-- [ ] 3.3 `EndpointAuthorizationTests` green
-- [ ] 3.4 Route-literal diff empty against `<scratch>/routes-before.txt`
+- [x] 3.1 `dotnet build po-prostu-silka.slnx -c Release` → 0 warnings, 0 errors
+- [x] 3.2 `dotnet test po-prostu-silka.slnx` green, no test file edited
+- [x] 3.3 `EndpointAuthorizationTests` green
+- [x] 3.4 Route-literal diff empty against `<scratch>/routes-before.txt`
 
 #### Manual
 
-- [ ] 3.5 Convention reviewed and approved before repeating on eleven files
-- [ ] 3.6 No non-comment line changed inside any moved handler body
+- [x] 3.5 Convention reviewed and approved before repeating on eleven files
+- [x] 3.6 No non-comment line changed inside any moved handler body
 
 ### Phase 4: Handler split — Members
 

@@ -1,6 +1,3 @@
-using System.Security.Claims;
-using Microsoft.AspNetCore.Identity;
-using po_prostu_silka.Application.Members;
 using po_prostu_silka.Domain;
 
 namespace po_prostu_silka.Application.Training;
@@ -35,69 +32,9 @@ public static class MyPlanEndpoints
             .WithTags("Training")
             .RequireAuthorization(AuthorizationPolicyNames.ActiveMember);
 
-        mine.MapGet("/mine", GetMineAsync);
-        mine.MapGet("/mine/exercises/{exerciseId:guid}", GetMyExerciseAsync);
+        mine.MapGet("/mine", GetMyPlan.HandleAsync);
+        mine.MapGet("/mine/exercises/{exerciseId:guid}", GetMyPlanExercise.HandleAsync);
 
         return app;
-    }
-
-    /// <summary>
-    /// The caller's active plan, or 204 when they have none.
-    ///
-    /// <para>
-    /// 204 RATHER THAN 404, deliberately. Having no plan yet is an ordinary state for a member who
-    /// has just been approved - most members are in it - and a 404 would make the SPA guess whether
-    /// the request failed or the answer is "nothing". The screen renders an empty card for 204 and an
-    /// error with a retry button for anything else, and it can only tell those apart if the API does.
-    /// </para>
-    /// </summary>
-    private static async Task<IResult> GetMineAsync(
-        ClaimsPrincipal principal,
-        UserManager<ApplicationUser> userManager,
-        ITrainingPlanQuery query,
-        CancellationToken cancellationToken)
-    {
-        var memberId = principal.GetMemberId();
-        if (memberId is null)
-        {
-            return Results.Unauthorized();
-        }
-
-        var plan = await query.FindActiveForMemberAsync(memberId.Value, cancellationToken);
-
-        return plan is null ? Results.NoContent() : Results.Ok(plan);
-    }
-
-    /// <summary>
-    /// One exercise's full details, but only if the caller's active plan prescribes it (FR-020).
-    ///
-    /// <para>
-    /// An exercise that exists but is not in the caller's plan is a 404, the same answer as one that
-    /// does not exist at all. That is intentional: distinguishing them would turn this route into an
-    /// oracle for enumerating the library one guid at a time, which is the browsing the PRD cut.
-    /// </para>
-    ///
-    /// <para>
-    /// A deactivated exercise still resolves here, because the plan still shows it - see
-    /// ITrainingPlanQuery.FindPlanExerciseAsync and TrainingPlanItem.Exercise for why the read path
-    /// does not filter on IsActive.
-    /// </para>
-    /// </summary>
-    private static async Task<IResult> GetMyExerciseAsync(
-        Guid exerciseId,
-        ClaimsPrincipal principal,
-        UserManager<ApplicationUser> userManager,
-        ITrainingPlanQuery query,
-        CancellationToken cancellationToken)
-    {
-        var memberId = principal.GetMemberId();
-        if (memberId is null)
-        {
-            return Results.Unauthorized();
-        }
-
-        var exercise = await query.FindPlanExerciseAsync(memberId.Value, exerciseId, cancellationToken);
-
-        return exercise is null ? Results.NotFound() : Results.Ok(exercise);
     }
 }

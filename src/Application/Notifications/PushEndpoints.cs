@@ -1,9 +1,3 @@
-using System.Security.Claims;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Mvc;
-using po_prostu_silka.Domain;
-using po_prostu_silka.Domain.Notifications;
-
 namespace po_prostu_silka.Application.Notifications;
 
 /// <summary>
@@ -19,68 +13,10 @@ public static class PushEndpoints
     {
         var group = app.MapGroup("/api/push").WithTags("Push").RequireAuthorization();
 
-        group.MapGet("/vapid-key", GetVapidKey);
-        group.MapPost("/subscribe", SubscribeAsync);
-        group.MapPost("/unsubscribe", UnsubscribeAsync);
+        group.MapGet("/vapid-key", GetVapidKey.Handle);
+        group.MapPost("/subscribe", Subscribe.HandleAsync);
+        group.MapPost("/unsubscribe", Unsubscribe.HandleAsync);
 
         return app;
-    }
-
-    /// <summary>
-    /// The application server's public key. Public by design — the browser needs it to subscribe.
-    /// Authenticated anyway, because nothing anonymous needs it and a uniform surface is simpler.
-    /// </summary>
-    private static IResult GetVapidKey(IVapidPublicKey key) =>
-        string.IsNullOrWhiteSpace(key.PublicKey)
-            ? Results.Problem("Push is not configured on this server.", statusCode: 503)
-            : Results.Ok(new VapidKeyResponse(key.PublicKey));
-
-    private static async Task<IResult> SubscribeAsync(
-        [FromBody] SubscribeRequest request,
-        ClaimsPrincipal principal,
-        UserManager<ApplicationUser> userManager,
-        IPushSubscriptionStore store,
-        TimeProvider timeProvider,
-        CancellationToken cancellationToken)
-    {
-        var userId = userManager.GetUserId(principal);
-        if (userId is null)
-        {
-            return Results.Unauthorized();
-        }
-
-        if (string.IsNullOrWhiteSpace(request.Endpoint)
-            || string.IsNullOrWhiteSpace(request.P256dh)
-            || string.IsNullOrWhiteSpace(request.Auth))
-        {
-            return Results.BadRequest();
-        }
-
-        // Upsert, not insert. A browser re-issues the same endpoint when it re-subscribes, so
-        // inserting blindly would accumulate duplicates and fan out duplicate push messages.
-        await store.UpsertAsync(
-            userId, request.Endpoint, request.P256dh, request.Auth,
-            timeProvider.GetUtcNow(), cancellationToken);
-
-        return Results.NoContent();
-    }
-
-    private static async Task<IResult> UnsubscribeAsync(
-        [FromBody] SubscribeRequest request,
-        ClaimsPrincipal principal,
-        UserManager<ApplicationUser> userManager,
-        IPushSubscriptionStore store,
-        CancellationToken cancellationToken)
-    {
-        var userId = userManager.GetUserId(principal);
-        if (userId is null)
-        {
-            return Results.Unauthorized();
-        }
-
-        // Scoped to the caller, so one member cannot delete another's subscription by guessing an
-        // endpoint.
-        await store.RemoveAsync(userId, request.Endpoint, cancellationToken);
-        return Results.NoContent();
     }
 }
