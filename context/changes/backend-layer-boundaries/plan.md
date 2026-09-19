@@ -685,6 +685,24 @@ This completes CS-02 for all thirteen files.
 - `ExerciseEndpoints` registers **two groups on the same `/api/admin/exercises` prefix, split by
   policy**. Keep both groups and their order.
 
+**Adapted during implementation — the splitter truncated a method and the phase was redone.**
+`ExerciseValidator.TooLong` is an expression-bodied method whose body contains a property pattern
+(`Normalize(value) is { } normalized && ...`). The span detector treated that `{ }` as the opening of a
+block body, ended the method on that line, and left its last two lines orphaned in
+`ExerciseEndpoints.cs`. The build caught it as a syntax error, the phase was reverted with
+`git checkout` + `git clean`, the detector was corrected to decide block-vs-expression body from
+whether `=>` follows the signature, and the phase was re-run from the phase-5 commit.
+
+**Two lessons this leaves for anyone scripting over these files:**
+
+1. **Braces inside an expression body are not a body.** Property patterns, object initialisers and
+   collection expressions all put `{` on a line that is still part of an expression. Decide the method
+   shape from `=>` after the closing `)`, never from the first brace.
+2. **A qualification pass must skip declarations.** Rewriting every bare `ToDto` to
+   `ExerciseProjection.ToDto` inside `ExerciseProjection.cs` itself produces
+   `public static ExerciseSummary ExerciseProjection.ToDto(...)`, which C# reads as an explicit
+   interface implementation (CS0538). Exclude lines matching the method's own declaration.
+
 ### Success Criteria:
 
 #### Automated Verification:
@@ -942,10 +960,10 @@ revert is atomic.
 
 #### Automated
 
-- [x] 5.1 `dotnet build po-prostu-silka.slnx -c Release` → 0 warnings, 0 errors
-- [x] 5.2 `dotnet test po-prostu-silka.slnx` green, no test file edited
-- [x] 5.3 `EndpointAuthorizationTests` green, both `/api/admin/classes` groups distinct
-- [x] 5.4 Route-literal diff empty against `<scratch>/routes-before.txt`
+- [x] 5.1 `dotnet build po-prostu-silka.slnx -c Release` → 0 warnings, 0 errors — 9d11ba5
+- [x] 5.2 `dotnet test po-prostu-silka.slnx` green, no test file edited — 9d11ba5
+- [x] 5.3 `EndpointAuthorizationTests` green, both `/api/admin/classes` groups distinct — 9d11ba5
+- [x] 5.4 Route-literal diff empty against `<scratch>/routes-before.txt` — 9d11ba5
 
 #### Manual
 
@@ -957,11 +975,11 @@ revert is atomic.
 
 #### Automated
 
-- [ ] 6.1 `dotnet build po-prostu-silka.slnx -c Release` → 0 warnings, 0 errors
-- [ ] 6.2 `dotnet test po-prostu-silka.slnx` green, no test file edited
-- [ ] 6.3 `EndpointAuthorizationTests` green
-- [ ] 6.4 Route-literal diff empty against `<scratch>/routes-before.txt`
-- [ ] 6.5 No `*Endpoints` file contains a method other than `Map*Endpoints`
+- [x] 6.1 `dotnet build po-prostu-silka.slnx -c Release` → 0 warnings, 0 errors
+- [x] 6.2 `dotnet test po-prostu-silka.slnx` green, no test file edited
+- [x] 6.3 `EndpointAuthorizationTests` green
+- [x] 6.4 Route-literal diff empty against `<scratch>/routes-before.txt`
+- [x] 6.5 No `*Endpoints` file contains a method other than `Map*Endpoints`
 
 #### Manual
 
