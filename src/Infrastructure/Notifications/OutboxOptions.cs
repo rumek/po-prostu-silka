@@ -1,4 +1,4 @@
-namespace po_prostu_silka.Application.Notifications;
+namespace po_prostu_silka.Infrastructure.Notifications;
 
 /// <summary>
 /// Knobs for the delivery worker. Defaults are the values the F-03 plan settled on; they are

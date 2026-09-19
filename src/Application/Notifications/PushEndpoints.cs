@@ -6,10 +6,6 @@ using po_prostu_silka.Domain.Notifications;
 
 namespace po_prostu_silka.Application.Notifications;
 
-public record SubscribeRequest(string Endpoint, string P256dh, string Auth);
-
-public record VapidKeyResponse(string PublicKey);
-
 /// <summary>
 /// Lets a browser register itself for Web Push.
 ///
@@ -87,26 +83,4 @@ public static class PushEndpoints
         await store.RemoveAsync(userId, request.Endpoint, cancellationToken);
         return Results.NoContent();
     }
-}
-
-/// <summary>Exposes the VAPID public key without Application referencing the options type directly.</summary>
-public interface IVapidPublicKey
-{
-    string PublicKey { get; }
-}
-
-/// <summary>
-/// Narrow seam over the subscription table, so Application does not reference EF Core
-/// (AGENTS.md layering). Implemented in Infrastructure.
-/// </summary>
-public interface IPushSubscriptionStore
-{
-    Task UpsertAsync(
-        string userId, string endpoint, string p256dh, string auth,
-        DateTimeOffset now, CancellationToken cancellationToken);
-
-    Task RemoveAsync(string userId, string endpoint, CancellationToken cancellationToken);
-
-    Task<IReadOnlyList<PushSubscription>> GetForUserAsync(
-        string userId, CancellationToken cancellationToken);
 }

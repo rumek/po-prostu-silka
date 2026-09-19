@@ -3,22 +3,6 @@ using po_prostu_silka.Domain;
 namespace po_prostu_silka.Application.Members;
 
 /// <summary>
-/// A trainer as the class form's instructor selection sees them (prd-v2 FR-009). This is a CONTRACT
-/// the SPA's member-admin service mirrors — renaming a field breaks the class form silently.
-///
-/// <para>
-/// TWO FIELDS, DELIBERATELY. <see cref="MemberSummary"/> already describes an account far more fully,
-/// and reusing it here would ship every trainer's email address and account status into a dropdown
-/// that needs neither. What a selection needs is the value it submits and the label it shows.
-/// </para>
-/// </summary>
-/// <param name="Id">
-/// The MEMBER's id (S-14). Everything the SPA submits speaks member ids; the server resolves the
-/// account behind it when it validates the assignment.
-/// </param>
-public record TrainerSummary(Guid Id, string DisplayName);
-
-/// <summary>
 /// The people an occurrence may name as its instructor (prd-v2 FR-009).
 ///
 /// <para>
@@ -71,21 +55,4 @@ public static class TrainerEndpoints
         ITrainerQuery query,
         CancellationToken cancellationToken) =>
         Results.Ok(await query.GetActiveTrainersAsync(cancellationToken));
-}
-
-/// <summary>
-/// Narrow read seam over the user table filtered by role, so Application does not reference EF Core
-/// (AGENTS.md layering). Implemented in Infrastructure.
-///
-/// <para>
-/// Separate from <see cref="IMemberQuery"/> rather than a parameter on it: that one browses accounts
-/// with their statuses and roles for the admin's management screen, this one answers "who may run a
-/// class". Folding them together would grow the member list's DTO with a field its own screen never
-/// reads.
-/// </para>
-/// </summary>
-public interface ITrainerQuery
-{
-    /// <summary>Active accounts holding the Trainer role, ordered by display name.</summary>
-    Task<IReadOnlyList<TrainerSummary>> GetActiveTrainersAsync(CancellationToken cancellationToken);
 }

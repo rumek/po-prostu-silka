@@ -9,139 +9,6 @@ using po_prostu_silka.Domain.Scheduling;
 namespace po_prostu_silka.Application.Scheduling;
 
 /// <summary>
-/// One class occurrence as the schedule and the admin list see it. This is a CONTRACT the SPA's class
-/// service mirrors — renaming a field breaks both screens silently.
-///
-/// <para>
-/// TWO OF THESE FIELDS ARE RESOLVED, NOT STORED (prd-v2 FR-007, FR-010). <see cref="Name"/> and
-/// <see cref="Description"/> come from the occurrence's ClassType and <see cref="Instructor"/> from
-/// the assigned account's display name — the occurrence itself holds none of the three. That is what
-/// makes correcting a typo on the type correct it on every week at once, past occurrences included.
-/// </para>
-///
-/// <para>
-/// <see cref="Capacity"/> and <see cref="DurationMinutes"/> are the opposite: COPIES taken at
-/// creation, owned by this occurrence, and never re-read from the type. The asymmetry is deliberate
-/// and load-bearing — capacity resolved through the type would let a type edit move the value the
-/// no-overbooking guarantee is checked against.
-/// </para>
-///
-/// <para>
-/// Status crosses the wire as the enum NAME ("Scheduled" / "Cancelled"), not its int, for the same
-/// reason AccountStatus does: the numeric values exist for persistence stability, and a badge keyed
-/// on 1 would break the day someone renumbers.
-/// </para>
-///
-/// <para>
-/// FreeSpots is <see cref="Capacity"/> until S-08 — see IClassScheduleQuery. There is no Room: the
-/// club has one, so the field never carried information (prd-v2 FR-011).
-/// </para>
-///
-/// <para>
-/// <see cref="InstructorMemberId"/> REACHES MEMBERS, and that is a considered decision rather than an
-/// oversight. ClassScheduleQuery projects one shape for both the admin list and the member schedule,
-/// so every active member receives the trainer's member id. The member SPA never reads it — the field
-/// exists for the admin form's trainer select — and it grants nothing on its own, since every admin
-/// surface is policy-gated. Splitting the projection in two was weighed and declined: it would hand
-/// S-07 and S-08 a branch to maintain for a field with no exploit path.
-///
-/// SINCE S-14 IT IS A MEMBER ID RATHER THAN AN IDENTITY ID, which narrows this further: it no longer
-/// leaks a login identifier to every member of the club.
-/// </para>
-/// </summary>
-public record ScheduledClass(
-    Guid Id,
-    Guid ClassTypeId,
-    string Name,
-    string? Description,
-    DateTimeOffset StartsAt,
-    int DurationMinutes,
-    Guid InstructorMemberId,
-    string Instructor,
-    int Capacity,
-    int FreeSpots,
-    string Status);
-
-/// <summary>
-/// Create/edit payload. Same shape for both — an edit replaces every field it is allowed to change.
-///
-/// <para>
-/// A FORM OF SELECTIONS, NOT OF TEXT (prd-v2 US-01). There is no name and no room to type;
-/// <see cref="ClassTypeId"/> and <see cref="InstructorMemberId"/> are references the client picked from
-/// two lists. What remains typed are the two numbers — and they arrive here PREFILLED from the type's
-/// defaults, which the admin may have overridden for this session.
-/// </para>
-///
-/// <para>
-/// <see cref="ClassTypeId"/> is required on an edit too, but only so the server can refuse a change
-/// to it: the type is immutable once an occurrence exists (<c>class_type_immutable</c>).
-/// </para>
-/// </summary>
-public record ClassRequest(
-    Guid ClassTypeId,
-    DateTimeOffset StartsAt,
-    int DurationMinutes,
-    Guid InstructorMemberId,
-    int Capacity);
-
-/// <summary>How many following weeks to copy a class into.</summary>
-public record DuplicateRequest(int Weeks);
-
-/// <summary>
-/// What a duplicate actually did. NOT a bare success: a batch where some weeks collided is a partial
-/// success, and reporting it as "done" would leave the admin believing in classes that were never
-/// created.
-/// </summary>
-/// <param name="Created">How many copies were written.</param>
-/// <param name="SkippedWeeks">
-/// 1-based week offsets refused because another class already occupies that time. The REASON changed
-/// in S-06 — it used to be a room collision — but the shape and the partial-success behaviour did
-/// not (prd-v2 FR-013).
-/// </param>
-public record DuplicateResult(int Created, IReadOnlyList<int> SkippedWeeks);
-
-/// <summary>
-/// Why a class write was refused. All 400 except the six 409s — <c>time_conflict</c>,
-/// <c>has_bookings</c>, <c>capacity_below_bookings</c>, <c>conflict</c>, <c>class_started</c> and
-/// <c>already_cancelled</c> — each a disagreement with existing state rather than bad input.
-///
-/// <para>
-/// Reasons: <c>missing_field</c>, <c>invalid_capacity</c>, <c>invalid_duration</c>,
-/// <c>starts_in_past</c>, <c>invalid_weeks</c>, <c>time_conflict</c>, <c>unknown_class_type</c>,
-/// <c>inactive_class_type</c>, <c>class_type_immutable</c>, <c>unknown_instructor</c>,
-/// <c>instructor_not_trainer</c>, <c>has_bookings</c>, <c>capacity_below_bookings</c>,
-/// <c>conflict</c>, <c>class_started</c>, <c>already_cancelled</c>. Adding one here means adding it
-/// to the SPA's ClassFailure union too — that type mirrors this one field for field.
-/// </para>
-///
-/// <para>
-/// S-09 ADDED THE LAST TWO, both 409s and both belonging to <see cref="CancelAsync"/>.
-/// <c>class_started</c> reuses the name BookingEndpoints already gives the same disagreement — the
-/// class is no longer in the future — so the API speaks one vocabulary rather than two; it is a
-/// refusal here because telling members a class that already happened is cancelled is
-/// disinformation, and there is no undo. <c>already_cancelled</c> keeps the transition one-way and,
-/// with the stamp rotation, keeps it exactly-once: two admins cancelling the same class must not
-/// send two rounds of email.
-/// </para>
-///
-/// <para>
-/// S-08 ADDED THE LAST THREE, ALL 409s. <c>has_bookings</c> and <c>capacity_below_bookings</c> are
-/// the two ways an admin action would otherwise break the no-overbooking guarantee from the
-/// management side; <c>conflict</c> means a booking committed between this request's check and its
-/// write, so the admin is asked to look again rather than shown a 500.
-/// </para>
-///
-/// <para>
-/// ONE MORE REASON TRAVELS IN THIS SHAPE WITHOUT BELONGING TO THAT UNION: <c>invalid_range</c>,
-/// returned by the two READ endpoints when the requested date window is inverted or too wide. The
-/// record is reused because the wire shape is identical, but no write path can ever return it — so
-/// the SPA models it as its own <c>ScheduleReadFailure</c> rather than widening <c>ClassFailure</c>,
-/// which would force the class form to carry a message for a refusal it cannot receive.
-/// </para>
-/// </summary>
-public record ClassFailure(string Reason);
-
-/// <summary>
 /// The class schedule (prd.md FR-007) and the admin's management of it (prd-v2 US-01, FR-008 –
 /// FR-013).
 ///
@@ -380,7 +247,7 @@ public static class ClassEndpoints
         // Includes them - and the one place a null truly means "no such class".
         return found is null
             ? Results.NotFound()
-            : Results.Ok(ToDto(
+            : Results.Ok(ClassDtoMapping.ToDto(
                 found,
                 found.ClassType,
                 found.Instructor!.DisplayName,
@@ -472,7 +339,7 @@ public static class ClassEndpoints
         // create would produce a duplicate class.
         // Zero bookings, by construction: the occurrence was created this instant, and there is no
         // route by which anything could have booked it before the response is written.
-        return Results.Ok(ToDto(created, classType, instructor!.DisplayName, bookedCount: 0));
+        return Results.Ok(ClassDtoMapping.ToDto(created, classType, instructor!.DisplayName, bookedCount: 0));
     }
 
     private static async Task<IResult> UpdateAsync(
@@ -633,7 +500,7 @@ public static class ClassEndpoints
         // by FindAsync) is still correct; the instructor may have just changed, which is exactly why
         // the validated account is used rather than the tracked entity's navigation - that one still
         // points at the PREVIOUS account and would render a stale display name.
-        return Results.Ok(ToDto(existing, existing.ClassType, instructor!.DisplayName, bookedCount));
+        return Results.Ok(ClassDtoMapping.ToDto(existing, existing.ClassType, instructor!.DisplayName, bookedCount));
     }
 
     /// <summary>
@@ -789,7 +656,7 @@ public static class ClassEndpoints
         // the save succeeded, so no booking write landed in between — any that had tried would have
         // rotated the stamp and taken this save down with it.
         return Results.Ok(
-            ToDto(existing, existing.ClassType, existing.Instructor!.DisplayName, recipients.Count));
+            ClassDtoMapping.ToDto(existing, existing.ClassType, existing.Instructor!.DisplayName, recipients.Count));
     }
 
     /// <summary>
@@ -971,112 +838,4 @@ public static class ClassEndpoints
 
         return (null, instructor);
     }
-
-    /// <summary>
-    /// Projects an occurrence onto the wire contract.
-    ///
-    /// <para>
-    /// THE RESOLVED PARTS ARE PASSED IN, not read off the entity's navigations. The name,
-    /// description and instructor name do not live on the occurrence (prd-v2 FR-007, FR-009,
-    /// FR-010), and the caller is not always holding an entity whose navigations are populated: a
-    /// freshly created one has none, and an edited one still points at the PREVIOUS instructor.
-    /// Taking them as parameters makes the caller state where each came from.
-    /// </para>
-    ///
-    /// <para>
-    /// The instructor arrives as a NAME rather than as an entity (S-14 Phase 8). The callers no
-    /// longer hold the same type: the write paths have just validated an account, while the booking
-    /// paths hold a tracked occurrence whose instructor is a Member. A string is the only thing this
-    /// projection ever wanted from either.
-    /// </para>
-    /// </summary>
-    /// <remarks>
-    /// INTERNAL rather than private since S-08: BookingEndpoints answers with the class as it now
-    /// stands, and two constructions of the same contract would drift the moment one of them learned
-    /// about free spots and the other did not.
-    /// </remarks>
-    /// <param name="bookedCount">
-    /// How many active bookings the occurrence has, which the caller must supply because this method
-    /// has no query of its own — and must NOT reach through a navigation, because Class deliberately
-    /// has no Bookings collection (see Booking.Class). A caller that has just created the occurrence
-    /// passes 0; every other caller counts.
-    /// </param>
-    internal static ScheduledClass ToDto(
-        Class entity, ClassType classType, string instructorName, int bookedCount) =>
-        new(entity.Id,
-            entity.ClassTypeId,
-            classType.Name,
-            classType.Description,
-            entity.StartsAt,
-            entity.DurationMinutes,
-            entity.InstructorMemberId,
-            instructorName,
-            entity.Capacity,
-            // Same construction as the read query, and unclamped for the same reason - see
-            // ClassScheduleQuery.
-            entity.Capacity - bookedCount,
-            entity.Status.ToString());
-}
-
-/// <summary>
-/// Narrow read seam over the class table, so Application does not reference EF Core (AGENTS.md
-/// layering). Implemented in Infrastructure.
-/// </summary>
-public interface IClassScheduleQuery
-{
-    /// <summary>Scheduled classes starting within [from, to), time-ordered. The member's window.</summary>
-    Task<IReadOnlyList<ScheduledClass>> GetScheduleAsync(
-        DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken);
-
-    /// <summary>
-    /// The admin's list for the window [<paramref name="from"/>, <paramref name="to"/>).
-    ///
-    /// <para>
-    /// Same shape as <see cref="GetScheduleAsync"/> and deliberately so: the bound is not optional.
-    /// It was, briefly — the endpoint's fallback used to be unbounded — and nothing asks for that any
-    /// more.
-    /// </para>
-    /// </summary>
-    Task<IReadOnlyList<ScheduledClass>> GetUpcomingForAdminAsync(
-        DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken);
-}
-
-/// <summary>
-/// The write counterpart. Intention-revealing methods rather than a generic repository — this
-/// codebase has no repository pattern and this slice does not introduce one.
-///
-/// Nothing here saves. The endpoint commits through <see cref="IUnitOfWork"/>, which is what lets a
-/// whole duplicate batch land in one transaction.
-/// </summary>
-public interface IClassStore
-{
-    /// <summary>
-    /// One occurrence WITH its ClassType and Instructor navigations loaded — ToDto resolves the name,
-    /// description and display name through them, so a bare entity is not enough.
-    /// </summary>
-    Task<Class?> FindAsync(Guid id, CancellationToken cancellationToken);
-
-    void Add(Class entity);
-
-    void Remove(Class entity);
-
-    /// <summary>
-    /// Whether another class already occupies any part of
-    /// [startsAt, startsAt + durationMinutes) — ANYWHERE in the club (prd-v2 FR-012).
-    ///
-    /// <para>
-    /// This was <c>HasRoomConflictAsync</c> until S-06. The room disappeared, but the rule did not:
-    /// it widened from "one room, one class at a time" to "one club, one class at a time". A
-    /// single-room gym could never have two classes at once anyway, so removing the room made the
-    /// real rule explicit rather than removing the protection.
-    /// </para>
-    /// </summary>
-    /// <param name="excludingId">
-    /// The class being edited, so it does not conflict with itself. Null when creating.
-    /// </param>
-    Task<bool> HasTimeConflictAsync(
-        DateTimeOffset startsAt,
-        int durationMinutes,
-        Guid? excludingId,
-        CancellationToken cancellationToken);
 }

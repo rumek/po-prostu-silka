@@ -9,128 +9,6 @@ using po_prostu_silka.Domain.Members;
 
 namespace po_prostu_silka.Application.Auth;
 
-public record LoginRequest(string Email, string Password);
-
-/// <summary>
-/// Registration input. THREE FIELDS, and that is the whole slice (S-17, IR-04): an address to sign
-/// in with, a password, and the invitation code that says which member record this account attaches
-/// to.
-///
-/// <para>
-/// The display name, the phone number and the four address fields used to arrive here and no longer
-/// do. They come from the <see cref="Member"/> the code claims — the club entered that person into
-/// its records before handing the code over, so asking them to type it again would only produce a
-/// second, competing copy. What the club does not hold, the member fills in later through
-/// <c>PUT /api/profile</c>, which is where those five fields stay required.
-/// </para>
-/// </summary>
-/// <param name="MemberCode">
-/// REQUIRED since S-17 (IR-05). Registration is claim-only: there is no branch that creates a fresh
-/// member record any more, so a request without a code cannot produce an account at all. Not
-/// defaulted, so the compiler refuses a caller that forgets it.
-/// </param>
-public record RegisterRequest(
-    string Email,
-    string Password,
-    string MemberCode);
-
-/// <summary>
-/// Why the login failure is named: S-02's blocked members need a different message from a wrong
-/// password. Callers must not treat <c>invalid_credentials</c> as "no such account" - it also covers
-/// a wrong password.
-///
-/// <c>pending_approval</c> is unreachable and has been since S-01, which let a pending member sign in
-/// rather than refusing them; S-16 then removed the pending state entirely. The literal survives in
-/// the SPA's LoginFailureReason union, and removing it there is churn for no gain — nothing sends
-/// it.
-/// </summary>
-public record LoginFailure(string Reason);
-
-/// <summary>Asks for a reset link. The only field is the address to send it to.</summary>
-public record ForgotPasswordRequest(string Email);
-
-/// <summary>
-/// Sets a new password from an emailed token. The email travels with the token because Identity's
-/// tokens are validated against a specific user - the token alone does not identify one.
-/// </summary>
-public record ResetPasswordRequest(string Email, string Token, string NewPassword);
-
-/// <summary>
-/// Why the reset failed.
-///
-/// <c>invalid_token</c> deliberately covers an unknown address, a malformed token, a token belonging
-/// to someone else, an already-used token AND an expired one. Splitting those apart would hand an
-/// anonymous caller the account-enumeration oracle that <c>/forgot-password</c> is built to deny -
-/// "expired" means the address exists. One code, and the screen says "poproś o nowy link".
-/// </summary>
-public record ResetPasswordFailure(string Reason);
-
-/// <summary>
-/// An in-session password change (S-13). The current password is required and is the whole
-/// authorisation for the change - a live cookie alone is not enough, because an unattended session
-/// is the exact scenario this guards against.
-/// </summary>
-public record ChangePasswordRequest(string CurrentPassword, string NewPassword);
-
-/// <summary>
-/// Why the change failed. Two codes, both 400: <c>invalid_current_password</c> and
-/// <c>invalid_new_password</c>. Identity's raw error text is never forwarded - same reasoning as
-/// <see cref="RegisterFailure"/>.
-///
-/// Unlike /login, disclosure is not a concern here: the caller has already proved they own the
-/// session, so telling them which of the two passwords was the problem leaks nothing and is the
-/// difference between a fixable form and a dead end.
-/// </summary>
-public record ChangePasswordFailure(string Reason);
-
-/// <summary>
-/// Why registration failed. Never echoes Identity's raw error text to the client.
-///
-/// <para>
-/// S-14 adds two. <c>invalid_member_code</c> (400) is a format failure - what was typed could not be
-/// a code at all. <c>unknown_member_code</c> (409) covers "no member holds it", "it expired" and "it
-/// was revoked" as ONE answer, deliberately: distinguishing them would confirm to a stranger that a
-/// code once existed, and the same reasoning already collapses ResetPasswordFailure's four causes
-/// into <c>invalid_token</c>. S-17 makes <c>invalid_member_code</c> the answer to a MISSING code too,
-/// which is the same thing now that registration is claim-only.
-/// </para>
-///
-/// <para>
-/// S-17 also RETIRES five. <c>invalid_display_name</c> and the <see cref="ContactDetails"/> codes -
-/// <c>invalid_phone</c> / <c>invalid_street</c> / <c>invalid_house_number</c> /
-/// <c>invalid_postal_code</c> / <c>invalid_city</c> - are unreachable from this endpoint, because the
-/// fields behind them stopped arriving. They remain the vocabulary of <c>PUT /api/profile</c>, which
-/// still requires all five; nothing here produces them.
-/// </para>
-/// </summary>
-public record RegisterFailure(string Reason);
-
-/// <summary>
-/// The session payload every authenticated screen reads.
-///
-/// The contact fields ride along rather than sitting behind their own GET (S-13): the profile form
-/// pre-fills from session state, so the SPA needs no second round trip on a 5-DTU tier - and the
-/// screen that prompts an incomplete account to fill them in can tell they are empty without asking.
-/// They are nullable here and only here: accounts created before S-13 have none, and that is exactly
-/// what the prompt keys off.
-///
-/// DisplayName and Email are deliberately absent from every write surface. The gym owns the name on
-/// the membership; no endpoint in this app lets anyone change either.
-/// </summary>
-public record CurrentUser(
-    string Id,
-    string Email,
-    string DisplayName,
-    string Status,
-    string[] Roles,
-    string? PhoneNumber,
-    string? Street,
-    string? HouseNumber,
-    string? PostalCode,
-    string? City,
-    Guid? MemberId,
-    string? MembershipStatus);
-
 /// <summary>
 /// The authentication surface: create an account, establish a session, inspect it, refresh it,
 /// end it.
@@ -232,7 +110,7 @@ public static class AuthEndpoints
         // it the cookie is a session cookie and mobile members re-login constantly (PRD FR-002).
         await signInManager.SignInAsync(user, isPersistent: true);
 
-        return Results.Ok(await BuildCurrentUserAsync(user, userManager, members));
+        return Results.Ok(await CurrentUserBuilder.BuildCurrentUserAsync(user, userManager, members));
     }
 
     /// <summary>
@@ -476,7 +354,7 @@ public static class AuthEndpoints
         await signInManager.SignInAsync(user, isPersistent: true);
 
         // Same shape /login returns, so the SPA has one code path for "you now have a session".
-        return Results.Ok(await BuildCurrentUserAsync(user, userManager, members));
+        return Results.Ok(await CurrentUserBuilder.BuildCurrentUserAsync(user, userManager, members));
     }
 
     /// <summary>
@@ -511,7 +389,7 @@ public static class AuthEndpoints
         }
 
         await signInManager.RefreshSignInAsync(user);
-        return Results.Ok(await BuildCurrentUserAsync(user, userManager, members));
+        return Results.Ok(await CurrentUserBuilder.BuildCurrentUserAsync(user, userManager, members));
     }
 
     /// <summary>
@@ -770,43 +648,5 @@ public static class AuthEndpoints
             member?.City,
             member?.Id,
             member?.Status.ToString()));
-    }
-
-    /// <summary>
-    /// Builds the session payload from an entity. Internal rather than private: ProfileEndpoints
-    /// returns the same shape after a save, and a second copy of this projection is exactly how the
-    /// two would drift the next time CurrentUser grows a field.
-    ///
-    /// <para>
-    /// <c>MemberId</c> and <c>MembershipStatus</c> are NULLABLE on the wire and must stay that way.
-    /// They are null exactly when the account has no member row — the state the claims factory treats
-    /// as a tripwire — and the SPA reads that as "signed in but unusable" rather than inventing a
-    /// status. Filling them in with a default here would hide the same failure the policies exist to
-    /// surface.
-    /// </para>
-    /// </summary>
-    internal static async Task<CurrentUser> BuildCurrentUserAsync(
-        ApplicationUser user,
-        UserManager<ApplicationUser> userManager,
-        IMemberStore members)
-    {
-        var roles = await userManager.GetRolesAsync(user);
-        var member = await members.FindByUserIdAsync(user.Id, CancellationToken.None);
-
-        return new CurrentUser(
-            user.Id,
-            user.Email ?? string.Empty,
-            user.DisplayName,
-            user.Status.ToString(),
-            [.. roles],
-
-            // From the MEMBER since S-14 Phase 8 — see GetCurrentUser for why.
-            member?.PhoneNumber,
-            member?.Street,
-            member?.HouseNumber,
-            member?.PostalCode,
-            member?.City,
-            member?.Id,
-            member?.Status.ToString());
     }
 }

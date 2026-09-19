@@ -5,59 +5,6 @@ using po_prostu_silka.Domain.Scheduling;
 namespace po_prostu_silka.Application.Scheduling;
 
 /// <summary>
-/// One class type as the admin's list and form see it. This is a CONTRACT the SPA's class-type
-/// service mirrors — renaming a field breaks both screens silently.
-///
-/// <para>
-/// <see cref="IsActive"/> crosses the wire as a bool rather than a status name, unlike
-/// <see cref="ScheduledClass.Status"/>: there are exactly two states and no enum behind it, so
-/// there is no numbering for a name to protect.
-/// </para>
-///
-/// <para>
-/// The two <c>Default*</c> fields keep their prefix all the way out to the client. S-06 copies them
-/// onto an occurrence at creation; nothing ever resolves an occurrence's capacity through them
-/// (prd-v2 FR-007), and the naming is what keeps that obvious at the call site.
-/// </para>
-/// </summary>
-public record ClassTypeSummary(
-    Guid Id,
-    string Name,
-    string? Description,
-    int DefaultDurationMinutes,
-    int DefaultCapacity,
-    bool IsActive,
-    DateTimeOffset CreatedAt);
-
-/// <summary>
-/// Create/edit payload. Same shape for both — an edit replaces every field, like
-/// <see cref="ClassRequest"/>.
-///
-/// <para>
-/// <c>IsActive</c> is deliberately ABSENT. Activation has its own two endpoints, so a careless edit
-/// cannot silently resurrect a type the admin retired — the same reasoning that keeps block/unblock
-/// off the member edit surface.
-/// </para>
-/// </summary>
-public record ClassTypeRequest(
-    string Name,
-    string? Description,
-    int DefaultDurationMinutes,
-    int DefaultCapacity);
-
-/// <summary>
-/// Why a class-type write was refused. All 400 except <c>name_taken</c>, which is a 409 — it is a
-/// conflict with existing state rather than bad input, exactly like <c>room_conflict</c>.
-///
-/// <para>
-/// Reasons: <c>missing_field</c>, <c>name_too_long</c>, <c>description_too_long</c>,
-/// <c>invalid_duration</c>, <c>invalid_capacity</c>, <c>name_taken</c>. Adding one here means adding
-/// it to the SPA's ClassTypeFailure union too — that type mirrors this one field for field.
-/// </para>
-/// </summary>
-public record ClassTypeFailure(string Reason);
-
-/// <summary>
 /// The admin's class-type definitions (prd-v2 FR-004, FR-005, FR-006, FR-007) — the layer that gives
 /// a class an identity outliving any single week.
 ///
@@ -366,39 +313,4 @@ public static class ClassTypeEndpoints
             entity.DefaultCapacity,
             entity.IsActive,
             entity.CreatedAt);
-}
-
-/// <summary>
-/// Narrow read seam over the class-type table, so Application does not reference EF Core (AGENTS.md
-/// layering). Implemented in Infrastructure.
-/// </summary>
-public interface IClassTypeQuery
-{
-    /// <summary>Every type, active first and then by name. Unbounded — see GetAllAsync.</summary>
-    Task<IReadOnlyList<ClassTypeSummary>> GetAllAsync(CancellationToken cancellationToken);
-}
-
-/// <summary>
-/// The write counterpart. Intention-revealing methods rather than a generic repository — this
-/// codebase has no repository pattern and this slice does not introduce one.
-///
-/// No Remove. FR-006 rules out hard deletion; deactivation is a field on the entity, not an
-/// operation on the store.
-///
-/// Nothing here saves. The endpoint commits through <see cref="IUnitOfWork"/>.
-/// </summary>
-public interface IClassTypeStore
-{
-    Task<ClassType?> FindAsync(Guid id, CancellationToken cancellationToken);
-
-    void Add(ClassType entity);
-
-    /// <summary>
-    /// Whether another ACTIVE type already holds <paramref name="name"/>. Inactive types are
-    /// invisible here, which is what lets a retired name be reused (FR-006).
-    /// </summary>
-    /// <param name="excludingId">
-    /// The type being edited or activated, so it does not collide with itself. Null when creating.
-    /// </param>
-    Task<bool> IsNameTakenAsync(string name, Guid? excludingId, CancellationToken cancellationToken);
 }

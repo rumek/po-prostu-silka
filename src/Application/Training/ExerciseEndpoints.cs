@@ -5,77 +5,6 @@ using po_prostu_silka.Domain.Training;
 namespace po_prostu_silka.Application.Training;
 
 /// <summary>
-/// One exercise as the admin's list, detail screen and form see it. This is a CONTRACT the SPA's
-/// exercise service mirrors — renaming a field breaks three screens silently.
-///
-/// <para>
-/// ONE SHAPE SERVES BOTH THE LIST AND THE DETAIL SCREEN. A trimmed list DTO would save a few
-/// kilobytes on a library of dozens of rows and cost a second contract to keep in step with this
-/// one; the list simply ignores the fields it does not render.
-/// </para>
-///
-/// <para>
-/// <see cref="VideoId"/> crosses the wire as the bare 11-character id, never a URL. The client
-/// composes the thumbnail (img.youtube.com) and the player (youtube-nocookie.com) from it, so the
-/// API carries no derived URLs that could drift from each other.
-/// </para>
-/// </summary>
-public record ExerciseSummary(
-    Guid Id,
-    string Name,
-    string? Description,
-    string? MuscleGroup,
-    string? Difficulty,
-    string? Equipment,
-    string? Preparation,
-    string? StartingPosition,
-    string? Execution,
-    string? VideoId,
-    bool IsActive,
-    DateTimeOffset CreatedAt);
-
-/// <summary>
-/// Create/edit payload. Same shape for both — an edit replaces every field.
-///
-/// <para>
-/// It carries <c>VideoUrl</c>, not a video id: the client sends whatever the admin pasted and the
-/// SERVER owns the parsing (<see cref="YouTubeVideoId"/>). Accepting an id here instead would move
-/// that parse into the browser, where a second implementation would eventually disagree with this
-/// one.
-/// </para>
-///
-/// <para>
-/// <c>IsActive</c> is deliberately ABSENT, exactly as in <see cref="Scheduling.ClassTypeRequest"/>:
-/// activation has its own two endpoints, so a careless edit cannot resurrect a retired exercise.
-/// </para>
-/// </summary>
-public record ExerciseRequest(
-    string Name,
-    string? Description,
-    string? MuscleGroup,
-    string? Difficulty,
-    string? Equipment,
-    string? Preparation,
-    string? StartingPosition,
-    string? Execution,
-    string? VideoUrl);
-
-/// <summary>
-/// Why an exercise write was refused. All 400 except <c>name_taken</c>, which is a 409 — it is a
-/// conflict with existing state rather than bad input.
-///
-/// <para>
-/// Reasons: <c>missing_field</c>, <c>name_too_long</c>, <c>description_too_long</c>,
-/// <c>muscle_group_too_long</c>, <c>difficulty_too_long</c>, <c>equipment_too_long</c>,
-/// <c>preparation_too_long</c>, <c>starting_position_too_long</c>, <c>execution_too_long</c>,
-/// <c>invalid_video_url</c>, <c>name_taken</c>. Adding one here means adding it to the SPA's
-/// ExerciseFailure union too — that type mirrors this one field for field, and the form maps each
-/// reason onto the control that owns it.
-/// </para>
-/// </summary>
-public record ExerciseFailure(string Reason);
-
-/// <summary>
 /// The admin's exercise library (prd.md FR-018, FR-019) — the first surface in the training context
 /// and the vocabulary S-11's training plans will be assembled from.
 ///
@@ -475,38 +404,4 @@ public static class ExerciseEndpoints
             entity.VideoId,
             entity.IsActive,
             entity.CreatedAt);
-}
-
-/// <summary>
-/// Narrow read seam over the exercise table, so Application does not reference EF Core (AGENTS.md
-/// layering). Implemented in Infrastructure.
-/// </summary>
-public interface IExerciseQuery
-{
-    /// <summary>Every exercise, active first and then by name. Unbounded — see GetAllAsync.</summary>
-    Task<IReadOnlyList<ExerciseSummary>> GetAllAsync(CancellationToken cancellationToken);
-}
-
-/// <summary>
-/// The write counterpart. Intention-revealing methods rather than a generic repository — this
-/// codebase has no repository pattern and this slice does not introduce one.
-///
-/// No Remove. Deactivation is a field on the entity, not an operation on the store.
-///
-/// Nothing here saves. The endpoint commits through <see cref="IUnitOfWork"/>.
-/// </summary>
-public interface IExerciseStore
-{
-    Task<Exercise?> FindAsync(Guid id, CancellationToken cancellationToken);
-
-    void Add(Exercise entity);
-
-    /// <summary>
-    /// Whether another ACTIVE exercise already holds <paramref name="name"/>. Inactive rows are
-    /// invisible here, which is what lets a retired name be reused.
-    /// </summary>
-    /// <param name="excludingId">
-    /// The exercise being edited or activated, so it does not collide with itself. Null when creating.
-    /// </param>
-    Task<bool> IsNameTakenAsync(string name, Guid? excludingId, CancellationToken cancellationToken);
 }

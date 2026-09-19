@@ -334,8 +334,13 @@ break production; the deploy workflow is only exercised on merge.
 
 ### Overview
 
-Empty the `*Endpoints` files of every declaration — the nine cross-context ports and all 49 DTO
-records — into their own files under `Application`. The endpoint files keep their routes and handlers;
+Empty the `*Endpoints` files of every declaration — **15 interfaces, 49 DTO records and 1 enum, 65 in
+total** — into their own files under `Application`. **Adapted during implementation.** The plan said
+"nine ports": research §D had enumerated only the nine that are consumed ACROSS contexts, but six more
+interfaces are declared in these files (`IMembershipPassQuery`, `ITrainerQuery`, `IVapidPublicKey`,
+`IPushSubscriptionStore`, `IClassScheduleQuery`, `IClassTypeQuery`, `IExerciseQuery`, `IExerciseStore`,
+`ITrainingPlanStore`), plus the `MemberListFilter` enum. All of them have to leave for the same reason:
+the file they live in moves to `Api` in phase 7. The endpoint files keep their routes and handlers;
 only declarations move. This is the prerequisite for every handler split **and** the reason phase 7
 compiles: whatever is still declared in a `*Endpoints.cs` file moves to `Api` with it.
 
@@ -390,6 +395,13 @@ both sides; not one string changes. Two records carry documented cross-file cons
 
 A record used only by its own handler may sit in that handler's file once phases 3–6 create it — but it
 must leave the `*Endpoints.cs` file here regardless, because that file is what moves in phase 7.
+
+**Adapted during implementation: the `using` block is copied wholesale.** Each extracted file carries
+its source endpoint file's complete `using` block rather than a minimised one. Unused `using`s are not
+compiler warnings, so this costs nothing at the 0-warnings bar and removes a whole class of extraction
+error; the alternative — deriving the minimal set per declaration — would have been the one step in
+this phase capable of silently dropping a needed import. Tidying them is a `dotnet format` follow-up,
+not this slice's business.
 
 #### 3. The two `internal` cross-file members
 
@@ -803,37 +815,37 @@ revert is atomic.
 
 #### Automated
 
-- [x] 1.1 Capture both baselines before any move: migration script + list (22), and route literals (18 lines / 16 unique) to `<scratch>/routes-before.txt`
-- [x] 1.2 `dotnet build po-prostu-silka.slnx -c Release` → 0 warnings, 0 errors
-- [x] 1.3 Layering greps return nothing
-- [x] 1.4 Migration script byte-identical (`diff before.sql after.sql` empty)
-- [x] 1.5 `dotnet ef migrations list` shows the same 22 in the same order
-- [x] 1.6 `dotnet test po-prostu-silka.slnx` green, no test file edited
-- [x] 1.7 `git diff --stat` shows every `.cs` as pure rename or unchanged
+- [x] 1.1 Capture both baselines before any move: migration script + list (22), and route literals (18 lines / 16 unique) to `<scratch>/routes-before.txt` — f5b58f0
+- [x] 1.2 `dotnet build po-prostu-silka.slnx -c Release` → 0 warnings, 0 errors — f5b58f0
+- [x] 1.3 Layering greps return nothing — f5b58f0
+- [x] 1.4 Migration script byte-identical (`diff before.sql after.sql` empty) — f5b58f0
+- [x] 1.5 `dotnet ef migrations list` shows the same 22 in the same order — f5b58f0
+- [x] 1.6 `dotnet test po-prostu-silka.slnx` green, no test file edited — f5b58f0
+- [x] 1.7 `git diff --stat` shows every `.cs` as pure rename or unchanged — f5b58f0
 
 #### Manual
 
-- [x] 1.8 CS-01 proof: EF Core using in Application fails the build; probe reverted
-- [x] 1.9 `GET /health` connects against Docker SQL Server
-- [x] 1.10 `npm run e2e:stage` writes to `src/Api/wwwroot/` and the SPA is served
-- [ ] 1.11 `git log --follow` reaches first commit on `src/Api/Program.cs` (check AFTER the phase commit)
-- [x] 1.12 `src/wwwroot/` left on disk by decision — untracked, gitignored, owned by no project
+- [x] 1.8 CS-01 proof: EF Core using in Application fails the build; probe reverted — f5b58f0
+- [x] 1.9 `GET /health` connects against Docker SQL Server — f5b58f0
+- [x] 1.10 `npm run e2e:stage` writes to `src/Api/wwwroot/` and the SPA is served — f5b58f0
+- [x] 1.11 `git log --follow` reaches first commit on `src/Api/Program.cs` (check AFTER the phase commit) — f5b58f0
+- [x] 1.12 `src/wwwroot/` left on disk by decision — untracked, gitignored, owned by no project — f5b58f0
 
 ### Phase 2: Ports and contracts
 
 #### Automated
 
-- [ ] 2.1 `dotnet build po-prostu-silka.slnx -c Release` → 0 warnings, 0 errors
-- [ ] 2.2 `dotnet test po-prostu-silka.slnx` green, no test file edited
-- [ ] 2.3 `EndpointAuthorizationTests` green
-- [ ] 2.4 No new `using po_prostu_silka.Infrastructure` in Application/Domain
-- [ ] 2.5 No record or interface left in an endpoint file — grep returns 0 for all 13
+- [x] 2.1 `dotnet build po-prostu-silka.slnx -c Release` → 0 warnings, 0 errors
+- [x] 2.2 `dotnet test po-prostu-silka.slnx` green, no test file edited
+- [x] 2.3 `EndpointAuthorizationTests` green
+- [x] 2.4 No new `using po_prostu_silka.Infrastructure` in Application/Domain
+- [x] 2.5 No record, interface or enum left in an endpoint file — grep returns 0 for all 13 (65 declarations moved)
 
 #### Manual
 
-- [ ] 2.6 Moved interfaces and records byte-identical apart from indentation
-- [ ] 2.7 No `*Endpoints` file declares an interface
-- [ ] 2.8 The 16 `*Failure` records kept every `reason` string unchanged
+- [x] 2.6 Moved interfaces and records byte-identical apart from indentation
+- [x] 2.7 No `*Endpoints` file declares an interface
+- [x] 2.8 The 16 `*Failure` records kept every `reason` string unchanged
 
 ### Phase 3: Handler split — pilot
 

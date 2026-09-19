@@ -8,7 +8,7 @@ namespace po_prostu_silka.Application.Notifications;
 /// A class as a MESSAGE names it: the four things a member recognises it by.
 ///
 /// <para>
-/// PASSED IN RATHER THAN READ OFF THE ENTITY, for the reason ClassEndpoints.ToDto records. An
+/// PASSED IN RATHER THAN READ OFF THE ENTITY, for the reason ClassDtoMapping.ToDto records. An
 /// occurrence carries neither its type's name nor its instructor's display name (prd-v2 FR-007,
 /// FR-009), and after a trainer reassignment the tracked entity's Instructor navigation still points
 /// at the PREVIOUS account — so a service reaching through navigations would render a stale name in
