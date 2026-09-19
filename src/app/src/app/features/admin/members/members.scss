@@ -1,19 +1,5 @@
 // Layout only — .card/.button/.alert/.notice/.field-error/.hint/.badge come from src/styles.scss.
 
-// The title and the "add a member" action share a line on a wide screen and stack on a phone, which
-// is where this screen is actually used.
-.members-header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-
-  h1 {
-    margin: 0;
-  }
-}
-
 .members-controls {
   display: flex;
   flex-wrap: wrap;
@@ -183,17 +169,6 @@
 .empty {
   margin: 0;
   color: var(--muted);
-}
-
-// A button that reads as a link, for the retry inside the error banner.
-.link-button {
-  padding: 0;
-  border: 0;
-  background: none;
-  color: inherit;
-  font: inherit;
-  text-decoration: underline;
-  cursor: pointer;
 }
 
 // Present for screen readers, absent visually — the search input's label.

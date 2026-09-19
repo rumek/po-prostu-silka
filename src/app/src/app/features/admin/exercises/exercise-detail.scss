@@ -1,22 +1,5 @@
-// Layout only — .card/.button/.alert/.notice/.badge/.hint come from src/styles.scss.
-
-.exercise-detail-header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-4);
-}
-
-.exercise-detail-header h1 {
-  margin: 0;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-3);
-  overflow-wrap: anywhere;
-}
-
+// Layout only — .card/.button/.alert/.notice/.badge/.hint and .page-header come from
+// src/styles.scss.
 .exercise-detail-actions {
   display: flex;
   flex-wrap: wrap;
@@ -85,16 +68,6 @@
 .empty {
   margin: 0;
   color: var(--muted);
-}
-
-.link-button {
-  padding: 0;
-  border: 0;
-  background: none;
-  color: inherit;
-  font: inherit;
-  text-decoration: underline;
-  cursor: pointer;
 }
 
 @media (max-width: 30rem) {

@@ -137,7 +137,7 @@ describe('Plans', () => {
     expect(root.querySelector<HTMLAnchorElement>('.plans-actions a')!.getAttribute('href')).toBe(
       '/trainer/plans/p1',
     );
-    expect(root.querySelector<HTMLAnchorElement>('.plans-header a')!.getAttribute('href')).toBe(
+    expect(root.querySelector<HTMLAnchorElement>('.page-header a')!.getAttribute('href')).toBe(
       '/trainer/plans/new',
     );
   });

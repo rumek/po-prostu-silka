@@ -5,6 +5,7 @@ import { MyBooking } from '../../core/scheduling/booking.models';
 import { classifyFailure } from '../../core/http/failure';
 import { transportMessage } from '../../core/http/transport-messages';
 import { ClassSummary } from '../../shared/class-summary/class-summary';
+import { createLoadFence } from '../../shared/forms/load-fence';
 
 /**
  * The member's upcoming bookings (prd.md FR-010).
@@ -47,14 +48,14 @@ export class MyClasses implements OnInit {
    * Same fence as `schedule.ts`. There is no navigation here, but a reload racing a first load is
    * still two responses that can land in either order.
    */
-  private generation = 0;
+  private readonly fence = createLoadFence();
 
   ngOnInit(): void {
     void this.load();
   }
 
   protected async load(): Promise<void> {
-    const generation = ++this.generation;
+    const generation = this.fence.begin();
 
     this.loading.set(true);
     this.loadFailed.set(false);
@@ -62,20 +63,20 @@ export class MyClasses implements OnInit {
     try {
       const rows = await this.bookings.getMine();
 
-      if (generation !== this.generation) {
+      if (!this.fence.isCurrent(generation)) {
         return;
       }
 
       this.rows.set(rows);
     } catch (failure) {
-      if (generation !== this.generation) {
+      if (!this.fence.isCurrent(generation)) {
         return;
       }
 
       this.loadMessage.set(transportMessage(classifyFailure(failure)));
       this.loadFailed.set(true);
     } finally {
-      if (generation === this.generation) {
+      if (this.fence.isCurrent(generation)) {
         this.loading.set(false);
       }
     }

@@ -37,16 +37,6 @@
   margin-top: var(--space-5);
 }
 
-.link-button {
-  padding: 0;
-  border: 0;
-  background: none;
-  color: inherit;
-  font: inherit;
-  text-decoration: underline;
-  cursor: pointer;
-}
-
 @media (max-width: 30rem) {
   .class-type-form-actions .button {
     width: 100%;

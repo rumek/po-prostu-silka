@@ -16,6 +16,8 @@ import {
 } from '../../../shared/calendar/schedule-calendar';
 import { ClassBookingsOverlay } from './class-bookings-overlay';
 import { ClassCreateOverlay } from './class-create-overlay';
+import { createBusySet } from '../../../shared/forms/busy-set';
+import { createLoadFence } from '../../../shared/forms/load-fence';
 
 /**
  * The admin's class management (prd-v2 FR-011, FR-012, FR-017).
@@ -60,8 +62,8 @@ export class Classes {
   /** The window the calendar is showing. Null until its first emission, which is the first load. */
   protected readonly range = signal<CalendarRange | null>(null);
 
-  /** Ids with an action in flight. */
-  protected readonly busy = signal<ReadonlySet<string>>(new Set());
+  /** Rows with a mutation in flight, so one slow row does not disable the whole list. */
+  protected readonly busy = createBusySet();
 
   /** Id of the row whose action failed. Cleared when another action starts. */
   protected readonly failedId = signal<string | null>(null);
@@ -115,7 +117,7 @@ export class Classes {
   });
 
   /** See members.ts — nothing cancels an in-flight request, so the last RESPONSE would otherwise win. */
-  private generation = 0;
+  private readonly fence = createLoadFence();
 
   protected async load(range: CalendarRange): Promise<void> {
     this.range.set(range);
@@ -128,24 +130,24 @@ export class Classes {
     this.viewingBookings.set(null);
     this.drawn.set(null);
 
-    const generation = ++this.generation;
+    const generation = this.fence.begin();
 
     this.loading.set(true);
     this.loadFailed.set(false);
 
     try {
       const rows = await this.classes.getAdminClasses(range.from, range.to);
-      if (generation !== this.generation) {
+      if (!this.fence.isCurrent(generation)) {
         return;
       }
       this.rows.set(rows);
     } catch {
-      if (generation !== this.generation) {
+      if (!this.fence.isCurrent(generation)) {
         return;
       }
       this.loadFailed.set(true);
     } finally {
-      if (generation === this.generation) {
+      if (this.fence.isCurrent(generation)) {
         this.loading.set(false);
       }
     }
@@ -197,7 +199,7 @@ export class Classes {
     // The rollback below replaces the WHOLE row array, so it has to be fenced like every other write
     // here: navigating to another week while the PUT is in flight would otherwise restore the
     // previous window's rows over the one now on screen.
-    const generation = this.generation;
+    const generation = this.fence.current();
 
     this.failedId.set(null);
     this.rows.update((rows) =>
@@ -207,7 +209,7 @@ export class Classes {
           : candidate,
       ),
     );
-    this.setBusy(row.id, true);
+    this.busy.setBusy(row.id, true);
 
     try {
       await this.classes.update(row.id, {
@@ -218,7 +220,7 @@ export class Classes {
         capacity: row.capacity,
       });
     } catch (failure) {
-      if (generation !== this.generation) {
+      if (!this.fence.isCurrent(generation)) {
         // A different week is on screen. Neither the rows nor the message belong to it any more.
         return;
       }
@@ -230,7 +232,7 @@ export class Classes {
 
       this.toast.error(messageFor(failure));
     } finally {
-      this.setBusy(row.id, false);
+      this.busy.setBusy(row.id, false);
     }
   }
 
@@ -298,7 +300,7 @@ export class Classes {
 
   protected async duplicate(row: ScheduledClass): Promise<void> {
     this.failedId.set(null);
-    this.setBusy(row.id, true);
+    this.busy.setBusy(row.id, true);
 
     try {
       const result = await this.classes.duplicate(row.id, this.weeks());
@@ -334,7 +336,7 @@ export class Classes {
       this.toast.error(messageFor(failure));
       this.failedId.set(row.id);
     } finally {
-      this.setBusy(row.id, false);
+      this.busy.setBusy(row.id, false);
     }
   }
 
@@ -352,7 +354,7 @@ export class Classes {
 
   protected async remove(row: ScheduledClass): Promise<void> {
     this.failedId.set(null);
-    this.setBusy(row.id, true);
+    this.busy.setBusy(row.id, true);
 
     try {
       await this.classes.remove(row.id);
@@ -378,7 +380,7 @@ export class Classes {
         this.deleteBlockedBy.set(row);
       }
     } finally {
-      this.setBusy(row.id, false);
+      this.busy.setBusy(row.id, false);
     }
   }
 
@@ -433,15 +435,15 @@ export class Classes {
   protected async cancel(row: ScheduledClass): Promise<void> {
     this.failedId.set(null);
     this.deleteBlockedBy.set(null);
-    this.setBusy(row.id, true);
+    this.busy.setBusy(row.id, true);
 
-    const generation = this.generation;
+    const generation = this.fence.current();
     const told = this.bookedCount(row);
 
     try {
       await this.classes.cancel(row.id);
 
-      if (generation !== this.generation) {
+      if (!this.fence.isCurrent(generation)) {
         return;
       }
 
@@ -456,7 +458,7 @@ export class Classes {
           : `Odwołano „${row.name}”. Powiadomiliśmy ${told} ${this.peopleWord(told)}.`,
       );
     } catch (failure) {
-      if (generation !== this.generation) {
+      if (!this.fence.isCurrent(generation)) {
         return;
       }
 
@@ -464,7 +466,7 @@ export class Classes {
       this.toast.error(messageFor(failure));
       this.failedId.set(row.id);
     } finally {
-      this.setBusy(row.id, false);
+      this.busy.setBusy(row.id, false);
     }
   }
 
@@ -475,10 +477,6 @@ export class Classes {
     if (row) {
       this.confirmCancel(row);
     }
-  }
-
-  protected isBusy(id: string): boolean {
-    return this.busy().has(id);
   }
 
   /** Polish plural for "kopia" — 1 kopię, 2–4 kopie, else kopii. */
@@ -505,18 +503,6 @@ export class Classes {
     const isFew = last >= 2 && last <= 4 && !(lastTwo >= 12 && lastTwo <= 14);
 
     return isFew ? 'osoby' : 'osób';
-  }
-
-  private setBusy(id: string, value: boolean): void {
-    this.busy.update((ids) => {
-      const next = new Set(ids);
-      if (value) {
-        next.add(id);
-      } else {
-        next.delete(id);
-      }
-      return next;
-    });
   }
 }
 

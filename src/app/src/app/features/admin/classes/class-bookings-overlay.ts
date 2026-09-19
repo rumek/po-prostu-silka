@@ -9,6 +9,8 @@ import { transportMessage } from '../../../core/http/transport-messages';
 import { BookingService } from '../../../core/scheduling/booking.service';
 import { ClassBooking } from '../../../core/scheduling/booking.models';
 import { ScheduledClass } from '../../../core/scheduling/class.models';
+import { createBusySet } from '../../../shared/forms/busy-set';
+import { useOverlayFocus } from '../../../shared/forms/overlay-focus';
 
 /**
  * Who signed up for a class, and the action to release a spot (prd.md FR-014).
@@ -44,6 +46,10 @@ import { ScheduledClass } from '../../../core/scheduling/class.models';
   templateUrl: './class-bookings-overlay.html',
 })
 export class ClassBookingsOverlay implements OnInit {
+  // Focus enters the panel on open and returns to whatever opened it on close — the half of
+  // `role="dialog" aria-modal="true"` these three overlays declared and never did (S-19).
+  private readonly focus = useOverlayFocus();
+
   private readonly bookings = inject(BookingService);
   private readonly members = inject(MemberAdminService);
 
@@ -64,8 +70,8 @@ export class ClassBookingsOverlay implements OnInit {
   protected readonly loading = signal(true);
   protected readonly loadFailed = signal(false);
 
-  /** Booking ids with a release in flight, so one slow row does not disable the rest. */
-  protected readonly busy = signal<ReadonlySet<string>>(new Set());
+  /** Rows with a mutation in flight, so one slow row does not disable the whole list. */
+  protected readonly busy = createBusySet();
 
   /** The booking whose release failed, and what to say about it. */
   protected readonly failedId = signal<string | null>(null);
@@ -172,7 +178,7 @@ export class ClassBookingsOverlay implements OnInit {
    * screen is told, so the tile behind this overlay stops disagreeing with the list in front of it.
    */
   protected async release(booking: ClassBooking): Promise<void> {
-    this.setBusy(booking.bookingId, true);
+    this.busy.setBusy(booking.bookingId, true);
     this.failedId.set(null);
     this.failure.set(null);
 
@@ -192,27 +198,11 @@ export class ClassBookingsOverlay implements OnInit {
       this.failedId.set(booking.bookingId);
       this.failure.set(transportMessage(info) ?? bookingFailureMessage(info.reason));
     } finally {
-      this.setBusy(booking.bookingId, false);
+      this.busy.setBusy(booking.bookingId, false);
     }
-  }
-
-  protected isBusy(bookingId: string): boolean {
-    return this.busy().has(bookingId);
   }
 
   protected close(): void {
     this.closed.emit();
-  }
-
-  private setBusy(bookingId: string, value: boolean): void {
-    this.busy.update((ids) => {
-      const next = new Set(ids);
-      if (value) {
-        next.add(bookingId);
-      } else {
-        next.delete(bookingId);
-      }
-      return next;
-    });
   }
 }

@@ -11,6 +11,7 @@ import { ClassTypeService } from '../../../core/scheduling/class-type.service';
 import { ClassTypeSummary } from '../../../core/scheduling/class-type.models';
 import { DrawnRange } from '../../../shared/calendar/schedule-calendar';
 import { MAX_CAPACITY, MAX_DURATION, MIN_CAPACITY, MIN_DURATION } from './class-form';
+import { useOverlayFocus } from '../../../shared/forms/overlay-focus';
 
 function inRange(value: number, min: number, max: number): boolean {
   return Number.isInteger(value) && value >= min && value <= max;
@@ -45,6 +46,10 @@ function inRange(value: number, min: number, max: number): boolean {
   templateUrl: './class-create-overlay.html',
 })
 export class ClassCreateOverlay implements OnInit {
+  // Focus enters the panel on open and returns to whatever opened it on close — the half of
+  // `role="dialog" aria-modal="true"` these three overlays declared and never did (S-19).
+  private readonly focus = useOverlayFocus();
+
   private readonly classes = inject(ClassService);
   private readonly classTypes = inject(ClassTypeService);
   private readonly members = inject(MemberAdminService);

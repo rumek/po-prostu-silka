@@ -736,6 +736,24 @@ returns focus to its opener on close — the pattern `members.ts:513-525` alread
 the row menu. `class-create-overlay.scss:32-35` gains the `overflow-wrap: anywhere` the other
 two have.
 
+**Adapted during implementation.** Three things:
+
+1. **`.link-button` was copied 18 times, not three.** The plan expected a local reset inside the
+   three overlays; sixteen copies were byte-identical, one carried a `[disabled]` rule and one had
+   decayed to a single property. All eighteen are gone and the `[disabled]` rule was folded into the
+   one global copy.
+2. **The overlays' fixed layer stays local.** The shared chrome is everything INSIDE the overlay —
+   the layer itself is each component's `:host`, which a global class cannot reach.
+3. **Focus is handled by a helper, not by three copies of the `members.ts` pattern.**
+   `shared/forms/overlay-focus.ts` reads `document.activeElement` at construction (the overlay is
+   opened by a click, so that IS the opener), focuses the panel after the first render, and restores
+   on destroy — guarding against an opener the action itself removed from the document. Focus lands
+   on the PANEL rather than its first control, so the dialog announces its own title.
+
+**Bundle outcome:** 512.42 kB initial against the 550 kB warning — measured at the end of Phase 2
+(509.68 kB) and again here. The threshold did not move; the number is recorded in `AGENTS.md`
+anyway, so the next reader knows it was measured rather than assumed.
+
 #### 5. Close-out
 
 **Files**: `AGENTS.md`, `context/foundation/lessons.md` (if a rule earned its place)
@@ -912,10 +930,10 @@ cost of migrating by area rather than in one commit, and it is bounded by Phase 
 
 #### Automated
 
-- [x] 6.1 Unit tests pass: `npm test` from `src/app/`
-- [x] 6.2 `dashboard.spec.ts` passes without modification
-- [x] 6.3 No `HttpErrorResponse` unwrap remains anywhere under `features/`
-- [x] 6.4 Lint and format pass: `npm run quality:check` from `src/app/`
+- [x] 6.1 Unit tests pass: `npm test` from `src/app/` — 18343d1
+- [x] 6.2 `dashboard.spec.ts` passes without modification — 18343d1
+- [x] 6.3 No `HttpErrorResponse` unwrap remains anywhere under `features/` — 18343d1
+- [x] 6.4 Lint and format pass: `npm run quality:check` from `src/app/` — 18343d1
 
 #### Manual
 
@@ -927,11 +945,11 @@ cost of migrating by area rather than in one commit, and it is bounded by Phase 
 
 #### Automated
 
-- [ ] 7.1 Unit tests pass: `npm test` from `src/app/`
-- [ ] 7.2 Backend tests still pass, untouched: `dotnet test` from the repo root
-- [ ] 7.3 Lint and format pass: `npm run quality:check` from `src/app/`
-- [ ] 7.4 Build succeeds and reports the initial bundle: `npm run build`
-- [ ] 7.5 No `reject(`, `setBusy(` or generation-counter declaration remains outside `shared/`
+- [x] 7.1 Unit tests pass: `npm test` from `src/app/`
+- [x] 7.2 Backend tests still pass, untouched: `dotnet test` from the repo root
+- [x] 7.3 Lint and format pass: `npm run quality:check` from `src/app/`
+- [x] 7.4 Build succeeds and reports the initial bundle: `npm run build`
+- [x] 7.5 No `reject(`, `setBusy(` or generation-counter declaration remains outside `shared/`
 
 #### Manual
 

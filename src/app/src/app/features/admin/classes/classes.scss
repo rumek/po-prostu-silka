@@ -1,21 +1,3 @@
-// Layout only — .card/.button/.button--secondary/.alert/.notice/.field-error/.hint come from
-// src/styles.scss, and the calendar's own layout from shared/calendar/schedule-calendar.scss.
-//
-// The list styles this file used to carry (.classes, .classes-row, .classes-identity, …) went away
-// with S-07: the calendar renders the classes now, and the tile is styled where the tile lives.
-
-.classes-header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-4);
-}
-
-.classes-header h1 {
-  margin: 0;
-}
-
 .classes-past {
   margin-bottom: var(--space-4);
 }
@@ -53,21 +35,6 @@
   // 16px minimum, or iOS Safari zooms the viewport on focus — same rule as .field input.
   font: inherit;
   font-size: 1rem;
-}
-
-.link-button {
-  padding: 0;
-  border: 0;
-  background: none;
-  color: inherit;
-  font: inherit;
-  text-decoration: underline;
-  cursor: pointer;
-
-  &[disabled] {
-    color: var(--muted);
-    cursor: default;
-  }
 }
 
 // The cancel panel says more than "na pewno?" — it names how many people are about to be emailed —

@@ -1,18 +1,3 @@
-// Layout only — .card/.button/.button--secondary/.alert/.notice/.field-error/.hint/.badge come from
-// src/styles.scss and follow the members screen's badge conventions.
-
-.class-types-header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-4);
-}
-
-.class-types-header h1 {
-  margin: 0;
-}
-
 .class-types-controls {
   margin-bottom: var(--space-4);
 }
@@ -88,16 +73,6 @@
 .empty {
   margin: 0;
   color: var(--muted);
-}
-
-.link-button {
-  padding: 0;
-  border: 0;
-  background: none;
-  color: inherit;
-  font: inherit;
-  text-decoration: underline;
-  cursor: pointer;
 }
 
 @media (max-width: 30rem) {

@@ -11,7 +11,7 @@
     <button type="button" class="link-button" (click)="load()">Spróbuj ponownie</button>
   </p>
 } @else if (exercise(); as row) {
-  <div class="plan-exercise-header">
+  <div class="page-header page-header--detail">
     <h1>{{ row.name }}</h1>
     <a class="link-button" routerLink="/my-plan">Wróć do planu</a>
   </div>

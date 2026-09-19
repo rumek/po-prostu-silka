@@ -6,6 +6,7 @@ import { classifyFailure } from '../../core/http/failure';
 import { transportMessage } from '../../core/http/transport-messages';
 import { CalendarRange, ScheduleCalendar } from '../../shared/calendar/schedule-calendar';
 import { ClassDetailsOverlay } from './class-details-overlay/class-details-overlay';
+import { createLoadFence } from '../../shared/forms/load-fence';
 
 /**
  * The member's schedule (prd.md FR-007, FR-008, FR-009; prd-v2 FR-015, FR-016, FR-018).
@@ -71,7 +72,7 @@ export class Schedule {
    * loser would overwrite the week actually on screen. The single fetch this screen used to do could
    * not race with anything; navigation is what made it possible. Same guard as classes.ts.
    */
-  private generation = 0;
+  private readonly fence = createLoadFence();
 
   /** Driven by the calendar's rangeChange, which fires on init too — hence no ngOnInit. */
   protected async load(range: CalendarRange): Promise<void> {
@@ -80,7 +81,7 @@ export class Schedule {
     // A window change invalidates the open overlay: its class may not even be on screen any more.
     this.closeDetails();
 
-    const generation = ++this.generation;
+    const generation = this.fence.begin();
 
     this.loading.set(true);
     this.loadFailed.set(false);
@@ -95,20 +96,20 @@ export class Schedule {
         this.bookings.getMine(),
       ]);
 
-      if (generation !== this.generation) {
+      if (!this.fence.isCurrent(generation)) {
         return;
       }
 
       this.rows.set(rows);
       this.bookedClassIds.set(new Set(mine.map((booking) => booking.classId)));
     } catch (failure) {
-      if (generation !== this.generation) {
+      if (!this.fence.isCurrent(generation)) {
         return;
       }
       this.loadMessage.set(transportMessage(classifyFailure(failure)));
       this.loadFailed.set(true);
     } finally {
-      if (generation === this.generation) {
+      if (this.fence.isCurrent(generation)) {
         this.loading.set(false);
       }
     }

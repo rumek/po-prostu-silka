@@ -6,6 +6,8 @@ import { classTypeFailureMessage } from '../../../core/scheduling/class-type-fai
 import { classifyFailure } from '../../../core/http/failure';
 import { transportMessage } from '../../../core/http/transport-messages';
 import { ToastService } from '../../../shared/toast/toast.service';
+import { createBusySet } from '../../../shared/forms/busy-set';
+import { createLoadFence } from '../../../shared/forms/load-fence';
 
 /**
  * The admin's class-type definitions (prd-v2 FR-005, FR-006).
@@ -47,8 +49,8 @@ export class ClassTypes implements OnInit {
     () => this.rows().length > 0 && this.visible().length === 0,
   );
 
-  /** Ids with an action in flight. */
-  protected readonly busy = signal<ReadonlySet<string>>(new Set());
+  /** Rows with a mutation in flight, so one slow row does not disable the whole list. */
+  protected readonly busy = createBusySet();
 
   /** Id of the row whose action failed. Cleared when another action starts. */
   protected readonly failedId = signal<string | null>(null);
@@ -64,14 +66,14 @@ export class ClassTypes implements OnInit {
   private readonly toast = inject(ToastService);
 
   /** See members.ts — nothing cancels an in-flight request, so the last RESPONSE would otherwise win. */
-  private generation = 0;
+  private readonly fence = createLoadFence();
 
   async ngOnInit(): Promise<void> {
     await this.load();
   }
 
   protected async load(): Promise<void> {
-    const generation = ++this.generation;
+    const generation = this.fence.begin();
 
     this.loading.set(true);
     this.loadFailed.set(false);
@@ -82,17 +84,17 @@ export class ClassTypes implements OnInit {
 
     try {
       const rows = await this.classTypes.getAll();
-      if (generation !== this.generation) {
+      if (!this.fence.isCurrent(generation)) {
         return;
       }
       this.rows.set(rows);
     } catch {
-      if (generation !== this.generation) {
+      if (!this.fence.isCurrent(generation)) {
         return;
       }
       this.loadFailed.set(true);
     } finally {
-      if (generation === this.generation) {
+      if (this.fence.isCurrent(generation)) {
         this.loading.set(false);
       }
     }
@@ -118,7 +120,7 @@ export class ClassTypes implements OnInit {
    */
   private async setActive(row: ClassTypeSummary, active: boolean): Promise<void> {
     this.failedId.set(null);
-    this.setBusy(row.id, true);
+    this.busy.setBusy(row.id, true);
 
     try {
       const updated = active
@@ -157,23 +159,7 @@ export class ClassTypes implements OnInit {
 
       this.failedId.set(row.id);
     } finally {
-      this.setBusy(row.id, false);
+      this.busy.setBusy(row.id, false);
     }
-  }
-
-  protected isBusy(id: string): boolean {
-    return this.busy().has(id);
-  }
-
-  private setBusy(id: string, value: boolean): void {
-    this.busy.update((ids) => {
-      const next = new Set(ids);
-      if (value) {
-        next.add(id);
-      } else {
-        next.delete(id);
-      }
-      return next;
-    });
   }
 }

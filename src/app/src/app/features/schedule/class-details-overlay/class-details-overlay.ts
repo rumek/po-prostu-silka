@@ -1,6 +1,7 @@
 import { DatePipe } from '@angular/common';
 import { Component, computed, input, output } from '@angular/core';
 import { ScheduledClass } from '../../../core/scheduling/class.models';
+import { useOverlayFocus } from '../../../shared/forms/overlay-focus';
 
 /**
  * One class, as a member reads it (prd.md FR-007; S-16 MP-01).
@@ -36,6 +37,10 @@ import { ScheduledClass } from '../../../core/scheduling/class.models';
   templateUrl: './class-details-overlay.html',
 })
 export class ClassDetailsOverlay {
+  // Focus enters the panel on open and returns to whatever opened it on close — the half of
+  // `role="dialog" aria-modal="true"` these three overlays declared and never did (S-19).
+  private readonly focus = useOverlayFocus();
+
   readonly row = input.required<ScheduledClass>();
 
   /**

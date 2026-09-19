@@ -13,6 +13,7 @@ import { classifyFailure } from '../../../core/http/failure';
 import { transportMessage } from '../../../core/http/transport-messages';
 import { createFormState } from '../../../shared/forms/form-state';
 import { ToastService } from '../../../shared/toast/toast.service';
+import { createLoadFence } from '../../../shared/forms/load-fence';
 
 /**
  * Bounds mirrored from MembershipPassRules (src/Application/Members/MembershipPassRules.cs).
@@ -63,7 +64,7 @@ export class MemberPasses implements OnInit {
 
   protected readonly passes = signal<MembershipPassView[]>([]);
   protected readonly state = createFormState();
-  private generation = 0;
+  private readonly fence = createLoadFence();
 
   /** The pass being edited, or null while the form is issuing a new one. */
   protected readonly editingId = signal<string | null>(null);
@@ -119,7 +120,7 @@ export class MemberPasses implements OnInit {
   }
 
   protected async load(): Promise<void> {
-    const generation = ++this.generation;
+    const generation = this.fence.begin();
 
     this.state.loading.set(true);
     this.state.loadFailed.set(false);
@@ -127,20 +128,20 @@ export class MemberPasses implements OnInit {
     try {
       const rows = await this.members.getPasses(this.memberId());
 
-      if (generation !== this.generation) {
+      if (!this.fence.isCurrent(generation)) {
         return;
       }
 
       this.passes.set(rows);
     } catch {
-      if (generation !== this.generation) {
+      if (!this.fence.isCurrent(generation)) {
         return;
       }
 
       this.passes.set([]);
       this.state.loadFailed.set(true);
     } finally {
-      if (generation === this.generation) {
+      if (this.fence.isCurrent(generation)) {
         this.state.loading.set(false);
       }
     }

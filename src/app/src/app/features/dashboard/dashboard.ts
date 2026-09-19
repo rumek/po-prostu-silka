@@ -12,6 +12,7 @@ import { TrainingPlanService } from '../../core/training/training-plan.service';
 import { TrainingPlanDetail } from '../../core/training/training-plan.models';
 import { ClassSummary } from '../../shared/class-summary/class-summary';
 import { PlanSummary } from '../../shared/plan-summary/plan-summary';
+import { createLoadFence } from '../../shared/forms/load-fence';
 
 /** How many upcoming bookings the member's card shows before deferring to /my-classes (FR-023). */
 const NEAREST_CLASSES = 3;
@@ -66,7 +67,7 @@ export class Dashboard implements OnInit {
    * loser must not write back. A single shared counter would be wrong here, because a retry on one
    * card would then discard an in-flight response belonging to another.
    */
-  private bookingsGeneration = 0;
+  private readonly bookingsFence = createLoadFence();
 
   /**
    * Sliced here, not sorted here. The API already orders by the class's start
@@ -82,7 +83,7 @@ export class Dashboard implements OnInit {
   protected readonly plan = signal<TrainingPlanDetail | null>(null);
   protected readonly planLoading = signal(true);
   protected readonly planFailed = signal(false);
-  private planGeneration = 0;
+  private readonly planFence = createLoadFence();
 
   // --- Member: karnet (S-16, MP-07) --------------------------------------------------------------
 
@@ -96,7 +97,7 @@ export class Dashboard implements OnInit {
   protected readonly pass = signal<MembershipPassView | null>(null);
   protected readonly passLoading = signal(true);
   protected readonly passFailed = signal(false);
-  private passGeneration = 0;
+  private readonly passFence = createLoadFence();
 
   // --- Admin: today and upcoming -----------------------------------------------------------------
 
@@ -104,7 +105,7 @@ export class Dashboard implements OnInit {
   protected readonly upcomingClasses = signal<ScheduledClass[]>([]);
   protected readonly classesLoading = signal(true);
   protected readonly classesFailed = signal(false);
-  private classesGeneration = 0;
+  private readonly classesFence = createLoadFence();
 
   ngOnInit(): void {
     void this.loadBookings();
@@ -125,7 +126,7 @@ export class Dashboard implements OnInit {
   }
 
   protected async loadBookings(): Promise<void> {
-    const generation = ++this.bookingsGeneration;
+    const generation = this.bookingsFence.begin();
 
     this.bookingsLoading.set(true);
     this.bookingsFailed.set(false);
@@ -133,27 +134,27 @@ export class Dashboard implements OnInit {
     try {
       const rows = await this.bookings.getMine();
 
-      if (generation !== this.bookingsGeneration) {
+      if (!this.bookingsFence.isCurrent(generation)) {
         return;
       }
 
       this.allBookings.set(rows);
     } catch {
-      if (generation !== this.bookingsGeneration) {
+      if (!this.bookingsFence.isCurrent(generation)) {
         return;
       }
 
       this.allBookings.set([]);
       this.bookingsFailed.set(true);
     } finally {
-      if (generation === this.bookingsGeneration) {
+      if (this.bookingsFence.isCurrent(generation)) {
         this.bookingsLoading.set(false);
       }
     }
   }
 
   protected async loadPlan(): Promise<void> {
-    const generation = ++this.planGeneration;
+    const generation = this.planFence.begin();
 
     this.planLoading.set(true);
     this.planFailed.set(false);
@@ -161,13 +162,13 @@ export class Dashboard implements OnInit {
     try {
       const plan = await this.plans.getMine();
 
-      if (generation !== this.planGeneration) {
+      if (!this.planFence.isCurrent(generation)) {
         return;
       }
 
       this.plan.set(plan);
     } catch {
-      if (generation !== this.planGeneration) {
+      if (!this.planFence.isCurrent(generation)) {
         return;
       }
 
@@ -176,14 +177,14 @@ export class Dashboard implements OnInit {
       this.plan.set(null);
       this.planFailed.set(true);
     } finally {
-      if (generation === this.planGeneration) {
+      if (this.planFence.isCurrent(generation)) {
         this.planLoading.set(false);
       }
     }
   }
 
   protected async loadPass(): Promise<void> {
-    const generation = ++this.passGeneration;
+    const generation = this.passFence.begin();
 
     this.passLoading.set(true);
     this.passFailed.set(false);
@@ -191,13 +192,13 @@ export class Dashboard implements OnInit {
     try {
       const pass = await this.members.getMyPass();
 
-      if (generation !== this.passGeneration) {
+      if (!this.passFence.isCurrent(generation)) {
         return;
       }
 
       this.pass.set(pass);
     } catch {
-      if (generation !== this.passGeneration) {
+      if (!this.passFence.isCurrent(generation)) {
         return;
       }
 
@@ -206,7 +207,7 @@ export class Dashboard implements OnInit {
       this.pass.set(null);
       this.passFailed.set(true);
     } finally {
-      if (generation === this.passGeneration) {
+      if (this.passFence.isCurrent(generation)) {
         this.passLoading.set(false);
       }
     }
@@ -220,7 +221,7 @@ export class Dashboard implements OnInit {
    * precisely the ones an admin running the day is looking for.
    */
   protected async loadClasses(): Promise<void> {
-    const generation = ++this.classesGeneration;
+    const generation = this.classesFence.begin();
 
     this.classesLoading.set(true);
     this.classesFailed.set(false);
@@ -230,14 +231,14 @@ export class Dashboard implements OnInit {
     try {
       const rows = await this.classes.getAdminClasses(from, to);
 
-      if (generation !== this.classesGeneration) {
+      if (!this.classesFence.isCurrent(generation)) {
         return;
       }
 
       this.todayClasses.set(rows.filter((row) => new Date(row.startsAt) < tomorrow));
       this.upcomingClasses.set(rows.filter((row) => new Date(row.startsAt) >= tomorrow));
     } catch {
-      if (generation !== this.classesGeneration) {
+      if (!this.classesFence.isCurrent(generation)) {
         return;
       }
 
@@ -245,7 +246,7 @@ export class Dashboard implements OnInit {
       this.upcomingClasses.set([]);
       this.classesFailed.set(true);
     } finally {
-      if (generation === this.classesGeneration) {
+      if (this.classesFence.isCurrent(generation)) {
         this.classesLoading.set(false);
       }
     }

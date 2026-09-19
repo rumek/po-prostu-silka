@@ -48,7 +48,7 @@ Backend, from the repo root: `dotnet build po-prostu-silka.slnx`, `dotnet run --
 Frontend, from `src/app/` (npm 11, pinned via `packageManager`): `npm start` (dev server), `npm test` (unit tests via Vitest), `npm run quality:check` / `quality:fix` (Prettier + ESLint — run `quality:check` before committing frontend changes).
 
 - **Node 22+ is required** — the Angular CLI refuses to start below it. If `npm` commands fail with a version complaint, the shell is on an older default; select a newer Node for the command rather than switching the machine's global version.
-- **The initial-bundle warning in `angular.json` is 550 kB** (error at 1 MB), raised from 500 kB in S-12. The original figure was an estimate rather than a measured constraint, and the dashboard at `/` is deliberately eager — a lazy landing route would put a round trip between signing in and seeing anything, for every member, every visit. Keep routes lazy by default anyway: everything except `login`, `register`, `pending` and `/` is, and that is what has kept the eager bundle viable.
+- **The initial-bundle warning in `angular.json` is 550 kB** (error at 1 MB), raised from 500 kB in S-12. The original figure was an estimate rather than a measured constraint, and the dashboard at `/` is deliberately eager — a lazy landing route would put a round trip between signing in and seeing anything, for every member, every visit. Keep routes lazy by default anyway: everything except `login`, `register`, `pending` and `/` is, and that is what has kept the eager bundle viable. **Measured at 512.49 kB after S-19** (from 509.68 kB at that slice's midpoint), so the threshold did not move: the toast host and `@angular/cdk/a11y`'s `LiveAnnouncer` are the first CDK code in the eager chunk and cost roughly 3 kB between them — `cdk/overlay` was declined partly for this reason. The number is recorded because it was measured, not because it became a problem.
 
 ## Style
 
@@ -89,6 +89,23 @@ is a business refusal like any other.
 `z-index` values come from the `--z-*` scale in `src/styles.scss`. Never write a literal: nothing
 in this app opens a stacking context, so every fixed surface resolves at the document root and the
 four numbers only work as a set.
+
+### Shared shapes, not copied ones (S-19)
+
+Six blocks were copied from screen to screen until S-19; each now exists once, and a seventh copy
+is a review finding rather than a style preference:
+
+- `shared/forms/form-state.ts` — the `loading` / `loadFailed` / `submitting` / `error` signals plus
+  `reject(control, errors)`. A FUNCTION held in a field, never a base class: this repo uses no
+  component inheritance and every shared component is standalone.
+- `shared/forms/busy-set.ts` — `setBusy` / `isBusy` per row, so one slow row does not disable a list.
+- `shared/forms/load-fence.ts` — the generation counter. One fence per INDEPENDENT load: the
+  dashboard's four cards hold four, and must keep holding four.
+- `shared/forms/overlay-focus.ts` — focus into the panel on open, back to the opener on close.
+- `.page-header` / `.page-header--detail` in `src/styles.scss` — the eight page headers.
+- `.overlay-backdrop` / `.overlay-panel` / `.overlay-title` / `.overlay-when` / `.overlay-actions`
+  and `.link-button`, also global. The overlay's fixed layer stays each component's own `:host`,
+  because a global class cannot reach it.
 
 ## Commits & CI
 

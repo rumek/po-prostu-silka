@@ -1,24 +1,3 @@
-// Layout only - .card/.alert/.notice come from src/styles.scss. Adapted from the admin's
-// exercise-detail.scss; the badge and the edit-action rules are dropped, since a member sees no
-// activation state and does not maintain the library.
-
-.plan-exercise-header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-4);
-}
-
-.plan-exercise-header h1 {
-  margin: 0;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-3);
-  overflow-wrap: anywhere;
-}
-
 // The one-line facts, as a definition-ish row rather than a table: three optional values that read
 // as labels, not as data to compare across rows.
 .plan-exercise-facts {
@@ -75,14 +54,4 @@
 .empty {
   margin: 0;
   color: var(--muted);
-}
-
-.link-button {
-  padding: 0;
-  border: 0;
-  background: none;
-  color: inherit;
-  font: inherit;
-  text-decoration: underline;
-  cursor: pointer;
 }

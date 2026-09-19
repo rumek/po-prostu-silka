@@ -13,38 +13,11 @@
   padding: var(--space-4);
 }
 
-.overlay-backdrop {
-  position: absolute;
-  inset: 0;
-  // A button reset: it exists for the click target and the keyboard, not for the chrome.
-  border: 0;
-  padding: 0;
-  background: color-mix(in srgb, var(--ink) 35%, transparent);
-  cursor: pointer;
-}
-
+// The one real difference between the three overlays, and the reason it is not in the shared rule:
+// this one holds a list of names and addresses, not a short form. Everything else about the panel
+// comes from src/styles.scss.
 .overlay-panel {
-  position: relative;
-  width: 100%;
-  // Wider than the create overlay: this one holds a list of names and addresses, not a short form.
   max-width: 32rem;
-  max-height: 100%;
-  overflow-y: auto;
-  padding: var(--space-5);
-}
-
-.overlay-title {
-  margin: 0 0 var(--space-2);
-  font-size: 1.125rem;
-  overflow-wrap: anywhere;
-}
-
-.overlay-when {
-  margin: 0 0 var(--space-4);
-  color: var(--muted);
-  &::first-letter {
-    text-transform: uppercase;
-  }
 }
 
 .bookings-list {
@@ -95,24 +68,6 @@
 .bookings-error {
   flex: 1 0 100%;
   margin: 0;
-}
-
-.overlay-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-3);
-  margin-top: var(--space-4);
-}
-
-.link-button {
-  padding: 0;
-  border: 0;
-  background: none;
-  color: inherit;
-  font: inherit;
-  text-decoration: underline;
-  cursor: pointer;
 }
 
 // The sign-up row (S-14). Separated from the list by a rule rather than by space alone: it is an

@@ -1,4 +1,4 @@
-<div class="classes-header">
+<div class="page-header">
   <h1>Zajęcia</h1>
 </div>
 
@@ -33,7 +33,7 @@
     <button
       type="button"
       class="link-button"
-      [disabled]="isBusy(row.id)"
+      [disabled]="busy.isBusy(row.id)"
       (click)="openDuplicate(row)"
     >
       Powiel
@@ -41,7 +41,7 @@
     <button
       type="button"
       class="link-button"
-      [disabled]="isBusy(row.id)"
+      [disabled]="busy.isBusy(row.id)"
       (click)="openBookings(row)"
     >
       Zapisani
@@ -54,7 +54,7 @@
       <button
         type="button"
         class="link-button"
-        [disabled]="isBusy(row.id)"
+        [disabled]="busy.isBusy(row.id)"
         (click)="confirmCancel(row)"
       >
         Odwołaj
@@ -63,7 +63,7 @@
       <button
         type="button"
         class="link-button"
-        [disabled]="isBusy(row.id)"
+        [disabled]="busy.isBusy(row.id)"
         (click)="confirmDelete(row)"
       >
         Usuń
@@ -96,8 +96,8 @@
       />
     </label>
 
-    <button type="button" class="button" [disabled]="isBusy(row.id)" (click)="duplicate(row)">
-      {{ isBusy(row.id) ? 'Powielanie…' : 'Powiel' }}
+    <button type="button" class="button" [disabled]="busy.isBusy(row.id)" (click)="duplicate(row)">
+      {{ busy.isBusy(row.id) ? 'Powielanie…' : 'Powiel' }}
     </button>
     <button type="button" class="link-button" (click)="closeDuplicate()">Anuluj</button>
   </div>
@@ -109,8 +109,8 @@
       Usunąć „{{ row.name }}” z {{ row.startsAt | date: 'd MMMM, HH:mm' }} na dobre?
     </p>
 
-    <button type="button" class="button" [disabled]="isBusy(row.id)" (click)="remove(row)">
-      {{ isBusy(row.id) ? 'Usuwanie…' : 'Tak, usuń' }}
+    <button type="button" class="button" [disabled]="busy.isBusy(row.id)" (click)="remove(row)">
+      {{ busy.isBusy(row.id) ? 'Usuwanie…' : 'Tak, usuń' }}
     </button>
     <button type="button" class="link-button" (click)="cancelDelete()">Anuluj</button>
   </div>
@@ -132,8 +132,8 @@
       }
     </p>
 
-    <button type="button" class="button" [disabled]="isBusy(row.id)" (click)="cancel(row)">
-      {{ isBusy(row.id) ? 'Odwoływanie…' : 'Tak, odwołaj' }}
+    <button type="button" class="button" [disabled]="busy.isBusy(row.id)" (click)="cancel(row)">
+      {{ busy.isBusy(row.id) ? 'Odwoływanie…' : 'Tak, odwołaj' }}
     </button>
     <button type="button" class="link-button" (click)="closeCancel()">Wróć</button>
   </div>

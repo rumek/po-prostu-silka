@@ -41,10 +41,10 @@
           <button
             type="button"
             class="link-button"
-            [disabled]="isBusy(booking.bookingId)"
+            [disabled]="busy.isBusy(booking.bookingId)"
             (click)="release(booking)"
           >
-            {{ isBusy(booking.bookingId) ? 'Zwalnianie…' : 'Zwolnij miejsce' }}
+            {{ busy.isBusy(booking.bookingId) ? 'Zwalnianie…' : 'Zwolnij miejsce' }}
           </button>
 
           @if (failedId() === booking.bookingId) {

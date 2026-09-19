@@ -5,6 +5,7 @@ import { TrainingPlanService } from '../../../core/training/training-plan.servic
 import { TrainingPlanSummary } from '../../../core/training/training-plan.models';
 import { classifyFailure } from '../../../core/http/failure';
 import { transportMessage } from '../../../core/http/transport-messages';
+import { createLoadFence } from '../../../shared/forms/load-fence';
 
 /**
  * Every active training plan in the club (prd.md FR-015, FR-016).
@@ -62,32 +63,32 @@ export class Plans implements OnInit {
   );
 
   /** See members.ts — nothing cancels an in-flight request, so the last RESPONSE would otherwise win. */
-  private generation = 0;
+  private readonly fence = createLoadFence();
 
   async ngOnInit(): Promise<void> {
     await this.load();
   }
 
   protected async load(): Promise<void> {
-    const generation = ++this.generation;
+    const generation = this.fence.begin();
 
     this.loading.set(true);
     this.loadFailed.set(false);
 
     try {
       const rows = await this.plans.getAll();
-      if (generation !== this.generation) {
+      if (!this.fence.isCurrent(generation)) {
         return;
       }
       this.rows.set(rows);
     } catch (failure) {
-      if (generation !== this.generation) {
+      if (!this.fence.isCurrent(generation)) {
         return;
       }
       this.loadMessage.set(transportMessage(classifyFailure(failure)));
       this.loadFailed.set(true);
     } finally {
-      if (generation === this.generation) {
+      if (this.fence.isCurrent(generation)) {
         this.loading.set(false);
       }
     }

@@ -12,6 +12,8 @@ import { classifyFailure } from '../../../core/http/failure';
 import { transportMessage } from '../../../core/http/transport-messages';
 import { ToastService } from '../../../shared/toast/toast.service';
 import { AccessCodeView, Member, MemberFilter } from '../../../core/admin/member-admin.models';
+import { createBusySet } from '../../../shared/forms/busy-set';
+import { createLoadFence } from '../../../shared/forms/load-fence';
 
 /** The filter positions, including "everyone". `null` means no filter parameter is sent. */
 type StatusFilter = MemberFilter | null;
@@ -51,8 +53,8 @@ export class Members implements OnInit {
   protected readonly filter = signal<StatusFilter>(null);
   protected readonly search = signal('');
 
-  /** Ids with a mutation in flight, so one slow row does not disable the whole list. */
-  protected readonly busy = signal<ReadonlySet<string>>(new Set());
+  /** Rows with a mutation in flight, so one slow row does not disable the whole list. */
+  protected readonly busy = createBusySet();
 
   /** Id of the row whose action failed. Cleared when that row is retried. */
   protected readonly failedId = signal<string | null>(null);
@@ -95,7 +97,7 @@ export class Members implements OnInit {
    * order and leave the rows disagreeing with the highlighted chip, silently. A response whose
    * generation is stale is discarded instead of applied.
    */
-  private generation = 0;
+  private readonly fence = createLoadFence();
 
   /**
    * Search runs here rather than at the API. Matches display name or email, case-insensitively;
@@ -119,7 +121,7 @@ export class Members implements OnInit {
   }
 
   protected async load(): Promise<void> {
-    const generation = ++this.generation;
+    const generation = this.fence.begin();
 
     this.loading.set(true);
     this.loadFailed.set(false);
@@ -129,13 +131,13 @@ export class Members implements OnInit {
 
       // A newer load started while this one was in flight — its answer is the current one, so drop
       // ours rather than overwriting fresher rows with staler ones.
-      if (generation !== this.generation) {
+      if (!this.fence.isCurrent(generation)) {
         return;
       }
 
       this.rows.set(rows);
     } catch {
-      if (generation !== this.generation) {
+      if (!this.fence.isCurrent(generation)) {
         return;
       }
 
@@ -143,7 +145,7 @@ export class Members implements OnInit {
     } finally {
       // Only the newest load owns the spinner; an older one finishing must not clear it while the
       // newer request is still running.
-      if (generation === this.generation) {
+      if (this.fence.isCurrent(generation)) {
         this.loading.set(false);
       }
     }
@@ -329,7 +331,7 @@ export class Members implements OnInit {
     this.closeMenu();
     this.closeCode();
     this.failedId.set(null);
-    this.setBusy(member.id, true);
+    this.busy.setBusy(member.id, true);
 
     try {
       await this.members.revokeAccessCode(member.id);
@@ -338,7 +340,7 @@ export class Members implements OnInit {
     } catch (failure) {
       await this.handleCodeFailure(member, failure);
     } finally {
-      this.setBusy(member.id, false);
+      this.busy.setBusy(member.id, false);
     }
   }
 
@@ -423,7 +425,7 @@ export class Members implements OnInit {
     this.closeCode();
     this.failedId.set(null);
     this.codeMemberId.set(member.id);
-    this.setBusy(member.id, true);
+    this.busy.setBusy(member.id, true);
 
     try {
       const view = await action();
@@ -435,7 +437,7 @@ export class Members implements OnInit {
       this.closeCode();
       await this.handleCodeFailure(member, failure);
     } finally {
-      this.setBusy(member.id, false);
+      this.busy.setBusy(member.id, false);
     }
   }
 
@@ -561,10 +563,10 @@ export class Members implements OnInit {
     patch: (row: Member) => Member,
     message: (reason: unknown) => string,
   ): Promise<void> {
-    const generation = this.generation;
+    const generation = this.fence.current();
 
     this.failedId.set(null);
-    this.setBusy(member.id, true);
+    this.busy.setBusy(member.id, true);
 
     try {
       await action();
@@ -572,7 +574,7 @@ export class Members implements OnInit {
       // The list was reloaded while this mutation was in flight, so the rows we would patch are no
       // longer the rows we acted on — the member may not even be in the current filter. Patching
       // would silently no-op and make a successful action look like it did nothing; refetch instead.
-      if (generation !== this.generation) {
+      if (!this.fence.isCurrent(generation)) {
         await this.load();
         return;
       }
@@ -598,7 +600,7 @@ export class Members implements OnInit {
       // succeeded when it did not, and nothing else in the product would correct that belief.
       this.failedId.set(member.id);
     } finally {
-      this.setBusy(member.id, false);
+      this.busy.setBusy(member.id, false);
     }
   }
 
@@ -622,21 +624,5 @@ export class Members implements OnInit {
   /** Replaces one row in place. Never removes it — see `mutate`. */
   private patchRow(id: string, patch: (row: Member) => Member): void {
     this.rows.update((rows) => rows.map((row) => (row.id === id ? patch(row) : row)));
-  }
-
-  protected isBusy(id: string): boolean {
-    return this.busy().has(id);
-  }
-
-  private setBusy(id: string, value: boolean): void {
-    this.busy.update((ids) => {
-      const next = new Set(ids);
-      if (value) {
-        next.add(id);
-      } else {
-        next.delete(id);
-      }
-      return next;
-    });
   }
 }

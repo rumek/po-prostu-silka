@@ -406,3 +406,118 @@ a {
   background: var(--section-cool);
   font-size: 0.9375rem;
 }
+
+// -----------------------------------------------------------------------------
+// The page header (S-19, CS-06).
+//
+// EIGHT near-identical copies, not the three the roadmap counted: six list headers
+// (members, exercises, class-types, plans, plan-builder, classes) and two detail headers
+// (exercise-detail, plan-exercise-detail). `members.scss` had already drifted to --space-3
+// where the other five used --space-4 — the drift resolves here, to --space-4.
+//
+// Only the LAYOUT is shared. What sits in the actions slot stays per-screen: one has a chip
+// row, one a single link, one a badge. Sharing those too is how a shared class becomes a
+// second place to look for a screen's own markup.
+// -----------------------------------------------------------------------------
+
+.page-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+
+  h1 {
+    margin: 0;
+  }
+}
+
+// The detail family's one real difference: the h1 carries a badge beside the name, so it is a
+// flex row of its own, and a long exercise name must wrap rather than widen the page.
+.page-header--detail h1 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  overflow-wrap: anywhere;
+}
+
+// -----------------------------------------------------------------------------
+// Overlay chrome (S-19, CS-06).
+//
+// The fourth uncatalogued triplet: class-details-overlay, class-bookings-overlay and
+// class-create-overlay each carried a near-verbatim copy of these five rules — which their own
+// comments admitted, in the words "deliberately the same structure as …".
+//
+// The FIXED LAYER stays local, because it is each component's `:host` and a global class cannot
+// reach it. What is shared is everything inside it. The two real differences also stay local:
+// class-bookings-overlay's wider panel (it lists names and addresses, not a short form) and each
+// overlay's own content.
+// -----------------------------------------------------------------------------
+
+// A button, not a div: dismissing by clicking away has to be reachable from the keyboard too. The
+// reset is because it exists for the click target, not for the chrome.
+.overlay-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  padding: 0;
+  background: color-mix(in srgb, var(--ink) 35%, transparent);
+  cursor: pointer;
+}
+
+// `position: relative` so it stacks above the backdrop without a z-index of its own. The visible
+// surface is .card, which this sits alongside in the markup.
+.overlay-panel {
+  position: relative;
+  width: 100%;
+  max-width: 26rem;
+  max-height: 100%;
+  overflow-y: auto;
+  padding: var(--space-5);
+}
+
+.overlay-title {
+  margin: 0 0 var(--space-2);
+  font-size: 1.125rem;
+  // Long unbroken strings — a class name, an e-mail — wrap rather than widening the panel past the
+  // viewport. class-create-overlay was the one of the three that lacked this.
+  overflow-wrap: anywhere;
+}
+
+.overlay-when {
+  margin: 0 0 var(--space-3);
+  color: var(--muted);
+
+  &::first-letter {
+    text-transform: uppercase;
+  }
+}
+
+.overlay-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+// EIGHTEEN copies, not the three the plan expected inside the overlays — sixteen of them
+// byte-identical, one carrying a [disabled] rule, one reduced to a single property. Global because
+// "a button that reads as a link" is a shape the app has, not a decision any one screen makes.
+.link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+
+  // From the one copy of the eighteen that had it. A disabled link-button still looks like a link
+  // without this, which is the whole reason it was added where it was added.
+  &[disabled] {
+    color: var(--muted);
+    cursor: default;
+  }
+}

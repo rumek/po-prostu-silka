@@ -1,4 +1,4 @@
-<div class="members-header">
+<div class="page-header">
   <h1>Członkowie</h1>
   <a class="button" routerLink="/admin/members/new">Dodaj członka</a>
 </div>
@@ -101,12 +101,12 @@
               type="button"
               class="button button--secondary"
               [id]="triggerIdFor(member.id)"
-              [disabled]="isBusy(member.id)"
+              [disabled]="busy.isBusy(member.id)"
               [attr.aria-expanded]="openMenuId() === member.id"
               aria-haspopup="menu"
               (click)="toggleMenu(member)"
             >
-              {{ isBusy(member.id) ? 'Pracuję…' : 'Akcje' }}
+              {{ busy.isBusy(member.id) ? 'Pracuję…' : 'Akcje' }}
             </button>
 
             @if (openMenuId() === member.id) {
@@ -219,7 +219,7 @@
 
           @if (codeMemberId() === member.id) {
             <div class="member-code" role="status">
-              @if (isBusy(member.id)) {
+              @if (busy.isBusy(member.id)) {
                 <p class="member-code-status">Sprawdzam…</p>
               } @else if (code(); as view) {
                 <p class="member-code-value">{{ view.code }}</p>
