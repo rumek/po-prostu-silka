@@ -19,7 +19,7 @@ namespace po_prostu_silka.Application.Scheduling;
 /// step by hand.
 /// </para>
 /// </summary>
-public static class ClassRequestValidator
+internal static class ClassRequestValidator
 {
     /// <summary>
     /// Bounds on an occurrence's own duration and capacity.

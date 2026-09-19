@@ -44,9 +44,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- BOTH are needed, not just Infrastructure: the 13 Map*Endpoints() extension methods live in
-         Application until phase 7, and the Testing-only probes at the bottom of Program.cs use
-         AuthorizationPolicies from Infrastructure. -->
+    <!-- BOTH are needed, not just Infrastructure. The 13 Map*Endpoints() classes now live here in
+         Api/Endpoints/, but every route they register binds a handler in Application by method
+         group, so the Application reference is what makes those ~60 types resolvable. Independently,
+         the Testing-only probes at the bottom of Program.cs use AuthorizationPolicies from
+         Infrastructure. -->
     <ProjectReference Include="..\Application\po-prostu-silka.Application.csproj" />
     <ProjectReference Include="..\Infrastructure\po-prostu-silka.Infrastructure.csproj" />
   </ItemGroup>

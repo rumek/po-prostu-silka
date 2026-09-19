@@ -626,10 +626,17 @@ their existing comments. Do not consolidate. They now live in `ClassRequestValid
    (nested tuple return type) and `ValidateInstructorAsync` (declaration split across two lines).
    Anything scripted over these files must assert what it matched rather than assume full coverage —
    a silent miss here leaves a method behind in a file that is about to move to `Api`.
-2. **Only three of the fourteen extracted constants became `public`**: `MaxAttempts` (read by
-   `ReleaseBooking` as well as the protocol) and the two schedule-window bounds (read by both schedule
-   handlers). The other eleven are used solely inside their own validator and were left `private` —
-   the split is an opportunity to narrow them, not a reason to widen everything.
+2. **Only four of the fourteen extracted constants became `public`**: `BookingProtocol.MaxAttempts`
+   (read by `ReleaseBooking` as well as the protocol), the two schedule-window bounds on
+   `ClassRangeResolver` (read by both schedule handlers), and `TrainingPlanItemBuilder.MaxAttempts`
+   (read by `CreateTrainingPlan`). The other ten are used solely inside their own validator and were
+   left `private` — the split is an opportunity to narrow them, not a reason to widen everything.
+   **Corrected during impl review (2026-09-19):** the plan first recorded this as "three of
+   fourteen", which undercounted `TrainingPlanItemBuilder.MaxAttempts`. The same review also applied
+   that narrowing principle to the *types*: the eleven extracted helper classes were `public` where
+   nothing outside `Application` referenced them, and are now `internal`, matching the
+   `CurrentUserBuilder` / `ClassDtoMapping` pair that had it right. Those four constants are
+   therefore `public` members of `internal` classes — effective accessibility is assembly-internal.
 3. **`MayActOn`'s warning now exists in two places, deliberately.** The long-form warning stays at the
    registration site in `BookingEndpoints` (where someone adding a route will read it) and a copy
    travels with the check into `BookingAuthorization` (where someone editing the check will). This is
@@ -782,7 +789,7 @@ phase 3 and phase 6 to pin the logger category with `typeof(AuthEndpoints)` / `t
 AND told phase 7 to move those classes to `Api`. Both cannot hold: `Application` may not reference
 `Api`. The resolution keeps the behaviour the pin was protecting — the category is a **string**, so it
 is now pinned as the literal `"po_prostu_silka.Application.Auth.AuthEndpoints"` (and the `Members`
-equivalent), which is exactly what `typeof(...)` produced before the move. Six call sites across
+equivalent), which is exactly what `typeof(...)` produced before the move. Four call sites across
 `Register`, `ForgotPassword` and `UpdateProfile`. This is strictly better than the `typeof`: it states
 the contract instead of deriving it from a type that only existed to supply a name.
 

@@ -26,13 +26,18 @@ public static class CreateTrainingPlan
     /// stamp rotation is the cheaper, earlier half of the same defence - see
     /// TrainingPlan.ConcurrencyStamp for why it is second and not first.
     /// </para>
+    ///
+    /// <para>
+    /// DROPPED AN INJECTED IMemberStore IN S-18. It was bound on every request and never read: the
+    /// author is resolved from the principal's member claim, and the assignee is validated through
+    /// the query port below.
+    /// </para>
     /// </summary>
     public static async Task<IResult> HandleAsync(
         TrainingPlanRequest request,
         ClaimsPrincipal principal,
         ITrainingPlanQuery query,
         ITrainingPlanStore store,
-        IMemberStore members,
         IUnitOfWork unitOfWork,
         TimeProvider timeProvider,
         CancellationToken cancellationToken)

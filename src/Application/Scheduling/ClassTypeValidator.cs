@@ -14,7 +14,7 @@ namespace po_prostu_silka.Application.Scheduling;
 /// four pairs in step by hand; do not consolidate them.
 /// </para>
 /// </summary>
-public static class ClassTypeValidator
+internal static class ClassTypeValidator
 {
     /// <summary>
     /// Bounds on a default duration. The floor matches ClassEndpoints.Validate — a zero-length class

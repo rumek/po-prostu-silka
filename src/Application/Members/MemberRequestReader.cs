@@ -16,7 +16,7 @@ namespace po_prostu_silka.Application.Members;
 /// paths must accept exactly the same input or the edit screen and the create screen drift.
 /// </para>
 /// </summary>
-public static class MemberRequestReader
+internal static class MemberRequestReader
 {
     /// <summary>
     /// Validates the fields shared by create and edit, in the order they appear on the form.

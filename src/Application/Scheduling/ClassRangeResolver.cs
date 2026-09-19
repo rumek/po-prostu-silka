@@ -17,7 +17,7 @@ namespace po_prostu_silka.Application.Scheduling;
 /// an unbounded range.
 /// </para>
 /// </summary>
-public static class ClassRangeResolver
+internal static class ClassRangeResolver
 {
     /// <summary>
     /// How far ahead the member schedule reaches WHEN THE CALLER ASKS FOR NO RANGE. A fortnight is one

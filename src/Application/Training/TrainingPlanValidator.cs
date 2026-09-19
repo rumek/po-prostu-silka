@@ -17,7 +17,7 @@ namespace po_prostu_silka.Application.Training;
 /// create path's retry loop and lives with it.
 /// </para>
 /// </summary>
-public static class TrainingPlanValidator
+internal static class TrainingPlanValidator
 {
     /// <summary>
     /// Every bound below matches a HasMaxLength or a documented range in TrainingPlanConfiguration

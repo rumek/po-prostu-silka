@@ -21,10 +21,14 @@ public static class GetMyBookings
     /// looking at "Moje zajęcia" is looking at what they still have to attend; the past belongs to
     /// history, which this slice keeps but does not display.
     /// </para>
+    ///
+    /// <para>
+    /// DROPPED AN INJECTED UserManager IN S-18. It was bound on every request and never read: the
+    /// caller is resolved from the principal's member claim, not from the account row.
+    /// </para>
     /// </summary>
     public static async Task<IResult> HandleAsync(
         ClaimsPrincipal principal,
-        UserManager<ApplicationUser> userManager,
         IBookingQuery query,
         TimeProvider timeProvider,
         CancellationToken cancellationToken)

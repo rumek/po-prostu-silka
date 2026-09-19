@@ -28,7 +28,7 @@ namespace po_prostu_silka.Application.Scheduling;
 /// BookingEndpoints carries the same warning.
 /// </para>
 /// </summary>
-public static class BookingAuthorization
+internal static class BookingAuthorization
 {
     /// <summary>
     /// Whether this caller may act on this class (S-16, MP-02).

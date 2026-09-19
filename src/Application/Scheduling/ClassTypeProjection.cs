@@ -7,7 +7,7 @@ namespace po_prostu_silka.Application.Scheduling;
 /// <summary>
 /// The single construction of <see cref="ClassTypeSummary"/> from an entity.
 /// </summary>
-public static class ClassTypeProjection
+internal static class ClassTypeProjection
 {
     public static ClassTypeSummary ToDto(ClassType entity) =>
         new(entity.Id,

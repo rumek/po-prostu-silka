@@ -12,7 +12,7 @@ namespace po_prostu_silka.Application.Training;
 /// from the same column widths, NOT by sharing a rule. Do not consolidate them.
 /// </para>
 /// </summary>
-public static class ExerciseValidator
+internal static class ExerciseValidator
 {
     /// <summary>
     /// Every bound below matches a HasMaxLength in ExerciseConfiguration. Keep the two in step.

@@ -11,7 +11,7 @@ namespace po_prostu_silka.Application.Training;
 /// <summary>
 /// Turns validated request items into plan-item entities, and the write retry bound.
 /// </summary>
-public static class TrainingPlanItemBuilder
+internal static class TrainingPlanItemBuilder
 {
     /// <summary>
     /// How many times assignment re-reads and retries before giving up.

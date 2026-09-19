@@ -52,7 +52,7 @@ and [`context/foundation/infrastructure.md`](context/foundation/infrastructure.m
 
 ```
 src/                     the .NET backend as four projects + the SPA workspace
-  Domain/                entities and rules — references nothing
+  Domain/                entities and rules — references only Microsoft.Extensions.Identity.Stores (for ApplicationUser)
   Application/           use cases and ports — references Domain
   Infrastructure/        EF Core, Identity, email, push — the only project that touches EF Core
     Persistence/         AppDbContext, entity configurations, migrations

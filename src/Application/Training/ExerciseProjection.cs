@@ -7,7 +7,7 @@ namespace po_prostu_silka.Application.Training;
 /// <summary>
 /// The single construction of <see cref="ExerciseSummary"/>, and the write-side field copy.
 /// </summary>
-public static class ExerciseProjection
+internal static class ExerciseProjection
 {
     public static ExerciseSummary ToDto(Exercise entity) =>
         new(entity.Id,

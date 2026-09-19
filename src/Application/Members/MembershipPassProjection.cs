@@ -15,7 +15,7 @@ namespace po_prostu_silka.Application.Members;
 /// chance to count it differently.
 /// </para>
 /// </summary>
-public static class MembershipPassProjection
+internal static class MembershipPassProjection
 {
     /// <summary>
     /// Validates the shape of a request — the parts that are true regardless of what is in the
