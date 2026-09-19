@@ -1,3 +1,5 @@
+import { AbstractControl, ValidationErrors } from '@angular/forms';
+
 /**
  * The client-side halves of rules the server owns.
  *
@@ -34,3 +36,20 @@ export const POSTAL_CODE_PATTERN = /^\d{2}-\d{3}$/;
  * </p>
  */
 export const PHONE_PATTERN = /^(?:\+?48[\s-]?)?(?:\d[\s-]?){8}\d$/;
+
+/**
+ * "The two password boxes agree" — the one validator two screens both wrote out (S-19).
+ *
+ * GROUP-LEVEL, because it compares two controls, and the error lands on the GROUP rather than on
+ * the confirmation control. On the control it would be cleared by that control's own validators the
+ * next time either field is edited, and the member would watch the message flicker.
+ *
+ * `/reset-password` and `/profile` carried byte-identical copies — the same drift this file was
+ * created to stop on the five contact rules.
+ */
+export function passwordsMatch(group: AbstractControl): ValidationErrors | null {
+  const newPassword = group.get('newPassword')?.value;
+  const confirmation = group.get('confirmation')?.value;
+
+  return newPassword === confirmation ? null : { mismatch: true };
+}

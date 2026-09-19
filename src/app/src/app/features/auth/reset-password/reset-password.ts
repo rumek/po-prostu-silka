@@ -1,25 +1,12 @@
-import { HttpErrorResponse } from '@angular/common/http';
 import { Component, inject, signal } from '@angular/core';
-import {
-  AbstractControl,
-  FormBuilder,
-  FormGroup,
-  ReactiveFormsModule,
-  ValidationErrors,
-  Validators,
-} from '@angular/forms';
+import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/auth/auth.service';
-import { ResetPasswordFailure } from '../../../core/auth/auth.models';
-import { MIN_PASSWORD_LENGTH } from '../../../core/auth/validation';
-
-/** Group-level for the reason profile.ts gives: on the control it would be wiped and flicker. */
-function passwordsMatch(group: AbstractControl): ValidationErrors | null {
-  const newPassword = group.get('newPassword')?.value;
-  const confirmation = group.get('confirmation')?.value;
-
-  return newPassword === confirmation ? null : { mismatch: true };
-}
+import { classifyFailure } from '../../../core/http/failure';
+import { resetPasswordFailureMessage } from '../../../core/auth/reset-password-failure';
+import { transportMessage } from '../../../core/http/transport-messages';
+import { MIN_PASSWORD_LENGTH, passwordsMatch } from '../../../core/auth/validation';
+import { createFormState } from '../../../shared/forms/form-state';
 
 /**
  * Sets a new password from an emailed link (S-13). Public, guard-free.
@@ -67,8 +54,11 @@ export class ResetPassword {
 
   /** True once the token is spent — a dead link, and the screen offers a way to get a fresh one. */
   protected readonly tokenRejected = signal(false);
-  protected readonly error = signal<string | null>(null);
-  protected readonly submitting = signal(false);
+
+  protected readonly state = createFormState();
+
+  /** The table, exposed so the client-side length message is the same sentence the API's is. */
+  protected readonly failureMessage = resetPasswordFailureMessage;
 
   constructor() {
     const params = inject(ActivatedRoute).snapshot.queryParamMap;
@@ -92,8 +82,8 @@ export class ResetPassword {
       return;
     }
 
-    this.error.set(null);
-    this.submitting.set(true);
+    this.state.error.set(null);
+    this.state.submitting.set(true);
 
     try {
       await this.auth.resetPassword({
@@ -106,35 +96,40 @@ export class ResetPassword {
         queryParams: { reset: 'ok' },
       });
     } catch (failure) {
-      const reason = ((failure as HttpErrorResponse)?.error as ResetPasswordFailure | undefined)
-        ?.reason;
+      const info = classifyFailure(failure);
 
-      switch (reason) {
+      // A 429 from the limiter, a 500 or a dead network is not a spent token and must not send the
+      // member off to request a new link — it goes in the banner as itself.
+      const transport = transportMessage(info);
+      if (transport !== null) {
+        this.state.error.set(transport);
+        return;
+      }
+
+      switch (info.reason) {
         case 'invalid_token':
           // Not put on a control: no field the member can edit would fix it. The link is spent,
-          // expired or wrong, and the only way forward is a new one.
+          // expired or wrong, and the only way forward is a new one. The screen replaces the form
+          // entirely, which is outlet 4 of the rule in AGENTS.md rather than a banner.
           this.tokenRejected.set(true);
           return;
 
         case 'invalid_new_password':
-          this.reject(this.form.controls.newPassword, { minlength: true });
+          this.state.reject(this.form.controls.newPassword, {
+            server: resetPasswordFailureMessage(info.reason),
+          });
           return;
 
         default:
-          this.error.set('Nie udało się ustawić nowego hasła. Spróbuj ponownie za chwilę.');
+          this.state.error.set(resetPasswordFailureMessage(info.reason));
       }
     } finally {
-      this.submitting.set(false);
+      this.state.submitting.set(false);
     }
   }
 
   protected get confirmationMismatch(): boolean {
     const group = this.form as FormGroup;
     return group.hasError('mismatch') && this.form.controls.confirmation.touched;
-  }
-
-  private reject(control: AbstractControl, errors: ValidationErrors): void {
-    control.setErrors(errors);
-    control.markAsTouched();
   }
 }

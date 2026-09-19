@@ -1,33 +1,19 @@
-import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, inject, signal } from '@angular/core';
-import {
-  AbstractControl,
-  FormBuilder,
-  FormGroup,
-  ReactiveFormsModule,
-  ValidationErrors,
-  Validators,
-} from '@angular/forms';
+import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { AuthService } from '../../core/auth/auth.service';
-import { ChangePasswordFailure, ProfileFailure } from '../../core/auth/auth.models';
+import { ContactFailureReason } from '../../core/auth/auth.models';
+import { changePasswordFailureMessage } from '../../core/auth/change-password-failure';
+import { profileFailureMessage } from '../../core/auth/contact-failure';
+import { classifyFailure } from '../../core/http/failure';
+import { transportMessage } from '../../core/http/transport-messages';
 import { ReadonlyField } from '../../shared/readonly-field/readonly-field';
+import { createFormState } from '../../shared/forms/form-state';
 import {
   MIN_PASSWORD_LENGTH,
   PHONE_PATTERN,
   POSTAL_CODE_PATTERN,
+  passwordsMatch,
 } from '../../core/auth/validation';
-
-/**
- * Group-level, because it compares two controls. The error lands on the GROUP rather than on the
- * confirmation control: setting it on the control would be cleared by that control's own validators
- * the next time either field is edited, and the member would watch the message flicker.
- */
-function passwordsMatch(group: AbstractControl): ValidationErrors | null {
-  const newPassword = group.get('newPassword')?.value;
-  const confirmation = group.get('confirmation')?.value;
-
-  return newPassword === confirmation ? null : { mismatch: true };
-}
 
 /**
  * The member's own account screen (S-13, FR-006 as rewritten).
@@ -73,9 +59,16 @@ export class Profile {
     city: ['', [Validators.required]],
   });
 
-  protected readonly error = signal<string | null>(null);
+  /**
+   * TWO INDEPENDENT STATES, one per form group — the same reason the two groups are separate at all.
+   * A rejected postal code must not disable the password button, and a wrong current password must
+   * not make the address fields look broken.
+   */
+  protected readonly state = createFormState();
   protected readonly saved = signal(false);
-  protected readonly submitting = signal(false);
+
+  /** The contact table, exposed so a field says the same thing whoever caught the rule. */
+  protected readonly contactMessage = profileFailureMessage;
 
   protected readonly minPasswordLength = MIN_PASSWORD_LENGTH;
 
@@ -93,9 +86,11 @@ export class Profile {
     { validators: passwordsMatch },
   );
 
-  protected readonly passwordError = signal<string | null>(null);
+  protected readonly passwordState = createFormState();
   protected readonly passwordChanged = signal(false);
-  protected readonly changingPassword = signal(false);
+
+  /** The password table, exposed for the same reason `contactMessage` is. */
+  protected readonly passwordMessage = changePasswordFailureMessage;
 
   constructor() {
     // Pre-filled from session state rather than from a GET: CurrentUser already carries these
@@ -118,9 +113,9 @@ export class Profile {
       return;
     }
 
-    this.error.set(null);
+    this.state.error.set(null);
     this.saved.set(false);
-    this.submitting.set(true);
+    this.state.submitting.set(true);
 
     try {
       const value = this.form.getRawValue();
@@ -138,7 +133,7 @@ export class Profile {
     } catch (failure) {
       this.applyFailure(failure);
     } finally {
-      this.submitting.set(false);
+      this.state.submitting.set(false);
     }
   }
 
@@ -153,9 +148,9 @@ export class Profile {
       return;
     }
 
-    this.passwordError.set(null);
+    this.passwordState.error.set(null);
     this.passwordChanged.set(false);
-    this.changingPassword.set(true);
+    this.passwordState.submitting.set(true);
 
     try {
       const { currentPassword, newPassword } = this.passwordForm.getRawValue();
@@ -164,23 +159,33 @@ export class Profile {
       this.passwordForm.reset();
       this.passwordChanged.set(true);
     } catch (failure) {
-      const reason = ((failure as HttpErrorResponse)?.error as ChangePasswordFailure | undefined)
-        ?.reason;
+      const info = classifyFailure(failure);
 
-      switch (reason) {
+      // A 429 or a 500 is not a wrong password and must not be shown under the password box.
+      const transport = transportMessage(info);
+      if (transport !== null) {
+        this.passwordState.error.set(transport);
+        return;
+      }
+
+      switch (info.reason) {
         case 'invalid_current_password':
-          this.reject(this.passwordForm.controls.currentPassword, { incorrect: true });
+          this.passwordState.reject(this.passwordForm.controls.currentPassword, {
+            server: changePasswordFailureMessage(info.reason),
+          });
           return;
 
         case 'invalid_new_password':
-          this.reject(this.passwordForm.controls.newPassword, { minlength: true });
+          this.passwordState.reject(this.passwordForm.controls.newPassword, {
+            server: changePasswordFailureMessage(info.reason),
+          });
           return;
 
         default:
-          this.passwordError.set('Nie udało się zmienić hasła. Spróbuj ponownie za chwilę.');
+          this.passwordState.error.set(changePasswordFailureMessage(info.reason));
       }
     } finally {
-      this.changingPassword.set(false);
+      this.passwordState.submitting.set(false);
     }
   }
 
@@ -190,39 +195,43 @@ export class Profile {
     return group.hasError('mismatch') && this.passwordForm.controls.confirmation.touched;
   }
 
-  /** Same per-control mapping the register screen uses, over the same five reason codes. */
+  /**
+   * The five contact reasons land on the five controls that produced them — outlet 1 of the rule in
+   * AGENTS.md. The mapping is one-to-one, so a `switch` would be five identical branches; the
+   * control name is derived from the reason instead, and the SENTENCE comes from the shared contact
+   * table, which the admin's member form and the template's own client-side checks also read.
+   */
   private applyFailure(failure: unknown): void {
-    const reason = ((failure as HttpErrorResponse)?.error as ProfileFailure | undefined)?.reason;
+    const info = classifyFailure(failure);
 
-    switch (reason) {
-      case 'invalid_phone':
-        this.reject(this.form.controls.phoneNumber, { pattern: true });
-        return;
-
-      case 'invalid_street':
-        this.reject(this.form.controls.street, { required: true });
-        return;
-
-      case 'invalid_house_number':
-        this.reject(this.form.controls.houseNumber, { required: true });
-        return;
-
-      case 'invalid_postal_code':
-        this.reject(this.form.controls.postalCode, { pattern: true });
-        return;
-
-      case 'invalid_city':
-        this.reject(this.form.controls.city, { required: true });
-        return;
-
-      default:
-        this.error.set('Nie udało się zapisać danych. Spróbuj ponownie za chwilę.');
+    // A 429, a 500 or a dead network belongs to no field — it goes in the banner as itself.
+    const transport = transportMessage(info);
+    if (transport !== null) {
+      this.state.error.set(transport);
+      return;
     }
-  }
 
-  /** markAsTouched is not optional — see the identical helper in the register component. */
-  private reject(control: AbstractControl, errors: ValidationErrors): void {
-    control.setErrors(errors);
-    control.markAsTouched();
+    const control = CONTROL_FOR_REASON[info.reason as ContactFailureReason];
+
+    if (control === undefined) {
+      this.state.error.set(profileFailureMessage(info.reason));
+      return;
+    }
+
+    this.state.reject(this.form.controls[control], {
+      server: profileFailureMessage(info.reason),
+    });
   }
 }
+
+/** Which control each contact refusal belongs to. The words are the table's; this is the mapping. */
+const CONTROL_FOR_REASON: Record<
+  ContactFailureReason,
+  'phoneNumber' | 'street' | 'houseNumber' | 'postalCode' | 'city'
+> = {
+  invalid_phone: 'phoneNumber',
+  invalid_street: 'street',
+  invalid_house_number: 'houseNumber',
+  invalid_postal_code: 'postalCode',
+  invalid_city: 'city',
+};

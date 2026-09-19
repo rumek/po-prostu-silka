@@ -104,7 +104,11 @@ describe('ForgotPassword', () => {
     expect(compiled().querySelector('.field-error')).not.toBeNull();
   });
 
-  /** A 429 from the rate limiter says nothing about the account — the message is about the request. */
+  /**
+   * A 429 from the rate limiter says nothing about the account — the message is about the request,
+   * and since S-19 it names the limiter rather than falling back to a generic "could not send".
+   * What must NOT change is the non-disclosure: no sentence here may imply the address exists.
+   */
   it('reports a failed request without mentioning the account', async () => {
     fill('anna@test.local');
     submit();
@@ -115,6 +119,11 @@ describe('ForgotPassword', () => {
     fixture.detectChanges();
 
     expect(compiled().querySelector('form')).not.toBeNull();
-    expect(compiled().querySelector('.alert')!.textContent).toContain('Nie udało się wysłać');
+
+    const alert = compiled().querySelector('.alert')!.textContent ?? '';
+    expect(alert).toContain('Zbyt wiele prób');
+    // The whole point of this screen: nothing here says whether the address is registered.
+    expect(alert).not.toContain('anna@test.local');
+    expect(alert).not.toContain('konto');
   });
 });

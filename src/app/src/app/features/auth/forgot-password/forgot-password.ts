@@ -2,6 +2,9 @@ import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/auth/auth.service';
+import { classifyFailure } from '../../../core/http/failure';
+import { transportMessage } from '../../../core/http/transport-messages';
+import { createFormState } from '../../../shared/forms/form-state';
 
 /**
  * Asks for a reset link (S-13). Public, guard-free, reachable from the login screen.
@@ -29,8 +32,8 @@ export class ForgotPassword {
 
   /** Replaces the form once submitted, so the visitor is not invited to send a second time. */
   protected readonly sent = signal(false);
-  protected readonly error = signal<string | null>(null);
-  protected readonly submitting = signal(false);
+
+  protected readonly state = createFormState();
 
   protected async submit(): Promise<void> {
     if (this.form.invalid) {
@@ -38,8 +41,8 @@ export class ForgotPassword {
       return;
     }
 
-    this.error.set(null);
-    this.submitting.set(true);
+    this.state.error.set(null);
+    this.state.submitting.set(true);
 
     try {
       await this.auth.forgotPassword({ email: this.form.getRawValue().email.trim() });
@@ -47,12 +50,21 @@ export class ForgotPassword {
       // Set unconditionally on success. The API's 200 carries no information about the address, and
       // this must not appear to.
       this.sent.set(true);
-    } catch {
-      // A 429 from the rate limiter or a genuine outage both land here. Neither says anything about
-      // the address — the message is about the request, not the account.
-      this.error.set('Nie udało się wysłać wiadomości. Spróbuj ponownie za chwilę.');
+    } catch (failure) {
+      // A 429 from the rate limiter and a genuine outage both land here, and S-19 is what lets them
+      // read as themselves — this endpoint is behind a limiter, so "zbyt wiele prób" is the likeliest
+      // answer and used to be indistinguishable from an outage. Neither says anything about the
+      // address: every one of these sentences is about the REQUEST, not the account, which is what
+      // keeps the non-disclosure above intact.
+      //
+      // There is no union here — the endpoint names no reasons — so `business` cannot occur and the
+      // `??` arm is unreachable belt-and-braces.
+      this.state.error.set(
+        transportMessage(classifyFailure(failure)) ??
+          'Nie udało się wysłać wiadomości. Spróbuj ponownie za chwilę.',
+      );
     } finally {
-      this.submitting.set(false);
+      this.state.submitting.set(false);
     }
   }
 }

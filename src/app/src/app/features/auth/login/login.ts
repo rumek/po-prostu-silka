@@ -1,9 +1,10 @@
-import { HttpErrorResponse } from '@angular/common/http';
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/auth/auth.service';
-import { LoginFailure } from '../../../core/auth/auth.models';
+import { classifyFailure } from '../../../core/http/failure';
+import { transportMessage } from '../../../core/http/transport-messages';
+import { loginFailureMessage } from '../../../core/auth/login-failure';
 
 /**
  * Sign-in. Reactive forms (S-01 D8) — this decides the idiom for the project: server-returned field
@@ -81,19 +82,19 @@ export class Login {
   }
 }
 
+/**
+ * BANNER ONLY, PERMANENTLY — outlet 2 of the rule in AGENTS.md, and never outlet 1.
+ *
+ * A message under the e-mail box would say "this address is the part that was wrong" just as
+ * loudly as the words would. The API refuses to distinguish a wrong password from an unknown
+ * address, so this screen must not imply it can. `login.spec.ts` pins it.
+ *
+ * A rate-limited or offline sign-in now reads as itself rather than as a failed credential check —
+ * /login is the one endpoint with a limiter in front of it (`src/Api/Program.cs:150`), so this is
+ * the screen where a 429 was most likely and least explicable.
+ */
 function messageFor(failure: unknown): string {
-  const reason = (failure as HttpErrorResponse)?.error as LoginFailure | undefined;
+  const info = classifyFailure(failure);
 
-  switch (reason?.reason) {
-    case 'blocked':
-      return 'Twoje konto zostało zablokowane. Skontaktuj się z obsługą siłowni.';
-
-    // One message for a wrong password AND an unknown address. The API deliberately does not
-    // distinguish them, so saying "nie ma takiego konta" here would leak what it refuses to.
-    case 'invalid_credentials':
-      return 'Nieprawidłowy e-mail lub hasło.';
-
-    default:
-      return 'Nie udało się zalogować. Spróbuj ponownie za chwilę.';
-  }
+  return transportMessage(info) ?? loginFailureMessage(info.reason);
 }

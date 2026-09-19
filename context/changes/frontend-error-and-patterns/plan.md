@@ -489,7 +489,18 @@ failure to the outlet the Phase 2 rule assigns.
 
 **Contract**: `login` stays **banner-only** — the rule's second outlet — and
 `login.spec.ts:104-108`, which asserts the message does not leak `'nie istnieje'`, must pass
-unmodified. `profile.ts` carries two independent form groups and therefore two
+unmodified.
+
+**Adapted during implementation.** "`login.spec.ts` passes without modification" held for the
+non-disclosure anchor and for every business-reason test, but NOT for three assertions across
+`login.spec.ts`, `forgot-password.spec.ts` and `profile.spec.ts` that flush a **500 or a 429** and
+assert the union's generic fallback (`'Nie udało się zalogować'`, `'Nie udało się wysłać'`,
+`'Nie udało się zapisać'`). Those sentences are exactly what the Desired End State removes — "a 429,
+a 500 and an offline browser each read as themselves" — so passing them unchanged would have meant
+the slice did not work. Each was rewritten to assert the new, specific wording AND to re-assert what
+must not change: login still never names a field, forgot-password still never says whether the
+address exists, and profile's 500 still leaves every contact control `aria-invalid="false"`. The
+non-disclosure test itself was not touched. `profile.ts` carries two independent form groups and therefore two
 `createFormState()` instances. The duplicated `passwordsMatch` validator
 (`reset-password.ts:17-22`, `profile.ts:25-30`) collapses into `core/auth/validation.ts`,
 which already exists for exactly this.
@@ -833,10 +844,10 @@ cost of migrating by area rather than in one commit, and it is bounded by Phase 
 
 #### Automated
 
-- [x] 3.1 Unit tests pass: `npm test` from `src/app/`
-- [x] 3.2 `failure-contract.spec.ts` covers all 17 unions and fails on a union without a table
-- [x] 3.3 Type checking passes as part of `npm run build`
-- [x] 3.4 Lint and format pass: `npm run quality:check` from `src/app/`
+- [x] 3.1 Unit tests pass: `npm test` from `src/app/` — 9496fe2
+- [x] 3.2 `failure-contract.spec.ts` covers all 17 unions and fails on a union without a table — 9496fe2
+- [x] 3.3 Type checking passes as part of `npm run build` — 9496fe2
+- [x] 3.4 Lint and format pass: `npm run quality:check` from `src/app/` — 9496fe2
 
 #### Manual
 
@@ -846,10 +857,10 @@ cost of migrating by area rather than in one commit, and it is bounded by Phase 
 
 #### Automated
 
-- [ ] 4.1 Unit tests pass: `npm test` from `src/app/`
-- [ ] 4.2 `login.spec.ts` passes without modification
-- [ ] 4.3 No `HttpErrorResponse` unwrap remains in `features/auth/` or `features/profile/`
-- [ ] 4.4 Lint and format pass: `npm run quality:check` from `src/app/`
+- [x] 4.1 Unit tests pass: `npm test` from `src/app/`
+- [x] 4.2 `login.spec.ts` passes without modification (non-disclosure anchor unmodified; three 500/429 assertions rewritten — see the Phase 4 adaptation note)
+- [x] 4.3 No `HttpErrorResponse` unwrap remains in `features/auth/` or `features/profile/`
+- [x] 4.4 Lint and format pass: `npm run quality:check` from `src/app/`
 
 #### Manual
 

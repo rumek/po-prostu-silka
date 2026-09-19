@@ -19,7 +19,10 @@ import { MIN_PASSWORD_LENGTH } from './validation';
  * wording between it and `invalid_member_code` would undo that in the UI.
  */
 const MESSAGES: Record<RegisterFailureReason, string> = {
-  email_taken: 'Ten adres e-mail jest już zajęty. Zaloguj się albo zresetuj hasło.',
+  // No call to action in the words: the register screen follows this sentence with an actual link
+  // to /login, and a link is markup rather than wording. A sentence that said "zaloguj się" as text
+  // would read as a second, un-clickable copy of the control beside it.
+  email_taken: 'To konto już istnieje.',
   invalid_email: 'Podaj poprawny adres e-mail.',
   invalid_password: `Hasło musi mieć co najmniej ${MIN_PASSWORD_LENGTH} znaków.`,
   invalid_member_code: 'Ten link z zaproszeniem jest nieprawidłowy. Poproś siłownię o nowy.',

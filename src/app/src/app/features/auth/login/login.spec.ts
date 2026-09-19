@@ -149,7 +149,13 @@ describe('Login', () => {
     expect((fixture.nativeElement as HTMLElement).querySelector('.alert')).toBeNull();
   });
 
-  it('falls back to a generic message on an unexpected failure', async () => {
+  /**
+   * A SERVER FAULT READS AS ONE (S-19). This used to assert the union's generic fallback — the same
+   * sentence a business refusal this build does not recognise produces — which told the member to
+   * check their credentials over a failure their credentials had nothing to do with. The API has no
+   * exception middleware, so a body-less 500 is the realistic shape here.
+   */
+  it('names a server fault rather than blaming the credentials', async () => {
     fill('member@test.local', 'TestPass_123');
     submit();
 
@@ -158,6 +164,20 @@ describe('Login', () => {
     fixture.detectChanges();
 
     const alert = (fixture.nativeElement as HTMLElement).querySelector('.alert');
-    expect(alert?.textContent).toContain('Nie udało się zalogować');
+    expect(alert?.textContent).toContain('po naszej stronie');
+    expect(alert?.textContent).not.toContain('Nie udało się zalogować');
+  });
+
+  /** /login is the one endpoint behind a rate limiter (src/Api/Program.cs:150). */
+  it('names rate limiting rather than blaming the credentials', async () => {
+    fill('member@test.local', 'TestPass_123');
+    submit();
+
+    (await expectLogin()).flush(null, { status: 429, statusText: 'Too Many Requests' });
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const alert = (fixture.nativeElement as HTMLElement).querySelector('.alert');
+    expect(alert?.textContent).toContain('Zbyt wiele prób');
   });
 });

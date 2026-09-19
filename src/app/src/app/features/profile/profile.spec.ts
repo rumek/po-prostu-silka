@@ -170,7 +170,11 @@ describe('Profile', () => {
     expect(compiled().querySelector('#city')?.getAttribute('aria-invalid')).toBe('false');
   });
 
-  it('falls back to a banner for an unrecognised failure', async () => {
+  /**
+   * A server fault goes in the BANNER and names itself (S-19) — it belongs to no contact field, so
+   * putting it under one would tell the member to correct a value that was never the problem.
+   */
+  it('banners a server fault rather than blaming a field', async () => {
     await createWith(COMPLETE);
     submit();
 
@@ -178,7 +182,8 @@ describe('Profile', () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    expect(compiled().querySelector('.alert')?.textContent).toContain('Nie udało się zapisać');
+    expect(compiled().querySelector('.alert')?.textContent).toContain('po naszej stronie');
+    expect(compiled().querySelector('#postalCode')?.getAttribute('aria-invalid')).toBe('false');
   });
 
   describe('password change', () => {

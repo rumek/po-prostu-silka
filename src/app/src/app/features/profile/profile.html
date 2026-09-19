@@ -8,8 +8,8 @@
       </p>
     }
 
-    @if (error()) {
-      <p class="alert" role="alert">{{ error() }}</p>
+    @if (state.error()) {
+      <p class="alert" role="alert">{{ state.error() }}</p>
     }
 
     @if (saved()) {
@@ -43,7 +43,9 @@
           "
         />
         @if (form.controls.phoneNumber.touched && form.controls.phoneNumber.invalid) {
-          <p class="field-error">Podaj numer telefonu w formacie 123 456 789.</p>
+          <p class="field-error">
+            {{ form.controls.phoneNumber.getError('server') ?? contactMessage('invalid_phone') }}
+          </p>
         }
       </div>
 
@@ -57,7 +59,9 @@
           [attr.aria-invalid]="form.controls.street.touched && form.controls.street.invalid"
         />
         @if (form.controls.street.touched && form.controls.street.invalid) {
-          <p class="field-error">Podaj nazwę ulicy.</p>
+          <p class="field-error">
+            {{ form.controls.street.getError('server') ?? contactMessage('invalid_street') }}
+          </p>
         }
       </div>
 
@@ -73,7 +77,11 @@
           "
         />
         @if (form.controls.houseNumber.touched && form.controls.houseNumber.invalid) {
-          <p class="field-error">Podaj numer domu lub mieszkania.</p>
+          <p class="field-error">
+            {{
+              form.controls.houseNumber.getError('server') ?? contactMessage('invalid_house_number')
+            }}
+          </p>
         }
       </div>
 
@@ -88,7 +96,11 @@
           [attr.aria-invalid]="form.controls.postalCode.touched && form.controls.postalCode.invalid"
         />
         @if (form.controls.postalCode.touched && form.controls.postalCode.invalid) {
-          <p class="field-error">Podaj kod pocztowy w formacie 00-000.</p>
+          <p class="field-error">
+            {{
+              form.controls.postalCode.getError('server') ?? contactMessage('invalid_postal_code')
+            }}
+          </p>
         }
       </div>
 
@@ -102,12 +114,14 @@
           [attr.aria-invalid]="form.controls.city.touched && form.controls.city.invalid"
         />
         @if (form.controls.city.touched && form.controls.city.invalid) {
-          <p class="field-error">Podaj miejscowość.</p>
+          <p class="field-error">
+            {{ form.controls.city.getError('server') ?? contactMessage('invalid_city') }}
+          </p>
         }
       </div>
 
-      <button type="submit" class="button button--block" [disabled]="submitting()">
-        {{ submitting() ? 'Zapisywanie…' : 'Zapisz zmiany' }}
+      <button type="submit" class="button button--block" [disabled]="state.submitting()">
+        {{ state.submitting() ? 'Zapisywanie…' : 'Zapisz zmiany' }}
       </button>
     </form>
 
@@ -115,8 +129,8 @@
          postal code must not disable the password button, and vice versa. -->
     <h2 class="section-title">Zmiana hasła</h2>
 
-    @if (passwordError()) {
-      <p class="alert" role="alert">{{ passwordError() }}</p>
+    @if (passwordState.error()) {
+      <p class="alert" role="alert">{{ passwordState.error() }}</p>
     }
 
     @if (passwordChanged()) {
@@ -140,8 +154,10 @@
           passwordForm.controls.currentPassword.touched &&
           passwordForm.controls.currentPassword.invalid
         ) {
-          @if (passwordForm.controls.currentPassword.hasError('incorrect')) {
-            <p class="field-error">Obecne hasło jest nieprawidłowe.</p>
+          @if (passwordForm.controls.currentPassword.hasError('server')) {
+            <p class="field-error">
+              {{ passwordForm.controls.currentPassword.getError('server') }}
+            </p>
           } @else {
             <p class="field-error">Podaj obecne hasło.</p>
           }
@@ -162,7 +178,12 @@
         @if (
           passwordForm.controls.newPassword.touched && passwordForm.controls.newPassword.invalid
         ) {
-          <p class="field-error">Hasło musi mieć co najmniej {{ minPasswordLength }} znaków.</p>
+          <p class="field-error">
+            {{
+              passwordForm.controls.newPassword.getError('server') ??
+                passwordMessage('invalid_new_password')
+            }}
+          </p>
         } @else {
           <p class="hint">Co najmniej {{ minPasswordLength }} znaków.</p>
         }
@@ -190,8 +211,8 @@
         }
       </div>
 
-      <button type="submit" class="button button--block" [disabled]="changingPassword()">
-        {{ changingPassword() ? 'Zmienianie hasła…' : 'Zmień hasło' }}
+      <button type="submit" class="button button--block" [disabled]="passwordState.submitting()">
+        {{ passwordState.submitting() ? 'Zmienianie hasła…' : 'Zmień hasło' }}
       </button>
     </form>
   </div>

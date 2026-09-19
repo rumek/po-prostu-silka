@@ -6,8 +6,8 @@
   </p>
 
   <div class="card">
-    @if (error()) {
-      <p class="alert" role="alert">{{ error() }}</p>
+    @if (state.error()) {
+      <p class="alert" role="alert">{{ state.error() }}</p>
     }
 
     <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
@@ -21,13 +21,14 @@
           [attr.aria-invalid]="form.controls.email.touched && form.controls.email.invalid"
         />
         @if (form.controls.email.touched && form.controls.email.invalid) {
-          @if (form.controls.email.hasError('emailTaken')) {
-            <p class="field-error">
-              To konto już istnieje. <a routerLink="/login">Zaloguj się</a>.
-            </p>
-          } @else {
-            <p class="field-error">Podaj poprawny adres e-mail.</p>
-          }
+          <p class="field-error">
+            <!-- `server` when the API named the reason, the table's own client-side sentence
+                 otherwise — one wording either way. -->
+            {{ form.controls.email.getError('server') ?? failureMessage('invalid_email') }}
+            @if (form.controls.email.hasError('emailTaken')) {
+              <a routerLink="/login">Zaloguj się</a>.
+            }
+          </p>
         }
       </div>
 
@@ -41,7 +42,9 @@
           [attr.aria-invalid]="form.controls.password.touched && form.controls.password.invalid"
         />
         @if (form.controls.password.touched && form.controls.password.invalid) {
-          <p class="field-error">Hasło musi mieć co najmniej {{ minPasswordLength }} znaków.</p>
+          <p class="field-error">
+            {{ form.controls.password.getError('server') ?? failureMessage('invalid_password') }}
+          </p>
         } @else {
           <p class="hint">Co najmniej {{ minPasswordLength }} znaków.</p>
         }
@@ -53,8 +56,8 @@
            would be a dead end. -->
       <app-readonly-field label="Kod zaproszenia" [value]="invitationCode" />
 
-      <button type="submit" class="button button--block" [disabled]="submitting()">
-        {{ submitting() ? 'Tworzenie konta…' : 'Załóż konto' }}
+      <button type="submit" class="button button--block" [disabled]="state.submitting()">
+        {{ state.submitting() ? 'Tworzenie konta…' : 'Załóż konto' }}
       </button>
     </form>
   </div>

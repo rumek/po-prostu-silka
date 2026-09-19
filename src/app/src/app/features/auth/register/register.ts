@@ -1,16 +1,12 @@
-import { HttpErrorResponse } from '@angular/common/http';
-import { Component, inject, signal } from '@angular/core';
-import {
-  AbstractControl,
-  FormBuilder,
-  ReactiveFormsModule,
-  ValidationErrors,
-  Validators,
-} from '@angular/forms';
+import { Component, inject } from '@angular/core';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/auth/auth.service';
-import { RegisterFailure } from '../../../core/auth/auth.models';
+import { classifyFailure } from '../../../core/http/failure';
+import { registerFailureMessage } from '../../../core/auth/register-failure';
+import { transportMessage } from '../../../core/http/transport-messages';
 import { MIN_PASSWORD_LENGTH } from '../../../core/auth/validation';
+import { createFormState } from '../../../shared/forms/form-state';
 import { ReadonlyField } from '../../../shared/readonly-field/readonly-field';
 
 /**
@@ -62,8 +58,16 @@ export class Register {
     password: ['', [Validators.required, Validators.minLength(MIN_PASSWORD_LENGTH)]],
   });
 
-  protected readonly error = signal<string | null>(null);
-  protected readonly submitting = signal(false);
+  protected readonly state = createFormState();
+
+  /**
+   * The table, exposed to the template.
+   *
+   * The CLIENT-side validation messages come from it too, not only the server refusals: the member
+   * must read the same sentence whether the browser or the API caught the same rule. That is the
+   * point of the table — see AGENTS.md, "How a failure reaches the user".
+   */
+  protected readonly failureMessage = registerFailureMessage;
 
   protected async submit(): Promise<void> {
     if (this.form.invalid) {
@@ -71,8 +75,8 @@ export class Register {
       return;
     }
 
-    this.error.set(null);
-    this.submitting.set(true);
+    this.state.error.set(null);
+    this.state.submitting.set(true);
 
     try {
       const value = this.form.getRawValue();
@@ -94,7 +98,7 @@ export class Register {
     } catch (failure) {
       await this.applyFailure(failure);
     } finally {
-      this.submitting.set(false);
+      this.state.submitting.set(false);
     }
   }
 
@@ -114,19 +118,37 @@ export class Register {
    * </p>
    */
   private async applyFailure(failure: unknown): Promise<void> {
-    const reason = ((failure as HttpErrorResponse)?.error as RegisterFailure | undefined)?.reason;
+    const info = classifyFailure(failure);
 
-    switch (reason) {
+    // A 429, a 500 or a dead network is not something a field can carry, and it is not a refused
+    // invitation either — it goes in the banner as itself. /register sits behind the same limiter
+    // /login does (`src/Api/Program.cs:150`), so a 429 here is realistic rather than theoretical.
+    const transport = transportMessage(info);
+    if (transport !== null) {
+      this.state.error.set(transport);
+      return;
+    }
+
+    switch (info.reason) {
+      // Two keys: `server` carries the sentence, `emailTaken` tells the template to follow it with
+      // a link to /login. The words stay in the table; the affordance stays in the markup.
       case 'email_taken':
-        this.reject(this.form.controls.email, { emailTaken: true });
+        this.state.reject(this.form.controls.email, {
+          server: registerFailureMessage(info.reason),
+          emailTaken: true,
+        });
         return;
 
       case 'invalid_email':
-        this.reject(this.form.controls.email, { email: true });
+        this.state.reject(this.form.controls.email, {
+          server: registerFailureMessage(info.reason),
+        });
         return;
 
       case 'invalid_password':
-        this.reject(this.form.controls.password, { minlength: true });
+        this.state.reject(this.form.controls.password, {
+          server: registerFailureMessage(info.reason),
+        });
         return;
 
       // Both mean the invitation is no good, and neither is actionable on this screen. Collapsed
@@ -139,17 +161,7 @@ export class Register {
         return;
 
       default:
-        this.error.set('Nie udało się utworzyć konta. Spróbuj ponownie za chwilę.');
+        this.state.error.set(registerFailureMessage(info.reason));
     }
-  }
-
-  /**
-   * markAsTouched is not optional here. The template reveals a field error only once the control is
-   * touched — which a submit of an otherwise-valid form never does — so setErrors alone would leave
-   * the member staring at a form that refused them and said nothing.
-   */
-  private reject(control: AbstractControl, errors: ValidationErrors): void {
-    control.setErrors(errors);
-    control.markAsTouched();
   }
 }
