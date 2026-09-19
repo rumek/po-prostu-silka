@@ -2,6 +2,8 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { BookingService } from '../../core/scheduling/booking.service';
 import { MyBooking } from '../../core/scheduling/booking.models';
+import { classifyFailure } from '../../core/http/failure';
+import { transportMessage } from '../../core/http/transport-messages';
 import { ClassSummary } from '../../shared/class-summary/class-summary';
 
 /**
@@ -33,6 +35,15 @@ export class MyClasses implements OnInit {
   protected readonly loadFailed = signal(false);
 
   /**
+   * WHY the load failed, when the transport can say (S-19).
+   *
+   * The screen state itself is unchanged — this is still outlet 4, and the sentence in the template
+   * still names what could not be fetched. What is new is the second half: a dead network now says
+   * so, where before a killed API read exactly like a server that answered and refused.
+   */
+  protected readonly loadMessage = signal<string | null>(null);
+
+  /**
    * Same fence as `schedule.ts`. There is no navigation here, but a reload racing a first load is
    * still two responses that can land in either order.
    */
@@ -56,11 +67,12 @@ export class MyClasses implements OnInit {
       }
 
       this.rows.set(rows);
-    } catch {
+    } catch (failure) {
       if (generation !== this.generation) {
         return;
       }
 
+      this.loadMessage.set(transportMessage(classifyFailure(failure)));
       this.loadFailed.set(true);
     } finally {
       if (generation === this.generation) {

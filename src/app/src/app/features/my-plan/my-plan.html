@@ -3,6 +3,9 @@
 } @else if (loadFailed()) {
   <p class="alert" role="alert">
     Nie udało się wczytać planu.
+    @if (loadMessage(); as detail) {
+      {{ detail }}
+    }
     <button type="button" class="link-button" (click)="load()">Spróbuj ponownie</button>
   </p>
 } @else if (plan(); as row) {

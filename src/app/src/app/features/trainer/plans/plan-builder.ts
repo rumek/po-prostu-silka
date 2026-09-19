@@ -1,4 +1,3 @@
-import { HttpErrorResponse } from '@angular/common/http';
 import {
   CdkDrag,
   CdkDragDrop,
@@ -8,20 +7,23 @@ import {
 } from '@angular/cdk/drag-drop';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import {
-  AbstractControl,
   FormBuilder,
   FormControl,
   FormGroup,
   ReactiveFormsModule,
-  ValidationErrors,
   Validators,
 } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ExerciseService } from '../../../core/training/exercise.service';
 import { ExerciseSummary } from '../../../core/training/exercise.models';
 import { TrainingPlanService } from '../../../core/training/training-plan.service';
+import { classifyFailure } from '../../../core/http/failure';
+import { transportMessage } from '../../../core/http/transport-messages';
+import { trainingPlanFailureMessage } from '../../../core/training/training-plan-failure';
+import { createFormState } from '../../../shared/forms/form-state';
 import {
   AssignableMember,
+  TRAINING_PLAN_BOUNDS,
   TrainingPlanFailure,
   TrainingPlanItemRequest,
 } from '../../../core/training/training-plan.models';
@@ -31,21 +33,23 @@ import {
  * TrainingPlanConfiguration / TrainingPlanItemConfiguration. Keep all three in step — a client bound
  * looser than the server's turns ordinary typing into an unexplained 400.
  */
-const MAX_NAME = 120;
-const MAX_REPS = 50;
-const MAX_NOTE = 500;
-const MAX_ITEMS = 50;
-const MIN_SETS = 1;
-const MAX_SETS = 20;
-const MIN_REST = 0;
-const MAX_REST = 3600;
-// ONE, NOT ZERO — the single place duration does not mirror rest. A zero-second rest is a real
-// prescription ("straight into the next set"); a zero-second exercise is a slip. Mirrors
-// MinDurationSeconds/MaxDurationSeconds in TrainingPlanEndpoints.
-const MIN_DURATION = 1;
-const MAX_DURATION = 3600;
-const MIN_WEIGHT = 0;
-const MAX_WEIGHT = 999.99;
+// Fourteen of this union's seventeen refusal sentences quote one of these, and those sentences
+// now live in `training-plan-failure.ts` — so the numbers moved beside the union (S-19). A message
+// that quotes a bound the form owns privately drifts the first time the bound moves.
+const {
+  maxName: MAX_NAME,
+  maxReps: MAX_REPS,
+  maxNote: MAX_NOTE,
+  maxItems: MAX_ITEMS,
+  minSets: MIN_SETS,
+  maxSets: MAX_SETS,
+  minRest: MIN_REST,
+  maxRest: MAX_REST,
+  minDuration: MIN_DURATION,
+  maxDuration: MAX_DURATION,
+  minWeight: MIN_WEIGHT,
+  maxWeight: MAX_WEIGHT,
+} = TRAINING_PLAN_BOUNDS;
 
 /** One item row's form shape, named so the FormArray's element type is not written out four times. */
 type ItemGroup = FormGroup<{
@@ -117,12 +121,10 @@ export class PlanBuilder implements OnInit {
   /** Null when creating; the plan id when editing. Drives the title, the verb and the endpoint. */
   protected readonly editingId = signal<string | null>(null);
 
-  protected readonly loading = signal(false);
-  protected readonly loadFailed = signal(false);
-  protected readonly submitting = signal(false);
+  protected readonly state = createFormState();
 
-  /** A form-level message, for failures that belong to no single control. */
-  protected readonly error = signal<string | null>(null);
+  /** The table, exposed to the template so client and server messages cannot disagree. */
+  protected readonly failureMessage = trainingPlanFailureMessage;
 
   /** Who the plan may be assigned to. Empty until the picker's fetch resolves. */
   protected readonly members = signal<AssignableMember[]>([]);
@@ -181,7 +183,7 @@ export class PlanBuilder implements OnInit {
     }
 
     this.editingId.set(id);
-    this.loading.set(true);
+    this.state.loading.set(true);
 
     try {
       const existing = await this.plans.getById(id);
@@ -208,9 +210,9 @@ export class PlanBuilder implements OnInit {
 
       this.syncChosenIds();
     } catch {
-      this.loadFailed.set(true);
+      this.state.loadFailed.set(true);
     } finally {
-      this.loading.set(false);
+      this.state.loading.set(false);
     }
   }
 
@@ -287,7 +289,7 @@ export class PlanBuilder implements OnInit {
 
   protected async submit(): Promise<void> {
     if (this.items.length === 0) {
-      this.error.set('Dodaj przynajmniej jedno ćwiczenie do planu.');
+      this.state.error.set('Dodaj przynajmniej jedno ćwiczenie do planu.');
       return;
     }
 
@@ -298,8 +300,8 @@ export class PlanBuilder implements OnInit {
       return;
     }
 
-    this.error.set(null);
-    this.submitting.set(true);
+    this.state.error.set(null);
+    this.state.submitting.set(true);
 
     // getRawValue, not value: the member control is DISABLED while editing, and `value` omits
     // disabled controls. The server validates memberId on edit rather than ignoring it, so
@@ -324,7 +326,7 @@ export class PlanBuilder implements OnInit {
     } catch (failure) {
       this.applyFailure(failure);
     } finally {
-      this.submitting.set(false);
+      this.state.submitting.set(false);
     }
   }
 
@@ -338,75 +340,42 @@ export class PlanBuilder implements OnInit {
    * drifted — the message says what to look for rather than pretending to point at a control.
    */
   private applyFailure(failure: unknown): void {
-    const reason = ((failure as HttpErrorResponse)?.error as TrainingPlanFailure | undefined)
-      ?.reason;
+    const info = classifyFailure(failure);
+
+    // A 429, a 500 or a dead network is not a plan rule — telling the trainer to shorten a note
+    // over one would send them hunting through seventeen rows for nothing.
+    const transport = transportMessage(info);
+    if (transport !== null) {
+      this.state.error.set(transport);
+      return;
+    }
+
+    const reason = info.reason as TrainingPlanFailure['reason'] | undefined;
+    const message = trainingPlanFailureMessage(reason);
 
     switch (reason) {
       case 'name_too_long':
-        this.reject(this.form.controls.name, { maxlength: true });
+        this.state.reject(this.form.controls.name, { server: message });
         return;
+
+      // Touches the form so the required-field markers show, THEN banners the rule — the refusal
+      // names two controls at once, so neither of them owns it.
       case 'missing_field':
         this.form.markAllAsTouched();
-        this.error.set('Uzupełnij nazwę planu i wybierz członka.');
+        this.state.error.set(message);
         return;
-      case 'no_items':
-        this.error.set('Dodaj przynajmniej jedno ćwiczenie do planu.');
-        return;
-      case 'too_many_items':
-        this.error.set(`Plan może mieć najwyżej ${MAX_ITEMS} ćwiczeń.`);
-        return;
-      case 'duplicate_exercise':
-        this.error.set('To samo ćwiczenie występuje w planie dwa razy. Usuń jedno z powtórzeń.');
-        return;
-      case 'invalid_sets':
-        this.error.set(`Liczba serii musi mieścić się w zakresie ${MIN_SETS}–${MAX_SETS}.`);
-        return;
-      case 'reps_too_long':
-        this.error.set(`Zapis powtórzeń może mieć najwyżej ${MAX_REPS} znaków.`);
-        return;
-      case 'invalid_weight':
-        this.error.set(`Ciężar musi mieścić się w zakresie ${MIN_WEIGHT}–${MAX_WEIGHT} kg.`);
-        return;
-      case 'invalid_rest':
-        this.error.set(`Przerwa musi mieścić się w zakresie ${MIN_REST}–${MAX_REST} sekund.`);
-        return;
-      case 'invalid_duration':
-        this.error.set(`Czas musi mieścić się w zakresie ${MIN_DURATION}–${MAX_DURATION} sekund.`);
-        return;
-      case 'note_too_long':
-        this.error.set(`Notatka może mieć najwyżej ${MAX_NOTE} znaków.`);
-        return;
-      case 'unknown_exercise':
-      case 'inactive_exercise':
-        this.error.set(
-          'Któreś z wybranych ćwiczeń zostało w międzyczasie zmienione lub dezaktywowane. ' +
-            'Odśwież stronę i złóż plan ponownie.',
-        );
-        return;
+
+      // Both mean the chosen member cannot hold this plan; the control is named as well as the
+      // banner, because picking somebody else is the whole of the fix.
       case 'member_not_found':
       case 'member_not_active':
-        this.reject(this.form.controls.memberId, { memberUnavailable: true });
-        this.error.set('To konto nie jest już aktywne. Wybierz innego członka.');
+        this.state.reject(this.form.controls.memberId, { server: message });
+        this.state.error.set(message);
         return;
-      case 'member_changed':
-        this.error.set(
-          'Ten plan należy do innego członka, niż pokazuje ta strona. Odśwież ją i spróbuj ponownie.',
-        );
-        return;
-      case 'conflict':
-        this.error.set(
-          'Ktoś zmieniał ten plan w tej samej chwili. Odśwież stronę i spróbuj ponownie.',
-        );
-        return;
-      default:
-        this.error.set('Nie udało się zapisać planu. Spróbuj ponownie za chwilę.');
-    }
-  }
 
-  private reject(control: AbstractControl, errors: ValidationErrors): void {
-    control.setErrors(errors);
-    // Required: the template only reveals errors on touched controls.
-    control.markAsTouched();
+      default:
+        this.state.error.set(message);
+    }
   }
 
   /**

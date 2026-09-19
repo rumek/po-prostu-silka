@@ -3,9 +3,9 @@
   <a class="link-button" routerLink="/trainer/plans">Wróć do listy</a>
 </div>
 
-@if (loading()) {
+@if (state.loading()) {
   <p class="notice" role="status">Wczytywanie…</p>
-} @else if (loadFailed()) {
+} @else if (state.loadFailed()) {
   <p class="alert" role="alert">
     Nie udało się wczytać tego planu. Odśwież stronę albo
     <a class="link-button" routerLink="/trainer/plans">wróć do listy</a>.
@@ -241,13 +241,13 @@
       }
     </div>
 
-    @if (error()) {
-      <p class="alert" role="alert">{{ error() }}</p>
+    @if (state.error()) {
+      <p class="alert" role="alert">{{ state.error() }}</p>
     }
 
     <div class="builder-actions">
-      <button type="submit" class="button" [disabled]="submitting()">
-        @if (submitting()) {
+      <button type="submit" class="button" [disabled]="state.submitting()">
+        @if (state.submitting()) {
           Zapisywanie…
         } @else if (editingId()) {
           Zapisz zmiany

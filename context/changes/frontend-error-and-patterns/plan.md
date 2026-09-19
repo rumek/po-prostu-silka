@@ -644,6 +644,14 @@ failure must keep producing one (`dashboard.spec.ts:226-235,330-349,357-370`). T
 four independently fenced loads stay independent — one failed card must not blank the other
 three.
 
+**Adapted during implementation.** The member screens carry no `*Failure` union of their own — they
+are load-only, and their `loadFailed` state was already outlet 4 and already correct. So "move to
+`classifyFailure` and the tables" landed as a `loadMessage` signal beside `loadFailed`, set from
+`transportMessage`, which the template renders after the screen's own "nie udało się wczytać X"
+sentence. That is what makes manual check 6.6 true: a killed API used to read exactly like a server
+that answered and refused. `dashboard.ts` was left alone — it unwraps nothing, its four fences are
+already independent, and `dashboard.spec.ts` passes unmodified, which was the point of naming it.
+
 ### Success Criteria:
 
 #### Automated Verification:
@@ -888,10 +896,10 @@ cost of migrating by area rather than in one commit, and it is bounded by Phase 
 
 #### Automated
 
-- [x] 5.1 Unit tests pass: `npm test` from `src/app/`
-- [x] 5.2 `member-passes.spec.ts` exists and covers its refusal paths
-- [x] 5.3 No `HttpErrorResponse` unwrap remains in `features/admin/`
-- [x] 5.4 Lint and format pass: `npm run quality:check` from `src/app/`
+- [x] 5.1 Unit tests pass: `npm test` from `src/app/` — 63a5cda
+- [x] 5.2 `member-passes.spec.ts` exists and covers its refusal paths — 63a5cda
+- [x] 5.3 No `HttpErrorResponse` unwrap remains in `features/admin/` — 63a5cda
+- [x] 5.4 Lint and format pass: `npm run quality:check` from `src/app/` — 63a5cda
 
 #### Manual
 
@@ -904,10 +912,10 @@ cost of migrating by area rather than in one commit, and it is bounded by Phase 
 
 #### Automated
 
-- [ ] 6.1 Unit tests pass: `npm test` from `src/app/`
-- [ ] 6.2 `dashboard.spec.ts` passes without modification
-- [ ] 6.3 No `HttpErrorResponse` unwrap remains anywhere under `features/`
-- [ ] 6.4 Lint and format pass: `npm run quality:check` from `src/app/`
+- [x] 6.1 Unit tests pass: `npm test` from `src/app/`
+- [x] 6.2 `dashboard.spec.ts` passes without modification
+- [x] 6.3 No `HttpErrorResponse` unwrap remains anywhere under `features/`
+- [x] 6.4 Lint and format pass: `npm run quality:check` from `src/app/`
 
 #### Manual
 

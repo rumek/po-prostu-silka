@@ -2,6 +2,8 @@ import { Component, inject, signal } from '@angular/core';
 import { BookingService } from '../../core/scheduling/booking.service';
 import { ClassService } from '../../core/scheduling/class.service';
 import { ScheduledClass } from '../../core/scheduling/class.models';
+import { classifyFailure } from '../../core/http/failure';
+import { transportMessage } from '../../core/http/transport-messages';
 import { CalendarRange, ScheduleCalendar } from '../../shared/calendar/schedule-calendar';
 import { ClassDetailsOverlay } from './class-details-overlay/class-details-overlay';
 
@@ -38,6 +40,15 @@ export class Schedule {
   protected readonly rows = signal<ScheduledClass[]>([]);
   protected readonly loading = signal(true);
   protected readonly loadFailed = signal(false);
+
+  /**
+   * WHY the load failed, when the transport can say (S-19).
+   *
+   * Still outlet 4 — the calendar states the failure and the screen owns the retry. What is new is
+   * that a dead network now says so, where before a killed API read exactly like a server that
+   * answered and refused.
+   */
+  protected readonly loadMessage = signal<string | null>(null);
 
   /**
    * Class ids the member currently holds an active booking on.
@@ -90,10 +101,11 @@ export class Schedule {
 
       this.rows.set(rows);
       this.bookedClassIds.set(new Set(mine.map((booking) => booking.classId)));
-    } catch {
+    } catch (failure) {
       if (generation !== this.generation) {
         return;
       }
+      this.loadMessage.set(transportMessage(classifyFailure(failure)));
       this.loadFailed.set(true);
     } finally {
       if (generation === this.generation) {

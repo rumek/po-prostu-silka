@@ -2,6 +2,8 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { TrainingPlanService } from '../../core/training/training-plan.service';
 import { TrainingPlanDetail, TrainingPlanItemView } from '../../core/training/training-plan.models';
+import { classifyFailure } from '../../core/http/failure';
+import { transportMessage } from '../../core/http/transport-messages';
 import { PlanSummary } from '../../shared/plan-summary/plan-summary';
 import { Icon } from '../../shared/icons/icon';
 
@@ -35,6 +37,15 @@ export class MyPlan implements OnInit {
   protected readonly loading = signal(true);
   protected readonly loadFailed = signal(false);
 
+  /**
+   * WHY the load failed, when the transport can say (S-19).
+   *
+   * The screen state itself is unchanged — this is still outlet 4, and the sentence in the template
+   * still names what could not be fetched. What is new is the second half: a dead network now says
+   * so, where before a killed API read exactly like a server that answered and refused.
+   */
+  protected readonly loadMessage = signal<string | null>(null);
+
   async ngOnInit(): Promise<void> {
     await this.load();
   }
@@ -45,10 +56,11 @@ export class MyPlan implements OnInit {
 
     try {
       this.plan.set(await this.plans.getMine());
-    } catch {
+    } catch (failure) {
       // The plan is cleared too: leaving a stale one under an error banner would let the member act
       // on a plan the app no longer believes it has.
       this.plan.set(null);
+      this.loadMessage.set(transportMessage(classifyFailure(failure)));
       this.loadFailed.set(true);
     } finally {
       this.loading.set(false);
