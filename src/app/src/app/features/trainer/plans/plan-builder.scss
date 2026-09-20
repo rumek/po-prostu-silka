@@ -153,11 +153,6 @@
   gap: var(--space-4);
 }
 
-.empty {
-  margin: 0;
-  color: var(--muted);
-}
-
 // --- CDK drag-drop chrome. These class names are the CDK's, not ours. ---
 
 // The floating copy under the pointer.

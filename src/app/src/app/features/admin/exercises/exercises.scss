@@ -104,11 +104,6 @@
   margin-left: auto;
 }
 
-.empty {
-  margin: 0;
-  color: var(--muted);
-}
-
 @media (max-width: 30rem) {
   .exercises-row {
     flex-direction: column;

@@ -1,10 +1,6 @@
-// Layout only — the .panel/.card/.field/.hint/.notice/.empty/.button classes come from
-// src/styles.scss, exactly as member-form.scss does it.
-
-.section-title {
-  margin: var(--space-6) 0 var(--space-4);
-  font-size: 1.125rem;
-}
+// Layout only — the .panel/.card/.field/.hint/.notice/.empty/.section-title/.form-actions/.button
+// classes come from src/styles.scss, exactly as member-form.scss does it. The last three joined
+// them in S-23; .empty was named here before it was true.
 
 .passes-back {
   margin: 0 0 var(--space-4);
@@ -21,14 +17,6 @@
   > .field {
     flex: 1 1 12rem;
   }
-}
-
-.form-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-3);
-  margin-top: var(--space-6);
 }
 
 .passes-list {

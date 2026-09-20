@@ -1,4 +1,5 @@
-// Layout only — .card/.notice/.alert/.empty come from src/styles.scss.
+// Layout only — .card/.notice/.alert/.empty come from src/styles.scss. True since S-23: this
+// comment named .empty for three slices before the class actually moved there.
 
 .dashboard-cards {
   display: grid;
@@ -63,10 +64,4 @@
   margin: var(--space-1) 0 0;
   color: var(--muted);
   font-size: 0.875rem;
-}
-
-// A card's "nothing here", which is not an error and must not read as one.
-.empty {
-  margin: 0;
-  color: var(--muted);
 }

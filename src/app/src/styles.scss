@@ -521,3 +521,49 @@ a {
     cursor: default;
   }
 }
+
+// -----------------------------------------------------------------------------
+// The three classes whose comments already said they lived here (S-23).
+//
+// `.empty` was declared NINE times — class-types, exercise-detail, exercises, members, dashboard,
+// my-plan, plan-exercise-detail, plan-builder, plans — and `dashboard.scss` and
+// `member-passes.scss` both opened by naming it among the classes that "come from
+// src/styles.scss". It did not. All nine copies were byte-identical, so unlike `.page-header`
+// above there is no drift to resolve and nothing was chosen over anything else.
+//
+// `.section-title` (member-form, member-passes, profile) and `.form-actions` (member-form,
+// member-passes) are the same story with three and two copies. Fourteen declarations in all.
+// -----------------------------------------------------------------------------
+
+// A "nothing here", which is not an error and must not read as one — dashboard.scss:68 put it
+// best and the wording is kept.
+.empty {
+  margin: 0;
+  color: var(--muted);
+}
+
+// The heading of a second section inside one screen: /profile's password form, the member form's
+// groups, the passes screen's history.
+.section-title {
+  margin: var(--space-6) 0 var(--space-4);
+  font-size: 1.125rem;
+}
+
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-6);
+}
+
+// From member-form.scss, the only copy that had it: the cancel link sits beside a submit BUTTON
+// and has to match its box, which an anchor does not get from .button alone — that rule assumes a
+// control which is already inline-block and centred. Inert on member-passes, whose action row
+// holds no anchor; carried anyway, because the next form-actions with a cancel link should not
+// have to rediscover it.
+.form-actions a.button {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
