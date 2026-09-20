@@ -49,4 +49,28 @@ module.exports = defineConfig([
     extends: [angular.configs.templateRecommended, angular.configs.templateAccessibility],
     rules: {},
   },
+  // -----------------------------------------------------------------------------
+  // The presentational kit's enforcement (S-23).
+  //
+  // Scoped to feature templates, and the boundary is structural rather than a list of exemptions
+  // to maintain: the kit lives in `shared/`, screens live in `features/`. `app-select`'s own
+  // template contains the <select> the rule forbids, and would fail its own rule under any wider
+  // scope.
+  //
+  // The cost is real and recorded in AGENTS.md: `shared/` was migrated in S-23 too, and nothing
+  // stops it drifting back.
+  // -----------------------------------------------------------------------------
+  {
+    files: ['src/app/features/**/*.html'],
+    plugins: {
+      'po-prostu-silka': {
+        rules: {
+          'no-hand-rolled-presentational': require('./tools/eslint-rules/no-hand-rolled-presentational.js'),
+        },
+      },
+    },
+    rules: {
+      'po-prostu-silka/no-hand-rolled-presentational': 'error',
+    },
+  },
 ]);

@@ -643,6 +643,20 @@ rule and not a spec.
 
 **Intent**: Register the rule as an inline plugin, scoped to feature templates only.
 
+**Adapted during implementation.** Two pieces of test plumbing the plan did not foresee, both
+because the rule's spec lives outside `src/`:
+
+- `angular.json`'s `test` target gained an explicit `include`
+  (`['**/*.spec.ts', '../tools/**/*.spec.ts']`). The unit-test builder globs from `src/` and would
+  never have discovered the rule's spec — it would have sat in the tree passing by never running.
+- `tsconfig.spec.json` gained `tools/**/*.spec.ts` to its `include` and `"node"` to its `types`,
+  because the spec loads the rule with `require()` — which is how the linter itself loads it.
+
+Also: criterion 5.5 (`npm ci` from a clean `node_modules`) was verified without deleting
+`node_modules`, which the environment refused as destructive. Checked instead that all four
+packages are declared at exact versions in `package.json` and present in `package-lock.json` as
+`dev` — the two facts `npm ci` would rely on.
+
 **Contract**: A new config block with `files: ['src/app/features/**/*.html']`, a `plugins` entry
 holding the required rule module, and the rule set to `'error'`. The existing `**/*.html` block is
 left as it is. `shared/` and `core/` are deliberately outside the scope — the kit lives in
@@ -823,9 +837,9 @@ markup and stylesheet moves, and Phase 5 is additive except for the `package.jso
 
 #### Automated
 
-- [x] 4.1 Build, lint and specs pass
-- [x] 4.2 No `*-row` class remains in any template
-- [x] 4.3 New specs for `app-list` and `app-row` pass, all four slots asserted
+- [x] 4.1 Build, lint and specs pass — f492796
+- [x] 4.2 No `*-row` class remains in any template — f492796
+- [x] 4.3 New specs for `app-list` and `app-row` pass, all four slots asserted — f492796
 
 #### Manual
 
@@ -838,11 +852,11 @@ markup and stylesheet moves, and Phase 5 is additive except for the `package.jso
 
 #### Automated
 
-- [ ] 5.1 Lint passes on the clean tree
-- [ ] 5.2 Build and specs pass
-- [ ] 5.3 The rule's own spec passes, negative cases included
-- [ ] 5.4 The rule fires on a deliberate violation and stops on revert
-- [ ] 5.5 `npm ci` from a clean `node_modules` succeeds with the four new devDependencies
+- [x] 5.1 Lint passes on the clean tree
+- [x] 5.2 Build and specs pass
+- [x] 5.3 The rule's own spec passes, negative cases included
+- [x] 5.4 The rule fires on a deliberate violation and stops on revert
+- [x] 5.5 `npm ci` from a clean `node_modules` succeeds with the four new devDependencies
 
 #### Manual
 

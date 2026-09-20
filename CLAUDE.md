@@ -6,6 +6,11 @@
 Full contributor guidance lives in @AGENTS.md — read it before touching `src/`. The rules
 below are the ones most easily broken by accident.
 
+- **The SPA has a presentational kit, and lint enforces it.** Never hand-roll a field, select,
+  checkbox, loading state, empty state or list row in `src/app/src/app/features/**` — use
+  `app-field`, `app-select`, `app-checkbox`, `app-loading`, `app-empty`, `app-list` / `li[appRow]`.
+  `npm run quality:check` fails and names the component to use instead. See @AGENTS.md,
+  "The presentational kit (S-23)", for what each one is and why they project rather than own.
 - **Layering.** `src/` is **four projects**: `Domain` → `Application` (references Domain) →
   `Infrastructure` (references both) → `Api` (the host). **Only `Infrastructure` may reference
   EF Core**, and the compiler now enforces it — an EF Core `using` in `Domain` or `Application`

@@ -48,7 +48,7 @@ Backend, from the repo root: `dotnet build po-prostu-silka.slnx`, `dotnet run --
 Frontend, from `src/app/` (npm 11, pinned via `packageManager`): `npm start` (dev server), `npm test` (unit tests via Vitest), `npm run quality:check` / `quality:fix` (Prettier + ESLint — run `quality:check` before committing frontend changes).
 
 - **Node 22+ is required** — the Angular CLI refuses to start below it. If `npm` commands fail with a version complaint, the shell is on an older default; select a newer Node for the command rather than switching the machine's global version.
-- **The initial-bundle warning in `angular.json` is 550 kB** (error at 1 MB), raised from 500 kB in S-12. The original figure was an estimate rather than a measured constraint, and the dashboard at `/` is deliberately eager — a lazy landing route would put a round trip between signing in and seeing anything, for every member, every visit. Keep routes lazy by default anyway: everything except `login`, `register`, `pending` and `/` is, and that is what has kept the eager bundle viable. **Measured at 512.42 kB after S-19** (from 509.68 kB at that slice's midpoint), so the threshold did not move: the toast host and `@angular/cdk/a11y`'s `LiveAnnouncer` are the first CDK code in the eager chunk and cost roughly 3 kB between them — `cdk/overlay` was declined partly for this reason. The number is recorded because it was measured, not because it became a problem.
+- **The initial-bundle warning in `angular.json` is 550 kB** (error at 1 MB), raised from 500 kB in S-12. The original figure was an estimate rather than a measured constraint, and the dashboard at `/` is deliberately eager — a lazy landing route would put a round trip between signing in and seeing anything, for every member, every visit. Keep routes lazy by default anyway: everything except `login`, `register`, `pending` and `/` is, and that is what has kept the eager bundle viable. **The threshold is 600 kB since S-23**, raised before the kit's components landed in the eager screens rather than after measuring them — a deliberate call, and one that repeats the 500→550 pattern this paragraph warns about: at 88 kB of slack over the last measurement the budget warns about nothing until a large regression. **Measured at 513.90 kB after S-23**, from 512.42 kB after S-19 and 509.68 kB at that slice's midpoint — the whole six-component kit cost 1.48 kB. At S-19: the toast host and `@angular/cdk/a11y`'s `LiveAnnouncer` are the first CDK code in the eager chunk and cost roughly 3 kB between them — `cdk/overlay` was declined partly for this reason. The number is recorded because it was measured, not because it became a problem.
 
 ## Style
 
@@ -93,6 +93,51 @@ those four surfaces all stack against each other and the four numbers only work 
 A `z-index` that is local to its own positioned ancestor is outside the scale and stays a literal
 — `schedule-calendar.scss` is the one such case, where absolutely-positioned overlays stack
 within a single calendar tile.
+
+### The presentational kit (S-23)
+
+S-19 unified how a failure is *told*; it left the presentational layer alone. Six families of
+copied markup now exist once each, and a seventh hand-rolled copy **fails the build** rather than
+merely reviewing badly.
+
+| Instead of | Write | Notes |
+| --- | --- | --- |
+| `<div class="field">` | `<app-field label="…" for="…">` | Both inputs optional; a field whose label is an element projects into `[slot=label]` instead. |
+| a bare `<select>` | `<app-select><select …></app-select>` | Wrapper only. Five of seven selects shipped without it and therefore had **no arrow at all**. |
+| `<input type="checkbox">` | `<app-checkbox [checked] (checkedChange)>` | No `ControlValueAccessor` — both callers are filter toggles. Additive when a form needs one. |
+| `Wczytywanie…` | `<app-loading />` | **No input.** The word lives in the component so the app cannot end up with two of it. |
+| `<p class="empty">` | `<app-empty>` | Projects, unlike `app-loading`: no two empty states say the same thing and two carry links. |
+| `<ul class="x">` / `<li class="card x-row">` | `<app-list>` / `<li appRow>` | `.row-identity`, `.row-name`, `.row-meta`, `.row-actions` are global; `card` stays the caller's. |
+
+Three things about this are not taste:
+
+- **Every component projects rather than owns.** That is what let `app-field` absorb all 56 copies,
+  including `plan-builder`'s branching label and `profile`'s `server`/fallback pair. The price is
+  that no component can check what was projected into it — which is why the lint rule, not the
+  components, is the anchor.
+- **`li[appRow]` is an ATTRIBUTE selector**, because `<app-row>` as an element would produce
+  `ul > app-row`, and a `<ul>` admits nothing but `<li>`. `eslint.config.js`'s `component-selector`
+  carries a second entry for it.
+- **The row classes live in `src/styles.scss`, not in the components' stylesheets.** Emulated
+  encapsulation scopes a component's styles to its own template, and everything in a row arrives by
+  projection carrying the *caller's* scope. Same reason `.page-header` and `.link-button` are
+  global.
+
+**Enforcement:** `tools/eslint-rules/no-hand-rolled-presentational.js`, wired in `eslint.config.js`
+and scoped to **`src/app/features/**`**. The boundary is structural — the kit lives in `shared/`,
+screens live in `features/` — so there is no exemption list to maintain. `app-select`'s own
+template contains a `<select>` and would fail its own rule under any wider scope. It is an AST rule
+rather than a source scan because two of its checks cannot be done on text: a `<select>` is legal
+exactly when it has an `app-select` **ancestor**, and `plan-builder.html` contains the literal
+string `<select>` inside a comment explaining why that branch renders static text.
+`tools/eslint-rules/no-hand-rolled-presentational.spec.ts` carries the negative cases, which are
+the point — a rule that over-fires teaches the next contributor to reach for a disable comment.
+
+**The cost, recorded rather than hidden:** `shared/` was migrated in S-23 too but sits outside the
+rule, so nothing stops those templates drifting back.
+
+**`.notice` now carries one meaning** — informational screen content — in five places, instead of
+four meanings in thirty-three. Loading is `app-loading`, empty is `app-empty`, success is a toast.
 
 ### Shared shapes, not copied ones (S-19)
 
