@@ -48,7 +48,7 @@ Backend, from the repo root: `dotnet build po-prostu-silka.slnx`, `dotnet run --
 Frontend, from `src/app/` (npm 11, pinned via `packageManager`): `npm start` (dev server), `npm test` (unit tests via Vitest), `npm run quality:check` / `quality:fix` (Prettier + ESLint — run `quality:check` before committing frontend changes).
 
 - **Node 22+ is required** — the Angular CLI refuses to start below it. If `npm` commands fail with a version complaint, the shell is on an older default; select a newer Node for the command rather than switching the machine's global version.
-- **The initial-bundle warning in `angular.json` is 550 kB** (error at 1 MB), raised from 500 kB in S-12. The original figure was an estimate rather than a measured constraint, and the dashboard at `/` is deliberately eager — a lazy landing route would put a round trip between signing in and seeing anything, for every member, every visit. Keep routes lazy by default anyway: everything except `login`, `register`, `pending` and `/` is, and that is what has kept the eager bundle viable. **Measured at 512.49 kB after S-19** (from 509.68 kB at that slice's midpoint), so the threshold did not move: the toast host and `@angular/cdk/a11y`'s `LiveAnnouncer` are the first CDK code in the eager chunk and cost roughly 3 kB between them — `cdk/overlay` was declined partly for this reason. The number is recorded because it was measured, not because it became a problem.
+- **The initial-bundle warning in `angular.json` is 550 kB** (error at 1 MB), raised from 500 kB in S-12. The original figure was an estimate rather than a measured constraint, and the dashboard at `/` is deliberately eager — a lazy landing route would put a round trip between signing in and seeing anything, for every member, every visit. Keep routes lazy by default anyway: everything except `login`, `register`, `pending` and `/` is, and that is what has kept the eager bundle viable. **Measured at 512.42 kB after S-19** (from 509.68 kB at that slice's midpoint), so the threshold did not move: the toast host and `@angular/cdk/a11y`'s `LiveAnnouncer` are the first CDK code in the eager chunk and cost roughly 3 kB between them — `cdk/overlay` was declined partly for this reason. The number is recorded because it was measured, not because it became a problem.
 
 ## Style
 
@@ -86,9 +86,13 @@ table. `classifyFailure` in `core/http/failure.ts` is what tells them apart; not
 `.error.reason` by hand. A 409 is **not** a transport kind — it always carries a `reason`, so it
 is a business refusal like any other.
 
-`z-index` values come from the `--z-*` scale in `src/styles.scss`. Never write a literal: nothing
-in this app opens a stacking context, so every fixed surface resolves at the document root and the
-four numbers only work as a set.
+`z-index` values for surfaces that resolve at the **document root** — the skip link, the bottom
+nav, the overlays, the toast — come from the `--z-*` scale in `src/styles.scss`; never write a
+literal for one of those. Neither `App`'s `:host` nor `.shell-main` opens a stacking context, so
+those four surfaces all stack against each other and the four numbers only work as a set.
+A `z-index` that is local to its own positioned ancestor is outside the scale and stays a literal
+— `schedule-calendar.scss` is the one such case, where absolutely-positioned overlays stack
+within a single calendar tile.
 
 ### Shared shapes, not copied ones (S-19)
 

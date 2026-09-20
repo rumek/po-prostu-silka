@@ -145,7 +145,7 @@ out; a build error cannot.
 | S-16 | membership-pass-and-staff-booking | admin issues a karnet and books a member in; a trainer books into their own classes; a member with no valid karnet is refused; nobody self-books and nobody waits for approval | S-01, S-04, S-08, S-14 | M-4 MP-01–MP-07 (retires v1 US-01, FR-002, FR-003, FR-008, FR-009) | done        |
 | S-17 | invitation-only-registration | register only through an invitation link — the code is shown as text rather than typed, the form asks for an email and a password, and there is no way in without a code | S-14, S-16 | M-5 IR-01–IR-06 (supersedes v1 FR-001's open self-registration) | done |
 | S-18 | backend-layer-boundaries | (structural) nothing — the layering becomes a compiler constraint and the endpoint classes stop holding the logic | S-17 | M-6 CS-01, CS-02, CS-03 | done        |
-| S-19 | frontend-error-and-patterns | (structural) a failure is told one way instead of nine, and the patterns copied across screens are extracted once | S-17 | M-6 CS-04, CS-05, CS-06, CS-07 | ready |
+| S-19 | frontend-error-and-patterns | (structural) a failure is told one way instead of nine, and the patterns copied across screens are extracted once | S-17 | M-6 CS-04, CS-05, CS-06, CS-07 | in-progress |
 
 ## Streams
 
@@ -556,7 +556,7 @@ rather than in a slice body:
   at the centre of the anchor. The second is the eager bundle: the toast host lives in the shell, so
   it lands in the initial chunk, and `angular.json`'s 550 kB warning threshold is the one number this
   slice can move.
-- **Status:** ready
+- **Status:** in-progress
 
 ## Backlog Handoff
 

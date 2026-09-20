@@ -880,7 +880,7 @@ cost of migrating by area rather than in one commit, and it is bounded by Phase 
 - [ ] 2.6 Toast renders above the bottom nav at phone width and above an open overlay
 - [ ] 2.7 A screen reader announces the toast text
 - [ ] 2.8 With reduce-motion on, the toast appears without animating
-- [ ] 2.9 Initial bundle under 550 kB, or the overshoot quantified
+- [x] 2.9 Initial bundle under 550 kB, or the overshoot quantified — measured 512.42 kB at impl-review (2026-09-20), no budget warning emitted
 
 ### Phase 3: The remaining fourteen tables
 
@@ -945,14 +945,14 @@ cost of migrating by area rather than in one commit, and it is bounded by Phase 
 
 #### Automated
 
-- [x] 7.1 Unit tests pass: `npm test` from `src/app/`
-- [x] 7.2 Backend tests still pass, untouched: `dotnet test` from the repo root
-- [x] 7.3 Lint and format pass: `npm run quality:check` from `src/app/`
-- [x] 7.4 Build succeeds and reports the initial bundle: `npm run build`
-- [x] 7.5 No `reject(`, `setBusy(` or generation-counter declaration remains outside `shared/`
+- [x] 7.1 Unit tests pass: `npm test` from `src/app/` — cae01bb
+- [x] 7.2 Backend tests still pass, untouched: `dotnet test` from the repo root — cae01bb
+- [x] 7.3 Lint and format pass: `npm run quality:check` from `src/app/` — cae01bb
+- [x] 7.4 Build succeeds and reports the initial bundle: `npm run build` — cae01bb
+- [x] 7.5 No `reject(`, `setBusy(` or generation-counter declaration remains outside `shared/` — cae01bb
 
 #### Manual
 
 - [ ] 7.6 All eight headers render identically to before on desktop and phone widths
 - [ ] 7.7 Each overlay takes focus on open, returns it on close, and Escape still closes from anywhere
-- [ ] 7.8 Initial bundle under 550 kB, or the overshoot recorded in `AGENTS.md`
+- [x] 7.8 Initial bundle under 550 kB, or the overshoot recorded in `AGENTS.md` — measured 512.42 kB at impl-review (2026-09-20); under the threshold, recorded in `AGENTS.md`
