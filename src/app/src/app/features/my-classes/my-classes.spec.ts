@@ -60,7 +60,7 @@ describe('MyClasses', () => {
   }
 
   function rows(): HTMLElement[] {
-    return [...element().querySelectorAll<HTMLElement>('.my-classes-row')];
+    return [...element().querySelectorAll<HTMLElement>('li.row')];
   }
 
   it('loads on init and renders each booking with its class, time and instructor', async () => {

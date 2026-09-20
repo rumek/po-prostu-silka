@@ -33,25 +33,23 @@
     >
   </div>
 } @else {
-  <ul class="class-types">
+  <app-list>
     @for (row of visible(); track row.id) {
-      <li class="card class-types-row">
-        <div class="class-types-identity">
-          <p class="class-types-name">
-            {{ row.name }}
-            @if (!row.isActive) {
-              <span class="badge badge-inactive">Nieaktywny</span>
-            }
-          </p>
-          @if (row.description) {
-            <p class="class-types-description">{{ row.description }}</p>
+      <li appRow class="card">
+        <p class="row-name">
+          {{ row.name }}
+          @if (!row.isActive) {
+            <span class="badge badge-inactive">Nieaktywny</span>
           }
-          <p class="class-types-meta">
-            Domyślnie: {{ row.defaultDurationMinutes }} min · {{ row.defaultCapacity }} miejsc
-          </p>
-        </div>
+        </p>
+        @if (row.description) {
+          <p class="class-types-description">{{ row.description }}</p>
+        }
+        <p class="row-meta">
+          Domyślnie: {{ row.defaultDurationMinutes }} min · {{ row.defaultCapacity }} miejsc
+        </p>
 
-        <div class="class-types-actions">
+        <div slot="actions" class="row-actions">
           <a class="button button--secondary" [routerLink]="['/admin/class-types', row.id]">
             Edytuj
           </a>
@@ -78,9 +76,9 @@
         </div>
 
         @if (failedId() === row.id) {
-          <p class="field-error" role="alert">Nie udało się. Spróbuj ponownie.</p>
+          <p slot="foot" class="field-error" role="alert">Nie udało się. Spróbuj ponownie.</p>
         }
       </li>
     }
-  </ul>
+  </app-list>
 }

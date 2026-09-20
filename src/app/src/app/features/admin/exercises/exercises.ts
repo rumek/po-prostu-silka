@@ -12,6 +12,8 @@ import { createLoadFence } from '../../../shared/forms/load-fence';
 import { Checkbox } from '../../../shared/forms/checkbox/checkbox';
 import { Loading } from '../../../shared/forms/loading/loading';
 import { Empty } from '../../../shared/forms/empty/empty';
+import { List } from '../../../shared/list/list';
+import { Row } from '../../../shared/list/row';
 
 /**
  * The admin's exercise library (prd.md FR-018, FR-019).
@@ -28,7 +30,7 @@ import { Empty } from '../../../shared/forms/empty/empty';
  * filter — flicking it costs no round trip, and the admin can reactivate something they can see.
  */
 @Component({
-  imports: [Empty, Loading, Checkbox, RouterLink],
+  imports: [Row, List, Empty, Loading, Checkbox, RouterLink],
   selector: 'app-exercises',
   styleUrl: './exercises.scss',
   templateUrl: './exercises.html',

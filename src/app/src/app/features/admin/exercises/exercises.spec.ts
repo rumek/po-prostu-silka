@@ -84,7 +84,7 @@ describe('Exercises', () => {
   }
 
   function rows(): HTMLElement[] {
-    return Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.exercises-row'));
+    return Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('li.row'));
   }
 
   function images(): HTMLImageElement[] {

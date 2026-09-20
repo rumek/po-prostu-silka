@@ -32,12 +32,12 @@
     </app-empty>
   </div>
 } @else {
-  <ul class="exercises">
+  <app-list>
     @for (row of visible(); track row.id) {
-      <li class="card exercises-row">
+      <li appRow class="card">
         <!-- Fixed 16:9 box whether or not an image lands in it: a thumbnail that arrives late must
              not reflow the whole list under the admin's cursor. -->
-        <div class="exercises-thumbnail">
+        <div slot="lead" class="exercises-thumbnail">
           @if (thumbnail(row); as src) {
             <img [src]="src" alt="" loading="lazy" (error)="onThumbnailError(row)" />
           } @else {
@@ -45,22 +45,20 @@
           }
         </div>
 
-        <div class="exercises-identity">
-          <p class="exercises-name">
-            {{ row.name }}
-            @if (!row.isActive) {
-              <span class="badge badge-inactive">Nieaktywne</span>
-            }
-          </p>
-          @if (row.muscleGroup) {
-            <p class="exercises-meta">{{ row.muscleGroup }}</p>
+        <p class="row-name">
+          {{ row.name }}
+          @if (!row.isActive) {
+            <span class="badge badge-inactive">Nieaktywne</span>
           }
-          @if (row.description) {
-            <p class="exercises-description">{{ row.description }}</p>
-          }
-        </div>
+        </p>
+        @if (row.muscleGroup) {
+          <p class="row-meta">{{ row.muscleGroup }}</p>
+        }
+        @if (row.description) {
+          <p class="exercises-description">{{ row.description }}</p>
+        }
 
-        <div class="exercises-actions">
+        <div slot="actions" class="row-actions">
           <a class="button button--secondary" [routerLink]="['/admin/exercises', row.id]">
             Otwórz
           </a>
@@ -87,9 +85,9 @@
         </div>
 
         @if (failedId() === row.id) {
-          <p class="field-error" role="alert">Nie udało się. Spróbuj ponownie.</p>
+          <p slot="foot" class="field-error" role="alert">Nie udało się. Spróbuj ponownie.</p>
         }
       </li>
     }
-  </ul>
+  </app-list>
 }

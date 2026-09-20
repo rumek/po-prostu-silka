@@ -75,26 +75,24 @@
     </app-empty>
   </div>
 } @else {
-  <ul class="members">
+  <app-list>
     @for (member of visible(); track member.id) {
-      <li class="card members-row">
-        <div class="members-identity">
-          <p class="members-name">
-            {{ member.displayName }}
-            <span class="badge" [class]="'badge-' + statusKind(member)">{{
-              statusLabel(member)
-            }}</span>
-            @for (role of notableRoles(member); track role) {
-              <span class="badge badge-role">{{ roleLabel(role) }}</span>
-            }
-          </p>
-          <!-- A record kept at the desk may have no address at all; saying so beats an empty line
-               that reads like a rendering bug. -->
-          <p class="members-email">{{ member.email ?? 'Brak adresu e-mail' }}</p>
-          <p class="members-since">Od {{ member.createdAt | date: 'd MMMM y' }}</p>
-        </div>
+      <li appRow class="card">
+        <p class="row-name">
+          {{ member.displayName }}
+          <span class="badge" [class]="'badge-' + statusKind(member)">{{
+            statusLabel(member)
+          }}</span>
+          @for (role of notableRoles(member); track role) {
+            <span class="badge badge-role">{{ roleLabel(role) }}</span>
+          }
+        </p>
+        <!-- A record kept at the desk may have no address at all; saying so beats an empty line
+             that reads like a rendering bug. -->
+        <p class="members-email">{{ member.email ?? 'Brak adresu e-mail' }}</p>
+        <p class="members-since">Od {{ member.createdAt | date: 'd MMMM y' }}</p>
 
-        <div class="members-action">
+        <div slot="actions" class="row-actions members-action">
           <!-- The wrapper is the "inside the menu" boundary the document click handler tests for. -->
           <div class="row-menu">
             <button
@@ -254,5 +252,5 @@
         </div>
       </li>
     }
-  </ul>
+  </app-list>
 }

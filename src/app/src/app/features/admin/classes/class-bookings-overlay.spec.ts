@@ -121,7 +121,7 @@ describe('ClassBookingsOverlay', () => {
   }
 
   function rows(): HTMLElement[] {
-    return [...element().querySelectorAll<HTMLElement>('.bookings-row')];
+    return [...element().querySelectorAll<HTMLElement>('li.row')];
   }
 
   function buttonWith(text: string): HTMLButtonElement | undefined {

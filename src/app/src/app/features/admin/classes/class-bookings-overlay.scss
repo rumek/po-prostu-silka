@@ -43,7 +43,9 @@
   }
 }
 
-.bookings-person {
+// A local override of the shared .row-identity: 12rem rather than 16, because this list sits in
+// an overlay panel and a wider basis wraps the action onto its own line too early.
+.row-identity {
   // Takes the remaining width so a long name or address wraps rather than pushing the action off the
   // row — the case a class near capacity on a phone runs into first.
   flex: 1 1 12rem;
@@ -51,17 +53,6 @@
   p {
     margin: 0;
   }
-}
-
-.bookings-name {
-  font-weight: 600;
-  overflow-wrap: anywhere;
-}
-
-.bookings-meta {
-  color: var(--muted);
-  font-size: 0.875rem;
-  overflow-wrap: anywhere;
 }
 
 // Takes the whole row, beneath both the person and the action it belongs to.

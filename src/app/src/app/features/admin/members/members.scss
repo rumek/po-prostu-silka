@@ -47,37 +47,6 @@
   font: inherit;
 }
 
-.members {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-}
-
-.members-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-4);
-  padding: var(--space-5);
-}
-
-.members-identity {
-  min-width: 0;
-}
-
-.members-name {
-  margin: 0;
-  font-weight: 600;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
-}
-
 .members-email,
 .members-since {
   margin: var(--space-1) 0 0;
@@ -216,7 +185,7 @@
 }
 
 @media (max-width: 30rem) {
-  .members-row {
+  .row {
     flex-direction: column;
     align-items: stretch;
   }

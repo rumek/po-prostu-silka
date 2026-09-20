@@ -8,6 +8,8 @@ import { transportMessage } from '../../../core/http/transport-messages';
 import { createLoadFence } from '../../../shared/forms/load-fence';
 import { Loading } from '../../../shared/forms/loading/loading';
 import { Empty } from '../../../shared/forms/empty/empty';
+import { List } from '../../../shared/list/list';
+import { Row } from '../../../shared/list/row';
 
 /**
  * Every active training plan in the club (prd.md FR-015, FR-016).
@@ -20,7 +22,7 @@ import { Empty } from '../../../shared/forms/empty/empty';
  * everything, and a club's worth of plans is a list a browser filters instantly.
  */
 @Component({
-  imports: [Empty, Loading, DatePipe, RouterLink],
+  imports: [Row, List, Empty, Loading, DatePipe, RouterLink],
   selector: 'app-plans',
   styleUrl: './plans.scss',
   templateUrl: './plans.html',

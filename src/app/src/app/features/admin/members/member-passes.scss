@@ -27,32 +27,19 @@
   gap: var(--space-3);
 }
 
-// The row wraps rather than shrinking: on a phone the actions belong under the text, not squeezed
-// beside it.
-.passes-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-3);
-}
-
 // The live karnet, marked by a border rather than a fill — the badge already names it, and a filled
 // row would read as selected rather than as current.
 .passes-row--current {
   border-color: var(--accent, currentColor);
 }
 
-.passes-row-main {
+// A local override of the shared .row-identity: the pass lines are set tight against each other.
+.row-identity {
   flex: 1 1 16rem;
 
   > p {
     margin: 0 0 var(--space-1);
   }
-}
-
-.passes-name {
-  font-weight: 600;
 }
 
 .passes-badge {
@@ -72,10 +59,4 @@
 .passes-issued {
   color: var(--muted);
   font-size: 0.8125rem;
-}
-
-.passes-row-actions {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
 }

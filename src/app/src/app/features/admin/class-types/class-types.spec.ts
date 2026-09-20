@@ -70,7 +70,7 @@ describe('ClassTypes', () => {
   }
 
   function rows(): HTMLElement[] {
-    return Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.class-types-row'));
+    return Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('li.row'));
   }
 
   function buttonIn(row: HTMLElement, label: string): HTMLButtonElement {

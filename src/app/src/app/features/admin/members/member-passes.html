@@ -112,28 +112,26 @@
   } @else {
     <ul class="passes-list">
       @for (pass of passes(); track pass.id) {
-        <li class="card passes-row" [class.passes-row--current]="pass.coversToday">
-          <div class="passes-row-main">
-            <p class="passes-name">
-              {{ pass.typeName }}
-              @if (pass.coversToday) {
-                <span class="passes-badge">Aktywny</span>
-              }
-            </p>
+        <li appRow class="card" [class.passes-row--current]="pass.coversToday">
+          <p class="row-name">
+            {{ pass.typeName }}
+            @if (pass.coversToday) {
+              <span class="passes-badge">Aktywny</span>
+            }
+          </p>
 
-            <p class="passes-range-text">
-              {{ pass.validFrom | date: 'd MMM y' }} – {{ pass.validTo | date: 'd MMM y' }}
-            </p>
+          <p class="passes-range-text">
+            {{ pass.validFrom | date: 'd MMM y' }} – {{ pass.validTo | date: 'd MMM y' }}
+          </p>
 
-            <p class="passes-entries">
-              Wykorzystano {{ pass.entriesUsed }} z {{ pass.entryCount }} wejść — zostało
-              <strong>{{ pass.entriesLeft }}</strong>
-            </p>
+          <p class="passes-entries">
+            Wykorzystano {{ pass.entriesUsed }} z {{ pass.entryCount }} wejść — zostało
+            <strong>{{ pass.entriesLeft }}</strong>
+          </p>
 
-            <p class="passes-issued">Wystawiony {{ pass.issuedAt | date: 'd MMMM y' }}</p>
-          </div>
+          <p class="passes-issued">Wystawiony {{ pass.issuedAt | date: 'd MMMM y' }}</p>
 
-          <div class="passes-row-actions">
+          <div slot="actions" class="row-actions">
             <button
               type="button"
               class="button button--secondary"

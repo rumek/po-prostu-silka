@@ -525,6 +525,28 @@ not. Four projection slots, no inputs.
 **Intent**: Hold the `<ul>` and the `<li class="card *-row">` flex recipe that is identical to the
 character in `exercises.scss:21`, `class-types.scss:23` and `plans.scss:26`.
 
+**Adapted during implementation, in four ways.**
+
+1. **`app-row` is `li[appRow]`, an ATTRIBUTE selector.** As an element it would have produced
+   `ul > app-row`, and a `<ul>` admits nothing but `<li>` — the list stops reporting its length to
+   anyone reading it aloud. Written `<li appRow>` the host element is the list item itself.
+2. **`eslint.config.js`'s `component-selector` rule gained a second entry** (attribute /
+   camelCase) so that selector passes lint. Elements are unchanged; the attribute spelling follows
+   the camelCase this file already requires of `directive-selector`.
+3. **`card` stays the caller's class**, not the component's: six of the seven rows want it and the
+   bookings list, which sits inside an overlay panel that is already a card, does not.
+4. **Two `*-row` classes deliberately survive**, so criterion 4.2 is read as "no copy of the
+   recipe remains" rather than literally. `bookings-row` carries a bottom border, a tighter gap and
+   a `:last-child` rule — a real per-screen difference, not a copy — and `passes-row--current` is a
+   state modifier that was never part of the recipe. Keeping them is the same call `.page-header`
+   records: only the layout is shared.
+
+A fifth thing had to be MEASURED rather than assumed, and `list.spec.ts` now pins it: every
+per-row failure line in the app sits inside an `@if`, and a control-flow block is not a static
+element a projection selector can match. `slot="foot"` does survive the block — the element lands
+as a direct child of the `<li>`, not inside `.row-identity`. Had it not, six screens would have
+silently moved their error line up beside the name.
+
 **Contract**: `app-list` renders `<ul class="list">` around `<ng-content />`. `app-row` renders
 `<li class="card row">` and offers **four** projection slots and no inputs: `[slot=lead]`
 (optional leading media), default content (the identity block — name, badges, meta lines),
@@ -783,11 +805,11 @@ markup and stylesheet moves, and Phase 5 is additive except for the `package.jso
 
 #### Automated
 
-- [x] 3.1 Build, lint and specs pass
-- [x] 3.2 No `Wczytywanie` or `class="empty"` remains in any template
-- [x] 3.3 No `passwordReset` or `reset=ok` plumbing remains
-- [x] 3.4 New specs for `app-loading` and `app-empty` pass
-- [x] 3.5 `login.spec.ts` still pins login's form-banner rule
+- [x] 3.1 Build, lint and specs pass — bde09dd
+- [x] 3.2 No `Wczytywanie` or `class="empty"` remains in any template — bde09dd
+- [x] 3.3 No `passwordReset` or `reset=ok` plumbing remains — bde09dd
+- [x] 3.4 New specs for `app-loading` and `app-empty` pass — bde09dd
+- [x] 3.5 `login.spec.ts` still pins login's form-banner rule — bde09dd
 
 #### Manual
 
@@ -801,9 +823,9 @@ markup and stylesheet moves, and Phase 5 is additive except for the `package.jso
 
 #### Automated
 
-- [ ] 4.1 Build, lint and specs pass
-- [ ] 4.2 No `*-row` class remains in any template
-- [ ] 4.3 New specs for `app-list` and `app-row` pass, all four slots asserted
+- [x] 4.1 Build, lint and specs pass
+- [x] 4.2 No `*-row` class remains in any template
+- [x] 4.3 New specs for `app-list` and `app-row` pass, all four slots asserted
 
 #### Manual
 

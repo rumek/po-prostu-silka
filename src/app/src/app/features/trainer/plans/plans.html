@@ -39,23 +39,21 @@
     <app-empty>Żaden plan nie pasuje do „{{ search() }}”.</app-empty>
   </div>
 } @else {
-  <ul class="plans">
+  <app-list>
     @for (row of visible(); track row.id) {
-      <li class="card plans-row">
-        <div class="plans-identity">
-          <p class="plans-member">{{ row.memberDisplayName }}</p>
-          <p class="plans-name">{{ row.name }}</p>
-          <p class="plans-meta">
-            {{ row.itemCount }} {{ exerciseNoun(row.itemCount) }} · przypisał(a)
-            {{ row.assignedByDisplayName }},
-            {{ row.createdAt | date: 'd MMMM y' }}
-          </p>
-        </div>
+      <li appRow class="card">
+        <p class="plans-member">{{ row.memberDisplayName }}</p>
+        <p class="plans-name">{{ row.name }}</p>
+        <p class="row-meta">
+          {{ row.itemCount }} {{ exerciseNoun(row.itemCount) }} · przypisał(a)
+          {{ row.assignedByDisplayName }},
+          {{ row.createdAt | date: 'd MMMM y' }}
+        </p>
 
-        <div class="plans-actions">
+        <div slot="actions" class="row-actions">
           <a class="button button--secondary" [routerLink]="['/trainer/plans', row.id]">Otwórz</a>
         </div>
       </li>
     }
-  </ul>
+  </app-list>
 }

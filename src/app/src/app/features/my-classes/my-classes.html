@@ -26,7 +26,7 @@
 } @else {
   <ul class="my-classes-list">
     @for (row of rows(); track row.bookingId) {
-      <li class="card my-classes-row">
+      <li appRow class="card">
         <app-class-summary
           [name]="row.name"
           [startsAt]="row.startsAt"

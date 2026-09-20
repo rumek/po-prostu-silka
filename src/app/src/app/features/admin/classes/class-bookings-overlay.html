@@ -31,14 +31,13 @@
   } @else {
     <ul class="bookings-list">
       @for (booking of rows(); track booking.bookingId) {
-        <li class="bookings-row">
-          <div class="bookings-person">
-            <p class="bookings-name">{{ booking.displayName }}</p>
-            <p class="bookings-meta">{{ booking.email }}</p>
-            <p class="bookings-meta">Zapis: {{ booking.bookedAt | date: 'd MMMM, HH:mm' }}</p>
-          </div>
+        <li appRow class="bookings-row">
+          <p class="row-name">{{ booking.displayName }}</p>
+          <p class="row-meta">{{ booking.email }}</p>
+          <p class="row-meta">Zapis: {{ booking.bookedAt | date: 'd MMMM, HH:mm' }}</p>
 
           <button
+            slot="actions"
             type="button"
             class="link-button"
             [disabled]="busy.isBusy(booking.bookingId)"
@@ -48,7 +47,7 @@
           </button>
 
           @if (failedId() === booking.bookingId) {
-            <p class="field-error bookings-error" role="alert">{{ failure() }}</p>
+            <p slot="foot" class="field-error bookings-error" role="alert">{{ failure() }}</p>
           }
         </li>
       }

@@ -567,3 +567,69 @@ a {
   align-items: center;
   text-decoration: none;
 }
+
+// -----------------------------------------------------------------------------
+// The list row (S-23).
+//
+// The same flex recipe under seven prefixes: bookings, class-types, exercises, members,
+// my-classes, passes, plans. `exercises.scss`, `class-types.scss` and `plans.scss` declared it
+// byte-identical apart from one `justify-content`; the four `<ul>` rules were identical outright.
+//
+// GLOBAL RATHER THAN IN app-row's OWN STYLESHEET, and not by preference. Emulated encapsulation
+// scopes a component's styles to its own template, and everything inside app-row arrives by
+// projection — so it carries the CALLER's scope attribute and a rule in row.scss would never
+// reach it. The same reason `.page-header` and `.link-button` are here.
+//
+// Only the LAYOUT is shared. What sits in a row stays per-screen: one has a 16:9 thumbnail, one a
+// badge row, one an anchored menu, one a whole component.
+// -----------------------------------------------------------------------------
+
+.list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-5);
+}
+
+// `class-types` and `members` pushed the actions over with `justify-content: space-between` while
+// `exercises` and `plans` used `margin-left: auto` on the actions themselves. The drift resolves
+// to the second: it still works when a row has no actions at all, where space-between would leave
+// the identity stranded in the middle.
+.row-identity {
+  min-width: 0;
+  flex: 1 1 16rem;
+}
+
+.row-name {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.row-meta {
+  margin: var(--space-1) 0 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+
+.row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-left: auto;
+}

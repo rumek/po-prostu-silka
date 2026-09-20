@@ -143,7 +143,7 @@ describe('Members', () => {
   }
 
   function rows(): HTMLElement[] {
-    return Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.members-row'));
+    return Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('li.row'));
   }
 
   function menuTrigger(row: HTMLElement): HTMLButtonElement {

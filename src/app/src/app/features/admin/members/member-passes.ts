@@ -17,6 +17,7 @@ import { createLoadFence } from '../../../shared/forms/load-fence';
 import { Field } from '../../../shared/forms/field/field';
 import { Loading } from '../../../shared/forms/loading/loading';
 import { Empty } from '../../../shared/forms/empty/empty';
+import { Row } from '../../../shared/list/row';
 
 /**
  * Bounds mirrored from MembershipPassRules (src/Application/Members/MembershipPassRules.cs).
@@ -53,7 +54,7 @@ const MAX_VALIDITY_DAYS = 400;
  * </p>
  */
 @Component({
-  imports: [Empty, Loading, Field, DatePipe, ReactiveFormsModule, RouterLink],
+  imports: [Row, Empty, Loading, Field, DatePipe, ReactiveFormsModule, RouterLink],
   selector: 'app-member-passes',
   styleUrl: './member-passes.scss',
   templateUrl: './member-passes.html',
