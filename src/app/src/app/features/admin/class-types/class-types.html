@@ -16,7 +16,7 @@
 </div>
 
 @if (loading()) {
-  <p class="notice" role="status">Wczytywanie…</p>
+  <app-loading />
 } @else if (loadFailed()) {
   <p class="alert" role="alert">
     Nie udało się wczytać typów zajęć.
@@ -24,11 +24,13 @@
   </p>
 } @else if (rows().length === 0) {
   <div class="card">
-    <p class="empty">Nie zdefiniowano jeszcze żadnego typu zajęć.</p>
+    <app-empty>Nie zdefiniowano jeszcze żadnego typu zajęć.</app-empty>
   </div>
 } @else if (hiddenByFilter()) {
   <div class="card">
-    <p class="empty">Wszystkie typy są nieaktywne. Zaznacz „Pokaż nieaktywne”, żeby je zobaczyć.</p>
+    <app-empty
+      >Wszystkie typy są nieaktywne. Zaznacz „Pokaż nieaktywne”, żeby je zobaczyć.</app-empty
+    >
   </div>
 } @else {
   <ul class="class-types">

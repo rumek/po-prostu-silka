@@ -5,6 +5,8 @@ import { ExerciseSummary } from '../../core/training/exercise.models';
 import { TrainingPlanService } from '../../core/training/training-plan.service';
 import { embedUrl, isVideoId } from '../../core/training/youtube';
 import { classifyFailure } from '../../core/http/failure';
+import { Loading } from '../../shared/forms/loading/loading';
+import { Empty } from '../../shared/forms/empty/empty';
 
 /**
  * One exercise from the member's own plan, with its instructions and video (prd.md FR-020).
@@ -27,7 +29,7 @@ import { classifyFailure } from '../../core/http/failure';
  * test, and copying the component without copying the test is precisely how it would be lost.
  */
 @Component({
-  imports: [RouterLink],
+  imports: [Empty, Loading, RouterLink],
   selector: 'app-plan-exercise-detail',
   styleUrl: './plan-exercise-detail.scss',
   templateUrl: './plan-exercise-detail.html',

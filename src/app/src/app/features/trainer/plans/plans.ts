@@ -6,6 +6,8 @@ import { TrainingPlanSummary } from '../../../core/training/training-plan.models
 import { classifyFailure } from '../../../core/http/failure';
 import { transportMessage } from '../../../core/http/transport-messages';
 import { createLoadFence } from '../../../shared/forms/load-fence';
+import { Loading } from '../../../shared/forms/loading/loading';
+import { Empty } from '../../../shared/forms/empty/empty';
 
 /**
  * Every active training plan in the club (prd.md FR-015, FR-016).
@@ -18,7 +20,7 @@ import { createLoadFence } from '../../../shared/forms/load-fence';
  * everything, and a club's worth of plans is a list a browser filters instantly.
  */
 @Component({
-  imports: [DatePipe, RouterLink],
+  imports: [Empty, Loading, DatePipe, RouterLink],
   selector: 'app-plans',
   styleUrl: './plans.scss',
   templateUrl: './plans.html',

@@ -8,6 +8,7 @@ import { transportMessage } from '../../../core/http/transport-messages';
 import { MIN_PASSWORD_LENGTH, passwordsMatch } from '../../../core/auth/validation';
 import { createFormState } from '../../../shared/forms/form-state';
 import { Field } from '../../../shared/forms/field/field';
+import { ToastService } from '../../../shared/toast/toast.service';
 
 /**
  * Sets a new password from an emailed link (S-13). Public, guard-free.
@@ -32,6 +33,7 @@ import { Field } from '../../../shared/forms/field/field';
 export class ResetPassword {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly toast = inject(ToastService);
 
   protected readonly minPasswordLength = MIN_PASSWORD_LENGTH;
 
@@ -93,9 +95,12 @@ export class ResetPassword {
         newPassword: this.form.getRawValue().newPassword,
       });
 
-      await this.router.navigate(['/login'], {
-        queryParams: { reset: 'ok' },
-      });
+      // The toast is raised BEFORE the navigation, and survives it: <app-toast-host /> is mounted
+      // in app.html outside <router-outlet> and outside every auth gate. That is what let the
+      // ?reset=ok query param go (S-23) — it existed only to carry one sentence across a redirect.
+      this.toast.success('Hasło zostało zmienione. Zaloguj się przy użyciu nowego hasła.');
+
+      await this.router.navigate(['/login']);
     } catch (failure) {
       const info = classifyFailure(failure);
 

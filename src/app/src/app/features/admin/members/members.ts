@@ -14,6 +14,8 @@ import { ToastService } from '../../../shared/toast/toast.service';
 import { AccessCodeView, Member, MemberFilter } from '../../../core/admin/member-admin.models';
 import { createBusySet } from '../../../shared/forms/busy-set';
 import { createLoadFence } from '../../../shared/forms/load-fence';
+import { Loading } from '../../../shared/forms/loading/loading';
+import { Empty } from '../../../shared/forms/empty/empty';
 
 /** The filter positions, including "everyone". `null` means no filter parameter is sent. */
 type StatusFilter = MemberFilter | null;
@@ -35,7 +37,7 @@ const triggerId = (memberId: string): string => `member-menu-${memberId}`;
  * the admin somewhere else to do the obvious thing.
  */
 @Component({
-  imports: [DatePipe, FormsModule, RouterLink],
+  imports: [Empty, Loading, DatePipe, FormsModule, RouterLink],
   selector: 'app-members',
   styleUrl: './members.scss',
   templateUrl: './members.html',

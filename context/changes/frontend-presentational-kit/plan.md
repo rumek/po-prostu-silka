@@ -764,11 +764,11 @@ markup and stylesheet moves, and Phase 5 is additive except for the `package.jso
 
 #### Automated
 
-- [x] 2.1 Build, lint and specs pass
-- [x] 2.2 No `class="field"` remains in any template
-- [x] 2.3 No `field-label` or `class="select"` remains
-- [x] 2.4 No bare `type="checkbox"` outside `shared/forms/checkbox/`
-- [x] 2.5 New specs for `app-field`, `app-select` and `app-checkbox` pass
+- [x] 2.1 Build, lint and specs pass — 9fab4f3
+- [x] 2.2 No `class="field"` remains in any template — 9fab4f3
+- [x] 2.3 No `field-label` or `class="select"` remains — 9fab4f3
+- [x] 2.4 No bare `type="checkbox"` outside `shared/forms/checkbox/` — 9fab4f3
+- [x] 2.5 New specs for `app-field`, `app-select` and `app-checkbox` pass — 9fab4f3
 
 #### Manual
 
@@ -783,11 +783,11 @@ markup and stylesheet moves, and Phase 5 is additive except for the `package.jso
 
 #### Automated
 
-- [ ] 3.1 Build, lint and specs pass
-- [ ] 3.2 No `Wczytywanie` or `class="empty"` remains in any template
-- [ ] 3.3 No `passwordReset` or `reset=ok` plumbing remains
-- [ ] 3.4 New specs for `app-loading` and `app-empty` pass
-- [ ] 3.5 `login.spec.ts` still pins login's form-banner rule
+- [x] 3.1 Build, lint and specs pass
+- [x] 3.2 No `Wczytywanie` or `class="empty"` remains in any template
+- [x] 3.3 No `passwordReset` or `reset=ok` plumbing remains
+- [x] 3.4 New specs for `app-loading` and `app-empty` pass
+- [x] 3.5 `login.spec.ts` still pins login's form-banner rule
 
 #### Manual
 

@@ -8,6 +8,7 @@ import { classifyFailure } from '../../../core/http/failure';
 import { transportMessage } from '../../../core/http/transport-messages';
 import { createFormState } from '../../../shared/forms/form-state';
 import { Field } from '../../../shared/forms/field/field';
+import { Loading } from '../../../shared/forms/loading/loading';
 
 /**
  * The bounds, now shared with `class-type-failure.ts` (S-19).
@@ -37,7 +38,7 @@ const {
  * careless edit cannot resurrect a type the admin retired.
  */
 @Component({
-  imports: [Field, ReactiveFormsModule, RouterLink],
+  imports: [Loading, Field, ReactiveFormsModule, RouterLink],
   selector: 'app-class-type-form',
   styleUrl: './class-type-form.scss',
   templateUrl: './class-type-form.html',

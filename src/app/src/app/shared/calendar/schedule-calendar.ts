@@ -27,6 +27,7 @@ import { ScheduledClass } from '../../core/scheduling/class.models';
 import { WEEK_VIEW_MEDIA_QUERY } from './calendar-breakpoint';
 import { CalendarWeekStrip } from './calendar-week-strip';
 import { PolishCalendarDateFormatter } from './polish-date-formatter';
+import { Loading } from '../forms/loading/loading';
 
 /** A time range drawn on the grid, ready for the overlay that will turn it into a class. */
 export interface DrawnRange {
@@ -109,7 +110,7 @@ export interface CalendarRange {
  * at the edges of a week would silently land in the wrong one.
  */
 @Component({
-  imports: [CalendarWeekStrip, CalendarWeekViewComponent, DatePipe, NgTemplateOutlet],
+  imports: [Loading, CalendarWeekStrip, CalendarWeekViewComponent, DatePipe, NgTemplateOutlet],
   // ON THE COMPONENT, NOT IN app.config.ts. Registering the adapter in the application providers
   // pulls angular-calendar into the INITIAL bundle - it did, and the budget caught it: +62 kB over
   // the 500 kB ceiling with the lazy chunks left nearly empty. Declared here, the library ships in

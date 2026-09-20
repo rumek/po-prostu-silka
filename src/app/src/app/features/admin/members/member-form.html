@@ -2,7 +2,7 @@
   <h1>{{ editing() ? 'Edytuj członka' : 'Nowy członek' }}</h1>
 
   @if (state.loading()) {
-    <p class="notice" role="status">Wczytywanie…</p>
+    <app-loading />
   } @else if (state.loadFailed()) {
     <p class="alert" role="alert">
       Nie udało się wczytać danych członka.

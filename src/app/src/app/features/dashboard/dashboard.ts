@@ -13,6 +13,8 @@ import { TrainingPlanDetail } from '../../core/training/training-plan.models';
 import { ClassSummary } from '../../shared/class-summary/class-summary';
 import { PlanSummary } from '../../shared/plan-summary/plan-summary';
 import { createLoadFence } from '../../shared/forms/load-fence';
+import { Loading } from '../../shared/forms/loading/loading';
+import { Empty } from '../../shared/forms/empty/empty';
 
 /** How many upcoming bookings the member's card shows before deferring to /my-classes (FR-023). */
 const NEAREST_CLASSES = 3;
@@ -40,7 +42,7 @@ const UPCOMING_DAYS = 7;
  * It must not import date-fns — see `todayWindow()`.
  */
 @Component({
-  imports: [ClassSummary, DatePipe, PlanSummary, RouterLink],
+  imports: [Empty, Loading, ClassSummary, DatePipe, PlanSummary, RouterLink],
   selector: 'app-dashboard',
   styleUrl: './dashboard.scss',
   templateUrl: './dashboard.html',

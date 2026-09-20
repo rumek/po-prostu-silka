@@ -3,6 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, Router, convertToParamMap, provideRouter } from '@angular/router';
 import { ResetPassword } from './reset-password';
+import { ToastService } from '../../../shared/toast/toast.service';
 
 /** The token as it arrives from the link: already decoded by Angular's query-param parsing. */
 const TOKEN = 'CfDJ8Abc+def/ghi==';
@@ -85,8 +86,11 @@ describe('ResetPassword', () => {
     request.flush(null);
   });
 
-  it('sends the member to the login screen on success', async () => {
+  it('sends the member to the login screen on success, and says so there', async () => {
     await validLink();
+
+    // After createWith: TestBed refuses an inject before the module is configured.
+    const success = vi.spyOn(TestBed.inject(ToastService), 'success');
 
     fill('NoweHaslo_456', 'NoweHaslo_456');
     submit();
@@ -94,8 +98,13 @@ describe('ResetPassword', () => {
 
     await fixture.whenStable();
 
-    // Not signed in here: /login with the notice flag is what proves the new password works.
-    expect(navigate).toHaveBeenCalledWith(['/login'], { queryParams: { reset: 'ok' } });
+    // Not signed in here, so the confirmation is the only thing that proves the new password works.
+    // It is raised BEFORE the navigation and survives it, because the toast host is mounted outside
+    // <router-outlet> — which is what let the ?reset=ok query param go in S-23.
+    expect(success).toHaveBeenCalledWith(
+      'Hasło zostało zmienione. Zaloguj się przy użyciu nowego hasła.',
+    );
+    expect(navigate).toHaveBeenCalledWith(['/login']);
   });
 
   it('blocks submit when the confirmation does not match', async () => {

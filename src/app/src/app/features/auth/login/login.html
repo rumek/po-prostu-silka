@@ -9,12 +9,6 @@
       </p>
     }
 
-    @if (passwordReset) {
-      <p class="notice" role="status">
-        Hasło zostało zmienione. Zaloguj się przy użyciu nowego hasła.
-      </p>
-    }
-
     @if (error()) {
       <p class="alert" role="alert">{{ error() }}</p>
     }

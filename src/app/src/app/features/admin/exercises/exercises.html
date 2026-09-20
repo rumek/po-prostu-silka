@@ -15,7 +15,7 @@
 </div>
 
 @if (loading()) {
-  <p class="notice" role="status">Wczytywanie…</p>
+  <app-loading />
 } @else if (loadFailed()) {
   <p class="alert" role="alert">
     Nie udało się wczytać ćwiczeń.
@@ -23,13 +23,13 @@
   </p>
 } @else if (rows().length === 0) {
   <div class="card">
-    <p class="empty">Nie dodano jeszcze żadnego ćwiczenia.</p>
+    <app-empty>Nie dodano jeszcze żadnego ćwiczenia.</app-empty>
   </div>
 } @else if (hiddenByFilter()) {
   <div class="card">
-    <p class="empty">
+    <app-empty>
       Wszystkie ćwiczenia są nieaktywne. Zaznacz „Pokaż nieaktywne”, żeby je zobaczyć.
-    </p>
+    </app-empty>
   </div>
 } @else {
   <ul class="exercises">

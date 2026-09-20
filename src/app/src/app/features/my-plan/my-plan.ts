@@ -6,6 +6,8 @@ import { classifyFailure } from '../../core/http/failure';
 import { transportMessage } from '../../core/http/transport-messages';
 import { PlanSummary } from '../../shared/plan-summary/plan-summary';
 import { Icon } from '../../shared/icons/icon';
+import { Empty } from '../../shared/forms/empty/empty';
+import { Loading } from '../../shared/forms/loading/loading';
 
 /**
  * The member's own training plan (prd.md FR-017).
@@ -23,7 +25,7 @@ import { Icon } from '../../shared/icons/icon';
  * four empty labels would make it look broken.
  */
 @Component({
-  imports: [PlanSummary, RouterLink, Icon],
+  imports: [Loading, Empty, PlanSummary, RouterLink, Icon],
   selector: 'app-my-plan',
   styleUrl: './my-plan.scss',
   templateUrl: './my-plan.html',

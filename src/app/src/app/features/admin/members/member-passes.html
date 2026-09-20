@@ -14,9 +14,9 @@
         z {{ live.entryCount }} wejść, ważny do {{ live.validTo | date: 'd MMMM y' }}.
       </p>
     } @else {
-      <p class="empty">
+      <app-empty>
         Ta osoba nie ma dziś ważnego karnetu, więc nie można jej zapisać na żadne zajęcia.
-      </p>
+      </app-empty>
     }
   }
 
@@ -100,7 +100,7 @@
   <h2 class="section-title">Historia karnetów</h2>
 
   @if (state.loading()) {
-    <p class="notice" role="status">Wczytywanie…</p>
+    <app-loading />
   } @else if (state.loadFailed()) {
     <p class="alert" role="alert">
       Nie udało się wczytać karnetów.
@@ -108,7 +108,7 @@
     </p>
   } @else if (passes().length === 0) {
     <!-- NOT an error: a member who has never been sold a karnet is an ordinary state. -->
-    <p class="empty">Ta osoba nie ma jeszcze żadnego karnetu.</p>
+    <app-empty>Ta osoba nie ma jeszcze żadnego karnetu.</app-empty>
   } @else {
     <ul class="passes-list">
       @for (pass of passes(); track pass.id) {

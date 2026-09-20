@@ -14,6 +14,8 @@ import { createFormState } from '../../../shared/forms/form-state';
 import { fromLocalInputValue, toLocalInputValue } from '../../../core/scheduling/local-datetime';
 import { Field } from '../../../shared/forms/field/field';
 import { Select } from '../../../shared/forms/select/select';
+import { Loading } from '../../../shared/forms/loading/loading';
+import { Empty } from '../../../shared/forms/empty/empty';
 
 /** Matches the server's bounds in ClassEndpoints.Validate. Keep the two in step. */
 export const MIN_CAPACITY = 1;
@@ -50,7 +52,7 @@ export const MAX_DURATION = 480;
  * hunt for which field to change.
  */
 @Component({
-  imports: [Select, Field, ReactiveFormsModule, RouterLink],
+  imports: [Empty, Loading, Select, Field, ReactiveFormsModule, RouterLink],
   selector: 'app-class-form',
   styleUrl: './class-form.scss',
   templateUrl: './class-form.html',

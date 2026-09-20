@@ -1,5 +1,5 @@
 @if (loading()) {
-  <p class="notice" role="status">Wczytywanie…</p>
+  <app-loading />
 } @else if (notFound()) {
   <p class="alert" role="alert">
     Tego ćwiczenia nie ma w Twoim planie.
@@ -86,9 +86,9 @@
     !row.videoId
   ) {
     <div class="card">
-      <p class="empty">
+      <app-empty>
         Do tego ćwiczenia nie dodano jeszcze opisu ani filmu. Zapytaj trenera, jak je wykonać.
-      </p>
+      </app-empty>
     </div>
   }
 }

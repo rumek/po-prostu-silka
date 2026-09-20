@@ -4,7 +4,7 @@
 </div>
 
 @if (state.loading()) {
-  <p class="notice" role="status">Wczytywanie…</p>
+  <app-loading />
 } @else if (state.loadFailed()) {
   <p class="alert" role="alert">
     Nie udało się wczytać tego planu. Odśwież stronę albo
@@ -87,10 +87,10 @@
       <h2>Ćwiczenia</h2>
 
       @if (items.length === 0) {
-        <p class="empty">
+        <app-empty>
           Plan jest pusty. Wybierz ćwiczenia z biblioteki poniżej — kolejność ustawisz przeciągając
           wiersze.
-        </p>
+        </app-empty>
       } @else {
         <!-- The order of this list IS the order of the plan. Nothing here holds a position number:
              the server numbers what it receives, so a drag cannot produce a gap or a duplicate. -->
@@ -215,13 +215,13 @@
             Plan ma już {{ maxItems }} ćwiczeń — to maksimum. Usuń któreś, żeby dodać inne.
           </p>
         } @else if (pickable().length === 0) {
-          <p class="empty">
+          <app-empty>
             @if (exerciseSearch()) {
               Żadne ćwiczenie nie pasuje do „{{ exerciseSearch() }}”.
             } @else {
               Wszystkie aktywne ćwiczenia są już w tym planie.
             }
-          </p>
+          </app-empty>
         } @else {
           <ul class="builder-library">
             @for (row of pickable(); track row.id) {

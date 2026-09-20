@@ -18,7 +18,7 @@
   </p>
 
   @if (loading()) {
-    <p class="notice" role="status">Wczytywanie…</p>
+    <app-loading />
   } @else if (loadFailed()) {
     <p class="alert" role="alert">
       Nie udało się wczytać listy zapisanych.
@@ -27,7 +27,7 @@
   } @else if (rows().length === 0) {
     <!-- An empty class is a normal state, not a failure — the wording says so rather than leaving a
          blank panel the admin has to interpret. -->
-    <p class="notice" role="status">Nikt nie jest jeszcze zapisany na te zajęcia.</p>
+    <app-empty>Nikt nie jest jeszcze zapisany na te zajęcia.</app-empty>
   } @else {
     <ul class="bookings-list">
       @for (booking of rows(); track booking.bookingId) {

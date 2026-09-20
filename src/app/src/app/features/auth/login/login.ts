@@ -29,16 +29,8 @@ export class Login {
   protected readonly error = signal<string | null>(null);
   protected readonly submitting = signal(false);
 
-  /**
-   * Set by /reset-password on success (S-13). The reset endpoint deliberately does not sign the
-   * member in, so this screen is where they land and where they find out it worked — otherwise the
-   * flow ends on a bare login form that looks like nothing happened.
-   *
-   * Read once from the snapshot: this route is not reused, so there is nothing to observe.
-   */
+  /** Read once from the snapshot: this route is not reused, so there is nothing to observe. */
   private readonly route = inject(ActivatedRoute);
-
-  protected readonly passwordReset = this.route.snapshot.queryParamMap.get('reset') === 'ok';
 
   /**
    * Set by the register screen when the API refused the invitation (S-17).

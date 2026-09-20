@@ -56,7 +56,7 @@
 </header>
 
 @if (loading()) {
-  <p class="notice" role="status">Wczytywanie…</p>
+  <app-loading />
 } @else if (loadFailed()) {
   <p class="alert" role="alert">Nie udało się wczytać grafiku.</p>
 }

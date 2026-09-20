@@ -7,17 +7,17 @@
     <h2 class="dashboard-card-title">Najbliższe zajęcia</h2>
 
     @if (bookingsLoading()) {
-      <p class="notice" role="status">Wczytywanie…</p>
+      <app-loading />
     } @else if (bookingsFailed()) {
       <p class="alert" role="alert">
         Nie udało się wczytać zapisów.
         <button type="button" class="link-button" (click)="loadBookings()">Spróbuj ponownie</button>
       </p>
     } @else if (nearestBookings().length === 0) {
-      <p class="notice" role="status">
+      <app-empty>
         Nie masz jeszcze żadnych zapisów.
         <a routerLink="/schedule">Zobacz grafik zajęć</a>
-      </p>
+      </app-empty>
     } @else {
       <ul class="dashboard-list">
         @for (row of nearestBookings(); track row.bookingId) {
@@ -47,7 +47,7 @@
     <h2 class="dashboard-card-title">Twój karnet</h2>
 
     @if (passLoading()) {
-      <p class="notice" role="status">Wczytywanie…</p>
+      <app-loading />
     } @else if (passFailed()) {
       <p class="alert" role="alert">
         Nie udało się wczytać karnetu.
@@ -64,10 +64,10 @@
       <!-- NOT an error, and deliberately not styled as one: the API says 204. It names the
            consequence rather than only the fact, because "brak karnetu" on its own does not tell a
            member why nobody is signing them up for anything. -->
-      <p class="empty">
+      <app-empty>
         Nie masz aktywnego karnetu. Bez niego klub nie zapisze Cię na zajęcia — odezwij się w
         recepcji.
-      </p>
+      </app-empty>
     }
   </article>
 
@@ -80,7 +80,7 @@
     }
 
     @if (planLoading()) {
-      <p class="notice" role="status">Wczytywanie…</p>
+      <app-loading />
     } @else if (planFailed()) {
       <p class="alert" role="alert">
         Nie udało się wczytać planu.
@@ -99,9 +99,9 @@
     } @else {
       <!-- NOT an error, and deliberately not styled as one: the API says 204, and a member who has not
            been given a plan has nothing to retry. Same distinction /my-plan draws. -->
-      <p class="empty">
+      <app-empty>
         Nie masz jeszcze przypisanego planu treningowego. Poproś trenera, żeby Ci go ułożył.
-      </p>
+      </app-empty>
     }
   </article>
 </section>
@@ -114,7 +114,7 @@
       <h3 class="dashboard-card-title">Dzisiaj</h3>
 
       @if (classesLoading()) {
-        <p class="notice" role="status">Wczytywanie…</p>
+        <app-loading />
       } @else if (classesFailed()) {
         <p class="alert" role="alert">
           Nie udało się wczytać zajęć.
@@ -123,7 +123,7 @@
           </button>
         </p>
       } @else if (todayClasses().length === 0) {
-        <p class="empty">Dzisiaj nie ma zaplanowanych zajęć.</p>
+        <app-empty>Dzisiaj nie ma zaplanowanych zajęć.</app-empty>
       } @else {
         <ul class="dashboard-list">
           @for (row of todayClasses(); track row.id) {
@@ -146,7 +146,7 @@
       <!-- Same load as "Dzisiaj" — one request, bucketed — so this card mirrors its states rather than
            firing a second request for the other half of the same window. -->
       @if (classesLoading()) {
-        <p class="notice" role="status">Wczytywanie…</p>
+        <app-loading />
       } @else if (classesFailed()) {
         <p class="alert" role="alert">
           Nie udało się wczytać zajęć.
@@ -155,7 +155,7 @@
           </button>
         </p>
       } @else if (upcomingClasses().length === 0) {
-        <p class="empty">Brak zajęć w najbliższym tygodniu.</p>
+        <app-empty>Brak zajęć w najbliższym tygodniu.</app-empty>
       } @else {
         <ul class="dashboard-list">
           @for (row of upcomingClasses(); track row.id) {

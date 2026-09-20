@@ -21,7 +21,7 @@
 </div>
 
 @if (loading()) {
-  <p class="notice" role="status">Wczytywanie…</p>
+  <app-loading />
 } @else if (loadFailed()) {
   <p class="alert" role="alert">
     Nie udało się wczytać planów.
@@ -32,11 +32,11 @@
   </p>
 } @else if (rows().length === 0) {
   <div class="card">
-    <p class="empty">Nie przypisano jeszcze żadnego planu.</p>
+    <app-empty>Nie przypisano jeszcze żadnego planu.</app-empty>
   </div>
 } @else if (hiddenByFilter()) {
   <div class="card">
-    <p class="empty">Żaden plan nie pasuje do „{{ search() }}”.</p>
+    <app-empty>Żaden plan nie pasuje do „{{ search() }}”.</app-empty>
   </div>
 } @else {
   <ul class="plans">

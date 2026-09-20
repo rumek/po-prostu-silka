@@ -10,6 +10,8 @@ import { ToastService } from '../../../shared/toast/toast.service';
 import { createBusySet } from '../../../shared/forms/busy-set';
 import { createLoadFence } from '../../../shared/forms/load-fence';
 import { Checkbox } from '../../../shared/forms/checkbox/checkbox';
+import { Loading } from '../../../shared/forms/loading/loading';
+import { Empty } from '../../../shared/forms/empty/empty';
 
 /**
  * The admin's exercise library (prd.md FR-018, FR-019).
@@ -26,7 +28,7 @@ import { Checkbox } from '../../../shared/forms/checkbox/checkbox';
  * filter — flicking it costs no round trip, and the admin can reactivate something they can see.
  */
 @Component({
-  imports: [Checkbox, RouterLink],
+  imports: [Empty, Loading, Checkbox, RouterLink],
   selector: 'app-exercises',
   styleUrl: './exercises.scss',
   templateUrl: './exercises.html',

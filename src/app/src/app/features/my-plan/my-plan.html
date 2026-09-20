@@ -1,5 +1,5 @@
 @if (loading()) {
-  <p class="notice" role="status">Wczytywanie…</p>
+  <app-loading />
 } @else if (loadFailed()) {
   <p class="alert" role="alert">
     Nie udało się wczytać planu.
@@ -90,8 +90,8 @@
        no alert styling — just what is true and who to ask. -->
   <h1>Mój plan</h1>
   <div class="card">
-    <p class="empty">
+    <app-empty>
       Nie masz jeszcze przypisanego planu treningowego. Poproś trenera, żeby Ci go ułożył.
-    </p>
+    </app-empty>
   </div>
 }

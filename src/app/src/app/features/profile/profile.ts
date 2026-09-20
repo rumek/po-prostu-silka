@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { AuthService } from '../../core/auth/auth.service';
 import { ContactFailureReason } from '../../core/auth/auth.models';
@@ -8,6 +8,7 @@ import { classifyFailure } from '../../core/http/failure';
 import { transportMessage } from '../../core/http/transport-messages';
 import { ReadonlyField } from '../../shared/readonly-field/readonly-field';
 import { createFormState } from '../../shared/forms/form-state';
+import { ToastService } from '../../shared/toast/toast.service';
 import { Field } from '../../shared/forms/field/field';
 import {
   MIN_PASSWORD_LENGTH,
@@ -31,6 +32,13 @@ import {
 })
 export class Profile {
   private readonly auth = inject(AuthService);
+
+  /**
+   * Both confirmations on this screen are toasts (S-23). They used to be inline notices, which
+   * made `.notice` mean "success" here and "loading" everywhere else; the failure rule already
+   * said a confirmation on a screen that stays put is the toast outlet.
+   */
+  private readonly toast = inject(ToastService);
 
   protected readonly user = this.auth.user;
 
@@ -66,7 +74,6 @@ export class Profile {
    * not make the address fields look broken.
    */
   protected readonly state = createFormState();
-  protected readonly saved = signal(false);
 
   /** The contact table, exposed so a field says the same thing whoever caught the rule. */
   protected readonly contactMessage = profileFailureMessage;
@@ -88,7 +95,6 @@ export class Profile {
   );
 
   protected readonly passwordState = createFormState();
-  protected readonly passwordChanged = signal(false);
 
   /** The password table, exposed for the same reason `contactMessage` is. */
   protected readonly passwordMessage = changePasswordFailureMessage;
@@ -115,7 +121,6 @@ export class Profile {
     }
 
     this.state.error.set(null);
-    this.saved.set(false);
     this.state.submitting.set(true);
 
     try {
@@ -130,7 +135,7 @@ export class Profile {
 
       // The service replaced the session signal from the response, so `incomplete` re-evaluates on
       // its own and the prompt disappears without anything here clearing it.
-      this.saved.set(true);
+      this.toast.success('Dane zostały zapisane.');
     } catch (failure) {
       this.applyFailure(failure);
     } finally {
@@ -150,7 +155,6 @@ export class Profile {
     }
 
     this.passwordState.error.set(null);
-    this.passwordChanged.set(false);
     this.passwordState.submitting.set(true);
 
     try {
@@ -158,7 +162,7 @@ export class Profile {
       await this.auth.changePassword({ currentPassword, newPassword });
 
       this.passwordForm.reset();
-      this.passwordChanged.set(true);
+      this.toast.success('Hasło zostało zmienione.');
     } catch (failure) {
       const info = classifyFailure(failure);
 

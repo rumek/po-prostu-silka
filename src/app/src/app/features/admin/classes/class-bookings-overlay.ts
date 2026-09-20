@@ -13,6 +13,8 @@ import { createBusySet } from '../../../shared/forms/busy-set';
 import { useOverlayFocus } from '../../../shared/forms/overlay-focus';
 import { Field } from '../../../shared/forms/field/field';
 import { Select } from '../../../shared/forms/select/select';
+import { Loading } from '../../../shared/forms/loading/loading';
+import { Empty } from '../../../shared/forms/empty/empty';
 
 /**
  * Who signed up for a class, and the action to release a spot (prd.md FR-014).
@@ -42,7 +44,7 @@ import { Select } from '../../../shared/forms/select/select';
   // On the host, not on the panel: Escape has to close the overlay wherever focus is, including
   // before the admin has touched anything.
   host: { '(document:keydown.escape)': 'close()' },
-  imports: [Select, Field, DatePipe, FormsModule],
+  imports: [Empty, Loading, Select, Field, DatePipe, FormsModule],
   selector: 'app-class-bookings-overlay',
   styleUrl: './class-bookings-overlay.scss',
   templateUrl: './class-bookings-overlay.html',

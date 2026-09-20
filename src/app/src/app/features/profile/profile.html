@@ -12,10 +12,6 @@
       <p class="alert" role="alert">{{ state.error() }}</p>
     }
 
-    @if (saved()) {
-      <p class="notice" role="status">Dane zostały zapisane.</p>
-    }
-
     <!-- Text, not disabled inputs, and deliberately: a disabled field still reads as something that
          might become editable. The gym owns these two values (FR-006 as rewritten) and no endpoint
          in this app changes either. The markup moved into app-readonly-field so /register renders
@@ -126,10 +122,6 @@
 
     @if (passwordState.error()) {
       <p class="alert" role="alert">{{ passwordState.error() }}</p>
-    }
-
-    @if (passwordChanged()) {
-      <p class="notice" role="status">Hasło zostało zmienione.</p>
     }
 
     <form [formGroup]="passwordForm" (ngSubmit)="submitPassword()" novalidate>

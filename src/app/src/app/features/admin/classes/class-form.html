@@ -1,7 +1,7 @@
 <h1>{{ editingId() ? 'Edytuj zajęcia' : 'Nowe zajęcia' }}</h1>
 
 @if (state.loading()) {
-  <p class="notice" role="status">Wczytywanie…</p>
+  <app-loading />
 } @else if (state.loadFailed()) {
   <p class="alert" role="alert">
     Nie udało się wczytać tych zajęć.
@@ -11,12 +11,12 @@
   <!-- The signpost, not an unfillable form. After the schedule wipe this is the first screen an
        admin reaches, so "why can I not do anything here" must never be a question they have to ask. -->
   <div class="card">
-    <p class="empty">Najpierw zdefiniuj typ zajęć — zajęcia powstają z definicji.</p>
+    <app-empty>Najpierw zdefiniuj typ zajęć — zajęcia powstają z definicji.</app-empty>
     <a class="button" routerLink="/admin/class-types">Przejdź do typów zajęć</a>
   </div>
 } @else if (noTrainers()) {
   <div class="card">
-    <p class="empty">Nikt nie ma jeszcze roli prowadzącego. Nadaj ją zatwierdzonemu koncie.</p>
+    <app-empty>Nikt nie ma jeszcze roli prowadzącego. Nadaj ją zatwierdzonemu koncie.</app-empty>
     <a class="button" routerLink="/admin/members">Przejdź do listy członków</a>
   </div>
 } @else {

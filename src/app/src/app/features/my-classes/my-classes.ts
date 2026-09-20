@@ -6,6 +6,8 @@ import { classifyFailure } from '../../core/http/failure';
 import { transportMessage } from '../../core/http/transport-messages';
 import { ClassSummary } from '../../shared/class-summary/class-summary';
 import { createLoadFence } from '../../shared/forms/load-fence';
+import { Loading } from '../../shared/forms/loading/loading';
+import { Empty } from '../../shared/forms/empty/empty';
 
 /**
  * The member's upcoming bookings (prd.md FR-010).
@@ -23,7 +25,7 @@ import { createLoadFence } from '../../shared/forms/load-fence';
  * Shell shape follows `schedule.ts` — rows, loading, loadFailed, a generation fence.
  */
 @Component({
-  imports: [ClassSummary, RouterLink],
+  imports: [Empty, Loading, ClassSummary, RouterLink],
   selector: 'app-my-classes',
   styleUrl: './my-classes.scss',
   templateUrl: './my-classes.html',

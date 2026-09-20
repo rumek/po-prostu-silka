@@ -5,6 +5,8 @@ import { ExerciseService } from '../../../core/training/exercise.service';
 import { ExerciseSummary } from '../../../core/training/exercise.models';
 import { embedUrl, isVideoId } from '../../../core/training/youtube';
 import { classifyFailure } from '../../../core/http/failure';
+import { Loading } from '../../../shared/forms/loading/loading';
+import { Empty } from '../../../shared/forms/empty/empty';
 
 /**
  * One exercise, laid out for reading (prd.md FR-018, FR-019).
@@ -18,7 +20,7 @@ import { classifyFailure } from '../../../core/http/failure';
  * headings would make it look broken.
  */
 @Component({
-  imports: [RouterLink],
+  imports: [Empty, Loading, RouterLink],
   selector: 'app-exercise-detail',
   styleUrl: './exercise-detail.scss',
   templateUrl: './exercise-detail.html',

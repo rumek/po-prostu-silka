@@ -4,6 +4,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { CurrentUser } from '../../core/auth/auth.models';
 import { AuthService } from '../../core/auth/auth.service';
 import { Profile } from './profile';
+import { ToastService } from '../../shared/toast/toast.service';
 
 const COMPLETE: CurrentUser = {
   id: 'u1',
@@ -31,6 +32,7 @@ const INCOMPLETE: CurrentUser = {
 describe('Profile', () => {
   let fixture: ComponentFixture<Profile>;
   let controller: HttpTestingController;
+  let success: ReturnType<typeof vi.spyOn>;
 
   /**
    * The component reads the session signal in its constructor to pre-fill, so the signal has to hold
@@ -43,6 +45,7 @@ describe('Profile', () => {
     });
 
     controller = TestBed.inject(HttpTestingController);
+    success = vi.spyOn(TestBed.inject(ToastService), 'success');
 
     // Through loadCurrentUser rather than by poking the private signal: this is the same path a
     // real cold load takes, so the test breaks if that path stops populating the session.
@@ -149,8 +152,13 @@ describe('Profile', () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
+    // The confirmation is a TOAST since S-23, not an inline notice — the screen stays put, which
+    // is the third outlet by the failure rule. What is still asserted here is what the notice used
+    // to prove alongside it: the "complete your details" prompt goes away on its own, because the
+    // service replaced the session signal from the response.
+    expect(success).toHaveBeenCalledWith('Dane zostały zapisane.');
+
     const notices = [...compiled().querySelectorAll('.notice')].map((n) => n.textContent ?? '');
-    expect(notices.some((text) => text.includes('Dane zostały zapisane'))).toBe(true);
     expect(notices.some((text) => text.includes('Uzupełnij swoje dane'))).toBe(false);
   });
 
@@ -270,11 +278,7 @@ describe('Profile', () => {
       fixture.detectChanges();
 
       expect(compiled().querySelector<HTMLInputElement>('#currentPassword')!.value).toBe('');
-      expect(
-        [...compiled().querySelectorAll('.notice')].some((n) =>
-          (n.textContent ?? '').includes('Hasło zostało zmienione'),
-        ),
-      ).toBe(true);
+      expect(success).toHaveBeenCalledWith('Hasło zostało zmienione.');
     });
 
     /**
