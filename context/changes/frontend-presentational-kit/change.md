@@ -1,7 +1,7 @@
 ---
 change_id: frontend-presentational-kit
 title: The presentational layer gets components, not copies (S-23)
-status: implementing
+status: implemented
 created: 2026-09-20
 updated: 2026-09-20
 archived_at: null

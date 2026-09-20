@@ -852,15 +852,15 @@ markup and stylesheet moves, and Phase 5 is additive except for the `package.jso
 
 #### Automated
 
-- [x] 5.1 Lint passes on the clean tree
-- [x] 5.2 Build and specs pass
-- [x] 5.3 The rule's own spec passes, negative cases included
-- [x] 5.4 The rule fires on a deliberate violation and stops on revert
-- [x] 5.5 `npm ci` from a clean `node_modules` succeeds with the four new devDependencies
+- [x] 5.1 Lint passes on the clean tree — 2b95202
+- [x] 5.2 Build and specs pass — 2b95202
+- [x] 5.3 The rule's own spec passes, negative cases included — 2b95202
+- [x] 5.4 The rule fires on a deliberate violation and stops on revert — 2b95202
+- [x] 5.5 `npm ci` from a clean `node_modules` succeeds with the four new devDependencies — 2b95202
 
 #### Manual
 
 - [ ] 5.6 The failing message reads as an instruction, not a code
 - [ ] 5.7 `AGENTS.md`'s new subsection is accurate against the shipped components
 - [ ] 5.8 Final eager-bundle figure recorded in `AGENTS.md` and in this plan
-- [ ] 5.9 The opening audit returns zero on all six families
+- [x] 5.9 The opening audit returns zero on all six families
