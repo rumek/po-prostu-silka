@@ -14,6 +14,7 @@ import { transportMessage } from '../../../core/http/transport-messages';
 import { createFormState } from '../../../shared/forms/form-state';
 import { ToastService } from '../../../shared/toast/toast.service';
 import { createLoadFence } from '../../../shared/forms/load-fence';
+import { Field } from '../../../shared/forms/field/field';
 
 /**
  * Bounds mirrored from MembershipPassRules (src/Application/Members/MembershipPassRules.cs).
@@ -50,7 +51,7 @@ const MAX_VALIDITY_DAYS = 400;
  * </p>
  */
 @Component({
-  imports: [DatePipe, ReactiveFormsModule, RouterLink],
+  imports: [Field, DatePipe, ReactiveFormsModule, RouterLink],
   selector: 'app-member-passes',
   styleUrl: './member-passes.scss',
   templateUrl: './member-passes.html',

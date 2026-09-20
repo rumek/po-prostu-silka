@@ -286,6 +286,12 @@ projected content. The component emits no `aria-invalid` and no validation logic
 both, and Phase 5's rule is what checks they are present. Docblock states why it projects, naming
 both irregular callers.
 
+**Adapted during implementation.** `label` and `for` are `input<string>()`, not
+`input.required<string>()`. The plan's own sentence contains the contradiction: a field whose label
+is projected into `[slot=label]` passes neither, so `required` would have made the one caller the
+slot exists for fail at runtime. The slot is `[slot=label]` on the projected element, matched with
+`<ng-content select="[slot=label]" />`.
+
 #### 2. `app-select`
 
 **File**: `src/app/src/app/shared/forms/select/select.ts` (+ `.spec.ts`)
@@ -311,6 +317,13 @@ component adds no inputs. Its spec asserts the wrapper element is present and th
 `checkedChange` output — **no** `ControlValueAccessor`, and the docblock says why: no form in the
 app has a checkbox, and CVA is additive when one arrives. The label is projected content, wired to
 the input via a generated id so the association cannot be forgotten.
+
+**Adapted during implementation.** No generated id: the `<input>` sits INSIDE the `<label>`, which
+is what both hand-written copies already did. Implicit association is the stronger form of the same
+guarantee — there is no id to duplicate, collide or forget — and it makes the whole row one hit
+target, which is what the copied `cursor: pointer` had been promising. The component also sets
+`accent-color: var(--accent)` on the box; that, not the missing class, is why these two read as
+foreign: they were rendering in the browser's default blue.
 
 #### 4. Migrate the 13 templates carrying `.field`
 
@@ -736,10 +749,10 @@ markup and stylesheet moves, and Phase 5 is additive except for the `package.jso
 
 #### Automated
 
-- [x] 1.1 SPA builds: `npm run build`
-- [x] 1.2 Lint and format pass: `npm run quality:check`
-- [x] 1.3 Specs pass: `npm test`
-- [x] 1.4 No `.empty`, `.section-title` or `.form-actions` declaration remains outside `styles.scss`
+- [x] 1.1 SPA builds: `npm run build` — 18fa4ef
+- [x] 1.2 Lint and format pass: `npm run quality:check` — 18fa4ef
+- [x] 1.3 Specs pass: `npm test` — 18fa4ef
+- [x] 1.4 No `.empty`, `.section-title` or `.form-actions` declaration remains outside `styles.scss` — 18fa4ef
 
 #### Manual
 
@@ -751,11 +764,11 @@ markup and stylesheet moves, and Phase 5 is additive except for the `package.jso
 
 #### Automated
 
-- [ ] 2.1 Build, lint and specs pass
-- [ ] 2.2 No `class="field"` remains in any template
-- [ ] 2.3 No `field-label` or `class="select"` remains
-- [ ] 2.4 No bare `type="checkbox"` outside `shared/forms/checkbox/`
-- [ ] 2.5 New specs for `app-field`, `app-select` and `app-checkbox` pass
+- [x] 2.1 Build, lint and specs pass
+- [x] 2.2 No `class="field"` remains in any template
+- [x] 2.3 No `field-label` or `class="select"` remains
+- [x] 2.4 No bare `type="checkbox"` outside `shared/forms/checkbox/`
+- [x] 2.5 New specs for `app-field`, `app-select` and `app-checkbox` pass
 
 #### Manual
 

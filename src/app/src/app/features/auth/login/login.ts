@@ -5,13 +5,14 @@ import { AuthService } from '../../../core/auth/auth.service';
 import { classifyFailure } from '../../../core/http/failure';
 import { transportMessage } from '../../../core/http/transport-messages';
 import { loginFailureMessage } from '../../../core/auth/login-failure';
+import { Field } from '../../../shared/forms/field/field';
 
 /**
  * Sign-in. Reactive forms (S-01 D8) — this decides the idiom for the project: server-returned field
  * errors map onto controls, and validation is testable without a DOM.
  */
 @Component({
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [Field, ReactiveFormsModule, RouterLink],
   selector: 'app-login',
   styleUrl: './login.scss',
   templateUrl: './login.html',

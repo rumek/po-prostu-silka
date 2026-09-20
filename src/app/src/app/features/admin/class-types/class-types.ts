@@ -8,6 +8,7 @@ import { transportMessage } from '../../../core/http/transport-messages';
 import { ToastService } from '../../../shared/toast/toast.service';
 import { createBusySet } from '../../../shared/forms/busy-set';
 import { createLoadFence } from '../../../shared/forms/load-fence';
+import { Checkbox } from '../../../shared/forms/checkbox/checkbox';
 
 /**
  * The admin's class-type definitions (prd-v2 FR-005, FR-006).
@@ -23,7 +24,7 @@ import { createLoadFence } from '../../../shared/forms/load-fence';
  * filter — flicking it costs no round trip, and the admin can reactivate something they can see.
  */
 @Component({
-  imports: [RouterLink],
+  imports: [Checkbox, RouterLink],
   selector: 'app-class-types',
   styleUrl: './class-types.scss',
   templateUrl: './class-types.html',

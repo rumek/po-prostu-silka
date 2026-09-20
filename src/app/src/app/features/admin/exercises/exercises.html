@@ -9,10 +9,9 @@
 </p>
 
 <div class="exercises-controls">
-  <label class="exercises-toggle">
-    <input type="checkbox" [checked]="showInactive()" (change)="toggleInactive()" />
+  <app-checkbox [checked]="showInactive()" (checkedChange)="toggleInactive()">
     Pokaż nieaktywne
-  </label>
+  </app-checkbox>
 </div>
 
 @if (loading()) {

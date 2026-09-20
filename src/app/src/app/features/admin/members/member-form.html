@@ -28,8 +28,7 @@
       }
 
       <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
-        <div class="field">
-          <label for="displayName">Imię i nazwisko</label>
+        <app-field label="Imię i nazwisko" for="displayName">
           <input
             id="displayName"
             type="text"
@@ -47,7 +46,7 @@
               }}
             </p>
           }
-        </div>
+        </app-field>
 
         <!-- NO EMAIL FIELD (S-17). The desk records who trains here; the address arrives when
              that person registers with their invitation and becomes their login. -->
@@ -65,8 +64,7 @@
           <p class="hint">Zacząłeś wpisywać adres — uzupełnij wszystkie pola albo wyczyść je.</p>
         }
 
-        <div class="field">
-          <label for="phoneNumber">Numer telefonu</label>
+        <app-field label="Numer telefonu" for="phoneNumber">
           <input
             id="phoneNumber"
             type="tel"
@@ -81,20 +79,17 @@
               {{ form.controls.phoneNumber.getError('server') ?? failureMessage('invalid_phone') }}
             </p>
           }
-        </div>
+        </app-field>
 
-        <div class="field">
-          <label for="street">Ulica</label>
+        <app-field label="Ulica" for="street">
           <input id="street" type="text" autocomplete="address-line1" formControlName="street" />
-        </div>
+        </app-field>
 
-        <div class="field">
-          <label for="houseNumber">Numer domu</label>
+        <app-field label="Numer domu" for="houseNumber">
           <input id="houseNumber" type="text" formControlName="houseNumber" />
-        </div>
+        </app-field>
 
-        <div class="field">
-          <label for="postalCode">Kod pocztowy</label>
+        <app-field label="Kod pocztowy" for="postalCode">
           <input
             id="postalCode"
             type="text"
@@ -111,12 +106,11 @@
               }}
             </p>
           }
-        </div>
+        </app-field>
 
-        <div class="field">
-          <label for="city">Miejscowość</label>
+        <app-field label="Miejscowość" for="city">
           <input id="city" type="text" autocomplete="address-level2" formControlName="city" />
-        </div>
+        </app-field>
 
         <div class="form-actions">
           <button type="submit" class="button" [disabled]="state.submitting()">

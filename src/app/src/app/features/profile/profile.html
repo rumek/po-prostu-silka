@@ -31,8 +31,7 @@
     <h2 class="section-title">Dane kontaktowe</h2>
 
     <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
-      <div class="field">
-        <label for="phoneNumber">Numer telefonu</label>
+      <app-field label="Numer telefonu" for="phoneNumber">
         <input
           id="phoneNumber"
           type="tel"
@@ -47,10 +46,9 @@
             {{ form.controls.phoneNumber.getError('server') ?? contactMessage('invalid_phone') }}
           </p>
         }
-      </div>
+      </app-field>
 
-      <div class="field">
-        <label for="street">Ulica</label>
+      <app-field label="Ulica" for="street">
         <input
           id="street"
           type="text"
@@ -63,10 +61,9 @@
             {{ form.controls.street.getError('server') ?? contactMessage('invalid_street') }}
           </p>
         }
-      </div>
+      </app-field>
 
-      <div class="field">
-        <label for="houseNumber">Numer domu / mieszkania</label>
+      <app-field label="Numer domu / mieszkania" for="houseNumber">
         <input
           id="houseNumber"
           type="text"
@@ -83,10 +80,9 @@
             }}
           </p>
         }
-      </div>
+      </app-field>
 
-      <div class="field">
-        <label for="postalCode">Kod pocztowy</label>
+      <app-field label="Kod pocztowy" for="postalCode">
         <input
           id="postalCode"
           type="text"
@@ -102,10 +98,9 @@
             }}
           </p>
         }
-      </div>
+      </app-field>
 
-      <div class="field">
-        <label for="city">Miejscowość</label>
+      <app-field label="Miejscowość" for="city">
         <input
           id="city"
           type="text"
@@ -118,7 +113,7 @@
             {{ form.controls.city.getError('server') ?? contactMessage('invalid_city') }}
           </p>
         }
-      </div>
+      </app-field>
 
       <button type="submit" class="button button--block" [disabled]="state.submitting()">
         {{ state.submitting() ? 'Zapisywanie…' : 'Zapisz zmiany' }}
@@ -138,8 +133,7 @@
     }
 
     <form [formGroup]="passwordForm" (ngSubmit)="submitPassword()" novalidate>
-      <div class="field">
-        <label for="currentPassword">Obecne hasło</label>
+      <app-field label="Obecne hasło" for="currentPassword">
         <input
           id="currentPassword"
           type="password"
@@ -162,10 +156,9 @@
             <p class="field-error">Podaj obecne hasło.</p>
           }
         }
-      </div>
+      </app-field>
 
-      <div class="field">
-        <label for="newPassword">Nowe hasło</label>
+      <app-field label="Nowe hasło" for="newPassword">
         <input
           id="newPassword"
           type="password"
@@ -187,10 +180,9 @@
         } @else {
           <p class="hint">Co najmniej {{ minPasswordLength }} znaków.</p>
         }
-      </div>
+      </app-field>
 
-      <div class="field">
-        <label for="confirmation">Powtórz nowe hasło</label>
+      <app-field label="Powtórz nowe hasło" for="confirmation">
         <input
           id="confirmation"
           type="password"
@@ -209,7 +201,7 @@
         ) {
           <p class="field-error">Powtórz nowe hasło.</p>
         }
-      </div>
+      </app-field>
 
       <button type="submit" class="button button--block" [disabled]="passwordState.submitting()">
         {{ passwordState.submitting() ? 'Zmienianie hasła…' : 'Zmień hasło' }}

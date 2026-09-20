@@ -13,8 +13,7 @@
   }
 
   <form class="panel" [formGroup]="form" (ngSubmit)="submit()">
-    <div class="field">
-      <label for="name">Nazwa</label>
+    <app-field label="Nazwa" for="name">
       <input
         id="name"
         type="text"
@@ -36,10 +35,9 @@
           <p class="field-error">Podaj nazwę ćwiczenia.</p>
         }
       }
-    </div>
+    </app-field>
 
-    <div class="field">
-      <label for="description">Opis (opcjonalnie)</label>
+    <app-field label="Opis (opcjonalnie)" for="description">
       <textarea
         id="description"
         rows="3"
@@ -54,11 +52,10 @@
           }}
         </p>
       }
-    </div>
+    </app-field>
 
     <div class="exercise-form-pair">
-      <div class="field">
-        <label for="muscleGroup">Grupa mięśniowa (opcjonalnie)</label>
+      <app-field label="Grupa mięśniowa (opcjonalnie)" for="muscleGroup">
         <!-- Free text with suggestions: the list is what the library already uses, so the admin
              clicks an existing value instead of retyping it slightly differently. Typing something
              new is still allowed - a datalist suggests, it does not constrain. -->
@@ -85,10 +82,9 @@
             }}
           </p>
         }
-      </div>
+      </app-field>
 
-      <div class="field">
-        <label for="difficulty">Trudność (opcjonalnie)</label>
+      <app-field label="Trudność (opcjonalnie)" for="difficulty">
         <input
           id="difficulty"
           type="text"
@@ -109,11 +105,10 @@
             }}
           </p>
         }
-      </div>
+      </app-field>
     </div>
 
-    <div class="field">
-      <label for="equipment">Sprzęt (opcjonalnie)</label>
+    <app-field label="Sprzęt (opcjonalnie)" for="equipment">
       <input
         id="equipment"
         type="text"
@@ -126,10 +121,9 @@
           {{ form.controls.equipment.getError('server') ?? failureMessage('equipment_too_long') }}
         </p>
       }
-    </div>
+    </app-field>
 
-    <div class="field">
-      <label for="preparation">Przygotowanie (opcjonalnie)</label>
+    <app-field label="Przygotowanie (opcjonalnie)" for="preparation">
       <textarea
         id="preparation"
         rows="3"
@@ -144,10 +138,9 @@
           }}
         </p>
       }
-    </div>
+    </app-field>
 
-    <div class="field">
-      <label for="startingPosition">Pozycja startowa (opcjonalnie)</label>
+    <app-field label="Pozycja startowa (opcjonalnie)" for="startingPosition">
       <textarea
         id="startingPosition"
         rows="3"
@@ -165,10 +158,9 @@
           }}
         </p>
       }
-    </div>
+    </app-field>
 
-    <div class="field">
-      <label for="execution">Wykonanie (opcjonalnie)</label>
+    <app-field label="Wykonanie (opcjonalnie)" for="execution">
       <textarea
         id="execution"
         rows="5"
@@ -184,10 +176,9 @@
           {{ form.controls.execution.getError('server') ?? failureMessage('execution_too_long') }}
         </p>
       }
-    </div>
+    </app-field>
 
-    <div class="field">
-      <label for="videoUrl">Film na YouTube (opcjonalnie)</label>
+    <app-field label="Film na YouTube (opcjonalnie)" for="videoUrl">
       <input
         id="videoUrl"
         type="text"
@@ -205,7 +196,7 @@
           {{ form.controls.videoUrl.getError('server') ?? failureMessage('invalid_video_url') }}
         </p>
       }
-    </div>
+    </app-field>
 
     <div class="exercise-form-actions">
       <button type="submit" class="button" [disabled]="state.submitting()">

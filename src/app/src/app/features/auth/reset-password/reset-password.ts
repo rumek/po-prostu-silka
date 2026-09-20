@@ -7,6 +7,7 @@ import { resetPasswordFailureMessage } from '../../../core/auth/reset-password-f
 import { transportMessage } from '../../../core/http/transport-messages';
 import { MIN_PASSWORD_LENGTH, passwordsMatch } from '../../../core/auth/validation';
 import { createFormState } from '../../../shared/forms/form-state';
+import { Field } from '../../../shared/forms/field/field';
 
 /**
  * Sets a new password from an emailed link (S-13). Public, guard-free.
@@ -23,7 +24,7 @@ import { createFormState } from '../../../shared/forms/form-state';
  * </p>
  */
 @Component({
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [Field, ReactiveFormsModule, RouterLink],
   selector: 'app-reset-password',
   styleUrl: './reset-password.scss',
   templateUrl: './reset-password.html',

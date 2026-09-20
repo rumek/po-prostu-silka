@@ -11,8 +11,7 @@
     }
 
     <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
-      <div class="field">
-        <label for="email">Adres e-mail</label>
+      <app-field label="Adres e-mail" for="email">
         <input
           id="email"
           type="email"
@@ -30,10 +29,9 @@
             }
           </p>
         }
-      </div>
+      </app-field>
 
-      <div class="field">
-        <label for="password">Hasło</label>
+      <app-field label="Hasło" for="password">
         <input
           id="password"
           type="password"
@@ -48,7 +46,7 @@
         } @else {
           <p class="hint">Co najmniej {{ minPasswordLength }} znaków.</p>
         }
-      </div>
+      </app-field>
 
       <!-- TEXT, NOT AN INPUT, and the same component /profile shows its un-editable values with. A
            readonly box would still look like somewhere to type. No error branch either — a code the

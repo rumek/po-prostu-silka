@@ -20,8 +20,7 @@
     }
 
     <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
-      <div class="field">
-        <label for="email">Adres e-mail</label>
+      <app-field label="Adres e-mail" for="email">
         <input
           id="email"
           type="email"
@@ -32,10 +31,9 @@
         @if (form.controls.email.touched && form.controls.email.invalid) {
           <p class="field-error">Podaj poprawny adres e-mail.</p>
         }
-      </div>
+      </app-field>
 
-      <div class="field">
-        <label for="password">Hasło</label>
+      <app-field label="Hasło" for="password">
         <input
           id="password"
           type="password"
@@ -46,7 +44,7 @@
         @if (form.controls.password.touched && form.controls.password.invalid) {
           <p class="field-error">Podaj hasło.</p>
         }
-      </div>
+      </app-field>
 
       <button type="submit" class="button button--block" [disabled]="submitting()">
         {{ submitting() ? 'Logowanie…' : 'Zaloguj się' }}

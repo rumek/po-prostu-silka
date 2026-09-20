@@ -81,7 +81,7 @@ describe('ClassTypes', () => {
 
   function toggle(): HTMLInputElement {
     return (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>(
-      '.class-types-toggle input',
+      'app-checkbox input',
     )!;
   }
 

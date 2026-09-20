@@ -9,6 +9,7 @@ import { transportMessage } from '../../../core/http/transport-messages';
 import { ToastService } from '../../../shared/toast/toast.service';
 import { createBusySet } from '../../../shared/forms/busy-set';
 import { createLoadFence } from '../../../shared/forms/load-fence';
+import { Checkbox } from '../../../shared/forms/checkbox/checkbox';
 
 /**
  * The admin's exercise library (prd.md FR-018, FR-019).
@@ -25,7 +26,7 @@ import { createLoadFence } from '../../../shared/forms/load-fence';
  * filter — flicking it costs no round trip, and the admin can reactivate something they can see.
  */
 @Component({
-  imports: [RouterLink],
+  imports: [Checkbox, RouterLink],
   selector: 'app-exercises',
   styleUrl: './exercises.scss',
   templateUrl: './exercises.html',

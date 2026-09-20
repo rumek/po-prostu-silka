@@ -13,8 +13,7 @@
 } @else {
   <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
     <div class="card builder-section">
-      <div class="field">
-        <label for="plan-name">Nazwa planu</label>
+      <app-field label="Nazwa planu" for="plan-name">
         <input
           id="plan-name"
           type="text"
@@ -31,13 +30,16 @@
             }
           </p>
         }
-      </div>
+      </app-field>
 
-      <div class="field">
+      <!-- The one field whose label is an ELEMENT rather than a word, which is why app-field
+           offers [slot=label] at all: when the member can no longer be changed there is no control
+           to point a <label> at, and a <label> for static text misleads a screen reader. -->
+      <app-field>
         @if (editingId()) {
-          <span class="builder-caption">Członek</span>
+          <span slot="label" class="builder-caption">Członek</span>
         } @else {
-          <label for="plan-member">Członek</label>
+          <label slot="label" for="plan-member">Członek</label>
         }
         @if (editingId()) {
           <!-- STATIC TEXT, not a disabled <select>. The picker carries only ACTIVE accounts, and a
@@ -49,16 +51,18 @@
             Planu nie przenosi się między osobami — przypisz nowy plan zamiast tego.
           </p>
         } @else {
-          <select id="plan-member" formControlName="memberId">
-            <option value="">— wybierz —</option>
-            @for (member of members(); track member.id) {
-              <!-- The suffix is not decoration: a plan assigned to someone with no login is work
+          <app-select>
+            <select id="plan-member" formControlName="memberId">
+              <option value="">— wybierz —</option>
+              @for (member of members(); track member.id) {
+                <!-- The suffix is not decoration: a plan assigned to someone with no login is work
                    they will not see in the app until they claim their record. -->
-              <option [value]="member.id">
-                {{ member.displayName }}{{ member.hasAccount ? '' : ' — bez konta' }}
-              </option>
-            }
-          </select>
+                <option [value]="member.id">
+                  {{ member.displayName }}{{ member.hasAccount ? '' : ' — bez konta' }}
+                </option>
+              }
+            </select>
+          </app-select>
           <p class="hint">
             Nowy plan zarchiwizuje ten, który ta osoba ma teraz. Nic nie ginie, ale widzi tylko
             najnowszy.
@@ -76,7 +80,7 @@
             }
           </p>
         }
-      </div>
+      </app-field>
     </div>
 
     <div class="card builder-section">
@@ -111,8 +115,7 @@
               </div>
 
               <div class="builder-params">
-                <div class="field">
-                  <label [for]="'sets-' + index">Serie</label>
+                <app-field label="Serie" [for]="'sets-' + index">
                   <input
                     [id]="'sets-' + index"
                     type="number"
@@ -121,10 +124,9 @@
                     [min]="minSets"
                     [max]="maxSets"
                   />
-                </div>
+                </app-field>
 
-                <div class="field">
-                  <label [for]="'reps-' + index">Powtórzenia</label>
+                <app-field label="Powtórzenia" [for]="'reps-' + index">
                   <!-- Text, not a number: "8-12", "do upadku" and "12" are all legitimate (FR-015). -->
                   <input
                     [id]="'reps-' + index"
@@ -134,10 +136,9 @@
                     autocomplete="off"
                     placeholder="np. 8-12"
                   />
-                </div>
+                </app-field>
 
-                <div class="field">
-                  <label [for]="'weight-' + index">Ciężar (kg)</label>
+                <app-field label="Ciężar (kg)" [for]="'weight-' + index">
                   <input
                     [id]="'weight-' + index"
                     type="number"
@@ -147,10 +148,9 @@
                     [min]="minWeight"
                     [max]="maxWeight"
                   />
-                </div>
+                </app-field>
 
-                <div class="field">
-                  <label [for]="'rest-' + index">Przerwa (s)</label>
+                <app-field label="Przerwa (s)" [for]="'rest-' + index">
                   <input
                     [id]="'rest-' + index"
                     type="number"
@@ -159,10 +159,9 @@
                     [min]="minRest"
                     [max]="maxRest"
                   />
-                </div>
+                </app-field>
 
-                <div class="field">
-                  <label [for]="'duration-' + index">Czas (s)</label>
+                <app-field label="Czas (s)" [for]="'duration-' + index">
                   <input
                     [id]="'duration-' + index"
                     type="number"
@@ -171,18 +170,17 @@
                     [min]="minDuration"
                     [max]="maxDuration"
                   />
-                </div>
+                </app-field>
               </div>
 
-              <div class="field">
-                <label [for]="'note-' + index">Uwagi</label>
+              <app-field label="Uwagi" [for]="'note-' + index">
                 <textarea
                   [id]="'note-' + index"
                   rows="2"
                   formControlName="note"
                   [maxlength]="maxNote"
                 ></textarea>
-              </div>
+              </app-field>
 
               @if (item.touched && item.invalid) {
                 <p class="field-error" role="alert">

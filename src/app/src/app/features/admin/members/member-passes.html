@@ -28,8 +28,7 @@
     }
 
     <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
-      <div class="field">
-        <label for="typeName">Nazwa karnetu</label>
+      <app-field label="Nazwa karnetu" for="typeName">
         <input
           id="typeName"
           type="text"
@@ -40,11 +39,10 @@
         @if (form.controls.typeName.touched && form.controls.typeName.invalid) {
           <p class="field-error">Podaj nazwę karnetu (maksymalnie 100 znaków).</p>
         }
-      </div>
+      </app-field>
 
       <div class="passes-range">
-        <div class="field">
-          <label for="validFrom">Ważny od</label>
+        <app-field label="Ważny od" for="validFrom">
           <input
             id="validFrom"
             type="date"
@@ -54,10 +52,9 @@
           @if (form.controls.validFrom.touched && form.controls.validFrom.invalid) {
             <p class="field-error">Podaj datę startu.</p>
           }
-        </div>
+        </app-field>
 
-        <div class="field">
-          <label for="validTo">Ważny do</label>
+        <app-field label="Ważny do" for="validTo">
           <input
             id="validTo"
             type="date"
@@ -67,15 +64,14 @@
           @if (form.controls.validTo.touched && form.controls.validTo.invalid) {
             <p class="field-error">Podaj datę końca.</p>
           }
-        </div>
+        </app-field>
       </div>
 
       <!-- Both ends count, and the form says so: an admin reading "ważny do 30" needs to know the
            30th is covered, because that is the day someone will turn up. -->
       <p class="hint">Oba dni są wliczone — karnet ważny do 30 obejmuje także 30.</p>
 
-      <div class="field">
-        <label for="entryCount">Liczba wejść</label>
+      <app-field label="Liczba wejść" for="entryCount">
         <input
           id="entryCount"
           type="number"
@@ -87,7 +83,7 @@
         @if (form.controls.entryCount.touched && form.controls.entryCount.invalid) {
           <p class="field-error">Podaj liczbę wejść od 1 do 500.</p>
         }
-      </div>
+      </app-field>
 
       <div class="form-actions">
         <button type="submit" class="button" [disabled]="state.submitting()">

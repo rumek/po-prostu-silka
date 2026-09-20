@@ -8,6 +8,7 @@ import { transportMessage } from '../../../core/http/transport-messages';
 import { MIN_PASSWORD_LENGTH } from '../../../core/auth/validation';
 import { createFormState } from '../../../shared/forms/form-state';
 import { ReadonlyField } from '../../../shared/readonly-field/readonly-field';
+import { Field } from '../../../shared/forms/field/field';
 
 /**
  * Registration (FR-001, narrowed to invitation-only by S-17). The account is created ACTIVE and
@@ -27,7 +28,7 @@ import { ReadonlyField } from '../../../shared/readonly-field/readonly-field';
  * </p>
  */
 @Component({
-  imports: [ReactiveFormsModule, RouterLink, ReadonlyField],
+  imports: [Field, ReactiveFormsModule, RouterLink, ReadonlyField],
   selector: 'app-register',
   styleUrl: './register.scss',
   templateUrl: './register.html',

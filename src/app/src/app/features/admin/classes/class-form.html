@@ -25,12 +25,11 @@
   }
 
   <form class="panel" [formGroup]="form" (ngSubmit)="submit()">
-    <div class="field">
-      <label for="classTypeId">Typ zajęć</label>
+    <app-field label="Typ zajęć" for="classTypeId">
       <!-- The .select wrapper is what carries the custom chevron: a select generates no
            pseudo-elements of its own, so styles.scss puts ::after here. A select without this
            wrapper has its native arrow suppressed and nothing in its place. -->
-      <span class="select">
+      <app-select>
         <select
           id="classTypeId"
           formControlName="classTypeId"
@@ -46,7 +45,7 @@
             </option>
           }
         </select>
-      </span>
+      </app-select>
 
       @if (editingId()) {
         <p class="hint">
@@ -62,10 +61,9 @@
       @if (form.controls.classTypeId.touched && form.controls.classTypeId.invalid) {
         <p class="field-error">Wybierz typ zajęć.</p>
       }
-    </div>
+    </app-field>
 
-    <div class="field">
-      <label for="startsAt">Początek</label>
+    <app-field label="Początek" for="startsAt">
       <input
         id="startsAt"
         type="datetime-local"
@@ -83,10 +81,9 @@
           <p class="field-error">Podaj datę i godzinę rozpoczęcia.</p>
         }
       }
-    </div>
+    </app-field>
 
-    <div class="field">
-      <label for="durationMinutes">Czas trwania (minuty)</label>
+    <app-field label="Czas trwania (minuty)" for="durationMinutes">
       <input
         id="durationMinutes"
         type="number"
@@ -104,11 +101,10 @@
           }}
         </p>
       }
-    </div>
+    </app-field>
 
-    <div class="field">
-      <label for="instructorMemberId">Prowadzący</label>
-      <span class="select">
+    <app-field label="Prowadzący" for="instructorMemberId">
+      <app-select>
         <select
           id="instructorMemberId"
           formControlName="instructorMemberId"
@@ -121,7 +117,7 @@
             <option [value]="trainer.id">{{ trainer.displayName }}</option>
           }
         </select>
-      </span>
+      </app-select>
       @if (form.controls.instructorMemberId.touched && form.controls.instructorMemberId.invalid) {
         <!-- Same rule as startsAt above: a drifted second sentence for the two instructor
              refusals, replaced by the table's one. -->
@@ -131,10 +127,9 @@
           <p class="field-error">Wybierz prowadzącego.</p>
         }
       }
-    </div>
+    </app-field>
 
-    <div class="field">
-      <label for="capacity">Liczba miejsc</label>
+    <app-field label="Liczba miejsc" for="capacity">
       <input
         id="capacity"
         type="number"
@@ -148,7 +143,7 @@
           {{ form.controls.capacity.getError('server') ?? failureMessage('invalid_capacity') }}
         </p>
       }
-    </div>
+    </app-field>
 
     <div class="class-form-actions">
       <button type="submit" class="button" [disabled]="state.submitting()">

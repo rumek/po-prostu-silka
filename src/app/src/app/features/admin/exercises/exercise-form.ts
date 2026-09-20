@@ -12,6 +12,7 @@ import { classifyFailure } from '../../../core/http/failure';
 import { transportMessage } from '../../../core/http/transport-messages';
 import { createFormState } from '../../../shared/forms/form-state';
 import { isVideoId, watchUrl } from '../../../core/training/youtube';
+import { Field } from '../../../shared/forms/field/field';
 
 /**
  * Every bound below matches a HasMaxLength in ExerciseConfiguration AND the server's check in
@@ -48,7 +49,7 @@ const {
  * careless edit cannot resurrect an exercise the admin retired.
  */
 @Component({
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [Field, ReactiveFormsModule, RouterLink],
   selector: 'app-exercise-form',
   styleUrl: './exercise-form.scss',
   templateUrl: './exercise-form.html',

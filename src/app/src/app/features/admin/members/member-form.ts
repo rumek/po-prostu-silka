@@ -8,6 +8,7 @@ import { classifyFailure } from '../../../core/http/failure';
 import { transportMessage } from '../../../core/http/transport-messages';
 import { createFormState } from '../../../shared/forms/form-state';
 import { PHONE_PATTERN, POSTAL_CODE_PATTERN } from '../../../core/auth/validation';
+import { Field } from '../../../shared/forms/field/field';
 
 /**
  * The admin's create/edit form for a member record (S-14, AM-001 and AM-002).
@@ -33,7 +34,7 @@ import { PHONE_PATTERN, POSTAL_CODE_PATTERN } from '../../../core/auth/validatio
  * </p>
  */
 @Component({
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [Field, ReactiveFormsModule, RouterLink],
   selector: 'app-member-form',
   styleUrl: './member-form.scss',
   templateUrl: './member-form.html',

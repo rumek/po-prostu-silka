@@ -99,7 +99,7 @@ describe('Exercises', () => {
 
   function toggle(): HTMLInputElement {
     return (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>(
-      '.exercises-toggle input',
+      'app-checkbox input',
     )!;
   }
 

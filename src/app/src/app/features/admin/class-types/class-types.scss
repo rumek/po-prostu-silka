@@ -2,15 +2,6 @@
   margin-bottom: var(--space-4);
 }
 
-// A checkbox rather than the members screen's chip row: that filter picks one of four statuses,
-// this one reveals a second class of row. A toggle says "also show" in a way chips cannot.
-.class-types-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  cursor: pointer;
-}
-
 .class-types {
   list-style: none;
   padding: 0;

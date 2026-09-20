@@ -21,6 +21,8 @@ import { classifyFailure } from '../../../core/http/failure';
 import { transportMessage } from '../../../core/http/transport-messages';
 import { trainingPlanFailureMessage } from '../../../core/training/training-plan-failure';
 import { createFormState } from '../../../shared/forms/form-state';
+import { Field } from '../../../shared/forms/field/field';
+import { Select } from '../../../shared/forms/select/select';
 import {
   AssignableMember,
   TRAINING_PLAN_BOUNDS,
@@ -82,7 +84,7 @@ type ItemGroup = FormGroup<{
  * control is disabled here so that refusal is something only a stale tab can trigger.
  */
 @Component({
-  imports: [CdkDrag, CdkDragHandle, CdkDropList, ReactiveFormsModule, RouterLink],
+  imports: [Select, Field, CdkDrag, CdkDragHandle, CdkDropList, ReactiveFormsModule, RouterLink],
   selector: 'app-plan-builder',
   styleUrl: './plan-builder.scss',
   templateUrl: './plan-builder.html',

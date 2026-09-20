@@ -1,0 +1,20 @@
+// The shape both hand-written copies had, to the property: class-types.scss and exercises.scss
+// declared this identically under two names.
+.checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  cursor: pointer;
+}
+
+// The one thing neither copy had, and the reason these were the only controls in the app with no
+// shared class: the box itself rendered in the browser's default blue, which is not a colour this
+// palette contains.
+.checkbox input {
+  accent-color: var(--accent);
+  // Matches the 16px floor the text inputs keep, so the box does not read as small beside them.
+  width: 1rem;
+  height: 1rem;
+  margin: 0;
+  cursor: inherit;
+}

@@ -31,34 +31,42 @@
       <p class="alert" role="alert">{{ error() }}</p>
     }
 
-    <label class="field">
-      <span class="field-label">Typ zajęć</span>
-      <select [ngModel]="classTypeId()" (ngModelChange)="selectType($event)" name="classTypeId">
-        <option value="" disabled>Wybierz typ</option>
-        @for (type of types(); track type.id) {
-          <option [value]="type.id">{{ type.name }}</option>
-        }
-      </select>
-    </label>
+    <app-field label="Typ zajęć" for="create-class-type">
+      <app-select>
+        <select
+          id="create-class-type"
+          [ngModel]="classTypeId()"
+          (ngModelChange)="selectType($event)"
+          name="classTypeId"
+        >
+          <option value="" disabled>Wybierz typ</option>
+          @for (type of types(); track type.id) {
+            <option [value]="type.id">{{ type.name }}</option>
+          }
+        </select>
+      </app-select>
+    </app-field>
 
-    <label class="field">
-      <span class="field-label">Prowadzący</span>
-      <select
-        [ngModel]="instructorMemberId()"
-        (ngModelChange)="instructorMemberId.set($event)"
-        name="instructorMemberId"
-      >
-        <option value="" disabled>Wybierz prowadzącego</option>
-        @for (trainer of trainers(); track trainer.id) {
-          <option [value]="trainer.id">{{ trainer.displayName }}</option>
-        }
-      </select>
-    </label>
+    <app-field label="Prowadzący" for="create-instructor">
+      <app-select>
+        <select
+          id="create-instructor"
+          [ngModel]="instructorMemberId()"
+          (ngModelChange)="instructorMemberId.set($event)"
+          name="instructorMemberId"
+        >
+          <option value="" disabled>Wybierz prowadzącego</option>
+          @for (trainer of trainers(); track trainer.id) {
+            <option [value]="trainer.id">{{ trainer.displayName }}</option>
+          }
+        </select>
+      </app-select>
+    </app-field>
 
     <div class="overlay-numbers">
-      <label class="field">
-        <span class="field-label">Czas trwania (min)</span>
+      <app-field label="Czas trwania (min)" for="create-duration">
         <input
+          id="create-duration"
           type="number"
           min="1"
           max="480"
@@ -66,11 +74,11 @@
           (ngModelChange)="durationMinutes.set(+$event)"
           name="durationMinutes"
         />
-      </label>
+      </app-field>
 
-      <label class="field">
-        <span class="field-label">Liczba miejsc</span>
+      <app-field label="Liczba miejsc" for="create-capacity">
         <input
+          id="create-capacity"
           type="number"
           min="1"
           max="200"
@@ -78,7 +86,7 @@
           (ngModelChange)="capacity.set(+$event)"
           name="capacity"
         />
-      </label>
+      </app-field>
     </div>
 
     <div class="overlay-actions">

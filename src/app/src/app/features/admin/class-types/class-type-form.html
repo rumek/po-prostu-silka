@@ -13,8 +13,7 @@
   }
 
   <form class="panel" [formGroup]="form" (ngSubmit)="submit()">
-    <div class="field">
-      <label for="name">Nazwa</label>
+    <app-field label="Nazwa" for="name">
       <input
         id="name"
         type="text"
@@ -37,10 +36,9 @@
           <p class="field-error">Podaj nazwę typu zajęć.</p>
         }
       }
-    </div>
+    </app-field>
 
-    <div class="field">
-      <label for="description">Opis (opcjonalnie)</label>
+    <app-field label="Opis (opcjonalnie)" for="description">
       <textarea
         id="description"
         rows="4"
@@ -59,10 +57,9 @@
           }}
         </p>
       }
-    </div>
+    </app-field>
 
-    <div class="field">
-      <label for="defaultDurationMinutes">Domyślny czas trwania (minuty)</label>
+    <app-field label="Domyślny czas trwania (minuty)" for="defaultDurationMinutes">
       <input
         id="defaultDurationMinutes"
         type="number"
@@ -84,10 +81,9 @@
           }}
         </p>
       }
-    </div>
+    </app-field>
 
-    <div class="field">
-      <label for="defaultCapacity">Domyślna liczba miejsc</label>
+    <app-field label="Domyślna liczba miejsc" for="defaultCapacity">
       <input
         id="defaultCapacity"
         type="number"
@@ -109,7 +105,7 @@
           }}
         </p>
       }
-    </div>
+    </app-field>
 
     <div class="class-type-form-actions">
       <button type="submit" class="button" [disabled]="state.submitting()">

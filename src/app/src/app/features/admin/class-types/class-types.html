@@ -10,10 +10,9 @@
 </p>
 
 <div class="class-types-controls">
-  <label class="class-types-toggle">
-    <input type="checkbox" [checked]="showInactive()" (change)="toggleInactive()" />
+  <app-checkbox [checked]="showInactive()" (checkedChange)="toggleInactive()">
     Pokaż nieaktywne
-  </label>
+  </app-checkbox>
 </div>
 
 @if (loading()) {

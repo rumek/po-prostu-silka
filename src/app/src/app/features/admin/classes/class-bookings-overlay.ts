@@ -11,6 +11,8 @@ import { ClassBooking } from '../../../core/scheduling/booking.models';
 import { ScheduledClass } from '../../../core/scheduling/class.models';
 import { createBusySet } from '../../../shared/forms/busy-set';
 import { useOverlayFocus } from '../../../shared/forms/overlay-focus';
+import { Field } from '../../../shared/forms/field/field';
+import { Select } from '../../../shared/forms/select/select';
 
 /**
  * Who signed up for a class, and the action to release a spot (prd.md FR-014).
@@ -40,7 +42,7 @@ import { useOverlayFocus } from '../../../shared/forms/overlay-focus';
   // On the host, not on the panel: Escape has to close the overlay wherever focus is, including
   // before the admin has touched anything.
   host: { '(document:keydown.escape)': 'close()' },
-  imports: [DatePipe, FormsModule],
+  imports: [Select, Field, DatePipe, FormsModule],
   selector: 'app-class-bookings-overlay',
   styleUrl: './class-bookings-overlay.scss',
   templateUrl: './class-bookings-overlay.html',
