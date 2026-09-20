@@ -863,7 +863,7 @@ cost of migrating by area rather than in one commit, and it is bounded by Phase 
 
 #### Manual
 
-- [ ] 1.5 No screen behaves differently — this phase changes no call site
+- [x] 1.5 No screen behaves differently — this phase changes no call site — manually verified 2026-09-20
 
 ### Phase 2: The rule, the toast, and the form-state helper
 
@@ -877,9 +877,9 @@ cost of migrating by area rather than in one commit, and it is bounded by Phase 
 
 #### Manual
 
-- [ ] 2.6 Toast renders above the bottom nav at phone width and above an open overlay
-- [ ] 2.7 A screen reader announces the toast text
-- [ ] 2.8 With reduce-motion on, the toast appears without animating
+- [x] 2.6 Toast renders above the bottom nav at phone width and above an open overlay — manually verified 2026-09-20
+- [x] 2.7 A screen reader announces the toast text — manually verified 2026-09-20
+- [x] 2.8 With reduce-motion on, the toast appears without animating — manually verified 2026-09-20
 - [x] 2.9 Initial bundle under 550 kB, or the overshoot quantified — measured 512.42 kB at impl-review (2026-09-20), no budget warning emitted
 
 ### Phase 3: The remaining fourteen tables
@@ -893,7 +893,7 @@ cost of migrating by area rather than in one commit, and it is bounded by Phase 
 
 #### Manual
 
-- [ ] 3.5 The rewritten `time_conflict` sentence reads correctly under the field and in a banner
+- [x] 3.5 The rewritten `time_conflict` sentence reads correctly under the field and in a banner — manually verified 2026-09-20
 
 ### Phase 4: Migration — auth and profile
 
@@ -906,9 +906,9 @@ cost of migrating by area rather than in one commit, and it is bounded by Phase 
 
 #### Manual
 
-- [ ] 4.5 Bad credentials show one banner naming neither field
-- [ ] 4.6 Blocked account, taken e-mail and invalid invitation each read as before
-- [ ] 4.7 Password change and profile save show field errors on the right controls
+- [x] 4.5 Bad credentials show one banner naming neither field — manually verified 2026-09-20
+- [x] 4.6 Blocked account, taken e-mail and invalid invitation each read as before — manually verified 2026-09-20
+- [x] 4.7 Password change and profile save show field errors on the right controls — manually verified 2026-09-20
 
 ### Phase 5: Migration — admin
 
@@ -921,10 +921,10 @@ cost of migrating by area rather than in one commit, and it is bounded by Phase 
 
 #### Manual
 
-- [ ] 5.5 Blocking an admin, granting trainer to an accountless member, and issuing a code to a blocked member each produce the right toast
-- [ ] 5.6 A stale list after a 409 refetches and shows an `info` toast, not an error
-- [ ] 5.7 Booking into a full class shows the refusal in the overlay
-- [ ] 5.8 Rescheduling by drag still rolls back visually on refusal
+- [x] 5.5 Blocking an admin, granting trainer to an accountless member, and issuing a code to a blocked member each produce the right toast — manually verified 2026-09-20
+- [x] 5.6 A stale list after a 409 refetches and shows an `info` toast, not an error — manually verified 2026-09-20
+- [x] 5.7 Booking into a full class shows the refusal in the overlay — manually verified 2026-09-20
+- [x] 5.8 Rescheduling by drag still rolls back visually on refusal — manually verified 2026-09-20
 
 ### Phase 6: Migration — trainer and member
 
@@ -937,9 +937,9 @@ cost of migrating by area rather than in one commit, and it is bounded by Phase 
 
 #### Manual
 
-- [ ] 6.5 A member with no plan and no karnet sees calm empty states, not errors
-- [ ] 6.6 Killing the API mid-session produces an offline-specific message
-- [ ] 6.7 One failing dashboard card leaves the other three rendered
+- [x] 6.5 A member with no plan and no karnet sees calm empty states, not errors — manually verified 2026-09-20
+- [x] 6.6 Killing the API mid-session produces an offline-specific message — manually verified 2026-09-20
+- [x] 6.7 One failing dashboard card leaves the other three rendered — manually verified 2026-09-20
 
 ### Phase 7: Extractions and close-out
 
@@ -953,6 +953,6 @@ cost of migrating by area rather than in one commit, and it is bounded by Phase 
 
 #### Manual
 
-- [ ] 7.6 All eight headers render identically to before on desktop and phone widths
-- [ ] 7.7 Each overlay takes focus on open, returns it on close, and Escape still closes from anywhere
+- [x] 7.6 All eight headers render identically to before on desktop and phone widths — manually verified 2026-09-20
+- [x] 7.7 Each overlay takes focus on open, returns it on close, and Escape still closes from anywhere — manually verified 2026-09-20
 - [x] 7.8 Initial bundle under 550 kB, or the overshoot recorded in `AGENTS.md` — measured 512.42 kB at impl-review (2026-09-20); under the threshold, recorded in `AGENTS.md`
