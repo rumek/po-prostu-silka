@@ -143,11 +143,13 @@ export const routes: Routes = [
       import('./features/admin/exercises/exercise-detail').then((m) => m.ExerciseDetail),
     canActivate: [authGuard, adminGuard],
   },
-  // S-11's training plans. LAZY for the exercise-library reason: the initial bundle sits close to
-  // its budget. The plan-id builder routes are GONE (S-22): a plan is reached through its member.
+  // The trainer's member list (S-22, UX-08), which replaced S-11's /trainer/plans: a plan is reached
+  // through its member. LAZY for the exercise-library reason — the initial bundle sits close to its
+  // budget. BEFORE ':id/plan', by the literal-before-parameter habit.
   {
-    path: 'trainer/plans',
-    loadComponent: () => import('./features/trainer/plans/plans').then((m) => m.Plans),
+    path: 'trainer/members',
+    loadComponent: () =>
+      import('./features/trainer/members/trainer-members').then((m) => m.TrainerMembers),
     canActivate: [authGuard, trainerGuard],
   },
   // The trainer's mount of the plan builder (S-22, UX-08). trainerGuard admits admins too, but an

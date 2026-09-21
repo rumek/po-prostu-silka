@@ -3,18 +3,16 @@ import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { ExerciseSummary } from './exercise.models';
 import {
-  AssignableMember,
   MemberPlan,
   TrainerMemberPage,
   TrainerMemberQuery,
   TrainingPlanDetail,
   TrainingPlanRequest,
-  TrainingPlanSummary,
 } from './training-plan.models';
 
 /**
  * Training plans (prd.md FR-015, FR-016, FR-017), across BOTH API surfaces — the trainer's
- * `/api/trainer/plans` and the member's `/api/plans`.
+ * `/api/trainer/members` and `/api/trainer/plans`, and the member's `/api/plans`.
  *
  * One service rather than two because it is one feature read from two seats, and the SPA has no
  * layering rule that would separate them. The methods are grouped and labelled instead.
@@ -31,22 +29,10 @@ import {
 export class TrainingPlanService {
   private readonly http = inject(HttpClient);
 
-  // --- The trainer's surface: /api/trainer/plans, behind TrainerOrAdmin. ---
-
-  /** Every ACTIVE plan in the club, ordered by member name. Archived plans are not listed anywhere. */
-  getAll(): Promise<TrainingPlanSummary[]> {
-    return firstValueFrom(this.http.get<TrainingPlanSummary[]>('/api/trainer/plans'));
-  }
-
-  /**
-   * Who a plan may be assigned to: every ACTIVE account, id and display name only.
-   *
-   * Its own endpoint rather than the admin member list, which carries emails and account status and
-   * is Admin-only — a trainer needs a picker, not a member register.
-   */
-  getAssignableMembers(): Promise<AssignableMember[]> {
-    return firstValueFrom(this.http.get<AssignableMember[]>('/api/trainer/plans/members'));
-  }
+  // --- The trainer's surface: /api/trainer/*, behind TrainerOrAdmin. ---
+  //
+  // Reads are addressed by MEMBER since S-22 — the plan list, the member picker and the by-id read
+  // went with the /trainer/plans screen. Writes stay addressed by plan id.
 
   /**
    * One page of the trainer's member list (S-22): active members, searched by NAME only, each with
@@ -79,13 +65,6 @@ export class TrainingPlanService {
   getMemberPlan(memberId: string): Promise<MemberPlan> {
     return firstValueFrom(
       this.http.get<MemberPlan>(`/api/trainer/members/${encodeURIComponent(memberId)}/plan`),
-    );
-  }
-
-  /** One plan with its items in order, active or archived. */
-  getById(id: string): Promise<TrainingPlanDetail> {
-    return firstValueFrom(
-      this.http.get<TrainingPlanDetail>(`/api/trainer/plans/${encodeURIComponent(id)}`),
     );
   }
 

@@ -26,11 +26,13 @@
         <a routerLink="/my-plan" routerLinkActive="is-active">Plan</a>
       }
 
-      <!-- Trainer OR admin, for the reason FR-015 was widened: an admin authors plans too. The
-           condition MUST match trainerGuard's and the API's TrainerOrAdmin policy — see the
-           admin-link comment above for what a mismatch does to a member who clicks. -->
-      @if ((auth.isTrainer() || auth.isAdmin()) && auth.isActive()) {
-        <a routerLink="/trainer/plans" routerLinkActive="is-active">Plany</a>
+      <!-- The trainer's member list (S-22, UX-08), which replaced "Plany": a plan is reached
+           through its member. Trainer WITHOUT Admin — STRICTER than trainerGuard, never weaker, so
+           it cannot produce the bounce the admin-link comment above warns about. Admins are left
+           out because they already have a member list (/admin/members) and one role gets one path
+           to one list. -->
+      @if (auth.isTrainer() && !auth.isAdmin() && auth.isActive()) {
+        <a routerLink="/trainer/members" routerLinkActive="is-active">Członkowie</a>
       }
 
       <!-- Gated on isAuthenticated() by the enclosing block alone, unlike every link above it: the

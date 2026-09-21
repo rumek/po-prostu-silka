@@ -19,6 +19,11 @@ import { AuthService } from '../../core/auth/auth.service';
  * its guard is a link that bounces the member back to `/`, which is precisely the confusion this
  * comment exists to prevent. The API applies the same policies at the endpoint groups regardless.
  *
+ * ONE CONDITION IS DELIBERATELY STRICTER than its guard: `isTrainerOnly()`, for the trainer's member
+ * list (S-22). trainerGuard admits admins, but an admin already has Członkowie → `/admin/members`,
+ * and offering them a second member list would give one role two paths to two lists. Stricter can
+ * only hide a link, never show one that bounces, so it cannot reintroduce the S-01 F5 bug.
+ *
  * The profile entry is the deliberate exception: it is gated on isAuthenticated() alone, NOT
  * isActive(). A Pending member needs `/profile` to supply the contact details S-13 made mandatory,
  * and its route makes the same choice for the same reason.
@@ -42,8 +47,9 @@ export class More {
     return this.auth.isAdmin() && this.auth.isActive();
   }
 
-  protected isTrainerOrAdmin(): boolean {
-    return (this.auth.isTrainer() || this.auth.isAdmin()) && this.auth.isActive();
+  /** A trainer who is not also an admin — stricter than trainerGuard, on purpose; see above. */
+  protected isTrainerOnly(): boolean {
+    return this.auth.isTrainer() && !this.auth.isAdmin() && this.auth.isActive();
   }
 
   protected async logout(): Promise<void> {

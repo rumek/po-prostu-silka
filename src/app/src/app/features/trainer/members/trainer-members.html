@@ -1,0 +1,89 @@
+<div class="page-header">
+  <h1>Członkowie</h1>
+</div>
+<p class="hint">
+  Aktywni członkowie klubu. Otwórz osobę, żeby ułożyć jej plan albo zmienić ten, który ma.
+</p>
+
+<div class="trainer-members-controls">
+  <!-- The list-search precedent (members.html): a <label> wrapping a hidden word and the input. -->
+  <label class="trainer-members-search">
+    <span class="visually-hidden">Szukaj członka</span>
+    <input
+      type="search"
+      placeholder="Szukaj po imieniu i nazwisku"
+      maxlength="100"
+      [ngModel]="searchInput()"
+      (ngModelChange)="onSearchInput($event)"
+    />
+  </label>
+</div>
+
+<!-- The spinner stands in only while there is nothing to show yet; a reload keeps the list and the
+     pager in the DOM, so the pager button just pressed keeps focus and the range is announced. -->
+@if (loadFailed()) {
+  <p class="alert" role="alert">
+    {{ loadMessage() ?? 'Nie udało się wczytać listy członków.' }}
+    <button type="button" class="link-button" (click)="load()">Spróbuj ponownie</button>
+  </p>
+} @else if (rows().length === 0) {
+  @if (loading()) {
+    <app-loading />
+  } @else {
+    <div class="card">
+      <app-empty>
+        @if (query()) {
+          Brak członków pasujących do wyszukiwania.
+        } @else {
+          Brak aktywnych członków.
+        }
+      </app-empty>
+    </div>
+  }
+} @else {
+  <app-list [attr.aria-busy]="loading()">
+    @for (member of rows(); track member.id) {
+      <li appRow class="card">
+        <p class="row-name">
+          <a [routerLink]="planLink(member)">{{ member.displayName }}</a>
+        </p>
+        <p class="row-meta">
+          @if (!member.hasAccount) {
+            Bez konta ·
+          }
+          @if (member.planName; as planName) {
+            Plan: {{ planName }}
+          } @else {
+            Brak planu
+          }
+        </p>
+      </li>
+    }
+  </app-list>
+
+  <!-- Hidden while everything fits on one page: a pager with nowhere to go is two dead buttons. -->
+  @if (paged()) {
+    <nav class="trainer-members-pager" aria-label="Strony listy członków">
+      <button
+        type="button"
+        class="button button--secondary"
+        [disabled]="!hasPrevious()"
+        (click)="previousPage()"
+      >
+        Poprzednia
+      </button>
+      <!-- role="status" so a screen reader hears the new range after a page change. -->
+      <p class="trainer-members-range" role="status">
+        {{ rangeFrom() }}–{{ rangeTo() }} z {{ total() }}
+      </p>
+      <button
+        type="button"
+        class="button button--secondary"
+        [disabled]="!hasNext()"
+        (click)="nextPage()"
+      >
+        Następna
+      </button>
+    </nav>
+  }
+}

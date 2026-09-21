@@ -1,0 +1,51 @@
+// Layout only — .card/.button/.alert/.hint and the row classes come from src/styles.scss.
+
+.trainer-members-controls {
+  margin-bottom: var(--space-5);
+}
+
+.trainer-members-search {
+  display: block;
+  max-width: 24rem;
+}
+
+.trainer-members-search input {
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-2);
+  background: none;
+  color: inherit;
+  font: inherit;
+}
+
+// Present for screen readers, absent visually — the search input's label. A copy of members.scss's,
+// because neither is global and emulated encapsulation keeps each to its own template.
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+// Poprzednia · range · Następna on one line at every width, as on the admin's list: three short
+// items fit a 360px phone, so nothing here needs a breakpoint.
+.trainer-members-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-top: var(--space-5);
+}
+
+.trainer-members-range {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+}

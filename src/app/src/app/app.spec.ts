@@ -125,7 +125,7 @@ describe('App', () => {
 
   // Hidden rather than disabled: a member who never sees the link never wonders why it refuses
   // them. The API enforces the same rule regardless.
-  it('hides the approvals link from a non-admin member', async () => {
+  it('hides the member-list link from a non-admin member', async () => {
     configure({
       user: () => MEMBER,
       isAuthenticated: () => true,
@@ -138,13 +138,13 @@ describe('App', () => {
     await fixture.whenStable();
 
     expect(
-      (fixture.nativeElement as HTMLElement).querySelector('a[href="/trainer/plans"]'),
+      (fixture.nativeElement as HTMLElement).querySelector('a[href="/trainer/members"]'),
     ).toBeNull();
   });
 
   // The header's condition must match adminGuard and the backend Admin policy: an admin whose own
   // account is unusable is not an admin anywhere else either.
-  it('hides the admin link from an admin whose account is not active', async () => {
+  it('hides the member-list link from an admin whose account is not active', async () => {
     configure({
       user: () => ADMIN,
       isAuthenticated: () => true,
@@ -157,11 +157,15 @@ describe('App', () => {
     await fixture.whenStable();
 
     expect(
-      (fixture.nativeElement as HTMLElement).querySelector('a[href="/trainer/plans"]'),
+      (fixture.nativeElement as HTMLElement).querySelector('a[href="/trainer/members"]'),
     ).toBeNull();
   });
 
-  it('shows the admin panel link to an admin', async () => {
+  /**
+   * S-22: "Plany" is retired, and an admin is NOT offered the trainer's member list — they reach
+   * members, and so plans, through their own list. One role, one path to one list.
+   */
+  it('shows an admin neither Plany nor the trainer member list', async () => {
     configure({
       user: () => ADMIN,
       isAuthenticated: () => true,
@@ -173,9 +177,9 @@ describe('App', () => {
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();
 
-    expect(
-      (fixture.nativeElement as HTMLElement).querySelector('a[href="/trainer/plans"]'),
-    ).not.toBeNull();
+    const root = fixture.nativeElement as HTMLElement;
+    expect(root.querySelector('a[href="/trainer/plans"]')).toBeNull();
+    expect(root.querySelector('a[href="/trainer/members"]')).toBeNull();
   });
 
   // Every approved account has a plan surface, whether or not one has been assigned yet - the
@@ -195,34 +199,56 @@ describe('App', () => {
     expect(
       (fixture.nativeElement as HTMLElement).querySelector('a[href="/my-plan"]'),
     ).not.toBeNull();
-    // ...but the authoring screen is not theirs.
+    // ...but the authoring surface is not theirs.
     expect(
-      (fixture.nativeElement as HTMLElement).querySelector('a[href="/trainer/plans"]'),
+      (fixture.nativeElement as HTMLElement).querySelector('a[href="/trainer/members"]'),
     ).toBeNull();
   });
 
-  // The header's condition must match trainerGuard and the API's TrainerOrAdmin policy: Active AND
-  // (Trainer OR Admin). An admin authors plans too - FR-015 was widened, not moved.
-  it.each([
-    ['trainer', { isTrainer: () => true, isAdmin: () => false }],
-    ['admin', { isTrainer: () => false, isAdmin: () => true }],
-  ])('shows the plans link to an active %s', async (_role, roles) => {
+  /**
+   * S-22 (UX-08): a trainer's way into a plan is their member list. The condition is STRICTER than
+   * trainerGuard — trainer and NOT admin — so it can hide a link but never show one that bounces.
+   */
+  it('shows an active trainer Członkowie → /trainer/members, and no Plany', async () => {
+    configure({
+      user: () => MEMBER,
+      isAuthenticated: () => true,
+      isAdmin: () => false,
+      isTrainer: () => true,
+      isActive: () => true,
+    } as unknown as Partial<AuthService>);
+
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+
+    const root = fixture.nativeElement as HTMLElement;
+    const link = root.querySelector<HTMLAnchorElement>('a[href="/trainer/members"]');
+    expect(link?.textContent?.trim()).toBe('Członkowie');
+    expect(root.querySelector('a[href="/trainer/plans"]')).toBeNull();
+  });
+
+  /**
+   * The only account `!isAdmin()` changes anything for: an admin who also teaches. They keep their
+   * admin member list and are not offered a second one.
+   */
+  it('shows an admin who also trains no trainer member list', async () => {
     configure({
       user: () => ADMIN,
       isAuthenticated: () => true,
+      isAdmin: () => true,
+      isTrainer: () => true,
       isActive: () => true,
-      ...roles,
     } as unknown as Partial<AuthService>);
 
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();
 
     expect(
-      (fixture.nativeElement as HTMLElement).querySelector('a[href="/trainer/plans"]'),
-    ).not.toBeNull();
+      (fixture.nativeElement as HTMLElement).querySelector('a[href="/trainer/members"]'),
+    ).toBeNull();
   });
 
-  it('hides the plans link from a trainer whose account is not active', async () => {
+  it('hides the member-list link from a trainer whose account is not active', async () => {
     configure({
       user: () => MEMBER,
       isAuthenticated: () => true,
@@ -235,7 +261,7 @@ describe('App', () => {
     await fixture.whenStable();
 
     expect(
-      (fixture.nativeElement as HTMLElement).querySelector('a[href="/trainer/plans"]'),
+      (fixture.nativeElement as HTMLElement).querySelector('a[href="/trainer/members"]'),
     ).toBeNull();
   });
 

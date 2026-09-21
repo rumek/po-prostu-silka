@@ -38,11 +38,13 @@
         </li>
       }
 
-      <!-- Trainer OR admin, matching trainerGuard and the API's TrainerOrAdmin policy: an admin
-           authors plans too, which is what widened FR-015. -->
-      @if (isTrainerOrAdmin()) {
+      <!-- The trainer's member list (S-22), which replaced "Plany". Trainer WITHOUT Admin: an admin
+           already has Członkowie above, and one role gets one path to one member list. -->
+      @if (isTrainerOnly()) {
         <li>
-          <a class="more-link" routerLink="/trainer/plans" routerLinkActive="is-active">Plany</a>
+          <a class="more-link" routerLink="/trainer/members" routerLinkActive="is-active"
+            >Członkowie</a
+          >
         </li>
       }
     </ul>

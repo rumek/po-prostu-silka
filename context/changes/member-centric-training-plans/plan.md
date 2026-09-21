@@ -429,6 +429,8 @@ Add `/trainer/members`, point the trainer's nav at it, and delete the Plany scre
 - Lint and format pass: `npm run quality:check`
 - Production build succeeds, with the initial bundle noted against the 600 kB warning: `npx ng build`
 - No reference to `/trainer/plans` remains in the SPA: `grep -rn "trainer/plans" src/app/src` returns only API URLs (`/api/trainer/plans`)
+  - **Adapted during implementation.** The grep also matches three kinds of line that are not routes. These are the builder's import path (`features/trainer/plans/plan-builder`, since the file was not moved), comments naming the retired screen, and spec assertions that `a[href="/trainer/plans"]` is absent. Each of those assertions sits next to one that checks the new link, so none of them passes vacuously. No route and no link targets `/trainer/plans`. Measured initial bundle: 520.33 kB.
+  - **Also adapted:** `getById` was deleted with `getAll`/`getAssignableMembers`. Its only caller was the plan-id builder load that Phase 2 replaced.
 
 #### Manual Verification:
 
@@ -565,9 +567,9 @@ Remove `GET /api/trainer/plans` and `GET /api/trainer/plans/members`, which no l
 
 #### Automated
 
-- [x] 2.1 SPA unit tests pass
-- [x] 2.2 Lint and format pass
-- [x] 2.3 Production build succeeds under the bundle budget
+- [x] 2.1 SPA unit tests pass — 0ae4019
+- [x] 2.2 Lint and format pass — 0ae4019
+- [x] 2.3 Production build succeeds under the bundle budget — 0ae4019
 
 #### Manual
 
@@ -580,10 +582,10 @@ Remove `GET /api/trainer/plans` and `GET /api/trainer/plans/members`, which no l
 
 #### Automated
 
-- [ ] 3.1 SPA unit tests pass
-- [ ] 3.2 Lint and format pass
-- [ ] 3.3 Production build succeeds with bundle size noted
-- [ ] 3.4 No SPA reference to /trainer/plans remains
+- [x] 3.1 SPA unit tests pass
+- [x] 3.2 Lint and format pass
+- [x] 3.3 Production build succeeds with bundle size noted
+- [x] 3.4 No SPA reference to /trainer/plans remains
 
 #### Manual
 

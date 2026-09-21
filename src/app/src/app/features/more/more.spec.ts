@@ -27,6 +27,17 @@ const PENDING_MEMBER: CurrentUser = { ...MEMBER, id: 'p1', status: 'Pending' };
 const INACTIVE_ADMIN: CurrentUser = { ...ADMIN, id: 'a2', status: 'Blocked' };
 const INACTIVE_TRAINER: CurrentUser = { ...TRAINER, id: 't2', status: 'Blocked' };
 
+/** An owner who teaches (prd-v2 FR-003) — the one account `!isAdmin()` changes anything for. */
+const ADMIN_TRAINER: CurrentUser = {
+  ...ADMIN,
+  id: 'a3',
+  displayName: 'Admin Trainer',
+  roles: ['User', 'Admin', 'Trainer'],
+};
+
+/** The trainer's member list (S-22), which replaced "Plany" → /trainer/plans. */
+const TRAINER_MEMBERS = '/trainer/members';
+
 /** Every admin destination the panel offers, in template order. */
 const ADMIN_HREFS = ['/admin/members', '/admin/classes', '/admin/class-types', '/admin/exercises'];
 
@@ -96,25 +107,44 @@ describe('More', () => {
     for (const href of ADMIN_HREFS) {
       expect(hrefs(element)).not.toContain(href);
     }
-    expect(hrefs(element)).not.toContain('/trainer/plans');
+    expect(hrefs(element)).not.toContain(TRAINER_MEMBERS);
   });
 
-  it('shows a trainer the plans entry and nothing else from the panel', () => {
+  /** S-22: a trainer reaches plans through their member list — the panel's only entry for them. */
+  it('shows a trainer Członkowie → /trainer/members and nothing else from the panel', () => {
     const element = createWith(TRAINER);
 
-    expect(hrefs(element)).toContain('/trainer/plans');
+    const link = element.querySelector<HTMLAnchorElement>(`a[href="${TRAINER_MEMBERS}"]`);
+    expect(link?.textContent?.trim()).toBe('Członkowie');
+    expect(hrefs(element)).not.toContain('/trainer/plans');
     for (const href of ADMIN_HREFS) {
       expect(hrefs(element)).not.toContain(href);
     }
   });
 
-  /** All six, including the four that had no navigation anywhere before this slice (deferred by S-10). */
-  it('shows an admin every panel entry, plans included', () => {
+  /**
+   * The four admin entries, and since S-22 no "Plany" and no trainer member list: an admin reaches a
+   * plan through /admin/members, so a second member list would be a second path to the same place.
+   */
+  it('shows an admin every admin entry, and no trainer member list', () => {
     const element = createWith(ADMIN);
 
-    for (const href of [...ADMIN_HREFS, '/trainer/plans']) {
+    for (const href of ADMIN_HREFS) {
       expect(hrefs(element)).toContain(href);
     }
+    expect(hrefs(element)).not.toContain('/trainer/plans');
+    expect(hrefs(element)).not.toContain(TRAINER_MEMBERS);
+  });
+
+  /**
+   * isTrainerOnly() is STRICTER than trainerGuard, and this is the only account for whom the extra
+   * `!isAdmin()` does anything — so it is the case that has to be pinned.
+   */
+  it('shows an admin who also trains the admin member list and not the trainer one', () => {
+    const element = createWith(ADMIN_TRAINER);
+
+    expect(hrefs(element)).toContain('/admin/members');
+    expect(hrefs(element)).not.toContain(TRAINER_MEMBERS);
   });
 
   /**
@@ -131,9 +161,9 @@ describe('More', () => {
   });
 
   /** Same rule on the trainer side, matching trainerGuard's isActive() half. */
-  it('hides the plans entry from a trainer whose account is not active', () => {
+  it('hides the member-list entry from a trainer whose account is not active', () => {
     const element = createWith(INACTIVE_TRAINER);
 
-    expect(hrefs(element)).not.toContain('/trainer/plans');
+    expect(hrefs(element)).not.toContain(TRAINER_MEMBERS);
   });
 });

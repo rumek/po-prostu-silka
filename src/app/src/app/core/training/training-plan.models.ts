@@ -3,19 +3,6 @@
  * Keep the two in step — this is a contract, not a convenience type.
  */
 
-/** Mirrors TrainingPlanSummary: one row of the trainer's list of active plans. */
-export interface TrainingPlanSummary {
-  id: string;
-  name: string;
-  memberId: string;
-  memberDisplayName: string;
-  assignedByDisplayName: string;
-  createdAt: string;
-
-  /** Counted by the server; the list renders a number, not the rows. */
-  itemCount: number;
-}
-
 /**
  * Mirrors TrainingPlanItemView: one prescribed exercise as the API returns it.
  *

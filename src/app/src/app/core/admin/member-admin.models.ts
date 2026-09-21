@@ -351,9 +351,10 @@ export const ACCESS_CODE_FAILURE_REASONS = Object.keys({
  * Mirrors MemberListFailure (S-21) — why a member-list READ was refused: `invalid_page` for a page
  * below 1 or a page size outside 1–100, `invalid_search` for a phrase over 100 characters.
  *
- * Nothing renders it today: the SPA never sends such values, so both callers fall back to their own
- * "failed to load" state. It exists for the same reason ScheduleReadFailure does — every `*Failure`
- * union has a table (core/http/failure-contract.spec.ts).
+ * The SPA never sends such values. The members screen and the bookings picker fall back to their own
+ * "failed to load" state; the trainer's member list (S-22), a third caller over the same union from
+ * `/api/trainer/members`, renders the table's words. Every `*Failure` union has a table
+ * (core/http/failure-contract.spec.ts).
  */
 export interface MemberListFailure {
   reason: 'invalid_page' | 'invalid_search';
