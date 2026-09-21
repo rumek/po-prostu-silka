@@ -13,7 +13,7 @@ import {
   ReactiveFormsModule,
   Validators,
 } from '@angular/forms';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { ExerciseService } from '../../../core/training/exercise.service';
 import { ExerciseSummary } from '../../../core/training/exercise.models';
 import { TrainingPlanService } from '../../../core/training/training-plan.service';
@@ -21,8 +21,9 @@ import { classifyFailure } from '../../../core/http/failure';
 import { transportMessage } from '../../../core/http/transport-messages';
 import { trainingPlanFailureMessage } from '../../../core/training/training-plan-failure';
 import { createFormState } from '../../../shared/forms/form-state';
+import { createLoadFence } from '../../../shared/forms/load-fence';
+import { ToastService } from '../../../shared/toast/toast.service';
 import { Field } from '../../../shared/forms/field/field';
-import { Select } from '../../../shared/forms/select/select';
 import { Loading } from '../../../shared/forms/loading/loading';
 import { Empty } from '../../../shared/forms/empty/empty';
 import {
@@ -69,8 +70,15 @@ type ItemGroup = FormGroup<{
 }>;
 
 /**
- * Create and edit a training plan (prd.md FR-015, FR-016), in one component distinguished by the
- * route parameter — the same shape as ExerciseForm and ClassTypeForm.
+ * One member's training plan (prd.md FR-015, FR-016), reached THROUGH THE MEMBER (S-22, UX-07/UX-08):
+ * `/admin/members/:id/plan` for an admin and `/trainer/members/:id/plan` for a trainer. One builder,
+ * mounted twice; the mounts differ only by the route data naming the list to return to, which keeps
+ * "the URL says who can use it" (S-11) true.
+ *
+ * CREATE OR EDIT IS DECIDED BY THE LOAD, not by the URL. A member with no plan gets an empty builder
+ * whose submit creates one; a member with a plan gets that plan, editable. After a create the screen
+ * switches to editing the plan it just made, so a second save edits rather than creating yet another
+ * plan and archiving the first.
  *
  * THE ARRAY ORDER IS THE PLAN'S ORDER. No control holds a position and nothing renumbers: dragging
  * moves an element in the FormArray, and the server numbers what it receives. This is why reordering
@@ -81,15 +89,14 @@ type ItemGroup = FormGroup<{
  * Everything else here — adding, removing, editing every parameter, saving — works from the keyboard
  * alone, and a plan saved in any order is still a valid plan.
  *
- * THE MEMBER CANNOT BE CHANGED WHILE EDITING. A plan does not move between people; it is superseded.
- * The server refuses a mismatched memberId with `member_changed` rather than ignoring it, and the
- * control is disabled here so that refusal is something only a stale tab can trigger.
+ * THE MEMBER IS FIXED BY THE URL. There is no picker: the member id comes from the route and is sent
+ * in the body of both create and edit. A plan does not move between people, and on edit the server's
+ * `member_changed` refusal is what catches a body that disagrees with the plan it names.
  */
 @Component({
   imports: [
     Empty,
     Loading,
-    Select,
     Field,
     CdkDrag,
     CdkDragHandle,
@@ -105,8 +112,9 @@ export class PlanBuilder implements OnInit {
   private readonly plans = inject(TrainingPlanService);
   private readonly exercises = inject(ExerciseService);
   private readonly route = inject(ActivatedRoute);
-  private readonly router = inject(Router);
   private readonly fb = inject(FormBuilder);
+  private readonly toast = inject(ToastService);
+  private readonly fence = createLoadFence();
 
   protected readonly maxName = MAX_NAME;
   protected readonly maxReps = MAX_REPS;
@@ -123,7 +131,6 @@ export class PlanBuilder implements OnInit {
 
   protected readonly form = this.fb.nonNullable.group({
     name: ['', [Validators.required, Validators.maxLength(MAX_NAME)]],
-    memberId: ['', [Validators.required]],
   });
 
   /**
@@ -132,24 +139,32 @@ export class PlanBuilder implements OnInit {
    */
   protected readonly items = this.fb.array<ItemGroup>([]);
 
-  /** Null when creating; the plan id when editing. Drives the title, the verb and the endpoint. */
+  /** Null while the member has no plan; the plan id once they do. Drives the verb and the endpoint. */
   protected readonly editingId = signal<string | null>(null);
 
   protected readonly state = createFormState();
 
+  /**
+   * Outlet 4 for a member that does not exist — a screen that could not be populated at all, in the
+   * transport table's words. Kept apart from `loadFailed` because retrying cannot fix it.
+   */
+  protected readonly notFound = signal<string | null>(null);
+
   /** The table, exposed to the template so client and server messages cannot disagree. */
   protected readonly failureMessage = trainingPlanFailureMessage;
 
-  /** Who the plan may be assigned to. Empty until the picker's fetch resolves. */
-  protected readonly members = signal<AssignableMember[]>([]);
-  protected readonly membersFailed = signal(false);
+  /** The member id from the URL — whose plan this is, for the load and for every save. */
+  private readonly memberId = this.route.snapshot.paramMap.get('id') ?? '';
 
   /**
-   * Whose plan this is, on the EDIT path only, taken from the loaded plan rather than from
-   * `members()`. The picker lists active accounts; a member blocked after assignment keeps their
-   * plan, so looking their name up in that list would find nothing.
+   * Whose plan this is, from the load. Any status: an admin opens a BLOCKED member's plan too, so
+   * this is never looked up in a list of active members.
    */
-  protected readonly memberName = signal('');
+  protected readonly member = signal<AssignableMember | null>(null);
+
+  /** Where "back" goes — the list this mount was reached from, named by the route data. */
+  protected readonly membersLink: string =
+    (this.route.snapshot.data['membersLink'] as string | undefined) ?? '/';
 
   /** The exercise library, ACTIVE ONLY — a retired exercise must not be prescribed anew. */
   protected readonly library = signal<ExerciseSummary[]>([]);
@@ -186,58 +201,66 @@ export class PlanBuilder implements OnInit {
   protected readonly atItemLimit = computed(() => this.chosenIds().length >= MAX_ITEMS);
 
   async ngOnInit(): Promise<void> {
-    // Not awaited before the form is usable: the pickers are data the trainer types alongside, and a
-    // slow library fetch must not delay naming the plan.
-    void this.loadMembers();
+    // Not awaited before the form is usable: the library is data the trainer types alongside, and a
+    // slow fetch must not delay naming the plan.
     void this.loadLibrary();
 
-    const id = this.route.snapshot.paramMap.get('id');
-    if (!id) {
-      return;
-    }
+    await this.load();
+  }
 
-    this.editingId.set(id);
+  /** The member and their plan. Also the load-failure state's retry. */
+  protected async load(): Promise<void> {
+    const generation = this.fence.begin();
+
     this.state.loading.set(true);
+    this.state.loadFailed.set(false);
+    this.notFound.set(null);
 
     try {
-      const existing = await this.plans.getById(id);
+      const { member, plan } = await this.plans.getMemberPlan(this.memberId);
 
-      this.form.setValue({ name: existing.name, memberId: existing.memberId });
+      if (!this.fence.isCurrent(generation)) {
+        return;
+      }
 
-      // The member is fixed for the life of a plan; see the class docblock.
-      this.form.controls.memberId.disable();
-      this.memberName.set(existing.memberDisplayName);
+      this.member.set(member);
+      this.items.clear();
 
-      // Already ordered by the API. Nothing here re-sorts, and nothing reads `position`.
-      for (const item of existing.items) {
-        this.items.push(
-          this.buildItemGroup(item.exerciseId, item.exerciseName, {
-            sets: item.sets,
-            reps: item.reps ?? '',
-            weightKg: item.weightKg,
-            restSeconds: item.restSeconds,
-            durationSeconds: item.durationSeconds,
-            note: item.note ?? '',
-          }),
-        );
+      if (plan) {
+        this.editingId.set(plan.id);
+        this.form.setValue({ name: plan.name });
+
+        // Already ordered by the API. Nothing here re-sorts, and nothing reads `position`.
+        for (const item of plan.items) {
+          this.items.push(
+            this.buildItemGroup(item.exerciseId, item.exerciseName, {
+              sets: item.sets,
+              reps: item.reps ?? '',
+              weightKg: item.weightKg,
+              restSeconds: item.restSeconds,
+              durationSeconds: item.durationSeconds,
+              note: item.note ?? '',
+            }),
+          );
+        }
       }
 
       this.syncChosenIds();
-    } catch {
-      this.state.loadFailed.set(true);
-    } finally {
-      this.state.loading.set(false);
-    }
-  }
+    } catch (failure) {
+      if (!this.fence.isCurrent(generation)) {
+        return;
+      }
 
-  private async loadMembers(): Promise<void> {
-    try {
-      this.members.set(await this.plans.getAssignableMembers());
-      this.membersFailed.set(false);
-    } catch {
-      // Surfaced, unlike ExerciseForm's silent datalist: without a member there is no plan to save,
-      // so an empty picker is a broken form rather than a form without suggestions.
-      this.membersFailed.set(true);
+      const info = classifyFailure(failure);
+      if (info.kind === 'notFound') {
+        this.notFound.set(transportMessage(info));
+      } else {
+        this.state.loadFailed.set(true);
+      }
+    } finally {
+      if (this.fence.isCurrent(generation)) {
+        this.state.loading.set(false);
+      }
     }
   }
 
@@ -317,14 +340,11 @@ export class PlanBuilder implements OnInit {
     this.state.error.set(null);
     this.state.submitting.set(true);
 
-    // getRawValue, not value: the member control is DISABLED while editing, and `value` omits
-    // disabled controls. The server validates memberId on edit rather than ignoring it, so
-    // sending an empty one would be refused with `member_changed`.
-    const header = this.form.getRawValue();
-
+    // The member comes from the URL on both paths. On edit the server compares it with the stored
+    // plan and refuses a mismatch with `member_changed` — the URL/body agreement check.
     const request = {
-      name: header.name.trim(),
-      memberId: header.memberId,
+      name: this.form.getRawValue().name.trim(),
+      memberId: this.memberId,
       items: this.items.controls.map((control) => toItemRequest(control.getRawValue())),
     };
 
@@ -333,10 +353,17 @@ export class PlanBuilder implements OnInit {
       if (id) {
         await this.plans.update(id, request);
       } else {
-        await this.plans.create(request);
+        // THE SCREEN BECOMES THE EDIT VIEW of what it just created. Without this a second save would
+        // POST again — archiving the plan just made and creating another.
+        const created = await this.plans.create(request);
+        this.editingId.set(created.id);
       }
 
-      await this.router.navigate(['/trainer/plans']);
+      // Stay on the screen and say so (outlet 3): the member's plan is what is being looked at, and
+      // the passes screen, this one's precedent, stays put after a save too.
+      this.form.markAsPristine();
+      this.items.markAsPristine();
+      this.toast.success('Plan zapisany.');
     } catch (failure) {
       this.applyFailure(failure);
     } finally {
@@ -379,14 +406,8 @@ export class PlanBuilder implements OnInit {
         this.state.error.set(message);
         return;
 
-      // Both mean the chosen member cannot hold this plan; the control is named as well as the
-      // banner, because picking somebody else is the whole of the fix.
-      case 'member_not_found':
-      case 'member_not_active':
-        this.state.reject(this.form.controls.memberId, { server: message });
-        this.state.error.set(message);
-        return;
-
+      // member_not_found, member_not_active and member_changed land here, in the banner (outlet 2):
+      // the member is fixed by the URL, so there is no control left to name.
       default:
         this.state.error.set(message);
     }

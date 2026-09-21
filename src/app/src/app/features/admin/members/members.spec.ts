@@ -272,16 +272,25 @@ describe('Members', () => {
     expect(rows()[0].textContent).toContain('anna@test.local');
   });
 
-  /** Moving into a table cell must not cost the row an action it offered as a list item. */
+  /**
+   * Moving into a table cell must not cost the row an action it offered as a list item. "Plan" is
+   * S-22's (UX-07): a member's plan is reached through the member, next to Karnety.
+   */
   it('keeps every action reachable from a row in the table', async () => {
     await createWith([FILIP]);
 
     expect(menuLabels(rows()[0])).toEqual([
       'Edytuj dane',
       'Karnety',
+      'Plan',
       'Wygeneruj kod klubowicza',
       'Zablokuj',
     ]);
+
+    const plan = Array.from(
+      rows()[0].querySelectorAll<HTMLAnchorElement>('a[role="menuitem"]'),
+    ).find((a) => a.textContent?.trim() === 'Plan');
+    expect(plan!.getAttribute('href')).toBe(`/admin/members/${FILIP.id}/plan`);
   });
 
   /**

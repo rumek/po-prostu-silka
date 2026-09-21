@@ -129,16 +129,18 @@ describe('Plans', () => {
     expect(members()).toEqual(['Anna Kowalska', 'Piotr Nowak']);
   });
 
-  it('links each row to its builder and offers a way to a new plan', async () => {
+  /**
+   * THE BRIDGE (S-22 Phase 2): a row opens its MEMBER's plan, because the plan-id builder routes are
+   * gone — and "Nowy plan" went with /trainer/plans/new. Phase 3 deletes this screen.
+   */
+  it("links each row to its member's plan, and offers no new-plan link", async () => {
     await createWith(ROWS);
 
     const root = fixture.nativeElement as HTMLElement;
 
     expect(root.querySelector<HTMLAnchorElement>('.row-actions a')!.getAttribute('href')).toBe(
-      '/trainer/plans/p1',
+      `/trainer/members/${ROWS[0].memberId}/plan`,
     );
-    expect(root.querySelector<HTMLAnchorElement>('.page-header a')!.getAttribute('href')).toBe(
-      '/trainer/plans/new',
-    );
+    expect(root.querySelector('.page-header a')).toBeNull();
   });
 });

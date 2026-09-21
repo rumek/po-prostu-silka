@@ -35,10 +35,13 @@ const MESSAGES: Record<TrainingPlanFailure['reason'], string> = {
 
   // 409 — a clash with existing state rather than bad input.
   //
-  // Likewise a deliberate pair: whether the account was deleted or merely deactivated, the plan
-  // cannot be assigned to it and the trainer picks somebody else.
-  member_not_found: 'To konto nie jest już aktywne. Wybierz innego członka.',
-  member_not_active: 'To konto nie jest już aktywne. Wybierz innego członka.',
+  // Likewise a deliberate pair: whether the member was removed or is blocked, no plan can be
+  // created for them. Since S-22 the member is fixed by the URL, so the words point back to the
+  // member list rather than at a picker that no longer exists.
+  member_not_found:
+    'Tej osobie nie można przypisać planu — jej konto jest zablokowane lub nieaktywne. Wróć do listy członków.',
+  member_not_active:
+    'Tej osobie nie można przypisać planu — jej konto jest zablokowane lub nieaktywne. Wróć do listy członków.',
   member_changed:
     'Ten plan należy do innego członka, niż pokazuje ta strona. Odśwież ją i spróbuj ponownie.',
   conflict: 'Ktoś zmieniał ten plan w tej samej chwili. Odśwież stronę i spróbuj ponownie.',

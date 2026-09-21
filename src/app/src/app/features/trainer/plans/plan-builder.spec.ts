@@ -12,14 +12,13 @@ import {
   TrainingPlanDetail,
   TrainingPlanRequest,
 } from '../../../core/training/training-plan.models';
+import { ToastService } from '../../../shared/toast/toast.service';
 import { PlanBuilder } from './plan-builder';
 
-const MEMBERS: AssignableMember[] = [
-  { id: 'm1', displayName: 'Anna Kowalska', hasAccount: true },
+const MEMBER: AssignableMember = { id: 'm1', displayName: 'Anna Kowalska', hasAccount: true };
 
-  // A person the club recorded who never registered (S-14) — assignable, and labelled as such.
-  { id: 'm2', displayName: 'Piotr Nowak', hasAccount: false },
-];
+// A person the club recorded who never registered (S-14) — a plan for them is labelled as such.
+const ACCOUNTLESS: AssignableMember = { id: 'm2', displayName: 'Piotr Nowak', hasAccount: false };
 
 function exercise(id: string, name: string, isActive = true): ExerciseSummary {
   return {
@@ -87,8 +86,11 @@ describe('PlanBuilder', () => {
   let fixture: ComponentFixture<PlanBuilder>;
   let controller: HttpTestingController;
 
-  /** `id` null creates; a value edits, and the plan load is flushed too. */
-  async function create(id: string | null, plan?: TrainingPlanDetail) {
+  /**
+   * Mounts the builder for a MEMBER (S-22): the route carries the member id and the list to return
+   * to, and the load answers with the member and their plan — null when they have none.
+   */
+  function configure(memberId: string, membersLink = '/admin/members') {
     TestBed.configureTestingModule({
       imports: [PlanBuilder],
       providers: [
@@ -97,22 +99,29 @@ describe('PlanBuilder', () => {
         provideRouter([]),
         {
           provide: ActivatedRoute,
-          useValue: { snapshot: { paramMap: new Map(id ? [['id', id]] : []) } },
+          useValue: {
+            snapshot: { paramMap: new Map([['id', memberId]]), data: { membersLink } },
+          },
         },
       ],
     });
 
     controller = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(PlanBuilder);
+  }
 
-    (await vi.waitFor(() => controller.expectOne('/api/trainer/plans/members'))).flush(MEMBERS);
+  async function create(
+    plan: TrainingPlanDetail | null,
+    options: { member?: AssignableMember; membersLink?: string } = {},
+  ) {
+    const member = options.member ?? MEMBER;
+    configure(member.id, options.membersLink);
+
     (await vi.waitFor(() => controller.expectOne('/api/admin/exercises'))).flush(LIBRARY);
-
-    if (id) {
-      (await vi.waitFor(() => controller.expectOne(`/api/trainer/plans/${id}`))).flush(
-        plan ?? PLAN,
-      );
-    }
+    (await vi.waitFor(() => controller.expectOne(`/api/trainer/members/${member.id}/plan`))).flush({
+      member,
+      plan,
+    });
 
     await settle();
   }
@@ -166,25 +175,31 @@ describe('PlanBuilder', () => {
     return request.request.body as TrainingPlanRequest;
   }
 
+  function lastToast() {
+    return TestBed.inject(ToastService).toasts().at(-1);
+  }
+
+  function submitLabel(): string {
+    return root().querySelector('button[type="submit"]')!.textContent?.trim() ?? '';
+  }
+
+  /**
+   * S-22: the member is fixed by the URL, so the heading names them and there is no picker at all.
+   * A plan for someone with no login is real work they will not see in the app until they claim
+   * their record — so the screen says which is which.
+   */
+  it('names the member in the heading and offers no member picker', async () => {
+    await create(null, { member: ACCOUNTLESS });
+
+    expect(root().querySelector('h1')!.textContent).toContain('Plan — Piotr Nowak');
+    expect(html()).toContain('Bez konta');
+    expect(root().querySelector('select')).toBeNull();
+  });
+
   /**
    * A retired exercise must not be prescribed anew — the server refuses `inactive_exercise`. The
    * library endpoint serves the admin's list, which needs the retired rows, so the filter is here.
    */
-  /**
-   * A plan assigned to someone with no login is real work they will not see in the app until they
-   * claim their record with a member code — so the picker has to say which is which.
-   */
-  it('marks a member with no account in the picker', async () => {
-    await create(null);
-
-    const options = Array.from(
-      (fixture.nativeElement as HTMLElement).querySelectorAll('#plan-member option'),
-    ).map((o) => (o.textContent ?? '').trim());
-
-    expect(options).toContain('Anna Kowalska');
-    expect(options.some((o) => o.includes('Piotr Nowak') && o.includes('bez konta'))).toBe(true);
-  });
-
   it('offers only active exercises', async () => {
     await create(null);
 
@@ -219,14 +234,12 @@ describe('PlanBuilder', () => {
    * THE ARRAY ORDER IS THE CONTRACT. No position field is sent — the server numbers what it
    * receives — so this asserts the items arrive in the order the trainer built them.
    */
-  it('sends the items in order, with blanks collapsed to null', async () => {
+  it("POSTs a plan-less member's first plan with the route's member id, items in order", async () => {
     await create(null);
 
+    expect(submitLabel()).toBe('Przypisz plan');
+
     await setValue('#plan-name', 'Masa - jesień');
-    const member = root().querySelector<HTMLSelectElement>('#plan-member')!;
-    member.value = 'm1';
-    member.dispatchEvent(new Event('change'));
-    await settle();
 
     await pick('Przysiad ze sztangą');
     await pick('Martwy ciąg');
@@ -260,7 +273,7 @@ describe('PlanBuilder', () => {
    * form would look right and silently drop the value on save.
    */
   it('loads a prescribed duration and sends it back on save', async () => {
-    await create('p1');
+    await create(PLAN);
 
     const stored = root().querySelector<HTMLInputElement>('#duration-1')!;
     expect(stored.value).toBe('45');
@@ -285,7 +298,7 @@ describe('PlanBuilder', () => {
    * guards is the mirror drifting out of step with it.
    */
   it('refuses a zero duration in the form', async () => {
-    await create('p1');
+    await create(PLAN);
 
     await setValue('#duration-0', '0');
 
@@ -294,11 +307,16 @@ describe('PlanBuilder', () => {
     expect(root().querySelector('form')!.checkValidity()).toBe(false);
   });
 
-  it('loads an existing plan in its stored order and PUTs to the same id', async () => {
-    await create('p1');
+  /**
+   * The member id in the body comes from the URL. On edit the server compares it with the stored
+   * plan (`member_changed`), which makes it the URL/body agreement check.
+   */
+  it("loads a member's plan in its stored order and PUTs it with the route's member id", async () => {
+    await create(PLAN);
 
     expect(itemNames()).toEqual(['Przysiad ze sztangą', 'Wyciskanie leżąc']);
     expect(root().querySelector<HTMLInputElement>('#plan-name')!.value).toBe('Masa - jesień');
+    expect(submitLabel()).toBe('Zapisz zmiany');
 
     await submit();
 
@@ -306,8 +324,6 @@ describe('PlanBuilder', () => {
       controller.expectOne((r) => r.url === '/api/trainer/plans/p1' && r.method === 'PUT'),
     );
 
-    // getRawValue, not value: the member control is disabled while editing, and an omitted
-    // memberId would be refused with `member_changed`.
     expect(sentBody(request).memberId).toBe('m1');
     expect(sentBody(request).items).toHaveLength(2);
 
@@ -315,22 +331,110 @@ describe('PlanBuilder', () => {
   });
 
   /**
-   * A plan does not move between people; it is superseded. The member is shown as STATIC TEXT on the
-   * edit path, not as a disabled picker: the picker lists only active accounts, and a member blocked
-   * after assignment keeps their plan - a select would then match no option and render blank.
+   * THE SCREEN BECOMES THE EDIT VIEW after a create. A second save that POSTed again would archive
+   * the plan just made and create another — harmless to data, and wrong.
    */
-  it('shows the member as fixed text while editing, with no picker', async () => {
-    await create('p1');
-
-    expect(root().querySelector('select#plan-member')).toBeNull();
-    expect(root().querySelector('#plan-member')!.textContent).toContain('Anna Kowalska');
-  });
-
-  it('offers a member picker when creating', async () => {
+  it('stays on the screen after a create, says so, and PUTs the next save', async () => {
     await create(null);
 
-    expect(root().querySelector<HTMLSelectElement>('select#plan-member')).not.toBeNull();
+    await setValue('#plan-name', 'Masa - jesień');
+    await pick('Przysiad ze sztangą');
+    await submit();
+
+    (
+      await vi.waitFor(() =>
+        controller.expectOne((r) => r.url === '/api/trainer/plans' && r.method === 'POST'),
+      )
+    ).flush(PLAN);
+    await settle();
+
+    expect(lastToast()).toMatchObject({ tone: 'success', message: 'Plan zapisany.' });
+    expect(submitLabel()).toBe('Zapisz zmiany');
+
+    await submit();
+
+    const second = await vi.waitFor(() =>
+      controller.expectOne((r) => r.url === '/api/trainer/plans/p1' && r.method === 'PUT'),
+    );
+    expect(sentBody(second).memberId).toBe('m1');
+    second.flush(PLAN);
   });
+
+  /** A member that does not exist is a screen state (outlet 4) — never a toast. */
+  it('shows the not-found state when the member does not exist', async () => {
+    configure('missing');
+
+    (await vi.waitFor(() => controller.expectOne('/api/admin/exercises'))).flush(LIBRARY);
+    (await vi.waitFor(() => controller.expectOne('/api/trainer/members/missing/plan'))).flush(
+      null,
+      {
+        status: 404,
+        statusText: 'Not Found',
+      },
+    );
+    await settle();
+
+    expect(html()).toContain('Nie znaleziono tych danych');
+    expect(root().querySelector('form')).toBeNull();
+    expect(lastToast()).toBeUndefined();
+  });
+
+  it('offers a retry when the member plan cannot be loaded', async () => {
+    configure('m1');
+
+    (await vi.waitFor(() => controller.expectOne('/api/admin/exercises'))).flush(LIBRARY);
+    (await vi.waitFor(() => controller.expectOne('/api/trainer/members/m1/plan'))).flush(null, {
+      status: 500,
+      statusText: 'Server Error',
+    });
+    await settle();
+
+    expect(html()).toContain('Nie udało się wczytać planu tej osoby');
+
+    root().querySelector<HTMLButtonElement>('.alert .link-button')!.click();
+    (await vi.waitFor(() => controller.expectOne('/api/trainer/members/m1/plan'))).flush({
+      member: MEMBER,
+      plan: PLAN,
+    });
+    await settle();
+
+    expect(itemNames()).toEqual(['Przysiad ze sztangą', 'Wyciskanie leżąc']);
+  });
+
+  /**
+   * With the member fixed by the URL there is no control to name, so every member refusal lands in
+   * the form banner (outlet 2).
+   */
+  it.each([
+    ['member_changed', 'Ten plan należy do innego członka'],
+    ['member_not_active', 'Tej osobie nie można przypisać planu'],
+  ])('shows %s in the form banner', async (reason, text) => {
+    await create(PLAN);
+    await submit();
+
+    (await vi.waitFor(() => controller.expectOne('/api/trainer/plans/p1'))).flush(
+      { reason },
+      { status: 409, statusText: 'Conflict' },
+    );
+    await settle();
+
+    expect(root().querySelector('form .alert')!.textContent).toContain(text);
+  });
+
+  /** One builder, mounted twice: "back" and "cancel" return to the list this mount came from. */
+  it.each(['/admin/members', '/trainer/members'])(
+    'returns to %s from the mount that names it',
+    async (membersLink) => {
+      await create(PLAN, { membersLink });
+
+      const back = root().querySelector<HTMLAnchorElement>('.builder-back a')!;
+      expect(back.textContent?.trim()).toBe('Wróć do listy członków');
+      expect(back.getAttribute('href')).toBe(membersLink);
+      expect(
+        root().querySelector<HTMLAnchorElement>('.builder-actions a')!.getAttribute('href'),
+      ).toBe(membersLink);
+    },
+  );
 
   /** An empty plan is refused by the server too (`no_items`); saying so here costs no round trip. */
   it('refuses to submit an empty plan without calling the API', async () => {
@@ -344,7 +448,7 @@ describe('PlanBuilder', () => {
   });
 
   it('puts a name refusal on the name control', async () => {
-    await create('p1');
+    await create(PLAN);
     await submit();
 
     (await vi.waitFor(() => controller.expectOne('/api/trainer/plans/p1'))).flush(
@@ -358,7 +462,7 @@ describe('PlanBuilder', () => {
 
   /** A 409 from a concurrent assignment is a "try again", not a validation error. */
   it('explains a concurrent-change conflict', async () => {
-    await create('p1');
+    await create(PLAN);
     await submit();
 
     (await vi.waitFor(() => controller.expectOne('/api/trainer/plans/p1'))).flush(
@@ -368,33 +472,5 @@ describe('PlanBuilder', () => {
     await settle();
 
     expect(html()).toContain('Odśwież stronę i spróbuj ponownie');
-  });
-
-  /**
-   * Without a member there is no plan to save, so a failed picker fetch is surfaced rather than
-   * swallowed the way ExerciseForm's optional datalist is.
-   */
-  it('says so when the member list cannot be loaded', async () => {
-    TestBed.configureTestingModule({
-      imports: [PlanBuilder],
-      providers: [
-        provideHttpClient(),
-        provideHttpClientTesting(),
-        provideRouter([]),
-        { provide: ActivatedRoute, useValue: { snapshot: { paramMap: new Map() } } },
-      ],
-    });
-
-    controller = TestBed.inject(HttpTestingController);
-    fixture = TestBed.createComponent(PlanBuilder);
-
-    (await vi.waitFor(() => controller.expectOne('/api/trainer/plans/members'))).flush(null, {
-      status: 500,
-      statusText: 'Server Error',
-    });
-    (await vi.waitFor(() => controller.expectOne('/api/admin/exercises'))).flush(LIBRARY);
-    await settle();
-
-    expect(html()).toContain('Nie udało się wczytać listy członków');
   });
 });

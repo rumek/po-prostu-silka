@@ -70,6 +70,18 @@ export const routes: Routes = [
       import('./features/admin/members/member-passes').then((m) => m.MemberPasses),
     canActivate: [authGuard, adminGuard],
   },
+  // A member's training plan, reached through the member (S-22, UX-07). BEFORE ':id' for the same
+  // reason as ':id/passes'. The builder is mounted a second time under /trainer/members below; the
+  // two mounts differ only in their guard and the list "back" returns to.
+  //
+  // LAZY, and it must stay so: the builder pulls in @angular/cdk's drag-drop, which has to land in
+  // the builder's own chunk and nowhere else.
+  {
+    path: 'admin/members/:id/plan',
+    loadComponent: () => import('./features/trainer/plans/plan-builder').then((m) => m.PlanBuilder),
+    canActivate: [authGuard, adminGuard],
+    data: { membersLink: '/admin/members' },
+  },
   {
     path: 'admin/members/:id',
     loadComponent: () => import('./features/admin/members/member-form').then((m) => m.MemberForm),
@@ -131,24 +143,21 @@ export const routes: Routes = [
       import('./features/admin/exercises/exercise-detail').then((m) => m.ExerciseDetail),
     canActivate: [authGuard, adminGuard],
   },
-  // S-11's training plans, on two surfaces with two guards. LAZY for the exercise-library reason:
-  // the initial bundle sits close to the 500 kB budget, and the builder additionally pulls in
-  // @angular/cdk's drag-drop - which must land in the builder's own chunk and nowhere else.
+  // S-11's training plans. LAZY for the exercise-library reason: the initial bundle sits close to
+  // its budget. The plan-id builder routes are GONE (S-22): a plan is reached through its member.
   {
     path: 'trainer/plans',
     loadComponent: () => import('./features/trainer/plans/plans').then((m) => m.Plans),
     canActivate: [authGuard, trainerGuard],
   },
-  // 'new' MUST precede ':id' here too, or the literal segment is swallowed by the parameter.
+  // The trainer's mount of the plan builder (S-22, UX-08). trainerGuard admits admins too, but an
+  // admin reaches the builder through /admin/members/:id/plan — the URL says who the screen is for.
+  // LAZY, so @angular/cdk's drag-drop stays in the builder's own chunk and nowhere else.
   {
-    path: 'trainer/plans/new',
+    path: 'trainer/members/:id/plan',
     loadComponent: () => import('./features/trainer/plans/plan-builder').then((m) => m.PlanBuilder),
     canActivate: [authGuard, trainerGuard],
-  },
-  {
-    path: 'trainer/plans/:id',
-    loadComponent: () => import('./features/trainer/plans/plan-builder').then((m) => m.PlanBuilder),
-    canActivate: [authGuard, trainerGuard],
+    data: { membersLink: '/trainer/members' },
   },
   // The member's own plan. activeMemberGuard, not trainerGuard: every approved account has a plan
   // surface, the trainer's own included - the API applies ActiveMember at this group.

@@ -1,9 +1,12 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { ExerciseSummary } from './exercise.models';
 import {
   AssignableMember,
+  MemberPlan,
+  TrainerMemberPage,
+  TrainerMemberQuery,
   TrainingPlanDetail,
   TrainingPlanRequest,
   TrainingPlanSummary,
@@ -45,7 +48,41 @@ export class TrainingPlanService {
     return firstValueFrom(this.http.get<AssignableMember[]>('/api/trainer/plans/members'));
   }
 
-  /** One plan with its items in order, for the builder's edit load. */
+  /**
+   * One page of the trainer's member list (S-22): active members, searched by NAME only, each with
+   * their active plan's name. Absent or empty fields are omitted rather than sent blank, for the
+   * reason `MemberAdminService.getMembers` gives — the API binds `page`/`pageSize` as integers.
+   */
+  getTrainerMembers(query: TrainerMemberQuery = {}): Promise<TrainerMemberPage> {
+    let params = new HttpParams();
+
+    const search = query.search?.trim();
+    if (search) {
+      params = params.set('search', search);
+    }
+
+    if (query.page !== undefined) {
+      params = params.set('page', query.page);
+    }
+
+    if (query.pageSize !== undefined) {
+      params = params.set('pageSize', query.pageSize);
+    }
+
+    return firstValueFrom(this.http.get<TrainerMemberPage>('/api/trainer/members', { params }));
+  }
+
+  /**
+   * A member and their active plan (S-22) — the builder's load when it is reached through the
+   * member. `plan` is null for a member with none; a 404 means the MEMBER does not exist.
+   */
+  getMemberPlan(memberId: string): Promise<MemberPlan> {
+    return firstValueFrom(
+      this.http.get<MemberPlan>(`/api/trainer/members/${encodeURIComponent(memberId)}/plan`),
+    );
+  }
+
+  /** One plan with its items in order, active or archived. */
   getById(id: string): Promise<TrainingPlanDetail> {
     return firstValueFrom(
       this.http.get<TrainingPlanDetail>(`/api/trainer/plans/${encodeURIComponent(id)}`),

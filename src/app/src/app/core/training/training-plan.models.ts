@@ -65,7 +65,11 @@ export interface TrainingPlanDetail {
   items: TrainingPlanItemView[];
 }
 
-/** Mirrors AssignableMember: the minimal read of who a plan may be assigned to. */
+/**
+ * Mirrors AssignableMember: the trainer-safe identity of a member — id, name, and whether they can
+ * sign in. Since S-22 also the member half of {@link MemberPlan}, which may name a BLOCKED member
+ * when an admin opens their plan.
+ */
 export interface AssignableMember {
   /** The MEMBER's id (S-14) — which is what lets someone with no login be offered here at all. */
   id: string;
@@ -77,6 +81,48 @@ export interface AssignableMember {
    * is real work they will not see in the app until they claim their record with a member code.
    */
   hasAccount: boolean;
+}
+
+/**
+ * Mirrors MemberPlan (S-22): a member and their active plan, what the builder loads when it is
+ * reached through the member. `plan` is null for a member with none — an ordinary state, answered
+ * with an empty builder rather than an error.
+ */
+export interface MemberPlan {
+  member: AssignableMember;
+  plan: TrainingPlanDetail | null;
+}
+
+/**
+ * Mirrors TrainerMemberSummary (S-22): one row of the trainer's member list. Deliberately no e-mail,
+ * status or account id — the API never sends them to a trainer.
+ */
+export interface TrainerMember {
+  id: string;
+  displayName: string;
+  hasAccount: boolean;
+
+  /** The ACTIVE plan's name, or null when the member has none. */
+  planName: string | null;
+}
+
+/**
+ * Mirrors the API's `PagedResult<TrainerMemberSummary>` (src/Application/Paging/PagedResult.cs), as
+ * `MemberPage` mirrors the admin's. Keep the two in step. `page` is 1-based; a page past the end
+ * arrives as an empty `items` with the TRUE `total`.
+ */
+export interface TrainerMemberPage {
+  items: TrainerMember[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+/** What the caller asks the trainer's member list for. Absent or empty fields are left off. */
+export interface TrainerMemberQuery {
+  search?: string;
+  page?: number;
+  pageSize?: number;
 }
 
 /**
@@ -106,7 +152,8 @@ export interface TrainingPlanItemRequest {
  * `memberId` is VALIDATED on edit, not ignored: the server compares it against the plan and
  * refuses a mismatch with 409 `member_changed`. A plan cannot change hands — it is superseded — and
  * refusing tells a stale tab its state is old instead of silently accepting a write it misunderstood.
- * The builder therefore sends the id even though the control is disabled while editing.
+ * Since S-22 the builder sends the member id from its URL, so on edit that refusal is also the check
+ * that the URL and the plan agree.
  */
 export interface TrainingPlanRequest {
   name: string;

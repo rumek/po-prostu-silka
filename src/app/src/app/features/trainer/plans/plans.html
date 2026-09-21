@@ -1,6 +1,7 @@
+<!-- A BRIDGE for one deploy (S-22 Phase 2): the plan-id builder routes are gone, so a row opens its
+     member's plan, and "Nowy plan" went with /trainer/plans/new. Phase 3 deletes this screen. -->
 <div class="page-header">
   <h1>Plany treningowe</h1>
-  <a class="button" routerLink="/trainer/plans/new">Nowy plan</a>
 </div>
 <p class="hint">
   Każdy członek ma jeden aktywny plan. Przypisanie nowego archiwizuje poprzedni — nic nie ginie, ale
@@ -51,7 +52,11 @@
         </p>
 
         <div slot="actions" class="row-actions">
-          <a class="button button--secondary" [routerLink]="['/trainer/plans', row.id]">Otwórz</a>
+          <a
+            class="button button--secondary"
+            [routerLink]="['/trainer/members', row.memberId, 'plan']"
+            >Otwórz</a
+          >
         </div>
       </li>
     }

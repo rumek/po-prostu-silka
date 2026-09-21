@@ -169,6 +169,18 @@
                       Karnety
                     </a>
 
+                    <!-- Plan (S-22, UX-07). On every row, by Karnety's rule: a blocked member's plan
+                         is still worth reading and editing, and the screen itself explains the refusal
+                         when a plan cannot be created for them. -->
+                    <a
+                      role="menuitem"
+                      class="row-menu-item"
+                      [routerLink]="['/admin/members', member.id, 'plan']"
+                      (click)="closeMenu()"
+                    >
+                      Plan
+                    </a>
+
                     <!-- The code attaches a NEW account to this record, so it is offered only where
                          there is no login yet — see canIssueCode. -->
                     @if (canIssueCode(member)) {

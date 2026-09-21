@@ -261,6 +261,7 @@ The builder takes its member from the URL, and the member picker is gone. It is 
   - toast success ("Plan zapisany." on create and edit alike; the words live in the component, like other success toasts);
   - stay on the screen and mark the form pristine.
 - **`applyFailure`:** `member_not_found` and `member_not_active` move to the form banner only, since there is no control to name any more (outlet 2). Other branches are unchanged.
+  - **Adapted during implementation.** Their sentences in `core/training/training-plan-failure.ts` also changed: the old words ended "Wybierz innego członka", advice to use a picker this phase removes. They now say no plan can be assigned to this person and point back to the member list. The words still come from the table.
 - **Back link and cancel** go to the route data's `membersLink`. Header text is "Wróć do listy członków".
 - **Title:** "Plan — {displayName}", in the `.panel` header shape `member-passes.html:1-2` uses.
 - **Docblock:** update the "THE MEMBER CANNOT BE CHANGED WHILE EDITING" paragraph. The member is now fixed by the URL, and `member_changed` is what catches a body that disagrees with it.
@@ -550,11 +551,11 @@ Remove `GET /api/trainer/plans` and `GET /api/trainer/plans/members`, which no l
 
 #### Automated
 
-- [x] 1.1 Solution builds warning-free
-- [x] 1.2 New TrainerMemberEndpointTests pass
-- [x] 1.3 Admin member-list tests unchanged and green
-- [x] 1.4 Access surface green with no allowlist edit
-- [x] 1.5 Full suite green
+- [x] 1.1 Solution builds warning-free — f26c082
+- [x] 1.2 New TrainerMemberEndpointTests pass — f26c082
+- [x] 1.3 Admin member-list tests unchanged and green — f26c082
+- [x] 1.4 Access surface green with no allowlist edit — f26c082
+- [x] 1.5 Full suite green — f26c082
 
 #### Manual
 
@@ -564,9 +565,9 @@ Remove `GET /api/trainer/plans` and `GET /api/trainer/plans/members`, which no l
 
 #### Automated
 
-- [ ] 2.1 SPA unit tests pass
-- [ ] 2.2 Lint and format pass
-- [ ] 2.3 Production build succeeds under the bundle budget
+- [x] 2.1 SPA unit tests pass
+- [x] 2.2 Lint and format pass
+- [x] 2.3 Production build succeeds under the bundle budget
 
 #### Manual
 
