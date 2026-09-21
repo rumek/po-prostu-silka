@@ -110,15 +110,41 @@ describe('ClassBookingsOverlay', () => {
   }
 
   /**
-   * Answers BOTH of the overlay's init requests: the roster, and the member list its sign-up picker
-   * offers (S-14). `candidates` defaults to nobody, so a test that does not care about signing
-   * people up sees no picker and no leftover request for afterEach's verify() to trip on.
+   * Answers the overlay's one init request, the roster. Since S-21 that IS the only one: the sign-up
+   * picker searches when the admin types, instead of loading the whole active club on open — and
+   * afterEach's verify() is what proves no member request slipped out.
    */
-  async function respond(rows: ClassBooking[], candidates: Member[] = []): Promise<void> {
+  async function respond(rows: ClassBooking[]): Promise<void> {
     controller.expectOne('/api/admin/classes/c1/bookings').flush(rows);
-    controller
-      .expectOne('/api/admin/members?filter=Active&pageSize=100')
-      .flush({ items: candidates, total: candidates.length, page: 1, pageSize: 100 });
+    await settle();
+  }
+
+  /** The request a search for `phrase` produces — active members only, one page of 20. */
+  function searchUrl(phrase: string): string {
+    return `/api/admin/members?filter=Active&search=${encodeURIComponent(phrase)}&pageSize=20`;
+  }
+
+  function searchBox(): HTMLInputElement {
+    return element().querySelector<HTMLInputElement>('#add-member-search')!;
+  }
+
+  function type(value: string): void {
+    searchBox().value = value;
+    searchBox().dispatchEvent(new Event('input'));
+  }
+
+  /**
+   * Types `phrase`, waits out the debounce (for real — vi.waitFor polls past it) and answers the one
+   * search it produces with `matches`.
+   */
+  async function search(phrase: string, matches: Member[], total = matches.length): Promise<void> {
+    type(phrase);
+    (await vi.waitFor(() => controller.expectOne(searchUrl(phrase)))).flush({
+      items: matches,
+      total,
+      page: 1,
+      pageSize: 20,
+    });
     await settle();
   }
 
@@ -157,9 +183,6 @@ describe('ClassBookingsOverlay', () => {
 
   it('offers a retry when the list fails to load', async () => {
     controller.expectOne('/api/admin/classes/c1/bookings').error(new ProgressEvent('failed'));
-    controller
-      .expectOne('/api/admin/members?filter=Active&pageSize=100')
-      .flush({ items: [], total: 0, page: 1, pageSize: 100 });
     await settle();
 
     expect(element().querySelector('[role="alert"]')).not.toBeNull();
@@ -239,36 +262,79 @@ describe('ClassBookingsOverlay', () => {
   }
 
   /**
+   * S-21: opening the overlay costs one request, the roster. The picker used to load every active
+   * member here — the club, into a select — and that request must not come back.
+   */
+  it('requests no members on open, and asks for a phrase instead', async () => {
+    await respond([]);
+
+    controller.expectNone((request) => request.url === '/api/admin/members');
+    expect(searchBox()).not.toBeNull();
+    expect(optionLabels()).toEqual(['Wpisz imię lub e-mail…']);
+    expect(picker()!.disabled).toBe(true);
+  });
+
+  /** A search box, not a load test: one request per pause, with the phrase as typed last. */
+  it('searches active members once typing pauses', async () => {
+    await respond([]);
+
+    type('j');
+    type('ja');
+    await search('jan', [member({ id: 'm2' })]);
+
+    expect(optionLabels()).toEqual(['Wybierz osobę…', 'Jan Nowak']);
+  });
+
+  it('sends nothing for a blank phrase', async () => {
+    await respond([]);
+
+    type('   ');
+    await new Promise((resolve) => setTimeout(resolve, 400));
+
+    controller.expectNone((request) => request.url === '/api/admin/members');
+  });
+
+  /**
    * THE CASE THE ROUTE EXISTS FOR: somebody with no login cannot tap Book, so the club can only get
    * them into a class from here. The picker says so, because a plan or a booking that never appears
    * on anyone's phone is otherwise a mystery.
    */
   it('offers members with no account, and marks them', async () => {
-    await respond([], [member({ id: 'm9', userId: null, displayName: 'Filip Bez Konta' })]);
+    await respond([]);
+    await search('filip', [member({ id: 'm9', userId: null, displayName: 'Filip Bez Konta' })]);
 
     expect(optionLabels()).toContain('Filip Bez Konta — bez konta');
   });
 
   /** Choosing somebody already on the list could only produce an already_booked refusal. */
   it('leaves out members who already hold a spot', async () => {
-    await respond(
-      [signup({ memberId: 'm1', displayName: 'Ala Kowalska' })],
-      [member({ id: 'm1', displayName: 'Ala Kowalska' }), member({ id: 'm2' })],
-    );
+    await respond([signup({ memberId: 'm1', displayName: 'Ala Kowalska' })]);
+    await search('a', [member({ id: 'm1', displayName: 'Ala Kowalska' }), member({ id: 'm2' })]);
 
     expect(optionLabels()).not.toContain('Ala Kowalska');
     expect(optionLabels()).toContain('Jan Nowak');
   });
 
-  /** Nobody left to add means no picker at all — an empty select explains nothing. */
-  it('hides the picker when everybody is already signed up', async () => {
-    await respond([signup({ memberId: 'm2' })], [member({ id: 'm2' })]);
+  /** Nobody bookable matches: say so, rather than render an empty select and a disabled button. */
+  it('says nobody matching can be added when every match is already signed up', async () => {
+    await respond([signup({ memberId: 'm2' })]);
+    await search('jan', [member({ id: 'm2' })]);
 
     expect(picker()).toBeNull();
+    expect(element().textContent).toContain('Nikt pasujący nie może zostać dopisany.');
   });
 
-  it('signs the chosen member up and hands the screen the updated class', async () => {
-    await respond([], [member({ id: 'm2' })]);
+  it('asks for a narrower phrase when there are more matches than it shows', async () => {
+    await respond([]);
+    await search('a', [member({ id: 'm2' })], 45);
+
+    expect(element().textContent).toContain('zawęź');
+    expect(element().textContent).toContain('z 45');
+  });
+
+  it('signs the chosen member up, hands the screen the class and clears the phrase', async () => {
+    await respond([]);
+    await search('jan', [member({ id: 'm2' })]);
 
     picker()!.value = 'm2';
     picker()!.dispatchEvent(new Event('change'));
@@ -291,6 +357,10 @@ describe('ClassBookingsOverlay', () => {
 
     // The server's count, not one this screen inferred.
     expect(host.booked?.freeSpots).toBe(17);
+
+    // The next person added is a new search.
+    expect(searchBox().value).toBe('');
+    expect(optionLabels()).toEqual(['Wpisz imię lub e-mail…']);
   });
 
   /**
@@ -299,7 +369,8 @@ describe('ClassBookingsOverlay', () => {
    * address in the second person.
    */
   it('names a refusal in the third person', async () => {
-    await respond([], [member({ id: 'm2' })]);
+    await respond([]);
+    await search('jan', [member({ id: 'm2' })]);
 
     picker()!.value = 'm2';
     picker()!.dispatchEvent(new Event('change'));
@@ -318,17 +389,20 @@ describe('ClassBookingsOverlay', () => {
   });
 
   /**
-   * A failed member list must not take the panel down with it — the admin came here to see who is
-   * coming, and that still works.
+   * A failed search must not take the panel down with it — the admin came here to see who is
+   * coming, and that still works. Quiet, too: no "nobody matches", which would be a claim.
    */
-  it('still shows the roster when the member list fails to load', async () => {
-    controller.expectOne('/api/admin/classes/c1/bookings').flush([signup()]);
-    controller
-      .expectOne('/api/admin/members?filter=Active&pageSize=100')
-      .error(new ProgressEvent('failed'));
+  it('stays quiet when the search fails', async () => {
+    await respond([signup()]);
+
+    type('jan');
+    (await vi.waitFor(() => controller.expectOne(searchUrl('jan')))).error(
+      new ProgressEvent('failed'),
+    );
     await settle();
 
     expect(rows().length).toBe(1);
-    expect(picker()).toBeNull();
+    expect(element().textContent).not.toContain('Nikt pasujący');
+    expect(optionLabels()).toEqual(['Wpisz imię lub e-mail…']);
   });
 });

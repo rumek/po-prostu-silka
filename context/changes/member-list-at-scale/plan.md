@@ -540,10 +540,10 @@ worker shows the list's load-failure state until it reloads.
 
 #### Automated
 
-- [x] 2.1 SPA unit tests pass: `npm test`
-- [x] 2.2 Lint and format pass: `npm run quality:check`
-- [x] 2.3 Production build succeeds within budget: `npm run build`
-- [x] 2.4 No client-side member search remains
+- [x] 2.1 SPA unit tests pass: `npm test` — 7ba23ef
+- [x] 2.2 Lint and format pass: `npm run quality:check` — 7ba23ef
+- [x] 2.3 Production build succeeds within budget: `npm run build` — 7ba23ef
+- [x] 2.4 No client-side member search remains — 7ba23ef
 
 #### Manual
 
@@ -556,9 +556,9 @@ worker shows the list's load-failure state until it reloads.
 
 #### Automated
 
-- [ ] 3.1 SPA unit tests pass: `npm test`
-- [ ] 3.2 Lint and format pass: `npm run quality:check`
-- [ ] 3.3 Nothing in the SPA requests the member list without a page size or a search
+- [x] 3.1 SPA unit tests pass: `npm test`
+- [x] 3.2 Lint and format pass: `npm run quality:check`
+- [x] 3.3 Nothing in the SPA requests the member list without a page size or a search
 
 #### Manual
 

@@ -1,5 +1,14 @@
 import { DatePipe } from '@angular/common';
-import { Component, OnInit, computed, inject, input, output, signal } from '@angular/core';
+import {
+  Component,
+  DestroyRef,
+  OnInit,
+  computed,
+  inject,
+  input,
+  output,
+  signal,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Member } from '../../../core/admin/member-admin.models';
 import { MemberAdminService } from '../../../core/admin/member-admin.service';
@@ -10,6 +19,7 @@ import { BookingService } from '../../../core/scheduling/booking.service';
 import { ClassBooking } from '../../../core/scheduling/booking.models';
 import { ScheduledClass } from '../../../core/scheduling/class.models';
 import { createBusySet } from '../../../shared/forms/busy-set';
+import { createLoadFence } from '../../../shared/forms/load-fence';
 import { useOverlayFocus } from '../../../shared/forms/overlay-focus';
 import { Field } from '../../../shared/forms/field/field';
 import { Select } from '../../../shared/forms/select/select';
@@ -38,9 +48,20 @@ import { Row } from '../../../shared/list/row';
  * <h2>It also signs people up (S-14, AM-007)</h2>
  *
  * A member with no account cannot tap Book, so without this the club could record them, plan for
- * them, and never get them into a class. The picker offers everyone who may use the club and is not
- * already on the list, which is why it loads the member list rather than reusing the roster.
+ * them, and never get them into a class. The picker offers the active members matching a phrase who
+ * are not already on the list.
+ *
+ * A SEARCH, NOT THE CLUB (S-21). It used to load every active member into the select on open — the
+ * member list's second "fetch everyone" — which at hundreds of members is a select nobody can scroll
+ * and a request nobody needed. It asks the paged endpoint for {@link PICKER_RESULTS} matches once
+ * typing pauses, like the members screen does.
  */
+/** How many matches the picker offers. Past this, it asks the admin to narrow the phrase. */
+export const PICKER_RESULTS = 20;
+
+/** Same pause as the members screen's search box — one request per pause, not per key. */
+export const PICKER_DEBOUNCE_MS = 300;
+
 @Component({
   // On the host, not on the panel: Escape has to close the overlay wherever focus is, including
   // before the admin has touched anything.
@@ -84,8 +105,25 @@ export class ClassBookingsOverlay implements OnInit {
 
   // --- signing somebody up (S-14) -------------------------------------------
 
-  /** Everyone who may use the club, whether or not they have a login. */
+  /** What is in the picker's search box. */
+  protected readonly addSearch = signal('');
+
+  /**
+   * The phrase the current matches answer, or empty when nothing has been searched. Separate from
+   * `addSearch`, which runs ahead of it by one debounce pause — "nobody matches" must describe the
+   * phrase that was actually asked, not the one still being typed.
+   */
+  protected readonly searched = signal('');
+
+  /** The active members matching `searched`, with or without a login — at most PICKER_RESULTS. */
   protected readonly candidates = signal<Member[]>([]);
+
+  /** How many match in all, so the picker can say when it is showing only some of them. */
+  protected readonly candidatesTotal = signal(0);
+
+  /** Its own fence: the roster and the search are independent loads (AGENTS.md, load-fence.ts). */
+  private readonly searchFence = createLoadFence();
+  private searchTimer: ReturnType<typeof setTimeout> | null = null;
 
   /** The picker's value. Empty string is "nobody chosen", which is what the placeholder option is. */
   protected readonly chosen = signal('');
@@ -94,11 +132,12 @@ export class ClassBookingsOverlay implements OnInit {
   protected readonly addFailure = signal<string | null>(null);
 
   /**
-   * Who the picker offers: active members not already holding a spot.
+   * Who the picker offers: the matches not already holding a spot.
    *
    * Filtering the roster out CLIENT-SIDE is deliberate — the server would refuse them with
-   * `already_booked` anyway, and this way the list the admin scrolls has nothing in it that cannot
-   * be chosen. A club's member list fits in memory; this is not a search.
+   * `already_booked` anyway, and this way the select holds nothing that cannot be chosen. It is a
+   * filter over at most PICKER_RESULTS rows, so a page of matches that were all booked already reads
+   * as "nobody matching can be added" rather than as a short list.
    */
   protected readonly bookable = computed(() => {
     const taken = new Set(this.rows().map((booking) => booking.memberId));
@@ -106,25 +145,79 @@ export class ClassBookingsOverlay implements OnInit {
     return this.candidates().filter((member) => !taken.has(member.id));
   });
 
+  constructor() {
+    inject(DestroyRef).onDestroy(() => this.cancelSearch());
+  }
+
   ngOnInit(): void {
     // Not the constructor: a required signal input is not readable until the binding is set.
     void this.load();
-    void this.loadCandidates();
+  }
+
+  /** The picker's every keystroke. Searches once typing pauses; a blank phrase clears at once. */
+  protected onAddSearchInput(value: string): void {
+    this.addSearch.set(value);
+    this.cancelSearch();
+
+    const phrase = value.trim();
+    if (!phrase) {
+      this.clearCandidates();
+      return;
+    }
+
+    this.searchTimer = setTimeout(() => {
+      this.searchTimer = null;
+      void this.searchCandidates(phrase);
+    }, PICKER_DEBOUNCE_MS);
   }
 
   /**
-   * The member list, loaded once. A failure here is deliberately QUIET: the sign-up picker simply
-   * does not appear, and the panel's real job — showing who is coming — is unaffected.
+   * Active members matching the phrase. A failure is deliberately QUIET, as the whole-club load it
+   * replaced was: the picker offers nobody, and the panel's real job — showing who is coming — is
+   * unaffected.
    */
-  private async loadCandidates(): Promise<void> {
+  private async searchCandidates(phrase: string): Promise<void> {
+    const generation = this.searchFence.begin();
+
     try {
-      // TEMPORARY (S-21 phase 2): the first 100 active members, just to keep the picker working now
-      // that the list is paged. Phase 3 replaces this whole method with a search.
-      this.candidates.set(
-        (await this.members.getMembers({ filter: 'Active', pageSize: 100 })).items,
-      );
+      const page = await this.members.getMembers({
+        filter: 'Active',
+        search: phrase,
+        pageSize: PICKER_RESULTS,
+      });
+
+      if (!this.searchFence.isCurrent(generation)) {
+        return;
+      }
+
+      this.candidates.set(page.items);
+      this.candidatesTotal.set(page.total);
+      this.searched.set(phrase);
+
+      // A choice the new matches no longer offer would submit a person the admin can no longer see.
+      if (!this.bookable().some((candidate) => candidate.id === this.chosen())) {
+        this.chosen.set('');
+      }
     } catch {
-      this.candidates.set([]);
+      if (this.searchFence.isCurrent(generation)) {
+        this.clearCandidates();
+      }
+    }
+  }
+
+  /** Drops the matches — and, through the fence, any search still in flight. */
+  private clearCandidates(): void {
+    this.searchFence.begin();
+    this.candidates.set([]);
+    this.candidatesTotal.set(0);
+    this.searched.set('');
+    this.chosen.set('');
+  }
+
+  private cancelSearch(): void {
+    if (this.searchTimer !== null) {
+      clearTimeout(this.searchTimer);
+      this.searchTimer = null;
     }
   }
 
@@ -147,7 +240,11 @@ export class ClassBookingsOverlay implements OnInit {
     try {
       const updated = await this.bookings.bookForMember(this.row().id, memberId);
 
-      this.chosen.set('');
+      // The phrase goes with the choice: the next person the admin adds is a new search, and a
+      // stale list of matches would offer the person just added (until the roster reload lands).
+      this.cancelSearch();
+      this.addSearch.set('');
+      this.clearCandidates();
       this.booked.emit(updated);
       await this.load();
     } catch (error) {

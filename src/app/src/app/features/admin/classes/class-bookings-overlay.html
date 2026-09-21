@@ -55,47 +55,71 @@
   }
 
   <!-- Sign somebody up (S-14, AM-007). Below the list rather than above it: the panel's subject is
-       who is coming, and this is an action taken after reading that. Hidden entirely when there is
-       nobody left to add — an empty select with a disabled button explains nothing. -->
-  @if (bookable().length > 0) {
-    <div class="bookings-add">
-      <!-- The label carried class="field" itself before S-23, so the flex column landed on the
-           LABEL and the control it names sat outside it entirely. app-field is the block; the
-           label is a label. -->
-      <app-field label="Dopisz członka" for="add-member">
-        <div class="bookings-add-controls">
-          <app-select>
-            <select
-              id="add-member"
-              [ngModel]="chosen()"
-              (ngModelChange)="chosen.set($event)"
-              [disabled]="adding()"
-            >
-              <option value="">Wybierz osobę…</option>
-              @for (member of bookable(); track member.id) {
-                <option [value]="member.id">
-                  {{ member.displayName }}{{ member.userId ? '' : ' — bez konta' }}
-                </option>
-              }
-            </select>
-          </app-select>
+       who is coming, and this is an action taken after reading that. ALWAYS rendered since S-21:
+       whether anyone is left to add can no longer be known without searching, so the block is a
+       search box first and a select of its matches second. -->
+  <div class="bookings-add">
+    <!-- The label carried class="field" itself before S-23, so the flex column landed on the LABEL
+         and the control it names sat outside it entirely. app-field is the block; the label is a
+         label. -->
+    <app-field label="Dopisz członka" for="add-member-search">
+      <input
+        id="add-member-search"
+        type="search"
+        autocomplete="off"
+        maxlength="100"
+        placeholder="Imię, nazwisko lub e-mail"
+        [ngModel]="addSearch()"
+        (ngModelChange)="onAddSearchInput($event)"
+        [disabled]="adding()"
+      />
+    </app-field>
 
-          <button
-            type="button"
-            class="button button--secondary"
-            [disabled]="!chosen() || adding()"
-            (click)="add()"
+    <!-- A phrase nobody bookable matches says so, rather than leaving an empty select and a disabled
+         button to explain themselves. -->
+    @if (searched() && bookable().length === 0) {
+      <app-empty>Nikt pasujący nie może zostać dopisany.</app-empty>
+    } @else {
+      <div class="bookings-add-controls">
+        <app-select>
+          <select
+            id="add-member"
+            aria-label="Osoba do dopisania"
+            [ngModel]="chosen()"
+            (ngModelChange)="chosen.set($event)"
+            [disabled]="adding() || bookable().length === 0"
           >
-            {{ adding() ? 'Zapisuję…' : 'Zapisz' }}
-          </button>
-        </div>
-      </app-field>
+            <option value="">{{ searched() ? 'Wybierz osobę…' : 'Wpisz imię lub e-mail…' }}</option>
+            @for (member of bookable(); track member.id) {
+              <option [value]="member.id">
+                {{ member.displayName }}{{ member.userId ? '' : ' — bez konta' }}
+              </option>
+            }
+          </select>
+        </app-select>
 
-      @if (addFailure()) {
-        <p class="field-error" role="alert">{{ addFailure() }}</p>
+        <button
+          type="button"
+          class="button button--secondary"
+          [disabled]="!chosen() || adding()"
+          (click)="add()"
+        >
+          {{ adding() ? 'Zapisuję…' : 'Zapisz' }}
+        </button>
+      </div>
+
+      @if (candidatesTotal() > candidates().length) {
+        <p class="hint">
+          Pokazano {{ candidates().length }} z {{ candidatesTotal() }} pasujących — zawęź
+          wyszukiwanie.
+        </p>
       }
-    </div>
-  }
+    }
+
+    @if (addFailure()) {
+      <p class="field-error" role="alert">{{ addFailure() }}</p>
+    }
+  </div>
 
   <div class="overlay-actions">
     <button type="button" class="link-button" (click)="close()">Zamknij</button>
