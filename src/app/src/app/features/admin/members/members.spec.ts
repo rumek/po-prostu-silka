@@ -1,10 +1,10 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
-import { Member } from '../../../core/admin/member-admin.models';
+import { Router, provideRouter } from '@angular/router';
+import { Member, MemberPage } from '../../../core/admin/member-admin.models';
 import { ToastService } from '../../../shared/toast/toast.service';
-import { Members } from './members';
+import { Members, SEARCH_DEBOUNCE_MS } from './members';
 
 const ANNA: Member = {
   id: 'm1',
@@ -94,27 +94,86 @@ const GRAZYNA: Member = {
   createdAt: '2026-09-01T14:00:00+00:00',
 };
 
+/** The first page, unfiltered and unsearched — what the screen asks for on a plain visit. */
+const LIST = '/api/admin/members?pageSize=25';
+
+/** `rows` wrapped in the page envelope the API answers with (S-21). */
+function page(items: Member[], total = items.length, pageNumber = 1): MemberPage {
+  return { items, total, page: pageNumber, pageSize: 25 };
+}
+
+/** `count` distinct active members — a full page, for the pager tests. */
+function many(count: number, offset = 0): Member[] {
+  return Array.from({ length: count }, (_, index) => ({
+    ...ANNA,
+    id: `p${offset + index}`,
+    displayName: `Członek ${offset + index}`,
+  }));
+}
+
 describe('Members', () => {
   let fixture: ComponentFixture<Members>;
   let controller: HttpTestingController;
   let toasts: ToastService;
+  let router: Router;
 
-  /** Creates the component and answers its initial unfiltered request with `rows`. */
-  async function createWith(rows: Member[]) {
+  /**
+   * Arrives at `url` (the list's state lives in the query string since S-21), creates the component,
+   * and returns its first list request unanswered.
+   */
+  async function arrive(url = '/') {
     TestBed.configureTestingModule({
       imports: [Members],
       // provideRouter, because the row menu's "Edytuj dane" entry is a real RouterLink (S-14) and
-      // the directive needs an ActivatedRoute to resolve its href.
+      // the screen reads and writes its state through the URL (S-21).
       providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
     });
 
     controller = TestBed.inject(HttpTestingController);
     toasts = TestBed.inject(ToastService);
-    fixture = TestBed.createComponent(Members);
+    router = TestBed.inject(Router);
 
-    (await vi.waitFor(() => controller.expectOne('/api/admin/members'))).flush(rows);
+    await router.navigateByUrl(url);
+    fixture = TestBed.createComponent(Members);
+  }
+
+  /** Creates the component and answers its initial first-page request with `rows`. */
+  async function createWith(rows: Member[] | MemberPage, url = '/', request = LIST) {
+    await arrive(url);
+
+    (await vi.waitFor(() => controller.expectOne(request))).flush(
+      Array.isArray(rows) ? page(rows) : rows,
+    );
     await fixture.whenStable();
     fixture.detectChanges();
+  }
+
+  function searchBox(): HTMLInputElement {
+    return (fixture.nativeElement as HTMLElement).querySelector('input[type="search"]')!;
+  }
+
+  function type(value: string): void {
+    const input = searchBox();
+    input.value = value;
+    input.dispatchEvent(new Event('input'));
+  }
+
+  function chip(label: string): HTMLButtonElement {
+    return Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('.chip'),
+    ).find((b) => (b.textContent ?? '').includes(label))!;
+  }
+
+  function pager(): HTMLElement | null {
+    return (fixture.nativeElement as HTMLElement).querySelector(
+      'nav[aria-label="Strony listy członków"]',
+    );
+  }
+
+  function pagerButton(label: string): HTMLButtonElement {
+    return Array.from(pager()!.querySelectorAll<HTMLButtonElement>('button')).find((b) =>
+      (b.textContent ?? '').includes(label),
+    )!;
   }
 
   afterEach(() => controller.verify());
@@ -217,49 +276,147 @@ describe('Members', () => {
     expect(html()).toContain('Brak członków');
   });
 
+  // --- search, paging and the URL (S-21) ------------------------------------
+
   /**
-   * Search is client-side by design — a request per keystroke would need debouncing to buy nothing
-   * on a list this size. afterEach's controller.verify() is what proves no request was issued.
+   * Search runs on the SERVER since S-21, after a pause. One request per pause, not per keystroke —
+   * the difference between a search box and a load test — and with no `page`: a new phrase is a new
+   * list, which starts at the top.
    */
-  it('narrows on search without refetching', async () => {
-    await createWith([ANNA, BARTEK]);
+  it('searches on the server once typing pauses, one request per pause', async () => {
+    await createWith([ANNA, BARTEK], '/?page=2', '/api/admin/members?page=2&pageSize=25');
 
-    const input = (fixture.nativeElement as HTMLElement).querySelector('input')!;
-    input.value = 'bartek';
-    input.dispatchEvent(new Event('input'));
-    await settle();
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      type('k');
+      vi.advanceTimersByTime(SEARCH_DEBOUNCE_MS - 50);
+      type('ko');
+      vi.advanceTimersByTime(SEARCH_DEBOUNCE_MS - 50);
+      type('kow');
+      vi.advanceTimersByTime(SEARCH_DEBOUNCE_MS - 1);
 
-    expect(rows().length).toBe(1);
-    expect(html()).toContain('Bartek Nowak');
-    expect(html()).not.toContain('Anna Kowalska');
-  });
+      // Three keystrokes, none of them followed by a full pause: nothing has been asked yet.
+      controller.expectNone((request) => request.url === '/api/admin/members');
 
-  it('matches search against the email as well as the display name', async () => {
-    await createWith([ANNA, BARTEK]);
+      vi.advanceTimersByTime(1);
+    } finally {
+      vi.useRealTimers();
+    }
 
-    const input = (fixture.nativeElement as HTMLElement).querySelector('input')!;
-    input.value = 'ANNA@TEST';
-    input.dispatchEvent(new Event('input'));
+    (
+      await vi.waitFor(() => controller.expectOne('/api/admin/members?search=kow&pageSize=25'))
+    ).flush(page([ANNA]));
     await settle();
 
     expect(rows().length).toBe(1);
     expect(html()).toContain('Anna Kowalska');
+
+    // The phrase is in the address, and the page is gone from it.
+    expect(router.url).toBe('/?q=kow');
   });
 
-  // The filter maps onto the API's own query, so unlike search it DOES refetch.
-  it('refetches with a filter parameter when the filter changes', async () => {
+  it('says the search found nobody, rather than that the view is empty', async () => {
+    await createWith([], '/?q=zzz', '/api/admin/members?search=zzz&pageSize=25');
+
+    expect(html()).toContain('Brak członków pasujących do wyszukiwania.');
+    // The box shows the phrase the URL carries — a reload keeps what the admin typed.
+    expect(searchBox().value).toBe('zzz');
+  });
+
+  /**
+   * A URL an admin pasted or a bookmark from an older build may carry junk; the API would refuse it
+   * with a 400. It is normalised away (replacing the history entry) instead — afterEach's verify()
+   * is what proves no request ever carried it.
+   */
+  it('normalises junk in the URL without sending it to the API', async () => {
+    await createWith([ANNA], '/?page=abc&filter=Foo&q=%20%20');
+
+    expect(router.url).toBe('/');
+    expect(rows().length).toBe(1);
+  });
+
+  it('restores page, phrase and filter from the URL', async () => {
+    await createWith(
+      page([ANNA], 30, 2),
+      '/?q=kow&filter=Active&page=2',
+      '/api/admin/members?filter=Active&search=kow&page=2&pageSize=25',
+    );
+
+    expect(searchBox().value).toBe('kow');
+    expect(chip('Aktywni').classList).toContain('chip-active');
+    expect(html()).toContain('26–26 z 30');
+  });
+
+  it('hides the pager when everything fits on one page', async () => {
     await createWith([ANNA, BARTEK]);
 
-    const chip = Array.from(
-      (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('.chip'),
-    ).find((b) => (b.textContent ?? '').includes('Zablokowani'))!;
-    chip.click();
+    expect(pager()).toBeNull();
+  });
 
-    (await vi.waitFor(() => controller.expectOne('/api/admin/members?filter=Blocked'))).flush([
-      BARTEK,
-    ]);
+  it('pages forward and back through the server', async () => {
+    await createWith(page(many(25), 30));
+
+    expect(html()).toContain('1–25 z 30');
+    expect(pagerButton('Poprzednia').disabled).toBe(true);
+
+    pagerButton('Następna').click();
+    (await vi.waitFor(() => controller.expectOne('/api/admin/members?page=2&pageSize=25'))).flush(
+      page(many(5, 25), 30, 2),
+    );
     await settle();
 
+    expect(router.url).toBe('/?page=2');
+    expect(html()).toContain('26–30 z 30');
+    expect(pagerButton('Następna').disabled).toBe(true);
+
+    pagerButton('Poprzednia').click();
+    (await vi.waitFor(() => controller.expectOne(LIST))).flush(page(many(25), 30));
+    await settle();
+
+    expect(router.url).toBe('/');
+  });
+
+  /**
+   * The page ran out from under the URL — a block under Aktywni, or a bookmark from a bigger club.
+   * "Brak członków" would be a lie, so the screen goes to the last page that exists.
+   */
+  it('lands on the last page when the requested one is past the end', async () => {
+    await arrive('/?page=3');
+
+    (await vi.waitFor(() => controller.expectOne('/api/admin/members?page=3&pageSize=25'))).flush(
+      page([], 30, 3),
+    );
+    (await vi.waitFor(() => controller.expectOne('/api/admin/members?page=2&pageSize=25'))).flush(
+      page(many(5, 25), 30, 2),
+    );
+    await settle();
+
+    expect(router.url).toBe('/?page=2');
+    expect(rows().length).toBe(5);
+    expect(html()).not.toContain('Brak członków');
+  });
+
+  /**
+   * A chip navigates, keeping the phrase and dropping the page: page 2 of one filter says nothing
+   * about page 2 of another.
+   */
+  it('refetches with the filter, keeping the phrase and dropping the page', async () => {
+    await createWith(
+      page([ANNA], 30, 2),
+      '/?q=kow&page=2',
+      '/api/admin/members?search=kow&page=2&pageSize=25',
+    );
+
+    chip('Zablokowani').click();
+
+    (
+      await vi.waitFor(() =>
+        controller.expectOne('/api/admin/members?filter=Blocked&search=kow&pageSize=25'),
+      )
+    ).flush(page([BARTEK]));
+    await settle();
+
+    expect(router.url).toBe('/?q=kow&filter=Blocked');
     expect(rows().length).toBe(1);
     expect(html()).toContain('Bartek Nowak');
   });
@@ -271,21 +428,20 @@ describe('Members', () => {
   it('discards a stale load response that resolves after a newer one', async () => {
     await createWith([ANNA, BARTEK]);
 
-    const chips = Array.from(
-      (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('.chip'),
+    // One at a time, so both navigations complete and both loads are really in flight together.
+    chip('Aktywni').click();
+    const active = await vi.waitFor(() =>
+      controller.expectOne('/api/admin/members?filter=Active&pageSize=25'),
     );
-    chips.find((b) => (b.textContent ?? '').includes('Aktywni'))!.click();
-    chips.find((b) => (b.textContent ?? '').includes('Zablokowani'))!.click();
-
-    const active = await vi.waitFor(() => controller.expectOne('/api/admin/members?filter=Active'));
+    chip('Zablokowani').click();
     const blocked = await vi.waitFor(() =>
-      controller.expectOne('/api/admin/members?filter=Blocked'),
+      controller.expectOne('/api/admin/members?filter=Blocked&pageSize=25'),
     );
 
     // The NEWER request answers first, the older one second — the out-of-order case.
-    blocked.flush([BARTEK]);
+    blocked.flush(page([BARTEK]));
     await settle();
-    active.flush([ANNA]);
+    active.flush(page([ANNA]));
     await settle();
 
     // Blocked was the last filter chosen, so its rows must survive.
@@ -305,19 +461,19 @@ describe('Members', () => {
     const block = await vi.waitFor(() => controller.expectOne('/api/admin/members/m1/block'));
 
     // The admin switches filter before the block comes back.
-    Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('.chip'))
-      .find((b) => (b.textContent ?? '').includes('Zablokowani'))!
-      .click();
-    (await vi.waitFor(() => controller.expectOne('/api/admin/members?filter=Blocked'))).flush([]);
+    chip('Zablokowani').click();
+    (
+      await vi.waitFor(() => controller.expectOne('/api/admin/members?filter=Blocked&pageSize=25'))
+    ).flush(page([]));
     await settle();
 
     block.flush(null);
     await settle();
 
     // A refetch, not a silent no-op against a list this mutation never saw.
-    (await vi.waitFor(() => controller.expectOne('/api/admin/members?filter=Blocked'))).flush([
-      { ...ANNA, membershipStatus: 'Blocked', accountStatus: 'Blocked' },
-    ]);
+    (
+      await vi.waitFor(() => controller.expectOne('/api/admin/members?filter=Blocked&pageSize=25'))
+    ).flush(page([{ ...ANNA, membershipStatus: 'Blocked', accountStatus: 'Blocked' }]));
     await settle();
 
     expect(rows().length).toBe(1);
@@ -379,7 +535,7 @@ describe('Members', () => {
     );
     await settle();
 
-    (await vi.waitFor(() => controller.expectOne('/api/admin/members'))).flush([ANNA]);
+    (await vi.waitFor(() => controller.expectOne(LIST))).flush(page([ANNA]));
     await settle();
 
     expect(toastText()).toContain('zarządza klubem');
@@ -399,9 +555,9 @@ describe('Members', () => {
     );
     await settle();
 
-    (await vi.waitFor(() => controller.expectOne('/api/admin/members'))).flush([
-      { ...ANNA, membershipStatus: 'Blocked', accountStatus: 'Blocked' },
-    ]);
+    (await vi.waitFor(() => controller.expectOne(LIST))).flush(
+      page([{ ...ANNA, membershipStatus: 'Blocked', accountStatus: 'Blocked' }]),
+    );
     await settle();
 
     expect(toastText()).toContain('nieaktualna');
@@ -437,16 +593,30 @@ describe('Members', () => {
     expect(menuItemIn(rows()[0], 'Zablokuj')).toBeTruthy();
   });
 
+  /** The refetch after a refusal reloads the page the admin is ON, not page 1. */
+  it('reloads the current page when a block is refused', async () => {
+    await createWith(page([ANNA], 30, 2), '/?page=2', '/api/admin/members?page=2&pageSize=25');
+
+    menuItemIn(rows()[0], 'Zablokuj').click();
+
+    (await vi.waitFor(() => controller.expectOne('/api/admin/members/m1/block'))).flush(
+      { reason: 'conflict' },
+      { status: 409, statusText: 'Conflict' },
+    );
+    await settle();
+
+    (await vi.waitFor(() => controller.expectOne('/api/admin/members?page=2&pageSize=25'))).flush(
+      page([ANNA], 30, 2),
+    );
+    await settle();
+
+    expect(router.url).toBe('/?page=2');
+  });
+
   it('reports a failed load and offers a retry', async () => {
-    TestBed.configureTestingModule({
-      imports: [Members],
-      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
-    });
+    await arrive();
 
-    controller = TestBed.inject(HttpTestingController);
-    fixture = TestBed.createComponent(Members);
-
-    (await vi.waitFor(() => controller.expectOne('/api/admin/members'))).flush(null, {
+    (await vi.waitFor(() => controller.expectOne(LIST))).flush(null, {
       status: 500,
       statusText: 'Server Error',
     });
@@ -458,7 +628,7 @@ describe('Members', () => {
       .querySelector<HTMLButtonElement>('.link-button')!
       .click();
 
-    (await vi.waitFor(() => controller.expectOne('/api/admin/members'))).flush([ANNA]);
+    (await vi.waitFor(() => controller.expectOne(LIST))).flush(page([ANNA]));
     await settle();
 
     expect(rows().length).toBe(1);
@@ -558,9 +728,9 @@ describe('Members', () => {
     );
     await settle();
 
-    (await vi.waitFor(() => controller.expectOne('/api/admin/members'))).flush([
-      { ...ANNA, membershipStatus: 'Blocked', accountStatus: 'Blocked' },
-    ]);
+    (await vi.waitFor(() => controller.expectOne(LIST))).flush(
+      page([{ ...ANNA, membershipStatus: 'Blocked', accountStatus: 'Blocked' }]),
+    );
     await settle();
 
     // "nie jest aktywna", not "aktywny": the sentence no longer interpolates the member's display
@@ -761,7 +931,7 @@ describe('Members', () => {
     );
     await settle();
 
-    (await vi.waitFor(() => controller.expectOne('/api/admin/members'))).flush([ANNA]);
+    (await vi.waitFor(() => controller.expectOne(LIST))).flush(page([ANNA]));
     await settle();
 
     expect(toastText()).toContain('ma już konto');

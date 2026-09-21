@@ -118,7 +118,11 @@ export class ClassBookingsOverlay implements OnInit {
    */
   private async loadCandidates(): Promise<void> {
     try {
-      this.candidates.set(await this.members.getMembers('Active'));
+      // TEMPORARY (S-21 phase 2): the first 100 active members, just to keep the picker working now
+      // that the list is paged. Phase 3 replaces this whole method with a search.
+      this.candidates.set(
+        (await this.members.getMembers({ filter: 'Active', pageSize: 100 })).items,
+      );
     } catch {
       this.candidates.set([]);
     }

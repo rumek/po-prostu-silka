@@ -311,6 +311,12 @@ Następna requests `page=2`; the pager is hidden when everything fits; `page=abc
 normalised without an API call carrying it; an empty page 3 of a 2-page result lands on page 2;
 a 409 on block reloads the CURRENT page. Use Vitest fake timers for the debounce.
 
+**Adapted during implementation.** `load()` leaves `page` off the request on page 1 (the API's
+default), so the first page's request is the same however the admin arrived at it; `page=1` in the
+URL is normalised away like any other non-canonical value. `classes.spec.ts` also had to move — it
+opens the bookings overlay and answered the picker's member request, so its expected URL follows the
+phase-2 cap (and goes away in phase 3).
+
 ### Success Criteria:
 
 #### Automated Verification:
@@ -522,9 +528,9 @@ worker shows the list's load-failure state until it reloads.
 
 #### Automated
 
-- [x] 1.1 Solution builds warning-free: `dotnet build po-prostu-silka.slnx`
-- [x] 1.2 All backend tests pass, including the new list tests: `dotnet test`
-- [x] 1.3 No test resolves a member via an unsearched `GET /api/admin/members`
+- [x] 1.1 Solution builds warning-free: `dotnet build po-prostu-silka.slnx` — e945a2b
+- [x] 1.2 All backend tests pass, including the new list tests: `dotnet test` — e945a2b
+- [x] 1.3 No test resolves a member via an unsearched `GET /api/admin/members` — e945a2b
 
 #### Manual
 
@@ -534,10 +540,10 @@ worker shows the list's load-failure state until it reloads.
 
 #### Automated
 
-- [ ] 2.1 SPA unit tests pass: `npm test`
-- [ ] 2.2 Lint and format pass: `npm run quality:check`
-- [ ] 2.3 Production build succeeds within budget: `npm run build`
-- [ ] 2.4 No client-side member search remains
+- [x] 2.1 SPA unit tests pass: `npm test`
+- [x] 2.2 Lint and format pass: `npm run quality:check`
+- [x] 2.3 Production build succeeds within budget: `npm run build`
+- [x] 2.4 No client-side member search remains
 
 #### Manual
 

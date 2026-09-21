@@ -477,7 +477,9 @@ describe('Classes', () => {
     await settle();
 
     controller.expectOne('/api/admin/classes/c1/bookings').flush(rows);
-    controller.expectOne('/api/admin/members?filter=Active').flush([]);
+    controller
+      .expectOne('/api/admin/members?filter=Active&pageSize=100')
+      .flush({ items: [], total: 0, page: 1, pageSize: 100 });
     await settle();
   }
 

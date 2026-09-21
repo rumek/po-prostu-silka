@@ -213,3 +213,20 @@
     justify-content: flex-start;
   }
 }
+
+// The pager (S-21): Poprzednia · range · Następna on one line at every width — three short items
+// that fit a 360px phone, which is why there is no numbered-page strip to collapse.
+.members-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-top: var(--space-5);
+}
+
+.members-pager-range {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+}

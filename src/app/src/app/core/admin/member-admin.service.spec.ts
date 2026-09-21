@@ -44,37 +44,45 @@ describe('MemberAdminService', () => {
     await approved;
   });
 
-  it('reads the full member list from /api/admin/members', async () => {
+  it('reads a page of the member list from /api/admin/members', async () => {
     const members = service.getMembers();
 
     const request = await vi.waitFor(() => controller.expectOne('/api/admin/members'));
     expect(request.request.method).toBe('GET');
-    request.flush([FULL_MEMBER]);
+    const page = { items: [FULL_MEMBER], total: 1, page: 1, pageSize: 25 };
+    request.flush(page);
 
-    await expect(members).resolves.toEqual([FULL_MEMBER]);
+    await expect(members).resolves.toEqual(page);
   });
 
-  it('sends the filter as a query parameter when filtering', async () => {
-    const members = service.getMembers('Blocked');
+  it('sends the filter, search, page and page size as query parameters', async () => {
+    const members = service.getMembers({
+      filter: 'Blocked',
+      search: '  kowal ',
+      page: 3,
+      pageSize: 25,
+    });
 
+    // The phrase goes out TRIMMED: a search for " kowal" and one for "kowal" are the same question.
     const request = await vi.waitFor(() =>
-      controller.expectOne('/api/admin/members?filter=Blocked'),
+      controller.expectOne('/api/admin/members?filter=Blocked&search=kowal&page=3&pageSize=25'),
     );
-    request.flush([]);
+    request.flush({ items: [], total: 0, page: 3, pageSize: 25 });
 
     await members;
   });
 
   /**
    * The endpoint binds the filter as a nullable enum and 400s on an unparseable value, so `?filter=`
-   * would be a broken request rather than "no filter". The parameter has to be absent, not empty.
+   * would be a broken request rather than "no filter". Absent fields have to be absent, not empty —
+   * and a whitespace-only phrase is no phrase.
    */
-  it('omits the filter parameter entirely when unfiltered', async () => {
-    const members = service.getMembers();
+  it('omits every absent or empty parameter', async () => {
+    const members = service.getMembers({ search: '   ' });
 
     const request = await vi.waitFor(() => controller.expectOne('/api/admin/members'));
-    expect(request.request.params.has('filter')).toBe(false);
-    request.flush([]);
+    expect(request.request.params.keys()).toEqual([]);
+    request.flush({ items: [], total: 0, page: 1, pageSize: 25 });
 
     await members;
   });

@@ -1,7 +1,8 @@
-import { Component, HostListener, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, HostListener, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DOCUMENT, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, ParamMap, Router, RouterLink } from '@angular/router';
 import { MemberAdminService } from '../../../core/admin/member-admin.service';
 import { accessCodeFailureMessage } from '../../../core/admin/access-code-failure';
 import { blockFailureMessage } from '../../../core/admin/block-failure';
@@ -25,14 +26,65 @@ type StatusFilter = MemberFilter | null;
 /** Stable DOM id for a row's menu trigger, so Escape can return focus to it. */
 const triggerId = (memberId: string): string => `member-menu-${memberId}`;
 
+/** The screen's page. Fixed — there is no page-size chooser (S-21 scope). */
+export const MEMBERS_PAGE_SIZE = 25;
+
+/** How long typing has to pause before the phrase is searched. One request per pause, not per key. */
+export const SEARCH_DEBOUNCE_MS = 300;
+
+/** The API refuses a longer phrase (GetMembers.MaxSearchLength); the URL is clamped to it instead. */
+const MAX_SEARCH_LENGTH = 100;
+
+const FILTERS: readonly MemberFilter[] = ['Active', 'Blocked', 'WithoutAccount'];
+
+/** The list's state as the URL carries it. `page` is 1-based; `q` is already trimmed. */
+interface ListState {
+  q: string;
+  filter: StatusFilter;
+  page: number;
+}
+
+/**
+ * Reads the list's state out of the query string, and says whether the URL was already in its
+ * canonical form. A junk value (`page=abc`, `filter=Foo`, `page=0`, a blank `q`) is dropped rather
+ * than sent to the API, which would refuse it with a 400.
+ */
+function readState(params: ParamMap): { state: ListState; canonical: boolean } {
+  const rawQ = params.get('q');
+  const rawFilter = params.get('filter');
+  const rawPage = params.get('page');
+
+  const q = (rawQ ?? '').trim().slice(0, MAX_SEARCH_LENGTH);
+  const filter = FILTERS.find((f) => f === rawFilter) ?? null;
+  const page = rawPage !== null && /^[1-9]\d{0,5}$/.test(rawPage) ? Number(rawPage) : 1;
+
+  const canonical =
+    (rawQ === null || (q !== '' && rawQ === q)) &&
+    (rawFilter === null || rawFilter === filter) &&
+    (rawPage === null || (page > 1 && rawPage === String(page)));
+
+  return { state: { q, filter, page }, canonical };
+}
+
 /**
  * The admin's member list (FR-004, FR-005): everyone, filterable by status, searchable by name or
- * email, with block and unblock per row.
+ * email, one page at a time, with block and unblock per row.
  *
- * Split of work between server and client is deliberate (S-02 planning): the STATUS filter refetches
- * because it maps onto the indexed query the API already has, while SEARCH filters the loaded rows,
- * because a club's list fits on one screen and a request per keystroke would need debouncing to buy
- * nothing.
+ * <h2>The server pages and searches (S-21)</h2>
+ *
+ * S-02 split the work the other way — the filter refetched, search narrowed the loaded rows — on the
+ * grounds that a club's list fits on one screen. At hundreds of members it does not, so the API now
+ * answers the filter, the phrase and the page together, and typing costs one request per
+ * {@link SEARCH_DEBOUNCE_MS} pause.
+ *
+ * <h2>The URL is the list's state</h2>
+ *
+ * `q`, `filter` and `page` live in the query string, and ONLY the `queryParamMap` subscription
+ * loads a new view: chips, the pager and the debounced search box navigate, they never call
+ * `load()`. That is what makes "Edytuj dane" and Back, or a reload, land on the same page with the
+ * same phrase — and it leaves the out-of-order case to the load fence rather than inventing a second
+ * guard. Search navigations replace the history entry so typing does not fill the back stack; chips
+ * and the pager push.
  *
  * The approvals screen (S-01) stays as it is. Approve appears here too, on pending rows, so that a
  * pending member found through this screen is actionable where they are found rather than sending
@@ -44,8 +96,10 @@ const triggerId = (memberId: string): string => `member-menu-${memberId}`;
   styleUrl: './members.scss',
   templateUrl: './members.html',
 })
-export class Members implements OnInit {
+export class Members {
   private readonly members = inject(MemberAdminService);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
 
   /** Injected rather than reached for globally, so the invitation link's origin is SSR-safe. */
   private readonly document = inject(DOCUMENT);
@@ -54,8 +108,23 @@ export class Members implements OnInit {
   protected readonly loading = signal(true);
   protected readonly loadFailed = signal(false);
 
+  /** The state the rows on screen were ASKED for — mirrored from the URL, never set directly. */
   protected readonly filter = signal<StatusFilter>(null);
-  protected readonly search = signal('');
+  protected readonly query = signal('');
+  protected readonly page = signal(1);
+
+  /** From the page envelope: how many match in all, and how many a page holds. */
+  protected readonly total = signal(0);
+  protected readonly pageSize = signal(MEMBERS_PAGE_SIZE);
+
+  /**
+   * What is in the search box, which runs AHEAD of `query` by up to one debounce pause. Two signals,
+   * because the box must never be overwritten mid-typing by the URL it is about to change.
+   */
+  protected readonly searchInput = signal('');
+
+  /** The pending debounce, cleared on every keystroke and on destroy. */
+  private searchTimer: ReturnType<typeof setTimeout> | null = null;
 
   /** Rows with a mutation in flight, so one slow row does not disable the whole list. */
   protected readonly busy = createBusySet();
@@ -103,24 +172,48 @@ export class Members implements OnInit {
    */
   private readonly fence = createLoadFence();
 
+  /** The 1-based range the pager reads out, e.g. `26–50 z 312`. */
+  protected readonly rangeFrom = computed(() => (this.page() - 1) * this.pageSize() + 1);
+  protected readonly rangeTo = computed(() => this.rangeFrom() + this.rows().length - 1);
+
+  /** The pager exists only when there is somewhere to go. */
+  protected readonly paged = computed(() => this.total() > this.pageSize());
+  protected readonly hasPrevious = computed(() => this.page() > 1);
+  protected readonly hasNext = computed(() => this.page() * this.pageSize() < this.total());
+
+  constructor() {
+    this.route.queryParamMap
+      .pipe(takeUntilDestroyed())
+      .subscribe((params) => void this.onParams(params));
+
+    inject(DestroyRef).onDestroy(() => this.cancelSearch());
+  }
+
   /**
-   * Search runs here rather than at the API. Matches display name or email, case-insensitively;
-   * both are what an admin actually has to hand when looking someone up.
+   * Every URL change lands here, and this is the only caller of `load()` that is not a retry or a
+   * refetch after a refusal. A URL that is not canonical is rewritten first — replacing the entry, so
+   * Back does not return to the junk one — and the rewrite's own emission is what loads.
    */
-  protected readonly visible = computed(() => {
-    const term = this.search().trim().toLocaleLowerCase();
-    if (!term) {
-      return this.rows();
+  private async onParams(params: ParamMap): Promise<void> {
+    const { state, canonical } = readState(params);
+
+    if (!canonical) {
+      await this.navigate(state, true);
+      return;
     }
 
-    return this.rows().filter(
-      (row) =>
-        row.displayName.toLocaleLowerCase().includes(term) ||
-        (row.email?.toLocaleLowerCase().includes(term) ?? false),
-    );
-  });
+    this.filter.set(state.filter);
+    this.query.set(state.q);
+    this.page.set(state.page);
 
-  async ngOnInit(): Promise<void> {
+    // Only when the URL disagrees with the box: while the admin types, the box is AHEAD of the URL,
+    // and overwriting it with the phrase it is about to replace would eat keystrokes (a trailing
+    // space, at the very least, which the URL never carries).
+    if (this.searchInput().trim() !== state.q) {
+      this.cancelSearch();
+      this.searchInput.set(state.q);
+    }
+
     await this.load();
   }
 
@@ -131,7 +224,16 @@ export class Members implements OnInit {
     this.loadFailed.set(false);
 
     try {
-      const rows = await this.members.getMembers(this.filter() ?? undefined);
+      const page = this.page();
+      const result = await this.members.getMembers({
+        filter: this.filter() ?? undefined,
+        search: this.query() || undefined,
+
+        // Page 1 is the API's default, so it is left off — the request for the first page looks the
+        // same however the admin arrived at it.
+        page: page > 1 ? page : undefined,
+        pageSize: MEMBERS_PAGE_SIZE,
+      });
 
       // A newer load started while this one was in flight — its answer is the current one, so drop
       // ours rather than overwriting fresher rows with staler ones.
@@ -139,7 +241,18 @@ export class Members implements OnInit {
         return;
       }
 
-      this.rows.set(rows);
+      // The page ran out from under the URL — a block under the Aktywni filter, a bookmark from when
+      // the club was bigger. "Brak członków" would be a lie, so go to the last page that exists
+      // instead; replacing, so Back does not return to the empty one.
+      if (result.items.length === 0 && page > 1 && result.total > 0) {
+        const last = Math.ceil(result.total / result.pageSize);
+        await this.navigate({ q: this.query(), filter: this.filter(), page: last }, true);
+        return;
+      }
+
+      this.rows.set(result.items);
+      this.total.set(result.total);
+      this.pageSize.set(result.pageSize);
     } catch {
       if (!this.fence.isCurrent(generation)) {
         return;
@@ -155,19 +268,90 @@ export class Members implements OnInit {
     }
   }
 
-  /** A status filter change is a different query, so it refetches. Search never does. */
+  /**
+   * A chip NAVIGATES; the URL change is what loads. Back to page 1, because page 3 of one filter says
+   * nothing about page 3 of another — and a phrase still waiting out its debounce goes along, so the
+   * chip does not race the search box's own navigation.
+   */
   protected async setFilter(next: StatusFilter): Promise<void> {
     if (this.filter() === next) {
       return;
     }
 
-    this.filter.set(next);
     this.failedId.set(null);
 
     // The panel belongs to a row that may not survive the new filter, and a code left floating over
     // a list it no longer matches is worse than one the admin has to reveal again.
     this.closeCode();
-    await this.load();
+    this.cancelSearch();
+    await this.navigate(
+      { q: this.searchInput().trim().slice(0, MAX_SEARCH_LENGTH), filter: next, page: 1 },
+      false,
+    );
+  }
+
+  /** The search box's every keystroke. Searches only once typing pauses. */
+  protected onSearchInput(value: string): void {
+    this.searchInput.set(value);
+    this.cancelSearch();
+
+    this.searchTimer = setTimeout(() => {
+      this.searchTimer = null;
+      void this.commitSearch();
+    }, SEARCH_DEBOUNCE_MS);
+  }
+
+  /**
+   * Replaces the history entry rather than pushing one: a phrase typed a letter at a time would
+   * otherwise leave a Back press per pause. And back to page 1 — a new phrase is a new list.
+   */
+  private async commitSearch(): Promise<void> {
+    const q = this.searchInput().trim().slice(0, MAX_SEARCH_LENGTH);
+    if (q === this.query()) {
+      return;
+    }
+
+    await this.navigate({ q, filter: this.filter(), page: 1 }, true);
+  }
+
+  private cancelSearch(): void {
+    if (this.searchTimer !== null) {
+      clearTimeout(this.searchTimer);
+      this.searchTimer = null;
+    }
+  }
+
+  protected async previousPage(): Promise<void> {
+    if (this.hasPrevious()) {
+      await this.goToPage(this.page() - 1);
+    }
+  }
+
+  protected async nextPage(): Promise<void> {
+    if (this.hasNext()) {
+      await this.goToPage(this.page() + 1);
+    }
+  }
+
+  /** Pushes, unlike search: a page the admin chose is a place Back should return to. */
+  private async goToPage(page: number): Promise<void> {
+    this.closeMenu();
+    this.closeCode();
+    this.failedId.set(null);
+    await this.navigate({ q: this.query(), filter: this.filter(), page }, false);
+  }
+
+  /** Writes the state to the URL. Defaults are left off, so the plain list is plain `/admin/members`. */
+  private async navigate(state: ListState, replaceUrl: boolean): Promise<void> {
+    await this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: {
+        q: state.q || null,
+        filter: state.filter,
+        page: state.page > 1 ? state.page : null,
+      },
+      replaceUrl,
+    });
   }
 
   protected async block(member: Member): Promise<void> {

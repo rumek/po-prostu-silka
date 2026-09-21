@@ -4,9 +4,9 @@ import { firstValueFrom } from 'rxjs';
 import {
   AccessCodeView,
   IssuePassRequest,
-  Member,
   MemberDetail,
-  MemberFilter,
+  MemberPage,
+  MemberQuery,
   MemberRequest,
   MembershipPassView,
   TrainerSummary,
@@ -31,22 +31,41 @@ export class MemberAdminService {
   private readonly http = inject(HttpClient);
 
   /**
-   * The full member list, optionally narrowed to one filter position (FR-005). Since S-14 it also
-   * carries the people who have no account at all. The `Pending` position is retired with the
-   * approval flow — nothing produces such an account, so the filter would always come back empty.
-   * Admins are INCLUDED since
-   * S-04 — the Trainer role is granted from this list, and an owner who teaches has to be reachable
-   * there. The screen decides which actions a row offers; the API refuses a block on an admin
-   * regardless.
+   * One page of the member list, optionally narrowed to one filter position and a search phrase
+   * (FR-005). Since S-14 it also carries the people who have no account at all; admins are INCLUDED
+   * since S-04 — the Trainer role is granted from this list, and an owner who teaches has to be
+   * reachable there. The screen decides which actions a row offers; the API refuses a block on an
+   * admin regardless.
    *
-   * When no filter is given the parameter is OMITTED rather than sent empty: the endpoint binds it
-   * as a nullable enum and refuses an unparseable value with a 400, so `?filter=` would be a broken
-   * request rather than "no filter".
+   * PAGED AND SEARCHED ON THE SERVER since S-21 — the server folds case, Polish diacritics and `ł`,
+   * which a browser-side `includes` never did. There is deliberately no "everything" overload: the
+   * API caps a page at 100, and a caller that needs more is a caller that should be searching.
+   *
+   * Every absent or empty field is OMITTED rather than sent blank. The endpoint binds `filter` as a
+   * nullable enum and `page`/`pageSize` as integers, and refuses an unparseable value with a 400, so
+   * `?filter=` would be a broken request rather than "no filter".
    */
-  getMembers(filter?: MemberFilter): Promise<Member[]> {
-    const options = filter ? { params: new HttpParams().set('filter', filter) } : {};
+  getMembers(query: MemberQuery = {}): Promise<MemberPage> {
+    let params = new HttpParams();
 
-    return firstValueFrom(this.http.get<Member[]>('/api/admin/members', options));
+    if (query.filter) {
+      params = params.set('filter', query.filter);
+    }
+
+    const search = query.search?.trim();
+    if (search) {
+      params = params.set('search', search);
+    }
+
+    if (query.page !== undefined) {
+      params = params.set('page', query.page);
+    }
+
+    if (query.pageSize !== undefined) {
+      params = params.set('pageSize', query.pageSize);
+    }
+
+    return firstValueFrom(this.http.get<MemberPage>('/api/admin/members', { params }));
   }
 
   /** One member, with the contact details the edit form needs. */

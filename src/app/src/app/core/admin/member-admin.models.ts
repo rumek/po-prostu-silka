@@ -30,7 +30,7 @@ export type MembershipStatus = 'Active' | 'Blocked';
 export type MemberFilter = 'Active' | 'Blocked' | 'WithoutAccount';
 
 /**
- * Mirrors the API's MemberSummary record (src/Application/Members/MemberAdminEndpoints.cs).
+ * Mirrors the API's MemberSummary record (src/Application/Members/MemberSummary.cs).
  * Keep the two in step — this is a contract, not a convenience type.
  *
  * `status` is the enum NAME, never its int: the numeric values exist for persistence stability and
@@ -66,6 +66,31 @@ export interface Member {
 
   /** ISO 8601 from the API. Kept as a string; the screen formats it, nothing does arithmetic on it. */
   createdAt: string;
+}
+
+/**
+ * Mirrors the API's `PagedResult<MemberSummary>` (src/Application/Paging/PagedResult.cs) — one page of
+ * the member list and how long the whole list is (S-21). Keep the two in step.
+ *
+ * `page` is 1-based. A page past the end arrives as an empty `items` with the TRUE `total`, which is
+ * how the screen tells "that page no longer exists" apart from "nothing matches".
+ */
+export interface MemberPage {
+  items: Member[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+/**
+ * What the caller asks the member list for. Every field is optional, and an absent or empty one is
+ * left OFF the request rather than sent blank — see `MemberAdminService.getMembers`.
+ */
+export interface MemberQuery {
+  filter?: MemberFilter;
+  search?: string;
+  page?: number;
+  pageSize?: number;
 }
 
 /**

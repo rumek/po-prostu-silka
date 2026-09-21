@@ -116,7 +116,9 @@ describe('ClassBookingsOverlay', () => {
    */
   async function respond(rows: ClassBooking[], candidates: Member[] = []): Promise<void> {
     controller.expectOne('/api/admin/classes/c1/bookings').flush(rows);
-    controller.expectOne('/api/admin/members?filter=Active').flush(candidates);
+    controller
+      .expectOne('/api/admin/members?filter=Active&pageSize=100')
+      .flush({ items: candidates, total: candidates.length, page: 1, pageSize: 100 });
     await settle();
   }
 
@@ -155,7 +157,9 @@ describe('ClassBookingsOverlay', () => {
 
   it('offers a retry when the list fails to load', async () => {
     controller.expectOne('/api/admin/classes/c1/bookings').error(new ProgressEvent('failed'));
-    controller.expectOne('/api/admin/members?filter=Active').flush([]);
+    controller
+      .expectOne('/api/admin/members?filter=Active&pageSize=100')
+      .flush({ items: [], total: 0, page: 1, pageSize: 100 });
     await settle();
 
     expect(element().querySelector('[role="alert"]')).not.toBeNull();
@@ -319,7 +323,9 @@ describe('ClassBookingsOverlay', () => {
    */
   it('still shows the roster when the member list fails to load', async () => {
     controller.expectOne('/api/admin/classes/c1/bookings').flush([signup()]);
-    controller.expectOne('/api/admin/members?filter=Active').error(new ProgressEvent('failed'));
+    controller
+      .expectOne('/api/admin/members?filter=Active&pageSize=100')
+      .error(new ProgressEvent('failed'));
     await settle();
 
     expect(rows().length).toBe(1);
