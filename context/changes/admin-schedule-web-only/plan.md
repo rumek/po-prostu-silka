@@ -594,10 +594,10 @@ There is no data or API migration. Rollback is a redeploy of the previous artifa
 
 #### Automated
 
-- [x] 1.1 Formatting and lint pass: `cd src/app && npm run quality:check`
-- [x] 1.2 Unit tests pass, including the new `breakpoints.spec.ts`: `cd src/app && npm test`
-- [x] 1.3 Production build succeeds with no new budget warning: `cd src/app && npm run build`
-- [x] 1.4 No literal width media query remains outside the partial
+- [x] 1.1 Formatting and lint pass: `cd src/app && npm run quality:check` — 5270846
+- [x] 1.2 Unit tests pass, including the new `breakpoints.spec.ts`: `cd src/app && npm test` — 5270846
+- [x] 1.3 Production build succeeds with no new budget warning: `cd src/app && npm run build` — 5270846
+- [x] 1.4 No literal width media query remains outside the partial — 5270846
 
 #### Manual
 
@@ -608,9 +608,9 @@ There is no data or API migration. Rollback is a redeploy of the previous artifa
 
 #### Automated
 
-- [ ] 2.1 Lint and format pass: `cd src/app && npm run quality:check`
-- [ ] 2.2 Unit tests pass, including the new refusal cases: `cd src/app && npm test`
-- [ ] 2.3 Build succeeds: `cd src/app && npm run build`
+- [x] 2.1 Lint and format pass: `cd src/app && npm run quality:check`
+- [x] 2.2 Unit tests pass, including the new refusal cases: `cd src/app && npm test`
+- [x] 2.3 Build succeeds: `cd src/app && npm run build`
 
 #### Manual
 

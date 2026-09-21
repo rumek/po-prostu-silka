@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -7,6 +7,8 @@ import { classifyFailure } from '../../../core/http/failure';
 import { transportMessage } from '../../../core/http/transport-messages';
 import { ToastService } from '../../../shared/toast/toast.service';
 import { ClassService } from '../../../core/scheduling/class.service';
+import { DESK_MEDIA_QUERY } from '../../../core/layout/breakpoints';
+import { mediaQuerySignal } from '../../../core/layout/media-query';
 import { ScheduledClass } from '../../../core/scheduling/class.models';
 import {
   CalendarRange,
@@ -38,6 +40,16 @@ import { createLoadFence } from '../../../shared/forms/load-fence';
  * point; editing history is not, and the API refuses a create in the past anyway — so when the visible
  * window has already ended, the actions are withheld and a note says why. A missing button with no
  * explanation reads as broken.
+ *
+ * <h2>Desk only (S-20)</h2>
+ *
+ * Below {@link DESK_MEDIA_QUERY} this screen renders a refusal instead of the calendar — a screen
+ * state naming the reason and the surfaces that do work on a phone, not a grid that will not scroll
+ * and gestures that will not land. Drawing, dragging and resizing a half-hour block inside a
+ * scrolling 06:00–24:00 grid is a desk gesture. This NARROWS prd-v2 FR-019, which describes the
+ * gestures without naming a device, and it reverses F5 of the calendar's impl review
+ * (2026-09-02), which chose to make drawing work on the phone view instead — on the user's explicit
+ * decision of 2026-09-20 (roadmap M-7 UX-01).
  */
 @Component({
   imports: [
@@ -119,16 +131,28 @@ export class Classes {
   /** See members.ts — nothing cancels an in-flight request, so the last RESPONSE would otherwise win. */
   private readonly fence = createLoadFence();
 
+  /**
+   * Whether the viewport is a desk's. Falls back to TRUE where nothing can be measured (a server,
+   * jsdom): a screen that cannot tell should render, not refuse.
+   */
+  protected readonly desk = mediaQuerySignal(DESK_MEDIA_QUERY, true);
+
+  constructor() {
+    // Leaving the desk destroys the calendar, so everything that pointed into it goes too — the same
+    // reasoning as a window change in `load`. Coming back re-creates the calendar, whose first
+    // `rangeChange` reloads the current week.
+    effect(() => {
+      if (!this.desk()) {
+        this.closeTransient();
+      }
+    });
+  }
+
   protected async load(range: CalendarRange): Promise<void> {
     this.range.set(range);
 
     // A window change invalidates any open panel: its class may not even be on screen any more.
-    this.duplicating.set(null);
-    this.confirmingDelete.set(null);
-    this.confirmingCancel.set(null);
-    this.deleteBlockedBy.set(null);
-    this.viewingBookings.set(null);
-    this.drawn.set(null);
+    this.closeTransient();
 
     const generation = this.fence.begin();
 
@@ -151,6 +175,16 @@ export class Classes {
         this.loading.set(false);
       }
     }
+  }
+
+  /** Closes every panel and overlay that points at a class on the grid. */
+  private closeTransient(): void {
+    this.duplicating.set(null);
+    this.confirmingDelete.set(null);
+    this.confirmingCancel.set(null);
+    this.deleteBlockedBy.set(null);
+    this.viewingBookings.set(null);
+    this.drawn.set(null);
   }
 
   /** Refetches the window currently on screen — after a duplicate, or a retry. */

@@ -7,6 +7,7 @@ import {
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { provideRouter } from '@angular/router';
+import { DESK_MEDIA_QUERY } from '../../../core/layout/breakpoints';
 import { ScheduledClass } from '../../../core/scheduling/class.models';
 import { ScheduleCalendar } from '../../../shared/calendar/schedule-calendar';
 import { ToastService } from '../../../shared/toast/toast.service';
@@ -49,11 +50,40 @@ const PILATES: ScheduledClass = {
 };
 
 /**
+ * Stubs `matchMedia` so the DESK query answers `desk` and every other query answers false (the
+ * calendar's week view stays off, as it does unstubbed). Returns a switch that flips the desk answer
+ * the way a resized window would.
+ */
+function stubDesk(desk: boolean): (next: boolean) => void {
+  const listeners: ((event: MediaQueryListEvent) => void)[] = [];
+
+  Object.defineProperty(window, 'matchMedia', {
+    configurable: true,
+    writable: true,
+    value: (query: string) => ({
+      matches: query === DESK_MEDIA_QUERY ? desk : false,
+      addEventListener: (_: string, handler: (event: MediaQueryListEvent) => void) => {
+        if (query === DESK_MEDIA_QUERY) {
+          listeners.push(handler);
+        }
+      },
+      removeEventListener: () => undefined,
+    }),
+  });
+
+  return (next: boolean) => {
+    desk = next;
+    listeners.forEach((listener) => listener({ matches: next } as MediaQueryListEvent));
+  };
+}
+
+/**
  * The panel renders the shared calendar with its actions projected in (prd-v2 FR-017), so these
  * assertions run against tiles rather than list rows. Everything the list did, it must still do.
  *
  * jsdom provides no `matchMedia`, so the calendar stays in its day view here — which is why the
- * fixtures are all on today.
+ * fixtures are all on today — and the screen takes its desk fallback. The phone is stubbed
+ * explicitly, in its own block at the end.
  */
 describe('Classes', () => {
   let fixture: ComponentFixture<Classes>;
@@ -656,5 +686,96 @@ describe('Classes', () => {
 
     // Projected through the same template as the other actions, so readOnly withholds it too.
     expect(element().querySelector('.calendar-tile-actions')).toBeNull();
+  });
+
+  // --- S-20: a desk tool, and a phone is told so ------------------------------
+
+  describe('below the desk boundary', () => {
+    let restoreMatchMedia: PropertyDescriptor | undefined;
+
+    beforeEach(() => {
+      restoreMatchMedia = Object.getOwnPropertyDescriptor(window, 'matchMedia');
+    });
+
+    afterEach(() => {
+      if (restoreMatchMedia) {
+        Object.defineProperty(window, 'matchMedia', restoreMatchMedia);
+      } else {
+        delete (window as unknown as Record<string, unknown>)['matchMedia'];
+      }
+    });
+
+    function createOnPhone(): void {
+      stubDesk(false);
+
+      TestBed.configureTestingModule({
+        imports: [Classes],
+        providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
+      });
+
+      controller = TestBed.inject(HttpTestingController);
+      fixture = TestBed.createComponent(Classes);
+      fixture.detectChanges();
+    }
+
+    it('renders a refusal and none of the calendar', async () => {
+      createOnPhone();
+      await settle();
+
+      // An @if, not display:none — a phone never builds the library's DOM or its listeners.
+      expect(element().querySelector('app-schedule-calendar')).toBeNull();
+      expect(element().querySelector('.cal-week-view')).toBeNull();
+      expect(html()).toContain('na komputerze');
+      // The page header stays, so the admin still knows where they are.
+      expect(element().querySelector('.page-header h1')?.textContent).toContain('Zajęcia');
+    });
+
+    it('points to the surfaces that do work on a phone', async () => {
+      createOnPhone();
+      await settle();
+
+      const links = Array.from(
+        element().querySelectorAll<HTMLAnchorElement>('.classes-desk-only a'),
+      ).map((link) => link.getAttribute('href'));
+
+      expect(links).toEqual(['/schedule', '/admin/classes/new', '/admin/class-types']);
+    });
+
+    it('fetches no classes', async () => {
+      createOnPhone();
+      await settle();
+
+      // Nothing renders a calendar, so nothing emits the range that would trigger a load.
+      // controller.verify() in afterEach would catch it too; this names the promise.
+      expect(adminRequests()).toEqual([]);
+    });
+
+    it('drops an open panel when the window narrows past the boundary', async () => {
+      const flip = stubDesk(true);
+
+      await createWith([JOGA]);
+
+      actionIn(tileFor('Joga'), 'Powiel').click();
+      fixture.detectChanges();
+      expect(element().querySelector('.classes-panel')).not.toBeNull();
+
+      flip(false);
+      await settle();
+
+      expect(element().querySelector('app-schedule-calendar')).toBeNull();
+      // The state, not just the DOM: a panel left open behind the refusal would reappear, pointing at
+      // a class from a window nobody is looking at, the moment the admin widened the window again.
+      expect(fixture.componentInstance['duplicating']()).toBeNull();
+
+      flip(true);
+      await settle();
+
+      // Back at the desk the calendar is re-created and reloads the current week.
+      adminRequests()[0].flush([JOGA]);
+      await settle();
+
+      expect(tiles().length).toBe(1);
+      expect(element().querySelector('.classes-panel')).toBeNull();
+    });
   });
 });

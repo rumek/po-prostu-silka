@@ -53,3 +53,10 @@
   gap: var(--space-2);
   margin-top: var(--space-4);
 }
+
+.classes-desk-only-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
