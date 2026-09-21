@@ -49,6 +49,17 @@ module.exports = defineConfig([
     extends: [angular.configs.templateRecommended, angular.configs.templateAccessibility],
     rules: {},
   },
+  // The rule itself (S-23). Plain CommonJS with no build step, so it gets JS recommended rules and
+  // the two CommonJS globals it uses — otherwise listing tools/**/*.js in lintFilePatterns would
+  // lint it against an empty rule set and prove nothing.
+  {
+    files: ['tools/**/*.js'],
+    extends: [eslint.configs.recommended],
+    languageOptions: {
+      sourceType: 'commonjs',
+      globals: { require: 'readonly', module: 'writable' },
+    },
+  },
   // -----------------------------------------------------------------------------
   // The presentational kit's enforcement (S-23).
   //

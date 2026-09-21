@@ -18,7 +18,9 @@ import { Component } from '@angular/core';
  * drag handle, my-classes an entire component in place of an identity. An input per variation would
  * have grown one every time a screen needed something; projection holds all of them without the
  * component knowing what it holds. What it cannot then do is check that a row HAS a name, or that
- * its parts are in order — the lint rule is the other half, exactly as with app-field.
+ * its parts are in order — and neither does the lint rule, which only forbids a hand-rolled row.
+ * That is a deliberate gap, not an oversight: my-classes' row holds a whole component and no
+ * `.row-name` at all, so a "must have a name" check would need an exemption on day one.
  * </p>
  *
  * <p>

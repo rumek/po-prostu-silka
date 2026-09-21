@@ -87,8 +87,9 @@ already consistent. This slice does not churn them.
 - **`.notice`'s remaining honest uses are five, and they are one meaning.** After loading moves to
   `app-loading`, empty to `app-empty` and success to the toast, what is left is
   `member-passes.html:11` (the active pass panel), `forgot-password.html:8` and
-  `reset-password.html:9` (a page-level statement that replaced the form), and
-  `plan-builder.html:216` (the item-limit statement). All four are informational screen content.
+  `reset-password.html:9` (a page-level statement that replaced the form),
+  `plan-builder.html:216` (the item-limit statement), and `profile.html:6` (the pre-existing
+  "Uzupełnij swoje dane kontaktowe" prompt). All five are informational screen content.
   `.notice` survives as **one** named meaning rather than four.
 - **`?reset=ok` plumbing is two lines.** `reset-password.ts:95-96` navigates with
   `queryParams: { reset: 'ok' }`; `login.ts:40` reads it into `passwordReset`; `login.html:12`
@@ -759,6 +760,10 @@ measured at the end of Phase 2 and again at the end of Phase 5 and recorded, bec
 measured number (512.42 kB after S-19) is the only thing that makes the next such decision
 evidence-based. Six small standalone components with no external dependencies should cost single
 -digit kB; a materially larger jump is a finding, not a rounding error.
+
+**Measured** (eager initial total, `npm run build`): 512.42 kB after S-19 → 512.54 kB after
+Phase 1 → 513.78 kB after Phase 2 → 513.79 kB after Phase 3 → 513.90 kB after Phase 4, unchanged
+by Phase 5. The whole kit cost 1.48 kB; the 600 kB threshold leaves 86 kB of slack.
 
 ## Migration Notes
 

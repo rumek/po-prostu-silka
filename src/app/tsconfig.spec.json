@@ -3,10 +3,7 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    // "node" alongside vitest since S-23: the ESLint rule's spec loads the rule with require(),
-    // because eslint.config.js is CommonJS and that is how the linter itself loads it. Importing it
-    // any other way there would be testing something the linter never runs.
-    "types": ["vitest/globals", "node"]
+    "types": ["vitest/globals"]
   },
   // tools/ joins src/ here since S-23: the ESLint rule that enforces the presentational kit is the
   // only code in this project that can block every merge, so it has a RuleTester spec, and that

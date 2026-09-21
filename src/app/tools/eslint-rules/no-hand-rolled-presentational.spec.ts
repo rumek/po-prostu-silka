@@ -1,8 +1,13 @@
 import { RuleTester } from '@angular-eslint/test-utils';
 
-/* eslint-disable @typescript-eslint/no-require-imports --
-   CommonJS on purpose: eslint.config.js is CJS, and the rule has to load from there with no build
-   step. Importing it any other way here would test something the linter never runs. */
+// require(), on purpose: eslint.config.js is CommonJS and loads the rule that way with no build
+// step, so importing it any other way here would test something the linter never runs.
+//
+// Declared here rather than by adding "node" to tsconfig.spec.json's types: that would hand
+// every app spec Node's globals too, in a suite that runs in a browser environment.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+declare function require(id: string): any;
+
 const rule = require('./no-hand-rolled-presentational.js');
 const templateParser = require('@angular-eslint/template-parser');
 
@@ -46,6 +51,20 @@ ruleTester.run('no-hand-rolled-presentational', rule, {
     `<li appRow class="bookings-row"><p class="row-name">Anna</p></li>`,
     `<li appRow class="card" [class.passes-row--current]="p.coversToday"></li>`,
 
+    // An app-field labelled by binding rather than by a static attribute.
+    `<app-field [label]="caption()" for="a"><input id="a" /></app-field>`,
+
+    // plan-builder's shape: no label input, and the slotted label sits inside an @if on both
+    // branches. The check has to look through the control-flow block to find it.
+    `<app-field>
+      @if (editing()) {
+        <span slot="label" class="builder-caption">Członek</span>
+      } @else {
+        <label slot="label" for="plan-member">Członek</label>
+      }
+      <input id="plan-member" />
+    </app-field>`,
+
     // Not a checkbox.
     `<input type="text" id="name" />`,
     `<input type="number" id="capacity" />`,
@@ -79,6 +98,16 @@ ruleTester.run('no-hand-rolled-presentational', rule, {
     {
       code: `<li class="card plans-row"><p>Anna</p></li>`,
       errors: [{ messageId: 'useAppRow' }],
+    },
+    {
+      // An app-field that names nothing: projection cannot catch this, so the rule has to.
+      code: `<app-field for="email"><input id="email" /></app-field>`,
+      errors: [{ messageId: 'labelAppField' }],
+    },
+    {
+      // A slotted label belonging to a NESTED field does not label the outer one.
+      code: `<app-field><app-field><span slot="label">A</span></app-field></app-field>`,
+      errors: [{ messageId: 'labelAppField' }],
     },
     {
       // The wrapper's own class, hand-written instead of app-select.

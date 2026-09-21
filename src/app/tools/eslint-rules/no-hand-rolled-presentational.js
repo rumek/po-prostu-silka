@@ -41,6 +41,32 @@ function classTokens(node) {
   return attribute.value.split(/\s+/).filter(Boolean);
 }
 
+/**
+ * Whether an app-field projects its own label element. Walks into control-flow blocks, because the
+ * one caller that does this — plan-builder's member field — puts both label branches inside an @if,
+ * and an @if's branches hang off `branches` rather than `children`. Stops at a nested app-field,
+ * whose slot belongs to it.
+ */
+function hasSlottedLabel(node) {
+  const pending = [...(node.children || [])];
+  while (pending.length > 0) {
+    const current = pending.pop();
+    if (!current || current.name === 'app-field') {
+      continue;
+    }
+    const slot = (current.attributes || []).find((attribute) => attribute.name === 'slot');
+    if (slot && slot.value === 'label') {
+      return true;
+    }
+    for (const key of ['children', 'branches', 'cases']) {
+      if (Array.isArray(current[key])) {
+        pending.push(...current[key]);
+      }
+    }
+  }
+  return false;
+}
+
 function hasAncestor(node, predicate) {
   for (let current = node.parent; current; current = current.parent) {
     if (predicate(current)) {
@@ -79,6 +105,10 @@ module.exports = {
       useAppRow:
         'Use <li appRow> and the shared .row-* classes instead of a per-screen "{{ name }}" ' +
         'class. See AGENTS.md, "The presentational kit".',
+      labelAppField:
+        '<app-field> needs a label: pass label="…", or project an element with slot="label" when ' +
+        'the label is not a plain word. Without either it renders a control nobody can name. ' +
+        'See AGENTS.md, "The presentational kit".',
     },
   },
 
@@ -94,7 +124,7 @@ module.exports = {
     }
 
     return {
-      'Element$1, Element'(node) {
+      Element(node) {
         const name = node.name;
 
         // A <select> is fine — inside app-select, which is the only thing that gives it an arrow.
@@ -102,6 +132,20 @@ module.exports = {
           const wrapped = hasAncestor(node, (ancestor) => ancestor.name === 'app-select');
           if (!wrapped) {
             report(node, 'useAppSelect');
+          }
+        }
+
+        // Not a ban but a use check, and the one piece of "the other half" projection needs most:
+        // app-field cannot see what it was given, so a field with no label at all would render a
+        // control nobody can name. The for/id pairing stays unchecked — a bound [for] is an
+        // expression the linter cannot evaluate.
+        if (name === 'app-field') {
+          const labelled =
+            (node.attributes || []).some((attribute) => attribute.name === 'label') ||
+            (node.inputs || []).some((input) => input.name === 'label') ||
+            hasSlottedLabel(node);
+          if (!labelled) {
+            report(node, 'labelAppField');
           }
         }
 
@@ -133,7 +177,7 @@ module.exports = {
         }
       },
 
-      'Text$3, Text'(node) {
+      Text(node) {
         if (typeof node.value === 'string' && LOADING_TEXT.test(node.value)) {
           report(node, 'useAppLoading');
         }
