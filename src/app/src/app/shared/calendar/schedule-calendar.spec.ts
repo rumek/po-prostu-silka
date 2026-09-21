@@ -3,7 +3,9 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { addDays } from 'date-fns';
 import { CalendarEventTimesChangedEventType, CalendarWeekViewComponent } from 'angular-calendar';
+import { FINE_POINTER_MEDIA_QUERY } from '../../core/layout/breakpoints';
 import { ScheduledClass } from '../../core/scheduling/class.models';
+import { WEEK_VIEW_MEDIA_QUERY } from './calendar-breakpoint';
 import { CalendarRange, DrawnRange, RescheduledClass, ScheduleCalendar } from './schedule-calendar';
 
 /** Builds a class starting at a LOCAL wall-clock time, expressed as the UTC instant the API sends. */
@@ -23,29 +25,44 @@ function at(local: string, over: Partial<ScheduledClass> = {}): ScheduledClass {
   };
 }
 
+/** What each query answers when a stub does not say — the same as jsdom unstubbed, via the fallbacks. */
+const MEDIA_DEFAULTS: Record<string, boolean> = {
+  [WEEK_VIEW_MEDIA_QUERY]: false,
+  [FINE_POINTER_MEDIA_QUERY]: true,
+};
+
 /**
  * Stubs `matchMedia`, which jsdom does not implement. That absence is not incidental to this suite —
  * it is exactly the environment the component's day-first default exists for, so the "no matchMedia"
  * case below deliberately leaves it unstubbed.
+ *
+ * QUERY-AWARE since S-20, when the calendar started asking two questions. A bare boolean answers the
+ * week-view query, as it always did, and leaves the pointer fine; a map answers per query. The
+ * returned function flips the week-view answer the way a resized window would.
  */
-function stubMatchMedia(matches: boolean): (matches: boolean) => void {
-  let listener: ((event: MediaQueryListEvent) => void) | null = null;
+function stubMatchMedia(answers: boolean | Record<string, boolean>): (matches: boolean) => void {
+  const table: Record<string, boolean> =
+    typeof answers === 'boolean'
+      ? { ...MEDIA_DEFAULTS, [WEEK_VIEW_MEDIA_QUERY]: answers }
+      : { ...MEDIA_DEFAULTS, ...answers };
+  const listeners = new Map<string, (event: MediaQueryListEvent) => void>();
 
   Object.defineProperty(window, 'matchMedia', {
     configurable: true,
     writable: true,
-    value: () => ({
-      matches,
+    value: (query: string) => ({
+      matches: table[query] ?? false,
       addEventListener: (_: string, handler: (event: MediaQueryListEvent) => void) => {
-        listener = handler;
+        listeners.set(query, handler);
       },
       removeEventListener: () => {
-        listener = null;
+        listeners.delete(query);
       },
     }),
   });
 
-  return (next: boolean) => listener?.({ matches: next } as MediaQueryListEvent);
+  return (next: boolean) =>
+    listeners.get(WEEK_VIEW_MEDIA_QUERY)?.({ matches: next } as MediaQueryListEvent);
 }
 
 /** Hosts the calendar the way a screen does, so content projection is exercised rather than bypassed. */
@@ -398,6 +415,37 @@ describe('ScheduleCalendar', () => {
     expect(host.drawn.length).toBe(0);
   });
 
+  // S-20, UX-02: a finger scrolls the grid instead of drawing on it.
+  it('offers no drawing to a coarse pointer, so the grid can scroll under a finger', () => {
+    stubMatchMedia({ [FINE_POINTER_MEDIA_QUERY]: false });
+    create();
+    host.readOnly.set(false);
+    goTo(daysFromNow(1));
+
+    // The class is what carries touch-action: none — absent, the browser pans.
+    expect(element().querySelector('.calendar-segment-drawable')).toBeNull();
+
+    press(segments()[0]);
+    expect(element().querySelector('.calendar-draft')).toBeNull();
+
+    release();
+    expect(host.drawn.length).toBe(0);
+  });
+
+  it('draws as before with a fine pointer', () => {
+    stubMatchMedia({ [FINE_POINTER_MEDIA_QUERY]: true });
+    create();
+    host.readOnly.set(false);
+    goTo(daysFromNow(1));
+
+    expect(element().querySelector('.calendar-segment-drawable')).not.toBeNull();
+
+    press(segments()[0]);
+    release();
+
+    expect(host.drawn.length).toBe(1);
+  });
+
   // --- the day strip --------------------------------------------------------
 
   it('navigates the day view by the week it is in', () => {
@@ -738,6 +786,70 @@ describe('ScheduleCalendar', () => {
     expect(week.events[0].resizable).toEqual({ beforeStart: false, afterEnd: false });
     expect(element().querySelector('.host-row-action')).toBeNull();
     expect(element().querySelector('.calendar-segment-drawable')).toBeNull();
+  });
+
+  // --- selectable AND editable (S-20, the admin's calendar) ---------------------
+  //
+  // The library moves the tile itself during a drag and never swallows the click that ends one, so
+  // the calendar has to tell the two apart.
+
+  /** A future class on a calendar that can be both dragged and selected. */
+  function editableSelectableTile(): HTMLButtonElement {
+    create();
+    host.selectable.set(true);
+    host.readOnly.set(false);
+    goTo(daysFromNow(1));
+    host.classes.set([tileAt(10)]);
+    fixture.detectChanges();
+
+    return element().querySelector<HTMLButtonElement>('.calendar-tile-button')!;
+  }
+
+  function pointerDownAt(tile: HTMLElement, x: number, y: number): void {
+    tile.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, clientX: x, clientY: y }));
+  }
+
+  /** A pointer click: `detail` 1, as a browser sets it. A keyboard activation leaves it at 0. */
+  function pointerClickAt(tile: HTMLElement, x: number, y: number): void {
+    tile.dispatchEvent(
+      new MouseEvent('click', { bubbles: true, clientX: x, clientY: y, detail: 1 }),
+    );
+    fixture.detectChanges();
+  }
+
+  it('does not select on the click that ends a drag', () => {
+    const tile = editableSelectableTile();
+
+    // Still editable — selection did not switch the gestures off.
+    const week = fixture.debugElement.query(By.directive(CalendarWeekViewComponent))
+      .componentInstance as CalendarWeekViewComponent;
+    expect(week.events[0].draggable).toBe(true);
+
+    pointerDownAt(tile, 0, 0);
+    pointerClickAt(tile, 40, 0);
+
+    expect(host.selected.length).toBe(0);
+  });
+
+  it('selects on a click that did not move', () => {
+    const tile = editableSelectableTile();
+
+    pointerDownAt(tile, 10, 10);
+    pointerClickAt(tile, 11, 12);
+
+    expect(host.selected.length).toBe(1);
+  });
+
+  it('selects on a keyboard activation, which has no press before it', () => {
+    const tile = editableSelectableTile();
+
+    // A press that never produced a click (a drag released off the tile) must not poison the next
+    // Enter.
+    pointerDownAt(tile, 0, 0);
+    tile.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: 0, clientY: 300 }));
+    fixture.detectChanges();
+
+    expect(host.selected.length).toBe(1);
   });
 
   it('renders per-class actions only when the screen is not read-only', () => {

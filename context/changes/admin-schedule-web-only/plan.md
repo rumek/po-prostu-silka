@@ -608,9 +608,9 @@ There is no data or API migration. Rollback is a redeploy of the previous artifa
 
 #### Automated
 
-- [x] 2.1 Lint and format pass: `cd src/app && npm run quality:check`
-- [x] 2.2 Unit tests pass, including the new refusal cases: `cd src/app && npm test`
-- [x] 2.3 Build succeeds: `cd src/app && npm run build`
+- [x] 2.1 Lint and format pass: `cd src/app && npm run quality:check` — 486918f
+- [x] 2.2 Unit tests pass, including the new refusal cases: `cd src/app && npm test` — 486918f
+- [x] 2.3 Build succeeds: `cd src/app && npm run build` — 486918f
 
 #### Manual
 
@@ -622,9 +622,9 @@ There is no data or API migration. Rollback is a redeploy of the previous artifa
 
 #### Automated
 
-- [ ] 3.1 Lint and format pass: `cd src/app && npm run quality:check`
-- [ ] 3.2 Unit tests pass, including the new calendar cases: `cd src/app && npm test`
-- [ ] 3.3 Build succeeds: `cd src/app && npm run build`
+- [x] 3.1 Lint and format pass: `cd src/app && npm run quality:check`
+- [x] 3.2 Unit tests pass, including the new calendar cases: `cd src/app && npm test`
+- [x] 3.3 Build succeeds: `cd src/app && npm run build`
 
 #### Manual
 

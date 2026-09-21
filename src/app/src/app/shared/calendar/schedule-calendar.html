@@ -118,7 +118,7 @@
     [style.height.px]="segmentHeight"
     [class.cal-hour-start]="segment.isStart"
     [class.cal-after-hour-start]="!segment.isStart"
-    [class.calendar-segment-drawable]="!readOnly() && !isPastSegment(segment.date)"
+    [class.calendar-segment-drawable]="!readOnly() && finePointer() && !isPastSegment(segment.date)"
     [class.calendar-segment-past]="!readOnly() && isPastSegment(segment.date)"
     [attr.data-segment]="segment.date.toISOString()"
     (pointerdown)="startDraw(segment.date, $event)"
@@ -144,17 +144,18 @@
 <!-- A real <button> when the tile opens something, a plain <div> when it does not — rather than one
      element with a click handler and a role. The button is what makes Enter, Space and the tab order
      work without this component reimplementing any of them, and rendering the two shapes separately
-     is what stops a non-selectable calendar (the admin's) from being focusable at all.
+     is what stops a non-selectable calendar from being focusable at all.
 
-     The admin's tile keeps its projected actions, which are buttons: nesting those inside a button
-     would be invalid HTML, and cannot happen — `selectable` is false on that screen, and the actions
-     are gated on `readOnly` being false. -->
+     A selectable tile may also be editable (the admin's, S-20): `activate` tells the click that ends
+     a drag from a real one by how far the pointer moved since `notePress`. Projected actions render
+     only on the non-selectable tile, because buttons nested in a button are invalid HTML. -->
 <ng-template #tile let-weekEvent="weekEvent">
   @if (selectable()) {
     <button
       type="button"
       class="calendar-tile calendar-tile-button"
-      (click)="classSelected.emit(weekEvent.event.meta)"
+      (pointerdown)="notePress($event)"
+      (click)="activate(weekEvent.event.meta, $event)"
     >
       <ng-container
         [ngTemplateOutlet]="tileBody"

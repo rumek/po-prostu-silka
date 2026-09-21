@@ -22,6 +22,7 @@ import {
 } from 'angular-calendar';
 import { adapterFactory } from 'angular-calendar/date-adapters/date-fns';
 import { addDays, addMinutes, isSameDay, setHours, startOfDay, startOfWeek } from 'date-fns';
+import { FINE_POINTER_MEDIA_QUERY } from '../../core/layout/breakpoints';
 import { mediaQuerySignal } from '../../core/layout/media-query';
 import { ScheduledClass } from '../../core/scheduling/class.models';
 import { WEEK_VIEW_MEDIA_QUERY } from './calendar-breakpoint';
@@ -68,6 +69,15 @@ const SEGMENT_MINUTES = 30;
 const DAY_START_HOUR = 6;
 const DAY_END_HOUR = 23;
 
+/**
+ * How far the pointer may travel between pressing a tile and releasing it and still count as a click.
+ *
+ * The library moves the tile ITSELF during a drag (snapped, no ghost) and never swallows the click
+ * that ends one, so on a calendar that is both selectable and editable every move would otherwise
+ * open the tile it just moved. A few pixels absorbs a hand's tremor; a move is at least a segment.
+ */
+const CLICK_TOLERANCE_PX = 4;
+
 /** The window the calendar is currently showing, as UTC instants for the API. */
 export interface CalendarRange {
   from: Date;
@@ -108,6 +118,12 @@ export interface CalendarRange {
  * Week boundaries are computed in the BROWSER's clock, like every other timestamp in this app. A
  * range computed in UTC would put Monday-00:00 an hour inside Sunday for half the year, and classes
  * at the edges of a week would silently land in the wrong one.
+ *
+ * <h2>Selectable and editable at once</h2>
+ *
+ * The admin's screen (S-20) is both: a tile opens the class's actions AND can be dragged or resized.
+ * A drag is told from a click by how far the pointer travelled between press and release — see
+ * {@link CLICK_TOLERANCE_PX}.
  */
 @Component({
   imports: [Loading, CalendarWeekStrip, CalendarWeekViewComponent, DatePipe, NgTemplateOutlet],
@@ -165,6 +181,9 @@ export class ScheduleCalendar {
    *
    * Defaults to false for the same reason `readOnly` defaults to true: the surface that must never
    * grow behaviour by accident is the one that gets the inert default.
+   *
+   * Combinable with an editable calendar (S-20, the admin's): the click that ends a drag or a resize
+   * does not select — see `activate`.
    */
   readonly selectable = input(false);
 
@@ -223,6 +242,12 @@ export class ScheduleCalendar {
    * also the slow one, gets the right view with no reflow.
    */
   protected readonly weekView = mediaQuerySignal(WEEK_VIEW_MEDIA_QUERY, false);
+
+  /**
+   * Whether the primary pointer is precise enough to draw a class (S-20, UX-02). Falls back to true
+   * where nothing can be measured, so the gesture's own specs run unstubbed.
+   */
+  protected readonly finePointer = mediaQuerySignal(FINE_POINTER_MEDIA_QUERY, true);
 
   protected readonly daysInWeek = computed(() => (this.weekView() ? 7 : 1));
 
@@ -285,6 +310,9 @@ export class ScheduleCalendar {
    * all and would otherwise leave a second pair of listeners stacked on the first.
    */
   private stopDrag: (() => void) | null = null;
+
+  /** Where the pointer went down on a selectable tile; null when no press is pending. */
+  private pressedAt: { x: number; y: number } | null = null;
 
   protected readonly segmentMinutes = SEGMENT_MINUTES;
   protected readonly dayStartHour = DAY_START_HOUR;
@@ -364,6 +392,35 @@ export class ScheduleCalendar {
   /** Already been and gone — a class cannot start here (prd-v2 FR-019, and the API's `starts_in_past`). */
   protected isPastSegment(date: Date): boolean {
     return date.getTime() < Date.now();
+  }
+
+  /** The first half of telling a click from a drag — see `activate`. */
+  protected notePress(event: PointerEvent): void {
+    this.pressedAt = { x: event.clientX, y: event.clientY };
+  }
+
+  /**
+   * A selectable tile was clicked. Emits {@link classSelected} unless the click merely ENDED a drag.
+   *
+   * Only an editable calendar can drag, so a read-only one always emits. A keyboard activation
+   * (Enter, Space) arrives as a click with `detail` 0 and no press before it, and always emits too —
+   * checked by `detail` rather than by a missing press, because a press whose click never came (a
+   * drag released off the tile) would otherwise leave a stale point behind for the next Enter.
+   */
+  protected activate(row: ScheduledClass, event: MouseEvent): void {
+    const from = this.pressedAt;
+
+    this.pressedAt = null;
+
+    const dragged =
+      !this.readOnly() &&
+      event.detail !== 0 &&
+      from !== null &&
+      Math.hypot(event.clientX - from.x, event.clientY - from.y) > CLICK_TOLERANCE_PX;
+
+    if (!dragged) {
+      this.classSelected.emit(row);
+    }
   }
 
   protected dismissRefusal(): void {
@@ -462,16 +519,16 @@ export class ScheduleCalendar {
    * grid, or releases outside the window, still has to end cleanly rather than leave the calendar
    * stuck mid-gesture.
    *
-   * POINTER events, not mouse. The day view exists because the product is mobile-first, so the gesture
-   * has to work with a finger — and under mouse-event emulation a touch drag never extends the range,
-   * which quietly reduced drawing to "tap creates half an hour". The stylesheet's `touch-action: none`
-   * on a drawable segment is the other half: without it the browser pans the page instead of sending
-   * the moves.
+   * POINTER events, not mouse — they carry a pen or a trackpad correctly. But the gesture is offered
+   * only to a FINE pointer (S-20, UX-02): a finger on the grid pans the page instead of drawing,
+   * because the `touch-action: none` that made drawing work under a finger also made the whole column
+   * refuse to scroll. Phones never render the admin grid at all; a tablet at a desk width scrolls it,
+   * and moves a class with the library's own long-press.
    */
   protected startDraw(date: Date, event: PointerEvent): void {
     // Primary button of the primary pointer. A right-click is a context menu, and a second finger
     // during a drag is not a second gesture.
-    if (this.readOnly() || event.button !== 0 || event.isPrimary === false) {
+    if (this.readOnly() || !this.finePointer() || event.button !== 0 || event.isPrimary === false) {
       return;
     }
 

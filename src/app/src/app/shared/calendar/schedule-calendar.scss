@@ -282,11 +282,13 @@
     position: relative;
   }
 
-  // Only where a gesture is actually on offer — the member's schedule leaves the default cursor.
+  // Only where a gesture is actually on offer — the member's schedule leaves the default cursor, and
+  // so does a coarse pointer, which is never offered drawing (S-20, UX-02).
   .calendar-segment-drawable {
     cursor: cell;
-    // Without this a finger on the grid pans the page and the browser cancels the gesture before a
-    // single pointermove lands. It is what makes drawing work on the view built for phones.
+    // Keeps a pen from panning the page mid-draw. Bound only for a FINE pointer now: on a finger it
+    // made the whole column refuse to scroll, so drawing is withheld from coarse pointers instead —
+    // and phones never render the admin grid at all (S-20).
     touch-action: none;
   }
 
