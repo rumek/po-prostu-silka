@@ -214,13 +214,6 @@
   color: var(--danger);
 }
 
-.calendar-tile-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1);
-  margin-top: var(--space-2);
-}
-
 // --- library overrides ------------------------------------------------------
 
 .calendar-surface ::ng-deep {

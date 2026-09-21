@@ -81,10 +81,6 @@ function stubMatchMedia(answers: boolean | Record<string, boolean>): (matches: b
       (classSelected)="selected.push($event)"
     >
       <button calendarHeaderActions type="button" class="host-header-action">Dodaj</button>
-
-      <ng-template #classActions let-row>
-        <button type="button" class="host-row-action">Edytuj {{ row.name }}</button>
-      </ng-template>
     </app-schedule-calendar>
   `,
 })
@@ -771,20 +767,19 @@ describe('ScheduleCalendar', () => {
     expect(host.selected.length).toBe(1);
   });
 
-  it('still refuses drag, resize, draw and actions on a selectable calendar', () => {
+  it('still refuses drag, resize and draw on a selectable calendar', () => {
     create();
     host.selectable.set(true);
     host.classes.set([tileAt(10)]);
     fixture.detectChanges();
 
     // The whole reason selection got its own input. readOnly is untouched here and must still gate
-    // all four of the things it has always gated.
+    // every gesture it has always gated.
     const week = fixture.debugElement.query(By.directive(CalendarWeekViewComponent))
       .componentInstance as CalendarWeekViewComponent;
 
     expect(week.events[0].draggable).toBe(false);
     expect(week.events[0].resizable).toEqual({ beforeStart: false, afterEnd: false });
-    expect(element().querySelector('.host-row-action')).toBeNull();
     expect(element().querySelector('.calendar-segment-drawable')).toBeNull();
   });
 
@@ -850,25 +845,5 @@ describe('ScheduleCalendar', () => {
     fixture.detectChanges();
 
     expect(host.selected.length).toBe(1);
-  });
-
-  it('renders per-class actions only when the screen is not read-only', () => {
-    create();
-
-    const start = lastRange().from;
-    host.classes.set([
-      at(new Date(start.getFullYear(), start.getMonth(), start.getDate(), 10, 0).toString(), {
-        name: 'Pilates',
-      }),
-    ]);
-    fixture.detectChanges();
-
-    expect(element().querySelector('.host-row-action')).toBeNull();
-
-    host.readOnly.set(false);
-    fixture.detectChanges();
-
-    // The template receives the real ScheduledClass, not a reconstruction.
-    expect(element().querySelector('.host-row-action')!.textContent).toContain('Edytuj Pilates');
   });
 });

@@ -1,6 +1,4 @@
 import { Component, computed, effect, inject, signal } from '@angular/core';
-import { DatePipe } from '@angular/common';
-import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { classFailureMessage } from '../../../core/scheduling/class-failure';
 import { classifyFailure } from '../../../core/http/failure';
@@ -16,6 +14,7 @@ import {
   RescheduledClass,
   ScheduleCalendar,
 } from '../../../shared/calendar/schedule-calendar';
+import { ClassActionsOverlay, bookedCount } from './class-actions-overlay';
 import { ClassBookingsOverlay } from './class-bookings-overlay';
 import { ClassCreateOverlay } from './class-create-overlay';
 import { createBusySet } from '../../../shared/forms/busy-set';
@@ -25,9 +24,10 @@ import { createLoadFence } from '../../../shared/forms/load-fence';
  * The admin's class management (prd-v2 FR-011, FR-012, FR-017).
  *
  * A CALENDAR since S-07, and deliberately the SAME one the member sees — that is the whole of
- * FR-017, whose stated failure mode is two calendars drifting apart. This screen adds its actions
- * through content projection rather than through a `mode` flag on the shared component, so nothing
- * admin-specific is compiled into the member's screen.
+ * FR-017, whose stated failure mode is two calendars drifting apart. This screen adds its header
+ * actions through content projection and its per-class actions through selection — activating a tile
+ * opens `class-actions-overlay` (S-20) — rather than through a `mode` flag on the shared component,
+ * so nothing admin-specific is compiled into the member's screen.
  *
  * Everything this screen did as a list, it still does: per-row busy tracking so one slow row does not
  * disable the rest, a generation guard so a late refetch cannot overwrite fresher rows, partial
@@ -38,8 +38,8 @@ import { createLoadFence } from '../../../shared/forms/load-fence';
  *
  * Navigating backwards is possible for the first time (the list used to start at now). Looking is the
  * point; editing history is not, and the API refuses a create in the past anyway — so when the visible
- * window has already ended, the actions are withheld and a note says why. A missing button with no
- * explanation reads as broken.
+ * window has already ended, the tiles stop opening anything and a note says why. A tile that ignores
+ * a click with no explanation reads as broken.
  *
  * <h2>Desk only (S-20)</h2>
  *
@@ -53,10 +53,9 @@ import { createLoadFence } from '../../../shared/forms/load-fence';
  */
 @Component({
   imports: [
+    ClassActionsOverlay,
     ClassBookingsOverlay,
     ClassCreateOverlay,
-    DatePipe,
-    FormsModule,
     RouterLink,
     ScheduleCalendar,
   ],
@@ -80,7 +79,6 @@ export class Classes {
   /** Id of the row whose action failed. Cleared when another action starts. */
   protected readonly failedId = signal<string | null>(null);
 
-  /** A screen-level message — the duplicate outcome, or a refusal retrying cannot fix. */
   /**
    * Everything this screen says goes to the toast (S-19, outlet 3).
    *
@@ -90,20 +88,16 @@ export class Classes {
    */
   private readonly toast = inject(ToastService);
 
-  /** Which class has its duplicate control open, and for how many weeks. */
-  protected readonly duplicating = signal<ScheduledClass | null>(null);
-  protected readonly weeks = signal(4);
-
-  /** Which class is asking to confirm a delete. */
-  protected readonly confirmingDelete = signal<ScheduledClass | null>(null);
-
-  /** Which class is asking to confirm a CANCELLATION (S-09). A different action, so a different panel. */
-  protected readonly confirmingCancel = signal<ScheduledClass | null>(null);
+  /**
+   * The class whose actions overlay is open (S-20). Its confirmations — duplicate, delete, cancel —
+   * are steps inside that overlay, so this one signal replaces the three panels below the calendar.
+   */
+  protected readonly selected = signal<ScheduledClass | null>(null);
 
   /**
    * Whether the delete refusal on screen is the one cancelling can resolve.
    *
-   * The tile cannot tell: it sees ACTIVE bookings only, while the server's `has_bookings` guard
+   * The overlay cannot tell: it sees ACTIVE bookings only, while the server's `has_bookings` guard
    * refuses a delete once a class has EVER been booked, cancelled bookings included. So a class
    * everybody has since released offers "Usuń", gets refused, and would otherwise dead-end. This
    * flag turns that refusal into the one action that does work.
@@ -151,7 +145,7 @@ export class Classes {
   protected async load(range: CalendarRange): Promise<void> {
     this.range.set(range);
 
-    // A window change invalidates any open panel: its class may not even be on screen any more.
+    // A window change invalidates any open overlay: its class may not even be on screen any more.
     this.closeTransient();
 
     const generation = this.fence.begin();
@@ -177,11 +171,9 @@ export class Classes {
     }
   }
 
-  /** Closes every panel and overlay that points at a class on the grid. */
+  /** Closes every overlay that points at a class on the grid. */
   private closeTransient(): void {
-    this.duplicating.set(null);
-    this.confirmingDelete.set(null);
-    this.confirmingCancel.set(null);
+    this.selected.set(null);
     this.deleteBlockedBy.set(null);
     this.viewingBookings.set(null);
     this.drawn.set(null);
@@ -199,9 +191,7 @@ export class Classes {
   /** A gesture on empty grid (prd-v2 FR-019). The calendar withholds it entirely in a past week. */
   protected openCreate(range: DrawnRange): void {
     this.failedId.set(null);
-    this.duplicating.set(null);
-    this.confirmingDelete.set(null);
-    this.confirmingCancel.set(null);
+    this.selected.set(null);
     this.drawn.set(range);
   }
 
@@ -270,20 +260,30 @@ export class Classes {
     }
   }
 
-  protected openDuplicate(row: ScheduledClass): void {
+  /**
+   * A tile was activated (S-20). The calendar reports only a real click or a keyboard activation —
+   * the click that ends a drag or a resize never arrives here — and never in a past week, where the
+   * tiles are not selectable at all.
+   */
+  protected select(row: ScheduledClass): void {
     this.failedId.set(null);
-    this.confirmingDelete.set(null);
-    this.confirmingCancel.set(null);
+    this.deleteBlockedBy.set(null);
     this.viewingBookings.set(null);
-    this.duplicating.set(this.duplicating()?.id === row.id ? null : row);
+    this.selected.set(row);
   }
 
-  /** Opens the sign-up list for a class (prd.md FR-014). */
+  protected closeSelected(): void {
+    this.selected.set(null);
+    this.deleteBlockedBy.set(null);
+  }
+
+  /**
+   * Opens the sign-up list for a class (prd.md FR-014). SWAPS the actions overlay for the bookings
+   * one rather than stacking them: two modals over one calendar is one too many to Escape out of.
+   */
   protected openBookings(row: ScheduledClass): void {
     this.failedId.set(null);
-    this.duplicating.set(null);
-    this.confirmingDelete.set(null);
-    this.confirmingCancel.set(null);
+    this.closeSelected();
     this.viewingBookings.set(row);
   }
 
@@ -328,17 +328,13 @@ export class Classes {
     this.viewingBookings.update((open) => (open && open.id === updated.id ? updated : open));
   }
 
-  protected closeDuplicate(): void {
-    this.duplicating.set(null);
-  }
-
-  protected async duplicate(row: ScheduledClass): Promise<void> {
+  protected async duplicate(row: ScheduledClass, weeks: number): Promise<void> {
     this.failedId.set(null);
     this.busy.setBusy(row.id, true);
 
     try {
-      const result = await this.classes.duplicate(row.id, this.weeks());
-      this.duplicating.set(null);
+      const result = await this.classes.duplicate(row.id, weeks);
+      this.selected.set(null);
 
       // The whole point of the endpoint's contract: say what actually happened, per week. Doubly so
       // now that the copies land in weeks this view is not showing — the message is the only place
@@ -374,25 +370,13 @@ export class Classes {
     }
   }
 
-  protected confirmDelete(row: ScheduledClass): void {
-    this.failedId.set(null);
-    this.duplicating.set(null);
-    this.confirmingCancel.set(null);
-    this.viewingBookings.set(null);
-    this.confirmingDelete.set(row);
-  }
-
-  protected cancelDelete(): void {
-    this.confirmingDelete.set(null);
-  }
-
   protected async remove(row: ScheduledClass): Promise<void> {
     this.failedId.set(null);
     this.busy.setBusy(row.id, true);
 
     try {
       await this.classes.remove(row.id);
-      this.confirmingDelete.set(null);
+      this.selected.set(null);
 
       // A deleted class genuinely leaves the window — removing it locally is the honest
       // representation, and avoids a refetch that would only confirm what we already know.
@@ -400,57 +384,22 @@ export class Classes {
     } catch (failure) {
       // NAMED, not a generic "nie udało się". Since S-08 the likely refusal is has_bookings, and
       // "someone signed up" is the difference between a broken button and a rule the admin can act
-      // on — by opening Zapisani, which is right there.
+      // on — by opening Zapisani, which is one step back in the overlay.
       const info = classifyFailure(failure);
 
       this.toast.error(messageFor(failure));
       this.failedId.set(row.id);
 
-      // The dead end S-09 closes. The tile offered "Usuń" because every booking on this class has
+      // The dead end S-09 closes. The overlay offered "Usuń" because every booking on this class has
       // since been released; the server refuses anyway, because it counts bookings that ever
-      // existed. Cancelling is the action the admin actually wanted, and it is now one click away
-      // instead of unreachable.
+      // existed. Cancelling is the action the admin actually wanted, and the overlay now offers it
+      // one click away instead of leaving it unreachable.
       if (info.reason === 'has_bookings' && row.status === 'Scheduled') {
         this.deleteBlockedBy.set(row);
       }
     } finally {
       this.busy.setBusy(row.id, false);
     }
-  }
-
-  /**
-   * Which of the two destructive actions this class offers (S-09; prd.md FR-013).
-   *
-   * ONE BUTTON, NOT TWO. The tile already carries four actions and is tight on a phone; a fifth
-   * would be the one that pushes the row to wrap. The two are mutually exclusive anyway — a class
-   * somebody is signed up for cannot be deleted, and cancelling one nobody booked would send zero
-   * messages and hide it from the schedule for no reason.
-   *
-   * The `status` clause is a GUARD, not a case this screen reaches: the admin list no longer
-   * returns cancelled classes at all. It stays because the check is one comparison and the
-   * alternative — a tile offering an action the server answers with `already_cancelled` — is the
-   * kind of dead button that only appears once the list starts returning them again.
-   */
-  protected canCancel(row: ScheduledClass): boolean {
-    return row.status === 'Scheduled' && row.freeSpots < row.capacity;
-  }
-
-  /** How many people the cancellation will email and push. Derived — the wire carries free spots. */
-  protected bookedCount(row: ScheduledClass): number {
-    return row.capacity - row.freeSpots;
-  }
-
-  protected confirmCancel(row: ScheduledClass): void {
-    this.failedId.set(null);
-    this.deleteBlockedBy.set(null);
-    this.duplicating.set(null);
-    this.confirmingDelete.set(null);
-    this.viewingBookings.set(null);
-    this.confirmingCancel.set(row);
-  }
-
-  protected closeCancel(): void {
-    this.confirmingCancel.set(null);
   }
 
   /**
@@ -472,7 +421,7 @@ export class Classes {
     this.busy.setBusy(row.id, true);
 
     const generation = this.fence.current();
-    const told = this.bookedCount(row);
+    const told = bookedCount(row);
 
     try {
       await this.classes.cancel(row.id);
@@ -481,7 +430,7 @@ export class Classes {
         return;
       }
 
-      this.confirmingCancel.set(null);
+      this.selected.set(null);
       this.rows.update((rows) => rows.filter((r) => r.id !== row.id));
 
       // Says what actually happened, like the duplicate outcome does. The messages are the point of
@@ -501,15 +450,6 @@ export class Classes {
       this.failedId.set(row.id);
     } finally {
       this.busy.setBusy(row.id, false);
-    }
-  }
-
-  /** The one action that resolves a `has_bookings` refusal — see `deleteBlockedBy`. */
-  protected cancelInstead(): void {
-    const row = this.deleteBlockedBy();
-
-    if (row) {
-      this.confirmCancel(row);
     }
   }
 

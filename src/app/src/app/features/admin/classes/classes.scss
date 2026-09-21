@@ -2,58 +2,6 @@
   margin-bottom: var(--space-4);
 }
 
-// The duplicate and delete-confirm panels. Below the calendar rather than inside a tile — a tile in a
-// week grid cannot hold a number input and two buttons — so each one names its class.
-.classes-panel {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-3);
-  margin-top: var(--space-4);
-  padding: var(--space-5);
-}
-
-.classes-panel-subject {
-  flex: 1 1 14rem;
-  margin: 0;
-}
-
-.classes-weeks {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  font-size: 0.875rem;
-}
-
-.classes-weeks input {
-  width: 4.5rem;
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius-sm);
-  background: none;
-  color: inherit;
-  // 16px minimum, or iOS Safari zooms the viewport on focus — same rule as .field input.
-  font: inherit;
-  font-size: 1rem;
-}
-
-// The cancel panel says more than "na pewno?" — it names how many people are about to be emailed —
-// so its subject line carries a second, quieter sentence beneath the question.
-.classes-panel-detail {
-  display: block;
-  margin-top: var(--space-1);
-  font-size: 0.875rem;
-  color: var(--muted);
-}
-
-.classes-blocked {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--space-2);
-  margin-top: var(--space-4);
-}
-
 .classes-desk-only-links {
   display: flex;
   flex-wrap: wrap;

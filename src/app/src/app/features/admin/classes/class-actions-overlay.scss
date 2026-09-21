@@ -1,0 +1,61 @@
+// Layout only — .card/.button/.notice/.field-error and the .overlay-* classes come from
+// src/styles.scss.
+//
+// Deliberately the same structure as class-bookings-overlay.scss and class-create-overlay.scss: the
+// three overlays sit over the same calendar and must not read as three different mechanisms.
+
+:host {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-overlay);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+}
+
+.class-actions-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin: 0;
+
+  dt {
+    color: var(--muted);
+    font-size: 0.8125rem;
+  }
+
+  dd {
+    margin: 0;
+    font-weight: 600;
+  }
+}
+
+.class-actions-subject {
+  margin: 0 0 var(--space-3);
+}
+
+// The cancel step says more than "na pewno?" — it names how many people are about to be emailed —
+// so its question carries a second, quieter sentence beneath it.
+.class-actions-detail {
+  display: block;
+  margin-top: var(--space-1);
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+
+.class-actions-weeks {
+  max-width: 6rem;
+}
+
+.class-actions-blocked {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin: var(--space-4) 0 0;
+}
+
+.field-error {
+  margin: var(--space-3) 0 0;
+}

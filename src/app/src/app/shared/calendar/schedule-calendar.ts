@@ -3,9 +3,7 @@ import {
   Component,
   DestroyRef,
   LOCALE_ID,
-  TemplateRef,
   computed,
-  contentChild,
   effect,
   inject,
   input,
@@ -101,8 +99,9 @@ export interface CalendarRange {
  * hands back the classes for it. That is what lets one component serve two endpoints with two
  * different policies.
  *
- * It also knows nothing about roles. Admin actions arrive as a projected template, so nothing
- * role-specific is compiled into the member's screen — the alternative, a `mode` input, is the
+ * It also knows nothing about roles. Screen-level admin actions arrive by projection into the
+ * toolbar, and per-class ones through selection — the admin's screen opens its own overlay on
+ * {@link classSelected} (S-20) — so nothing role-specific is compiled into the member's screen — the alternative, a `mode` input, is the
  * "widget with a dozen flags" the FR-017 shaping challenge called out by name.
  *
  * <h2>One renderer, two shapes</h2>
@@ -163,7 +162,7 @@ export class ScheduleCalendar {
   readonly loadFailed = input(false);
 
   /**
-   * Suppresses the per-class action template (and, from Phase 4, the create gesture).
+   * Suppresses every gesture: drawing a class, moving it and resizing it.
    *
    * Defaults to read-only: the member schedule is the surface that must never grow an action by
    * accident, so the admin panel is the one that has to opt in.
@@ -174,7 +173,7 @@ export class ScheduleCalendar {
    * Whether a tile opens something when activated.
    *
    * A SEPARATE CONCEPT FROM {@link readOnly}, and separately named on purpose. `readOnly` gates
-   * GESTURES — drag, resize, draw — and the projected action template; selection is neither. The
+   * GESTURES — drag, resize, draw; selection is not one. The
    * member schedule is read-only in every one of those senses and still has to open a class, so
    * folding the two together would mean either giving the member drag handles or giving up the
    * detail overlay.
@@ -221,12 +220,6 @@ export class ScheduleCalendar {
    * calendar has nothing to activate rather than a handler that declines.
    */
   readonly classSelected = output<ScheduledClass>();
-
-  /**
-   * Per-class actions, projected by the screen that has any. Receives the `ScheduledClass` as
-   * `$implicit`, so the caller gets the real row rather than the library's wrapper.
-   */
-  readonly classActions = contentChild<TemplateRef<{ $implicit: ScheduledClass }>>('classActions');
 
   /**
    * Which day the view starts on. Always a local midnight — the week view is bound to it directly,
@@ -279,8 +272,8 @@ export class ScheduleCalendar {
         // the member's schedule and past weeks inert.
         draggable: editable,
         resizable: { beforeStart: editable, afterEnd: editable },
-        // The real row rides along so the projected action template and the tile get an object they
-        // can read, rather than one reconstructed from the parts the library kept.
+        // The real row rides along so the tile and `classSelected` get an object they can read,
+        // rather than one reconstructed from the parts the library kept.
         meta: row,
       };
     }),

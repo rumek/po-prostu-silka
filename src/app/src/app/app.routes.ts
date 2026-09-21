@@ -77,8 +77,8 @@ export const routes: Routes = [
   },
   // LAZY, both of them, and deliberately (S-07). They are the only routes that pull in
   // angular-calendar plus date-fns and its two drag/resize peers; eagerly loaded that lands in the
-  // initial bundle, which already sits at ~424 kB against a 500 kB budget. It also means login and
-  // register — everything reachable without a session — never download a calendar.
+  // initial bundle, which sits at 513.15 kB (measured after S-20) against a 600 kB warning. It also
+  // means login and register — everything reachable without a session — never download a calendar.
   {
     path: 'schedule',
     loadComponent: () => import('./features/schedule/schedule').then((m) => m.Schedule),

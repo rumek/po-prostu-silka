@@ -78,8 +78,10 @@ function stubDesk(desk: boolean): (next: boolean) => void {
 }
 
 /**
- * The panel renders the shared calendar with its actions projected in (prd-v2 FR-017), so these
- * assertions run against tiles rather than list rows. Everything the list did, it must still do.
+ * The panel renders the shared calendar (prd-v2 FR-017), so these assertions run against tiles
+ * rather than list rows. Since S-20 a tile is a button that opens the class's actions overlay, so
+ * every action is reached the way the admin reaches it: activate the tile, then press the action.
+ * Everything the list did, it must still do.
  *
  * jsdom provides no `matchMedia`, so the calendar stays in its day view here — which is why the
  * fixtures are all on today — and the screen takes its desk fallback. The phone is stubbed
@@ -156,17 +158,50 @@ describe('Classes', () => {
     return tiles().find((tile) => (tile.textContent ?? '').includes(name))!;
   }
 
-  function actionIn(tile: HTMLElement, label: string): HTMLButtonElement {
-    return Array.from(tile.querySelectorAll('button')).find((button) =>
-      (button.textContent ?? '').includes(label),
-    )!;
+  /** Activates a class's tile, as a click or Enter does, which opens its actions overlay (S-20). */
+  function openActions(name: string): void {
+    tileFor(name).click();
+    fixture.detectChanges();
   }
 
-  /** The action panels live below the calendar now, not inside the tile. */
-  function panelButton(label: string): HTMLButtonElement {
-    return Array.from(element().querySelectorAll<HTMLButtonElement>('.classes-panel button')).find(
-      (button) => (button.textContent ?? '').includes(label),
-    )!;
+  /** A button in the open actions overlay — an action, or a step's confirmation. */
+  function overlayAction(label: string): HTMLButtonElement {
+    return Array.from(
+      element().querySelectorAll<HTMLButtonElement>(
+        'app-class-actions-overlay .overlay-panel button',
+      ),
+    ).find((button) => (button.textContent ?? '').includes(label))!;
+  }
+
+  /** Opens a class's actions overlay and finds one of its actions; undefined when it is not offered. */
+  function actionFor(name: string, label: string): HTMLButtonElement {
+    openActions(name);
+
+    return overlayAction(label);
+  }
+
+  function actionsOverlay(): HTMLElement | null {
+    return element().querySelector('app-class-actions-overlay');
+  }
+
+  /** Moves the calendar a week back and answers with one class that already happened. */
+  async function goToPastWeekWith(row: ScheduledClass): Promise<void> {
+    element().querySelector<HTMLButtonElement>('[aria-label="Poprzedni tydzień"]')!.click();
+    fixture.detectChanges();
+
+    const past = await vi.waitFor(() => adminRequests()[0]);
+    past.flush([{ ...row, startsAt: new Date(Date.now() - 7 * 86_400_000).toISOString() }]);
+    await settle();
+  }
+
+  /** A past-week tile is a plain block: not a button, and activating it opens nothing. */
+  function expectInert(name: string): void {
+    expect(tileFor(name).tagName).not.toBe('BUTTON');
+
+    tileFor(name).click();
+    fixture.detectChanges();
+
+    expect(actionsOverlay()).toBeNull();
   }
 
   // --- the window drives the fetch ------------------------------------------
@@ -221,10 +256,10 @@ describe('Classes', () => {
   it('reports which weeks a duplicate skipped', async () => {
     await createWith([JOGA]);
 
-    actionIn(tileFor('Joga'), 'Powiel').click();
+    actionFor('Joga', 'Powiel').click();
     fixture.detectChanges();
 
-    panelButton('Powiel').click();
+    overlayAction('Powiel').click();
     await settle();
 
     controller.expectOne('/api/admin/classes/c1/duplicate').flush({
@@ -248,10 +283,10 @@ describe('Classes', () => {
   it('reports a clean duplicate without mentioning skipped weeks', async () => {
     await createWith([JOGA]);
 
-    actionIn(tileFor('Joga'), 'Powiel').click();
+    actionFor('Joga', 'Powiel').click();
     fixture.detectChanges();
 
-    panelButton('Powiel').click();
+    overlayAction('Powiel').click();
     await settle();
 
     controller.expectOne('/api/admin/classes/c1/duplicate').flush({ created: 4, skippedWeeks: [] });
@@ -270,7 +305,7 @@ describe('Classes', () => {
   it('asks for confirmation before deleting', async () => {
     await createWith([JOGA]);
 
-    actionIn(tileFor('Joga'), 'Usuń').click();
+    actionFor('Joga', 'Usuń').click();
     fixture.detectChanges();
 
     // Inline, never confirm() — that blocks the event loop and has no precedent here.
@@ -281,10 +316,10 @@ describe('Classes', () => {
   it('removes the tile after a confirmed delete', async () => {
     await createWith([JOGA, PILATES]);
 
-    actionIn(tileFor('Joga'), 'Usuń').click();
+    actionFor('Joga', 'Usuń').click();
     fixture.detectChanges();
 
-    panelButton('Tak, usuń').click();
+    overlayAction('Tak, usuń').click();
     await settle();
 
     controller.expectOne('/api/admin/classes/c1').flush(null);
@@ -298,10 +333,10 @@ describe('Classes', () => {
   it('keeps the tile and surfaces the error when a delete fails', async () => {
     await createWith([JOGA]);
 
-    actionIn(tileFor('Joga'), 'Usuń').click();
+    actionFor('Joga', 'Usuń').click();
     fixture.detectChanges();
 
-    panelButton('Tak, usuń').click();
+    overlayAction('Tak, usuń').click();
     await settle();
 
     controller
@@ -411,18 +446,14 @@ describe('Classes', () => {
   it('withholds every action in a week that has already passed', async () => {
     await createWith([JOGA]);
 
-    expect(actionIn(tileFor('Joga'), 'Usuń')).not.toBeUndefined();
+    expect(actionFor('Joga', 'Usuń')).not.toBeUndefined();
 
-    element().querySelector<HTMLButtonElement>('[aria-label="Poprzedni tydzień"]')!.click();
-    fixture.detectChanges();
+    await goToPastWeekWith(JOGA);
 
-    const past = await vi.waitFor(() => adminRequests()[0]);
-    past.flush([{ ...JOGA, startsAt: new Date(Date.now() - 7 * 86_400_000).toISOString() }]);
-    await settle();
-
-    // Visible, but not editable — and the reason is on screen, or a missing button reads as broken.
+    // Visible, but not editable — and the reason is on screen, or a tile that ignores a click reads
+    // as broken.
     expect(tiles().length).toBe(1);
-    expect(element().querySelector('.calendar-tile-actions')).toBeNull();
+    expectInert('Joga');
     expect(html()).toContain('Ten tydzień już minął');
   });
 
@@ -442,7 +473,7 @@ describe('Classes', () => {
    * the calendar, and the picker has its own spec.
    */
   async function openBookings(name: string, rows: (typeof SIGNUP)[]): Promise<void> {
-    actionIn(tileFor(name), 'Zapisani').click();
+    actionFor(name, 'Zapisani').click();
     await settle();
 
     controller.expectOne('/api/admin/classes/c1/bookings').flush(rows);
@@ -462,7 +493,9 @@ describe('Classes', () => {
     await openBookings('Joga', [SIGNUP]);
 
     // A list of people is unbounded; a panel below the grid pushed a near-full class off the bottom
-    // of the screen, so reading it meant scrolling away from the class it belongs to.
+    // of the screen, so reading it meant scrolling away from the class it belongs to. It REPLACES the
+    // actions overlay it was opened from rather than stacking on it.
+    expect(actionsOverlay()).toBeNull();
     const overlay = element().querySelector('app-class-bookings-overlay .overlay-panel')!;
 
     expect(overlay).not.toBeNull();
@@ -516,10 +549,10 @@ describe('Classes', () => {
   it('names has_bookings when a delete is refused, rather than saying only that it failed', async () => {
     await createWith([JOGA]);
 
-    actionIn(tileFor('Joga'), 'Usuń').click();
+    actionFor('Joga', 'Usuń').click();
     fixture.detectChanges();
 
-    panelButton('Tak, usuń').click();
+    overlayAction('Tak, usuń').click();
     await settle();
 
     controller
@@ -536,30 +569,92 @@ describe('Classes', () => {
   it('withholds Zapisani in a past week along with the rest of the actions', async () => {
     await createWith([JOGA]);
 
-    expect(actionIn(tileFor('Joga'), 'Zapisani')).not.toBeUndefined();
+    expect(actionFor('Joga', 'Zapisani')).not.toBeUndefined();
 
-    element().querySelector<HTMLButtonElement>('[aria-label="Poprzedni tydzień"]')!.click();
+    await goToPastWeekWith(JOGA);
+
+    // Zapisani lives in the same overlay as the other three, so a tile that opens nothing withholds
+    // it along with them — this pins that it stayed that way.
+    expectInert('Joga');
+  });
+  // --- S-20: the actions overlay --------------------------------------------
+
+  it('reaches every action on a 30-minute class', async () => {
+    // Half an hour is 30px of tile: the actions projected into it were clipped away entirely. The
+    // overlay is the same size whatever the class's length.
+    await createWith([{ ...JOGA, durationMinutes: 30 }]);
+
+    openActions('Joga');
+
+    expect(actionsOverlay()).not.toBeNull();
+    expect(
+      element().querySelector('app-class-actions-overlay a[href="/admin/classes/c1"]'),
+    ).not.toBeNull();
+    expect(overlayAction('Powiel')).not.toBeUndefined();
+    expect(overlayAction('Zapisani')).not.toBeUndefined();
+    expect(overlayAction('Usuń')).not.toBeUndefined();
+  });
+
+  it('closes the overlay on Escape and on the backdrop', async () => {
+    await createWith([JOGA]);
+
+    openActions('Joga');
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    fixture.detectChanges();
+    expect(actionsOverlay()).toBeNull();
+
+    openActions('Joga');
+    element()
+      .querySelector<HTMLButtonElement>('app-class-actions-overlay .overlay-backdrop')!
+      .click();
+    fixture.detectChanges();
+    expect(actionsOverlay()).toBeNull();
+  });
+
+  it('closes an open overlay when the calendar moves to another window', async () => {
+    await createWith([JOGA]);
+
+    openActions('Joga');
+    expect(actionsOverlay()).not.toBeNull();
+
+    element().querySelector<HTMLButtonElement>('[aria-label="Następny tydzień"]')!.click();
     fixture.detectChanges();
 
-    const past = await vi.waitFor(() => adminRequests()[0]);
-    past.flush([{ ...JOGA, startsAt: new Date(Date.now() - 7 * 86_400_000).toISOString() }]);
+    // Its class may not even be on screen any more.
+    expect(actionsOverlay()).toBeNull();
+
+    adminRequests()[0].flush([]);
+    await settle();
+  });
+
+  it('keeps the overlay open, marked, when an action fails', async () => {
+    await createWith([JOGA]);
+
+    actionFor('Joga', 'Usuń').click();
+    fixture.detectChanges();
+    overlayAction('Tak, usuń').click();
     await settle();
 
-    // The new action is projected through the same template as the other three, so it is gated by
-    // readOnly along with them — this pins that it stayed that way.
-    expect(element().querySelector('.calendar-tile-actions')).toBeNull();
+    controller
+      .expectOne('/api/admin/classes/c1')
+      .flush('boom', { status: 500, statusText: 'Server Error' });
+    await settle();
+
+    expect(actionsOverlay()).not.toBeNull();
+    expect(actionsOverlay()!.querySelector('.field-error')?.textContent).toContain('Nie udało się');
   });
+
   // --- S-09: cancelling, which is not deleting -------------------------------
 
   it('offers Odwołaj on a booked class and Usuń on an empty one', async () => {
     await createWith([JOGA, BOOKED]);
 
-    // Exactly one of the two, per tile. A fifth button is what makes this row wrap on a phone.
-    expect(actionIn(tileFor('Crossfit'), 'Odwołaj')).not.toBeUndefined();
-    expect(actionIn(tileFor('Crossfit'), 'Usuń')).toBeUndefined();
+    // Exactly one of the two, per class — see canCancel in class-actions-overlay.
+    expect(actionFor('Crossfit', 'Odwołaj')).not.toBeUndefined();
+    expect(actionFor('Crossfit', 'Usuń')).toBeUndefined();
 
-    expect(actionIn(tileFor('Joga'), 'Usuń')).not.toBeUndefined();
-    expect(actionIn(tileFor('Joga'), 'Odwołaj')).toBeUndefined();
+    expect(actionFor('Joga', 'Usuń')).not.toBeUndefined();
+    expect(actionFor('Joga', 'Odwołaj')).toBeUndefined();
   });
 
   // A guard, not a case this screen reaches any more: the admin list no longer returns cancelled
@@ -568,14 +663,14 @@ describe('Classes', () => {
     await createWith([{ ...BOOKED, status: 'Cancelled' }]);
 
     // Cancelling it again is refused with already_cancelled, so offering it would be a dead end.
-    expect(actionIn(tileFor('Crossfit'), 'Odwołaj')).toBeUndefined();
-    expect(actionIn(tileFor('Crossfit'), 'Usuń')).not.toBeUndefined();
+    expect(actionFor('Crossfit', 'Odwołaj')).toBeUndefined();
+    expect(actionFor('Crossfit', 'Usuń')).not.toBeUndefined();
   });
 
   it('states how many people the cancellation will notify, and that it cannot be undone', async () => {
     await createWith([BOOKED]);
 
-    actionIn(tileFor('Crossfit'), 'Odwołaj').click();
+    actionFor('Crossfit', 'Odwołaj').click();
     fixture.detectChanges();
 
     expect(html()).toContain('Odwołać „Crossfit”');
@@ -583,17 +678,17 @@ describe('Classes', () => {
     expect(html()).toContain('Powiadomimy 3');
     expect(html()).toContain('nie można cofnąć');
 
-    // Nothing has been sent yet - the panel is the question, not the answer.
+    // Nothing has been sent yet - the confirmation is the question, not the answer.
     controller.expectNone('/api/admin/classes/c3/cancel');
   });
 
   it('takes the class off the calendar and says how many people were told', async () => {
     await createWith([BOOKED, PILATES]);
 
-    actionIn(tileFor('Crossfit'), 'Odwołaj').click();
+    actionFor('Crossfit', 'Odwołaj').click();
     fixture.detectChanges();
 
-    panelButton('Tak, odwołaj').click();
+    overlayAction('Tak, odwołaj').click();
     await settle();
 
     controller.expectOne('/api/admin/classes/c3/cancel').flush({ ...BOOKED, status: 'Cancelled' });
@@ -617,10 +712,10 @@ describe('Classes', () => {
   it('names class_started rather than saying only that it failed', async () => {
     await createWith([BOOKED]);
 
-    actionIn(tileFor('Crossfit'), 'Odwołaj').click();
+    actionFor('Crossfit', 'Odwołaj').click();
     fixture.detectChanges();
 
-    panelButton('Tak, odwołaj').click();
+    overlayAction('Tak, odwołaj').click();
     await settle();
 
     controller
@@ -641,10 +736,10 @@ describe('Classes', () => {
   it('offers the cancel route out of a has_bookings refusal, and it works', async () => {
     await createWith([JOGA]);
 
-    actionIn(tileFor('Joga'), 'Usuń').click();
+    actionFor('Joga', 'Usuń').click();
     fixture.detectChanges();
 
-    panelButton('Tak, usuń').click();
+    overlayAction('Tak, usuń').click();
     await settle();
 
     controller
@@ -662,7 +757,7 @@ describe('Classes', () => {
 
     expect(html()).toContain('Odwołać „Joga”');
 
-    panelButton('Tak, odwołaj').click();
+    overlayAction('Tak, odwołaj').click();
     await settle();
 
     controller.expectOne('/api/admin/classes/c1/cancel').flush({ ...JOGA, status: 'Cancelled' });
@@ -675,17 +770,12 @@ describe('Classes', () => {
   it('withholds Odwołaj in a week that has already passed', async () => {
     await createWith([BOOKED]);
 
-    expect(actionIn(tileFor('Crossfit'), 'Odwołaj')).not.toBeUndefined();
+    expect(actionFor('Crossfit', 'Odwołaj')).not.toBeUndefined();
 
-    element().querySelector<HTMLButtonElement>('[aria-label="Poprzedni tydzień"]')!.click();
-    fixture.detectChanges();
+    await goToPastWeekWith(BOOKED);
 
-    const past = await vi.waitFor(() => adminRequests()[0]);
-    past.flush([{ ...BOOKED, startsAt: new Date(Date.now() - 7 * 86_400_000).toISOString() }]);
-    await settle();
-
-    // Projected through the same template as the other actions, so readOnly withholds it too.
-    expect(element().querySelector('.calendar-tile-actions')).toBeNull();
+    // In the same overlay as the other actions, so a past week withholds it too.
+    expectInert('Crossfit');
   });
 
   // --- S-20: a desk tool, and a phone is told so ------------------------------
@@ -750,22 +840,22 @@ describe('Classes', () => {
       expect(adminRequests()).toEqual([]);
     });
 
-    it('drops an open panel when the window narrows past the boundary', async () => {
+    it('drops an open overlay when the window narrows past the boundary', async () => {
       const flip = stubDesk(true);
 
       await createWith([JOGA]);
 
-      actionIn(tileFor('Joga'), 'Powiel').click();
+      actionFor('Joga', 'Powiel').click();
       fixture.detectChanges();
-      expect(element().querySelector('.classes-panel')).not.toBeNull();
+      expect(actionsOverlay()).not.toBeNull();
 
       flip(false);
       await settle();
 
       expect(element().querySelector('app-schedule-calendar')).toBeNull();
-      // The state, not just the DOM: a panel left open behind the refusal would reappear, pointing at
-      // a class from a window nobody is looking at, the moment the admin widened the window again.
-      expect(fixture.componentInstance['duplicating']()).toBeNull();
+      // The state, not just the DOM: an overlay left open behind the refusal would reappear, pointing
+      // at a class from a window nobody is looking at, the moment the admin widened the window again.
+      expect(fixture.componentInstance['selected']()).toBeNull();
 
       flip(true);
       await settle();
@@ -775,7 +865,7 @@ describe('Classes', () => {
       await settle();
 
       expect(tiles().length).toBe(1);
-      expect(element().querySelector('.classes-panel')).toBeNull();
+      expect(actionsOverlay()).toBeNull();
     });
   });
 });

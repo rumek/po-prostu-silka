@@ -1,0 +1,161 @@
+<!-- A button, not a styled div: it carries the click-outside-to-close affordance but is focusable and
+     answers the keyboard. Escape is bound on the host so it works wherever focus happens to be. -->
+<button
+  type="button"
+  class="overlay-backdrop"
+  aria-label="Zamknij akcje zajęć"
+  (click)="close()"
+></button>
+
+<div
+  class="card overlay-panel"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="class-actions-title"
+>
+  <h2 id="class-actions-title" class="overlay-title">{{ row().name }}</h2>
+
+  <p class="overlay-when">
+    {{ row().startsAt | date: 'EEEE, d MMMM' }}, {{ row().startsAt | date: 'HH:mm' }}–{{
+      endsAt() | date: 'HH:mm'
+    }}
+  </p>
+
+  @switch (step()) {
+    @case ('actions') {
+      <dl class="class-actions-facts">
+        <div>
+          <dt>Prowadzący</dt>
+          <dd>{{ row().instructor }}</dd>
+        </div>
+        <div>
+          <dt>Wolne miejsca</dt>
+          <dd>{{ row().freeSpots }} / {{ row().capacity }}</dd>
+        </div>
+      </dl>
+
+      <div class="overlay-actions">
+        <a class="button button--secondary" [routerLink]="['/admin/classes', row().id]">Edytuj</a>
+        <button
+          type="button"
+          class="button button--secondary"
+          [disabled]="busy()"
+          (click)="show('duplicate')"
+        >
+          Powiel
+        </button>
+        <button
+          type="button"
+          class="button button--secondary"
+          [disabled]="busy()"
+          (click)="bookingsRequested.emit()"
+        >
+          Zapisani
+        </button>
+        <!-- ONE button, not two — see canCancel. A class somebody is signed up for is cancelled,
+             never deleted (FR-013). -->
+        @if (cancellable()) {
+          <button
+            type="button"
+            class="button button--secondary"
+            [disabled]="busy()"
+            (click)="show('cancel')"
+          >
+            Odwołaj
+          </button>
+        } @else {
+          <button
+            type="button"
+            class="button button--secondary"
+            [disabled]="busy()"
+            (click)="show('delete')"
+          >
+            Usuń
+          </button>
+        }
+        <button type="button" class="link-button" (click)="close()">Zamknij</button>
+      </div>
+    }
+
+    @case ('duplicate') {
+      <p class="class-actions-subject">
+        Powiel „{{ row().name }}” z {{ row().startsAt | date: 'd MMMM, HH:mm' }}
+      </p>
+
+      <app-field label="Na kolejne tygodnie" for="class-actions-weeks">
+        <input
+          id="class-actions-weeks"
+          class="class-actions-weeks"
+          type="number"
+          min="1"
+          max="8"
+          [ngModel]="weeks()"
+          (ngModelChange)="weeks.set(+$event)"
+        />
+      </app-field>
+
+      <div class="overlay-actions">
+        <button
+          type="button"
+          class="button"
+          [disabled]="busy()"
+          (click)="duplicateRequested.emit(weeks())"
+        >
+          {{ busy() ? 'Powielanie…' : 'Powiel' }}
+        </button>
+        <button type="button" class="link-button" (click)="show('actions')">Anuluj</button>
+      </div>
+    }
+
+    @case ('delete') {
+      <p class="class-actions-subject">
+        Usunąć „{{ row().name }}” z {{ row().startsAt | date: 'd MMMM, HH:mm' }} na dobre?
+      </p>
+
+      <div class="overlay-actions">
+        <button type="button" class="button" [disabled]="busy()" (click)="deleteRequested.emit()">
+          {{ busy() ? 'Usuwanie…' : 'Tak, usuń' }}
+        </button>
+        <button type="button" class="link-button" (click)="show('actions')">Anuluj</button>
+      </div>
+    }
+
+    <!-- IRREVERSIBLE, and unlike delete it also sends mail the moment it succeeds. So it says out loud
+         what it is about to do and to how many people, rather than asking "na pewno?" -->
+    @case ('cancel') {
+      <p class="class-actions-subject">
+        Odwołać „{{ row().name }}” z {{ row().startsAt | date: 'd MMMM, HH:mm' }}?
+        @if (booked() > 0) {
+          <span class="class-actions-detail">
+            Powiadomimy {{ booked() }} zapisanych osób e-mailem i powiadomieniem. Tej operacji nie
+            można cofnąć.
+          </span>
+        } @else {
+          <span class="class-actions-detail">Tej operacji nie można cofnąć.</span>
+        }
+      </p>
+
+      <div class="overlay-actions">
+        <button type="button" class="button" [disabled]="busy()" (click)="cancelRequested.emit()">
+          {{ busy() ? 'Odwoływanie…' : 'Tak, odwołaj' }}
+        </button>
+        <button type="button" class="link-button" (click)="show('actions')">Wróć</button>
+      </div>
+    }
+  }
+
+  <!-- The way out of the has_bookings refusal. The overlay could not know: it sees active bookings,
+       the server counts every booking that ever existed. -->
+  @if (deleteBlocked() && step() !== 'cancel') {
+    <p class="notice class-actions-blocked" role="status">
+      Zamiast usuwać, możesz odwołać te zajęcia — zapisani dowiedzą się o tym.
+      <button type="button" class="link-button" (click)="show('cancel')">
+        Odwołaj zamiast tego
+      </button>
+    </p>
+  }
+
+  @if (failed()) {
+    <p class="field-error" role="alert">Nie udało się. Spróbuj ponownie.</p>
+  }
+</div>

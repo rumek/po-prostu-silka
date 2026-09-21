@@ -147,8 +147,7 @@
      is what stops a non-selectable calendar from being focusable at all.
 
      A selectable tile may also be editable (the admin's, S-20): `activate` tells the click that ends
-     a drag from a real one by how far the pointer moved since `notePress`. Projected actions render
-     only on the non-selectable tile, because buttons nested in a button are invalid HTML. -->
+     a drag from a real one by how far the pointer moved since `notePress`. -->
 <ng-template #tile let-weekEvent="weekEvent">
   @if (selectable()) {
     <button
@@ -168,15 +167,6 @@
         [ngTemplateOutlet]="tileBody"
         [ngTemplateOutletContext]="{ weekEvent: weekEvent }"
       />
-
-      @if (!readOnly() && classActions()) {
-        <div class="calendar-tile-actions">
-          <ng-container
-            [ngTemplateOutlet]="classActions()!"
-            [ngTemplateOutletContext]="{ $implicit: weekEvent.event.meta }"
-          />
-        </div>
-      }
     </div>
   }
 </ng-template>

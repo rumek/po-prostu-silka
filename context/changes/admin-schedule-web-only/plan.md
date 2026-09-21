@@ -453,6 +453,7 @@ The admin calendar becomes selectable, except in past weeks. Activating a tile o
 - The `#classActions` template and the three `.classes-panel` blocks are deleted.
 - A `selected` signal holds the class whose overlay is open.
 - The screen wires the overlay outputs to its existing methods (`duplicate`, `remove`, `cancel`, `openBookings`, `cancelInstead`).
+  - **Adapted during implementation.** `cancelInstead` is gone rather than wired: the has_bookings way out is now a step change inside the overlay (`deleteBlocked` → "Odwołaj zamiast tego" → the cancel step), so it needs no screen method, and `cancel()` still clears `deleteBlockedBy`. Likewise `weeks` moved into the overlay and reaches the screen as `duplicate(row, weeks)` through `duplicateRequested`. `canCancel` / `bookedCount` are exported functions from `class-actions-overlay.ts`, which the screen imports for the cancel toast.
 - Each flow closes the overlay exactly where it closes its panel today. For example, a successful cancel or delete drops the row and closes it.
 - Zapisani closes the actions overlay and opens the bookings overlay.
 - The remaining panel signals collapse into what the overlay needs (`selected`, `failedId`, `deleteBlockedBy`, `viewingBookings`, `drawn`).
@@ -622,9 +623,9 @@ There is no data or API migration. Rollback is a redeploy of the previous artifa
 
 #### Automated
 
-- [x] 3.1 Lint and format pass: `cd src/app && npm run quality:check`
-- [x] 3.2 Unit tests pass, including the new calendar cases: `cd src/app && npm test`
-- [x] 3.3 Build succeeds: `cd src/app && npm run build`
+- [x] 3.1 Lint and format pass: `cd src/app && npm run quality:check` — 4cf83c5
+- [x] 3.2 Unit tests pass, including the new calendar cases: `cd src/app && npm test` — 4cf83c5
+- [x] 3.3 Build succeeds: `cd src/app && npm run build` — 4cf83c5
 
 #### Manual
 
@@ -635,10 +636,10 @@ There is no data or API migration. Rollback is a redeploy of the previous artifa
 
 #### Automated
 
-- [ ] 4.1 Lint and format pass, including the kit rule on the new overlay: `cd src/app && npm run quality:check`
-- [ ] 4.2 Unit tests pass with the rewritten `classes.spec.ts` and the new `class-actions-overlay.spec.ts`: `cd src/app && npm test`
-- [ ] 4.3 Build succeeds and the initial bundle stays under the 600 kB warning: `cd src/app && npm run build`
-- [ ] 4.4 No `classActions` reference remains
+- [x] 4.1 Lint and format pass, including the kit rule on the new overlay: `cd src/app && npm run quality:check`
+- [x] 4.2 Unit tests pass with the rewritten `classes.spec.ts` and the new `class-actions-overlay.spec.ts`: `cd src/app && npm test`
+- [x] 4.3 Build succeeds and the initial bundle stays under the 600 kB warning: `cd src/app && npm run build`
+- [x] 4.4 No `classActions` reference remains
 
 #### Manual
 
