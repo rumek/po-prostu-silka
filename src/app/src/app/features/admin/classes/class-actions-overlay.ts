@@ -2,9 +2,14 @@ import { DatePipe } from '@angular/common';
 import { Component, computed, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { classFailureMessage } from '../../../core/scheduling/class-failure';
 import { ScheduledClass } from '../../../core/scheduling/class.models';
 import { Field } from '../../../shared/forms/field/field';
 import { useOverlayFocus } from '../../../shared/forms/overlay-focus';
+
+/** The duplicate range the server accepts; outside it the API answers `invalid_weeks`. */
+const MIN_WEEKS = 1;
+const MAX_WEEKS = 8;
 
 /**
  * Which of the two destructive actions a class offers (S-09; prd.md FR-013).
@@ -49,7 +54,7 @@ type Step = 'actions' | 'duplicate' | 'delete' | 'cancel';
  *
  * It performs no request. The screen owns the rows, the busy set, the toasts and every mutation —
  * and therefore also when this overlay closes: a successful action closes it, a failed one leaves it
- * open with {@link failed} set.
+ * open with {@link failure} set.
  */
 @Component({
   // On the host, not on the panel: Escape has to close the overlay wherever focus is.
@@ -67,8 +72,11 @@ export class ClassActionsOverlay {
   /** A mutation on this class is in flight — every action that would start another is disabled. */
   readonly busy = input(false);
 
-  /** The last action on this class failed. The toast carries the reason; this marks the class. */
-  readonly failed = input(false);
+  /**
+   * Why the last action on this class failed, in the screen's words (S-19: never this template's).
+   * The toast has already announced it, so this is not an alert — it keeps the reason beside the class.
+   */
+  readonly failure = input<string | null>(null);
 
   /**
    * A delete was refused with `has_bookings` — the dead end S-09 closes.
@@ -90,12 +98,37 @@ export class ClassActionsOverlay {
   /** How many following weeks a duplicate covers. Local: it means nothing until Powiel is confirmed. */
   protected readonly weeks = signal(4);
 
+  /**
+   * Powiel was pressed with a count the server would refuse (S-19 outlet 1: the refusal names this
+   * field, so it is said under the field rather than in a toast after a round trip). The words are
+   * the server's own `invalid_weeks` sentence, from the shared table.
+   */
+  protected readonly weeksRefused = signal(false);
+  protected readonly weeksMessage = classFailureMessage('invalid_weeks');
+
   protected readonly endsAt = computed(
     () => new Date(new Date(this.row().startsAt).getTime() + this.row().durationMinutes * 60_000),
   );
 
   protected readonly cancellable = computed(() => canCancel(this.row()));
   protected readonly booked = computed(() => bookedCount(this.row()));
+
+  protected setWeeks(value: number): void {
+    this.weeks.set(value);
+    this.weeksRefused.set(false);
+  }
+
+  protected confirmDuplicate(): void {
+    const weeks = this.weeks();
+
+    // The same range the server enforces — see `invalid_weeks` in class-failure.
+    if (!Number.isInteger(weeks) || weeks < MIN_WEEKS || weeks > MAX_WEEKS) {
+      this.weeksRefused.set(true);
+      return;
+    }
+
+    this.duplicateRequested.emit(weeks);
+  }
 
   protected show(step: Step): void {
     this.step.set(step);

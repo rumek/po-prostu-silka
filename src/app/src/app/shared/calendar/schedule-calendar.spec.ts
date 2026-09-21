@@ -846,4 +846,25 @@ describe('ScheduleCalendar', () => {
 
     expect(host.selected.length).toBe(1);
   });
+
+  it('selects on a keyboard activation with no press on record at all', () => {
+    const tile = editableSelectableTile();
+
+    tile.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    fixture.detectChanges();
+
+    expect(host.selected.length).toBe(1);
+  });
+
+  it('measures a pointer click from its own press, not from a stale one', () => {
+    const tile = editableSelectableTile();
+
+    // Left behind by a drag released off the tile — its click never came.
+    pointerDownAt(tile, 0, 0);
+
+    pointerDownAt(tile, 200, 200);
+    pointerClickAt(tile, 201, 200);
+
+    expect(host.selected.length).toBe(1);
+  });
 });

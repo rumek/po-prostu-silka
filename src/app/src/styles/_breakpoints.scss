@@ -54,9 +54,10 @@ $desk-min-width: 64rem;
   }
 }
 
-// The exact complement of `desk`, on the same reasoning as `above-narrow`.
+// The exact complement of `desk`, on the same reasoning as `above-narrow`. Derived rather than written
+// out, so the TS sync check on `$desk-min-width` covers this edge too.
 @mixin below-desk {
-  @media (max-width: 63.9999rem) {
+  @media (max-width: #{$desk-min-width - 0.0001rem}) {
     @content;
   }
 }

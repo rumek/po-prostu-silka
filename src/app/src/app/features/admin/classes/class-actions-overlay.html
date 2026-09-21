@@ -89,18 +89,18 @@
           type="number"
           min="1"
           max="8"
+          [attr.aria-invalid]="weeksRefused()"
+          [attr.aria-describedby]="weeksRefused() ? 'class-actions-weeks-error' : null"
           [ngModel]="weeks()"
-          (ngModelChange)="weeks.set(+$event)"
+          (ngModelChange)="setWeeks(+$event)"
         />
+        @if (weeksRefused()) {
+          <p id="class-actions-weeks-error" class="field-error">{{ weeksMessage }}</p>
+        }
       </app-field>
 
       <div class="overlay-actions">
-        <button
-          type="button"
-          class="button"
-          [disabled]="busy()"
-          (click)="duplicateRequested.emit(weeks())"
-        >
+        <button type="button" class="button" [disabled]="busy()" (click)="confirmDuplicate()">
           {{ busy() ? 'Powielanie…' : 'Powiel' }}
         </button>
         <button type="button" class="link-button" (click)="show('actions')">Anuluj</button>
@@ -155,7 +155,7 @@
     </p>
   }
 
-  @if (failed()) {
-    <p class="field-error" role="alert">Nie udało się. Spróbuj ponownie.</p>
+  @if (failure(); as message) {
+    <p class="field-error">{{ message }}</p>
   }
 </div>

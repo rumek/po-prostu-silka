@@ -28,7 +28,7 @@ const BOOKED: ScheduledClass = { ...JOGA, freeSpots: 17 };
     <app-class-actions-overlay
       [row]="row()"
       [busy]="busy()"
-      [failed]="failed()"
+      [failure]="failure()"
       [deleteBlocked]="deleteBlocked()"
       (duplicateRequested)="duplicates.push($event)"
       (deleteRequested)="deletes = deletes + 1"
@@ -41,7 +41,7 @@ const BOOKED: ScheduledClass = { ...JOGA, freeSpots: 17 };
 class Host {
   readonly row = signal<ScheduledClass>(JOGA);
   readonly busy = signal(false);
-  readonly failed = signal(false);
+  readonly failure = signal<string | null>(null);
   readonly deleteBlocked = signal(false);
   readonly duplicates: number[] = [];
   deletes = 0;
@@ -155,6 +155,32 @@ describe('ClassActionsOverlay', () => {
     expect(button('Zapisani')).toBeDefined();
   });
 
+  it('refuses an out-of-range week count under the field, without asking the server', () => {
+    create();
+
+    press('Powiel');
+    const weeks = element().querySelector<HTMLInputElement>('#class-actions-weeks')!;
+    weeks.value = '20';
+    weeks.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+
+    press('Powiel');
+
+    expect(host.duplicates).toEqual([]);
+    const error = element().querySelector('#class-actions-weeks-error');
+    expect(error?.textContent).toContain('1–8');
+    expect(weeks.getAttribute('aria-describedby')).toBe('class-actions-weeks-error');
+
+    // Correcting the count clears the refusal and lets the duplicate through.
+    weeks.value = '3';
+    weeks.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    expect(element().querySelector('#class-actions-weeks-error')).toBeNull();
+
+    press('Powiel');
+    expect(host.duplicates).toEqual([3]);
+  });
+
   it('asks before deleting, and reports only on the confirmation', () => {
     create();
 
@@ -243,12 +269,16 @@ describe('ClassActionsOverlay', () => {
     expect(button('Usuwanie…')!.disabled).toBe(true);
   });
 
-  it('marks a failed action', () => {
+  it('shows the failure it is given, without announcing it a second time', () => {
     create();
-    host.failed.set(true);
+    host.failure.set('Zajęcia już się rozpoczęły.');
     fixture.detectChanges();
 
-    expect(element().querySelector('.field-error')?.textContent).toContain('Nie udało się');
+    const marker = element().querySelector('.field-error');
+
+    expect(marker?.textContent).toContain('Zajęcia już się rozpoczęły.');
+    // The toast already said it; a second alert would read the same failure out twice.
+    expect(marker?.getAttribute('role')).toBeNull();
   });
 
   it('closes on the backdrop, on Zamknij and on Escape', () => {

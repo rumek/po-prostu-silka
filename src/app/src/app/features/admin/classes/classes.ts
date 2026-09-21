@@ -76,8 +76,11 @@ export class Classes {
   /** Rows with a mutation in flight, so one slow row does not disable the whole list. */
   protected readonly busy = createBusySet();
 
-  /** Id of the row whose action failed. Cleared when another action starts. */
-  protected readonly failedId = signal<string | null>(null);
+  /**
+   * The row whose last action failed, and the words for it — the same sentence the toast carried, so
+   * the overlay can keep it beside the class. Cleared when another action starts.
+   */
+  protected readonly failed = signal<{ id: string; message: string } | null>(null);
 
   /**
    * Everything this screen says goes to the toast (S-19, outlet 3).
@@ -93,6 +96,17 @@ export class Classes {
    * are steps inside that overlay, so this one signal replaces the three panels below the calendar.
    */
   protected readonly selected = signal<ScheduledClass | null>(null);
+
+  /**
+   * {@link selected} as a list of at most one, so the template can key the overlay on the class id.
+   * An `@if` would keep the same instance when the selection moves straight from one class to
+   * another, carrying the old class's step, week count and focus over to the new one.
+   */
+  protected readonly selectedKeyed = computed(() => {
+    const row = this.selected();
+
+    return row ? [row] : [];
+  });
 
   /**
    * Whether the delete refusal on screen is the one cancelling can resolve.
@@ -122,6 +136,13 @@ export class Classes {
     return range !== null && range.to.getTime() <= Date.now();
   });
 
+  /** The failure to show in the open actions overlay — only when it belongs to that class. */
+  protected readonly selectedFailure = computed(() => {
+    const failed = this.failed();
+
+    return failed !== null && failed.id === this.selected()?.id ? failed.message : null;
+  });
+
   /** See members.ts — nothing cancels an in-flight request, so the last RESPONSE would otherwise win. */
   private readonly fence = createLoadFence();
 
@@ -147,6 +168,21 @@ export class Classes {
 
     // A window change invalidates any open overlay: its class may not even be on screen any more.
     this.closeTransient();
+
+    await this.fetchRows();
+  }
+
+  /**
+   * Fetches the window in `range` into `rows`, and nothing else. Split out of `load` so a refetch of
+   * the SAME window (after a duplicate, a create, a retry) leaves open overlays alone — only a window
+   * change has a reason to close them.
+   */
+  private async fetchRows(): Promise<void> {
+    const range = this.range();
+
+    if (!range) {
+      return;
+    }
 
     const generation = this.fence.begin();
 
@@ -179,19 +215,23 @@ export class Classes {
     this.drawn.set(null);
   }
 
-  /** Refetches the window currently on screen — after a duplicate, or a retry. */
-  protected async reload(): Promise<void> {
-    const range = this.range();
+  /**
+   * Closes the actions overlay only if it still shows `row`. A response can land after the admin
+   * closed that overlay and opened another, and it must not take the newer one down with it.
+   */
+  private closeIfShowing(row: ScheduledClass): void {
+    this.selected.update((open) => (open?.id === row.id ? null : open));
+  }
 
-    if (range) {
-      await this.load(range);
-    }
+  /** Refetches the window currently on screen — after a duplicate, a create, or a retry. */
+  protected async reload(): Promise<void> {
+    await this.fetchRows();
   }
 
   /** A gesture on empty grid (prd-v2 FR-019). The calendar withholds it entirely in a past week. */
   protected openCreate(range: DrawnRange): void {
-    this.failedId.set(null);
-    this.selected.set(null);
+    this.failed.set(null);
+    this.closeTransient();
     this.drawn.set(range);
   }
 
@@ -225,7 +265,7 @@ export class Classes {
     // previous window's rows over the one now on screen.
     const generation = this.fence.current();
 
-    this.failedId.set(null);
+    this.failed.set(null);
     this.rows.update((rows) =>
       rows.map((candidate) =>
         candidate.id === row.id
@@ -266,9 +306,10 @@ export class Classes {
    * tiles are not selectable at all.
    */
   protected select(row: ScheduledClass): void {
-    this.failedId.set(null);
-    this.deleteBlockedBy.set(null);
-    this.viewingBookings.set(null);
+    this.failed.set(null);
+    // Every opener closes every other overlay first. Nothing traps Tab inside an overlay, so a tile
+    // behind the create overlay can still be reached and activated — and two modals are one too many.
+    this.closeTransient();
     this.selected.set(row);
   }
 
@@ -282,8 +323,8 @@ export class Classes {
    * one rather than stacking them: two modals over one calendar is one too many to Escape out of.
    */
   protected openBookings(row: ScheduledClass): void {
-    this.failedId.set(null);
-    this.closeSelected();
+    this.failed.set(null);
+    this.closeTransient();
     this.viewingBookings.set(row);
   }
 
@@ -329,12 +370,12 @@ export class Classes {
   }
 
   protected async duplicate(row: ScheduledClass, weeks: number): Promise<void> {
-    this.failedId.set(null);
+    this.failed.set(null);
     this.busy.setBusy(row.id, true);
 
     try {
       const result = await this.classes.duplicate(row.id, weeks);
-      this.selected.set(null);
+      this.closeIfShowing(row);
 
       // The whole point of the endpoint's contract: say what actually happened, per week. Doubly so
       // now that the copies land in weeks this view is not showing — the message is the only place
@@ -355,28 +396,25 @@ export class Classes {
 
       await this.reload();
     } catch (failure) {
-      const info = classifyFailure(failure);
+      // `invalid_weeks` needs no branch of its own any more: the overlay refuses an out-of-range count
+      // under its field before asking (S-19 outlet 1), so it lands here only if the server's range
+      // and the overlay's ever disagree — and then it reads through the same table as any refusal.
+      const message = messageFor(failure);
 
-      if (info.reason === 'invalid_weeks') {
-        // Through the shared table, so this reads the same here as it would anywhere else.
-        this.toast.error(classFailureMessage(info.reason));
-        return;
-      }
-
-      this.toast.error(messageFor(failure));
-      this.failedId.set(row.id);
+      this.toast.error(message);
+      this.failed.set({ id: row.id, message });
     } finally {
       this.busy.setBusy(row.id, false);
     }
   }
 
   protected async remove(row: ScheduledClass): Promise<void> {
-    this.failedId.set(null);
+    this.failed.set(null);
     this.busy.setBusy(row.id, true);
 
     try {
       await this.classes.remove(row.id);
-      this.selected.set(null);
+      this.closeIfShowing(row);
 
       // A deleted class genuinely leaves the window — removing it locally is the honest
       // representation, and avoids a refetch that would only confirm what we already know.
@@ -387,8 +425,10 @@ export class Classes {
       // on — by opening Zapisani, which is one step back in the overlay.
       const info = classifyFailure(failure);
 
-      this.toast.error(messageFor(failure));
-      this.failedId.set(row.id);
+      const message = messageFor(failure);
+
+      this.toast.error(message);
+      this.failed.set({ id: row.id, message });
 
       // The dead end S-09 closes. The overlay offered "Usuń" because every booking on this class has
       // since been released; the server refuses anyway, because it counts bookings that ever
@@ -416,7 +456,7 @@ export class Classes {
    * rows of a window this response does not belong to.
    */
   protected async cancel(row: ScheduledClass): Promise<void> {
-    this.failedId.set(null);
+    this.failed.set(null);
     this.deleteBlockedBy.set(null);
     this.busy.setBusy(row.id, true);
 
@@ -430,7 +470,7 @@ export class Classes {
         return;
       }
 
-      this.selected.set(null);
+      this.closeIfShowing(row);
       this.rows.update((rows) => rows.filter((r) => r.id !== row.id));
 
       // Says what actually happened, like the duplicate outcome does. The messages are the point of
@@ -446,8 +486,10 @@ export class Classes {
       }
 
       // class_started and already_cancelled both land here, and both read through the shared table.
-      this.toast.error(messageFor(failure));
-      this.failedId.set(row.id);
+      const message = messageFor(failure);
+
+      this.toast.error(message);
+      this.failed.set({ id: row.id, message });
     } finally {
       this.busy.setBusy(row.id, false);
     }

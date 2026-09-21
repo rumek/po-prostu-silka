@@ -42,11 +42,11 @@
        it: a tile is one pixel per minute and clips whatever does not fit, which for most classes was
        every action. The confirmations are steps inside it, so the admin never looks away from the
        class they are acting on. -->
-  @if (selected(); as row) {
+  @for (row of selectedKeyed(); track row.id) {
     <app-class-actions-overlay
       [row]="row"
       [busy]="busy.isBusy(row.id)"
-      [failed]="failedId() === row.id"
+      [failure]="selectedFailure()"
       [deleteBlocked]="deleteBlockedBy()?.id === row.id"
       (duplicateRequested)="duplicate(row, $event)"
       (deleteRequested)="remove(row)"

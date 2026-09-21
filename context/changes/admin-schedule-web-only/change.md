@@ -1,7 +1,7 @@
 ---
 change_id: admin-schedule-web-only
 title: The admin's class calendar is a desk tool, and says so (S-20)
-status: implementing
+status: impl_reviewed
 created: 2026-09-21
 updated: 2026-09-21
 archived_at: null

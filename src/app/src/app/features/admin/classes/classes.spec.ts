@@ -640,7 +640,84 @@ describe('Classes', () => {
     await settle();
 
     expect(actionsOverlay()).not.toBeNull();
-    expect(actionsOverlay()!.querySelector('.field-error')?.textContent).toContain('Nie udało się');
+    // The toast's own sentence, from the shared table — not a second, vaguer one.
+    expect(actionsOverlay()!.querySelector('.field-error')?.textContent).toContain(
+      'Coś poszło nie tak po naszej stronie',
+    );
+  });
+
+  it('closes the create overlay when a tile is activated behind it', async () => {
+    await createWith([JOGA]);
+
+    fixture.debugElement
+      .query(By.directive(ScheduleCalendar))
+      .componentInstance.rangeDrawn.emit({ start: new Date(), end: new Date() });
+    fixture.detectChanges();
+    expect(element().querySelector('app-class-create-overlay')).not.toBeNull();
+    // The create overlay loads its own two selects; answer them so nothing is left open.
+    controller.expectOne('/api/admin/class-types').flush([]);
+    controller.expectOne('/api/admin/trainers').flush([]);
+
+    // Nothing traps Tab in an overlay, so the tile behind it is still reachable.
+    openActions('Joga');
+
+    expect(element().querySelector('app-class-create-overlay')).toBeNull();
+    expect(actionsOverlay()).not.toBeNull();
+  });
+
+  it('starts a new class on its actions step, even straight from another class', async () => {
+    await createWith([JOGA, PILATES]);
+
+    actionFor('Joga', 'Usuń').click();
+    fixture.detectChanges();
+    expect(html()).toContain('Usunąć „Joga”');
+
+    openActions('Pilates');
+
+    expect(html()).not.toContain('Usunąć');
+    expect(overlayAction('Zapisani')).not.toBeUndefined();
+  });
+
+  // A request outlives its overlay: closing stays possible while it is in flight, so the admin can
+  // already be looking at another class when the answer lands. That answer must not close it.
+  it('leaves a newer overlay open when a delete answers late', async () => {
+    await createWith([JOGA, PILATES]);
+
+    actionFor('Joga', 'Usuń').click();
+    fixture.detectChanges();
+    overlayAction('Tak, usuń').click();
+    await settle();
+    const pending = controller.expectOne('/api/admin/classes/c1');
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    fixture.detectChanges();
+    openActions('Pilates');
+
+    pending.flush(null);
+    await settle();
+
+    expect(actionsOverlay()?.textContent).toContain('Pilates');
+  });
+
+  it('leaves a newer overlay open through the refetch that follows a duplicate', async () => {
+    await createWith([JOGA, PILATES]);
+
+    actionFor('Joga', 'Powiel').click();
+    fixture.detectChanges();
+    overlayAction('Powiel').click();
+    await settle();
+    const pending = controller.expectOne('/api/admin/classes/c1/duplicate');
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    fixture.detectChanges();
+    openActions('Pilates');
+
+    pending.flush({ created: 1, skippedWeeks: [] });
+    await settle();
+    adminRequests()[0].flush([JOGA, PILATES]);
+    await settle();
+
+    expect(actionsOverlay()?.textContent).toContain('Pilates');
   });
 
   // --- S-09: cancelling, which is not deleting -------------------------------

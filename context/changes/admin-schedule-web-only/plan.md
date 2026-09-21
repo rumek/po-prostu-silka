@@ -124,6 +124,7 @@ The screen keeps owning every mutation, the row list, the busy set and the toast
   - Enforce this inside the calendar, only where `selectable() && !readOnly()`.
   - Record where the pointer went down on the tile. On `click`, emit `classSelected` only if the pointer moved no more than a few pixels.
   - Keyboard activation (Enter/Space) has no preceding pointerdown and always emits.
+  - **Adapted during implementation.** Keyboard activation is recognised by `event.detail === 0`, not by a missing pointerdown. A drag released off the tile leaves its press recorded with no click to consume it, so "no preceding pointerdown" would have let that stale press suppress the next Enter. The next pointerdown overwrites a stale press, so a pointer click is always measured from its own press.
   - Resize handles are siblings of the tile button (library markup), so their clicks never reach it.
 - **Leaving the desk viewport clears transient state.** When `desk()` turns false, the screen clears the same signals `load()` clears: duplicate/delete/cancel/blocked state, selected class, bookings overlay and drawn range. Returning to desk re-creates the calendar, which emits `rangeChange` and reloads.
 - **Swapping overlays and focus.**
@@ -362,6 +363,7 @@ Two changes in the shared calendar, both covered by its own spec, with no change
 **Contract**:
 - The tile button records its `pointerdown` coordinates.
 - Its click handler emits `classSelected` only when the pointer moved at most a small tolerance, around 4px, or when no pointerdown preceded it (keyboard).
+  - **Adapted during implementation.** "No pointerdown preceded it" is implemented as `event.detail === 0` (see Critical Implementation Details). The keyboard specs cover both a click with no press at all and a click after a stale one, and a separate spec pins that a fresh press replaces a stale one.
 - The `selectable` input doc drops the "cannot happen" note at `schedule-calendar.html:149-151`.
 - The class doc gains one line saying that selectable and editable coexist on the admin screen, and how a drag is told apart.
 
@@ -636,10 +638,10 @@ There is no data or API migration. Rollback is a redeploy of the previous artifa
 
 #### Automated
 
-- [x] 4.1 Lint and format pass, including the kit rule on the new overlay: `cd src/app && npm run quality:check`
-- [x] 4.2 Unit tests pass with the rewritten `classes.spec.ts` and the new `class-actions-overlay.spec.ts`: `cd src/app && npm test`
-- [x] 4.3 Build succeeds and the initial bundle stays under the 600 kB warning: `cd src/app && npm run build`
-- [x] 4.4 No `classActions` reference remains
+- [x] 4.1 Lint and format pass, including the kit rule on the new overlay: `cd src/app && npm run quality:check` — 9a637ba
+- [x] 4.2 Unit tests pass with the rewritten `classes.spec.ts` and the new `class-actions-overlay.spec.ts`: `cd src/app && npm test` — 9a637ba
+- [x] 4.3 Build succeeds and the initial bundle stays under the 600 kB warning: `cd src/app && npm run build` — 9a637ba
+- [x] 4.4 No `classActions` reference remains — 9a637ba
 
 #### Manual
 

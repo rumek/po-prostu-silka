@@ -100,9 +100,10 @@ export interface CalendarRange {
  * different policies.
  *
  * It also knows nothing about roles. Screen-level admin actions arrive by projection into the
- * toolbar, and per-class ones through selection — the admin's screen opens its own overlay on
- * {@link classSelected} (S-20) — so nothing role-specific is compiled into the member's screen — the alternative, a `mode` input, is the
- * "widget with a dozen flags" the FR-017 shaping challenge called out by name.
+ * toolbar, and per-class ones through selection: the admin's screen opens its own overlay on
+ * {@link classSelected} (S-20). So nothing role-specific is compiled into the member's screen. The
+ * alternative, a `mode` input, is the "widget with a dozen flags" the FR-017 shaping challenge called
+ * out by name.
  *
  * <h2>One renderer, two shapes</h2>
  *
