@@ -125,18 +125,8 @@ public class TrainingPlanEndpointTests(IntegrationTestFixture fixture)
         await fixture.CreateUserAsync(email, status, ApplicationRoles.User);
 
         var admin = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveAdminEmail);
-        var all = await admin.GetFromJsonAsync<List<AdminMemberRow>>("/api/admin/members");
-
-        return all!.Single(x => string.Equals(x.Email, email, StringComparison.OrdinalIgnoreCase)).Id;
+        return await fixture.FindMemberIdAsync(admin, email);
     }
-
-    /// <summary>
-    /// Mirrors MemberSummary. Since S-14 <c>Id</c> is the MEMBER and <c>UserId</c> the account
-    /// behind them; training plans still key on the account at this phase, so these tests read
-    /// <c>UserId</c>.
-    /// </summary>
-    private sealed record AdminMemberRow(
-        Guid Id, string? UserId, string Email, string DisplayName, string MembershipStatus);
 
     private async Task<PlanBody> AssignAsync(
         HttpClient trainer, Guid memberId, params object[] items)

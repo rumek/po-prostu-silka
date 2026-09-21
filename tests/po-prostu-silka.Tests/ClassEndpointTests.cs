@@ -56,13 +56,11 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
     /// <summary>Mirrors DuplicateResult.</summary>
     private sealed record DuplicateBody(int Created, int[] SkippedWeeks);
 
-    /// <summary>Mirrors MemberSummary — only what these tests read from it.</summary>
     /// <summary>
-    /// Mirrors MemberSummary — only what these tests read from it. Since S-14 that includes
-    /// <c>UserId</c>: <c>Id</c> is now the MEMBER, and these tests want the account behind them.
+    /// Mirrors MemberDetail — only what these tests read from it: the name a class resolves its
+    /// instructor to, read back through the single-member route rather than the (paged) list.
     /// </summary>
-    private sealed record MemberBody(
-        Guid Id, string? UserId, string Email, string DisplayName, string MembershipStatus);
+    private sealed record MemberBody(Guid Id, string DisplayName);
 
     /// <summary>Mirrors TrainerSummary.</summary>
     private sealed record TrainerBody(Guid Id, string DisplayName);
@@ -132,9 +130,7 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
         var email = UniqueEmail(role.ToLowerInvariant());
         await fixture.CreateUserAsync(email, status, role, displayName);
 
-        var members = await admin.GetFromJsonAsync<List<MemberBody>>("/api/admin/members");
-
-        return members!.Single(m => m.Email == email).Id;
+        return await fixture.FindMemberIdAsync(admin, email);
     }
 
     private Task<Guid> CreateTrainerAsync(HttpClient admin, string? displayName = null) =>
@@ -516,8 +512,8 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
 
         var created = await PostClassAsync(admin, type.Id, NextSlot(), trainerId);
 
-        var members = await admin.GetFromJsonAsync<List<MemberBody>>("/api/admin/members");
-        var expected = members!.Single(m => m.Id == trainerId).DisplayName;
+        var expected = (await admin.GetFromJsonAsync<MemberBody>($"/api/admin/members/{trainerId}"))!
+            .DisplayName;
 
         Assert.Equal(trainerId, created.InstructorMemberId);
         Assert.Equal(expected, created.Instructor);
@@ -551,8 +547,8 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
         // navigation still points at the PREVIOUS account after the id is reassigned - projecting
         // from that navigation would return a stale name with a correct id, and every other
         // assertion here would still pass.
-        var members = await admin.GetFromJsonAsync<List<MemberBody>>("/api/admin/members");
-        var expected = members!.Single(m => m.Id == replacement).DisplayName;
+        var expected = (await admin.GetFromJsonAsync<MemberBody>($"/api/admin/members/{replacement}"))!
+            .DisplayName;
 
         Assert.Equal(expected, body.Instructor);
         Assert.NotEqual(created.Instructor, body.Instructor);

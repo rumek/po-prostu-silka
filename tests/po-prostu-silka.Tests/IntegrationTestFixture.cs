@@ -321,6 +321,34 @@ public class IntegrationTestFixture : IAsyncLifetime
     }
 
     /// <summary>
+    /// The member id behind an e-mail, found the way the admin finds one: through the list's search.
+    ///
+    /// <para>
+    /// WHY NOT THE WHOLE LIST (S-21). Two dozen call sites used to fetch <c>GET /api/admin/members</c>
+    /// and pick the row out with <c>Single</c> — silently assuming the whole club fits in one
+    /// response. It no longer does, and in a suite sharing one database the member a test just
+    /// created is exactly the one likeliest to land past the first page. Searching by the address
+    /// asks for that member alone, whatever the size of the club.
+    /// </para>
+    ///
+    /// <para>
+    /// The search is a SUBSTRING match, so the rows are narrowed to the exact address before
+    /// <c>Single</c> — which still fails loudly on zero matches, or on two.
+    /// </para>
+    /// </summary>
+    public async Task<Guid> FindMemberIdAsync(HttpClient admin, string email)
+    {
+        var page = await admin.GetFromJsonAsync<MemberPageBody<MemberLookupBody>>(
+            $"/api/admin/members?search={Uri.EscapeDataString(email)}");
+
+        return page!.Items
+            .Single(m => string.Equals(m.Email, email, StringComparison.OrdinalIgnoreCase))
+            .Id;
+    }
+
+    private sealed record MemberLookupBody(Guid Id, string? Email);
+
+    /// <summary>
     /// A signed-in client whose session FAILS the ActiveMember policy (S-16).
     ///
     /// <para>
@@ -440,6 +468,12 @@ public static class TestUsers
     /// <summary>An approved member who also holds Trainer - what promoting a member actually produces.</summary>
     public const string ActiveTrainerEmail = "active-trainer@test.local";
 }
+
+/// <summary>
+/// Mirrors <c>PagedResult&lt;T&gt;</c> — the envelope <c>GET /api/admin/members</c> answers with since
+/// S-21. Generic, so each test file keeps its own narrow row record inside it.
+/// </summary>
+public sealed record MemberPageBody<T>(List<T> Items, int Total, int Page, int PageSize);
 
 [CollectionDefinition(nameof(IntegrationCollection))]
 public class IntegrationCollection : ICollectionFixture<IntegrationTestFixture>;

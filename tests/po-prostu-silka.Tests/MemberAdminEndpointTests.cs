@@ -3,7 +3,9 @@ using System.Net.Http.Json;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using po_prostu_silka.Application.Members;
 using po_prostu_silka.Domain;
+using po_prostu_silka.Domain.Members;
 using po_prostu_silka.Infrastructure.Persistence;
 
 namespace po_prostu_silka.Tests;
@@ -388,12 +390,14 @@ public class MemberAdminEndpointTests(IntegrationTestFixture fixture)
     {
         var admin = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveAdminEmail);
 
-        var members = await admin.GetFromJsonAsync<MemberSummaryBody[]>("/api/admin/members");
+        var admins = await ItemsAsync(admin, Search(TestUsers.ActiveAdminEmail));
 
-        var adminRow = Assert.Single(members!, m => m.Email == TestUsers.ActiveAdminEmail);
+        var adminRow = Assert.Single(admins, m => m.Email == TestUsers.ActiveAdminEmail);
         Assert.Contains(ApplicationRoles.Admin, adminRow.Roles);
 
-        var memberRow = Assert.Single(members!, m => m.Email == TestUsers.ActiveMemberEmail);
+        var members = await ItemsAsync(admin, Search(TestUsers.ActiveMemberEmail));
+
+        var memberRow = Assert.Single(members, m => m.Email == TestUsers.ActiveMemberEmail);
         Assert.Contains(ApplicationRoles.User, memberRow.Roles);
         Assert.DoesNotContain(ApplicationRoles.Admin, memberRow.Roles);
     }
@@ -405,9 +409,186 @@ public class MemberAdminEndpointTests(IntegrationTestFixture fixture)
         var admin = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveAdminEmail);
         await admin.PostAsync($"/api/admin/members/{id}/roles/trainer", content: null);
 
-        var members = await admin.GetFromJsonAsync<MemberSummaryBody[]>("/api/admin/members");
+        var members = await ItemsAsync(admin, Search(email));
 
-        var row = Assert.Single(members!, m => m.Email == email);
+        var row = Assert.Single(members, m => m.Email == email);
         Assert.Contains(ApplicationRoles.Trainer, row.Roles);
     }
+
+    // --- the list: paging and search (S-21) -----------------------------------
+    //
+    // The database is SHARED across the collection, so no test here can know the club's size. Each
+    // one seeds its members under a marker nobody else holds and searches for it, which is what
+    // makes the totals below exact rather than "at least".
+
+    private static string NewMarker() => Guid.NewGuid().ToString("N")[..12];
+
+    private Task<HttpClient> ListAdminAsync() =>
+        fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveAdminEmail);
+
+    private static async Task<MemberPageBody<MemberSummaryBody>> PageAsync(HttpClient admin, string query) =>
+        (await admin.GetFromJsonAsync<MemberPageBody<MemberSummaryBody>>($"/api/admin/members?{query}"))!;
+
+    private static async Task<List<MemberSummaryBody>> ItemsAsync(HttpClient admin, string query) =>
+        (await PageAsync(admin, query)).Items;
+
+    private static string Search(string term) => $"search={Uri.EscapeDataString(term)}";
+
+    [Fact]
+    public async Task Member_list_returns_a_page_envelope_with_the_total()
+    {
+        var marker = NewMarker();
+        var ids = new[]
+        {
+            await fixture.CreateMemberAsync($"Strona {marker} A"),
+            await fixture.CreateMemberAsync($"Strona {marker} B"),
+            await fixture.CreateMemberAsync($"Strona {marker} C"),
+        };
+        var admin = await ListAdminAsync();
+
+        var first = await PageAsync(admin, $"{Search(marker)}&pageSize=2");
+        var second = await PageAsync(admin, $"{Search(marker)}&pageSize=2&page=2");
+
+        Assert.Equal(2, first.Items.Count);
+        Assert.Equal(3, first.Total);
+        Assert.Equal(1, first.Page);
+        Assert.Equal(2, first.PageSize);
+
+        Assert.Single(second.Items);
+        Assert.Equal(3, second.Total);
+        Assert.Equal(2, second.Page);
+
+        Assert.Equal(ids.Order(), first.Items.Concat(second.Items).Select(m => m.Id).Order());
+    }
+
+    /// <summary>
+    /// Without the id tiebreak, three people with one name have no defined order, and a page
+    /// boundary between them may show one twice and another never.
+    /// </summary>
+    [Fact]
+    public async Task Member_list_pages_are_stable_when_names_tie()
+    {
+        var name = $"Remis {NewMarker()}";
+        var ids = new[]
+        {
+            await fixture.CreateMemberAsync(name),
+            await fixture.CreateMemberAsync(name),
+            await fixture.CreateMemberAsync(name),
+        };
+        var admin = await ListAdminAsync();
+
+        var seen = new List<Guid>();
+        for (var page = 1; page <= 3; page++)
+        {
+            seen.Add(Assert.Single(await ItemsAsync(admin, $"{Search(name)}&pageSize=1&page={page}")).Id);
+        }
+
+        Assert.Equal(ids.Order(), seen.Order());
+    }
+
+    [Fact]
+    public async Task Member_list_search_matches_email_substring()
+    {
+        var marker = NewMarker();
+        var id = await fixture.CreateMemberAsync("Szukany Po Adresie", email: $"adres-{marker}@example.test");
+        var admin = await ListAdminAsync();
+
+        var rows = await ItemsAsync(admin, Search($"{marker}@EXAMPLE"));
+
+        Assert.Equal(id, Assert.Single(rows).Id);
+    }
+
+    /// <summary>
+    /// The one only a real engine can answer. <c>ł</c> is the interesting case: it has no Unicode
+    /// decomposition, so no accent-insensitive collation folds it, and the query does it by hand.
+    /// </summary>
+    [Theory]
+    [InlineData("Łukasz", "lukasz")]
+    [InlineData("Michał", "MICHAL")]
+    [InlineData("Żaneta", "ZANETA")]
+    [InlineData("Gęślicka", "geslicka")]
+    public async Task Member_list_search_ignores_case_and_polish_diacritics(string stored, string typed)
+    {
+        var marker = NewMarker();
+        var id = await fixture.CreateMemberAsync($"{stored} {marker}");
+        var admin = await ListAdminAsync();
+
+        var rows = await ItemsAsync(admin, Search($"{typed} {marker}"));
+
+        Assert.Equal(id, Assert.Single(rows).Id);
+    }
+
+    /// <summary>
+    /// A <c>%</c>, <c>_</c> or <c>[</c> the admin types is a character, not a pattern: unescaped,
+    /// "50%" would also find "50 zł", "a_b" would find "axb", and "[a]" would find a bare "a".
+    /// </summary>
+    [Theory]
+    [InlineData("50% rabatu", "50 zl rabatu", "50%")]
+    [InlineData("a_b", "axb", "a_b")]
+    [InlineData("[a]", "a", "[a]")]
+    public async Task Member_list_search_treats_wildcards_literally(string literal, string lookalike, string typed)
+    {
+        var marker = NewMarker();
+        var id = await fixture.CreateMemberAsync($"Znak {marker} {literal}");
+        await fixture.CreateMemberAsync($"Znak {marker} {lookalike}");
+        var admin = await ListAdminAsync();
+
+        var rows = await ItemsAsync(admin, Search($"{marker} {typed}"));
+
+        Assert.Equal(id, Assert.Single(rows).Id);
+    }
+
+    [Fact]
+    public async Task Member_list_search_composes_with_the_filter()
+    {
+        var marker = NewMarker();
+        var blocked = await fixture.CreateMemberAsync($"Filtr {marker} Z", MembershipStatus.Blocked);
+        await fixture.CreateMemberAsync($"Filtr {marker} A");
+        var admin = await ListAdminAsync();
+
+        var page = await PageAsync(admin, $"filter=Blocked&{Search(marker)}");
+
+        Assert.Equal(blocked, Assert.Single(page.Items).Id);
+        Assert.Equal(1, page.Total);
+    }
+
+    /// <summary>
+    /// Past the end is not an error: a block or a new filter can shrink the list under a page the
+    /// SPA is showing, and the true total is how it finds its way back.
+    /// </summary>
+    [Fact]
+    public async Task Member_list_page_past_the_end_is_empty_with_the_total()
+    {
+        var marker = NewMarker();
+        await fixture.CreateMemberAsync($"Koniec {marker}");
+        var admin = await ListAdminAsync();
+
+        var page = await PageAsync(admin, $"{Search(marker)}&page=5");
+
+        Assert.Empty(page.Items);
+        Assert.Equal(1, page.Total);
+        Assert.Equal(5, page.Page);
+    }
+
+    public static TheoryData<string, string> InvalidListQueries => new()
+    {
+        { "page=0", "invalid_page" },
+        { "pageSize=0", "invalid_page" },
+        { $"pageSize={GetMembers.MaxPageSize + 1}", "invalid_page" },
+        { $"search={new string('a', GetMembers.MaxSearchLength + 1)}", "invalid_search" },
+    };
+
+    [Theory]
+    [MemberData(nameof(InvalidListQueries))]
+    public async Task Member_list_rejects_invalid_paging(string query, string reason)
+    {
+        var admin = await ListAdminAsync();
+
+        var response = await admin.GetAsync($"/api/admin/members?{query}");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(reason, (await response.Content.ReadFromJsonAsync<ListFailureBody>())!.Reason);
+    }
+
+    private sealed record ListFailureBody(string Reason);
 }

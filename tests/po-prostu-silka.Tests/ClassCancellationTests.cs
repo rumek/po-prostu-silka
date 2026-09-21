@@ -50,13 +50,6 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
     /// <summary>Mirrors ClassTypeSummary — only what these tests read from it.</summary>
     private sealed record ClassTypeBody(Guid Id, string Name);
 
-    /// <summary>Mirrors MemberSummary — only what these tests read from it.</summary>
-    /// <summary>
-    /// Mirrors MemberSummary — only what these tests read from it. Since S-14 that includes
-    /// <c>UserId</c>: <c>Id</c> is now the MEMBER, and these tests want the account behind them.
-    /// </summary>
-    private sealed record MemberBody(Guid Id, string? UserId, string Email);
-
     /// <summary>Mirrors MyBooking - only what these tests read from it.</summary>
     private sealed record MyBookingBody(Guid BookingId, Guid ClassId, string Name, DateTimeOffset StartsAt);
 
@@ -116,9 +109,7 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
         await fixture.CreateUserAsync(
             email, AccountStatus.Active, ApplicationRoles.Trainer, displayName);
 
-        var members = await admin.GetFromJsonAsync<List<MemberBody>>("/api/admin/members");
-
-        return members!.Single(m => m.Email == email).Id;
+        return await fixture.FindMemberIdAsync(admin, email);
     }
 
     private async Task<(HttpClient Admin, ClassTypeBody Type, Guid TrainerId)> ArrangeAsync()

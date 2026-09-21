@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using po_prostu_silka.Application.Members;
+using po_prostu_silka.Application.Paging;
 using po_prostu_silka.Domain;
 using po_prostu_silka.Domain.Members;
 using po_prostu_silka.Infrastructure.Persistence;
@@ -14,7 +15,7 @@ namespace po_prostu_silka.Infrastructure.Members;
 /// PROJECTED FROM MEMBERS, LEFT-JOINED TO ACCOUNTS since S-14, and the direction matters: a member may
 /// have no account, so driving the query from <c>db.Users</c> would silently omit exactly the people
 /// this slice exists to show. AsNoTracking and projected in the database, so the list costs a few
-/// columns rather than whole rows.
+/// columns rather than whole rows — and since S-21 one page of them rather than the whole club.
 /// </para>
 ///
 /// <para>
@@ -29,14 +30,48 @@ namespace po_prostu_silka.Infrastructure.Members;
 /// </summary>
 public class MemberQuery(AppDbContext db) : IMemberQuery
 {
-    public async Task<IReadOnlyList<MemberSummary>> GetMembersAsync(
+    /// <summary>
+    /// The collation a search compares under: case- AND accent-insensitive, so "gesl" finds
+    /// "Gęślicka" and "ZANETA" finds "Żaneta". The 100 series, because the older Latin1_General
+    /// tables predate several of the weights this depends on.
+    /// </summary>
+    private const string SearchCollation = "Latin1_General_100_CI_AI";
+
+    /// <summary>
+    /// Filter, then search, then count, then order and page — and only then project, so the Roles
+    /// correlation runs for the page's rows rather than for every match.
+    ///
+    /// <para>
+    /// TWO ROUND-TRIPS: a COUNT over the filtered and searched set, and the page itself. Accepted —
+    /// both are small at one club's scale, and folding the total into the page query would cost a
+    /// window function over every match for the same answer.
+    /// </para>
+    ///
+    /// <para>
+    /// NO INDEX HELPS THE SEARCH, and none is added: a substring match (<c>LIKE '%x%'</c>) cannot
+    /// seek a B-tree, and the collation and the <c>ł</c> fold below would defeat one anyway. It is a
+    /// scan of Members, bounded by the SPA's debounce. The filter still seeks IX_Members_Status.
+    /// </para>
+    /// </summary>
+    public async Task<PagedResult<MemberSummary>> GetMembersAsync(
         MemberListFilter? filter,
+        string? search,
+        int page,
+        int pageSize,
         CancellationToken cancellationToken)
     {
-        var members = Filtered(db.Members.AsNoTracking(), filter);
+        var members = Searched(Filtered(db.Members.AsNoTracking(), filter), search);
+
+        var total = await members.CountAsync(cancellationToken);
 
         var rows = await members
+            // THE ID TIEBREAK IS LOAD-BEARING. Two members called "Anna Nowak" have no defined order
+            // between them without it, so the engine may put one on both sides of a page boundary -
+            // shown twice, or never.
             .OrderBy(m => m.DisplayName)
+            .ThenBy(m => m.Id)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .Select(m => new
             {
                 m.Id,
@@ -70,7 +105,7 @@ public class MemberQuery(AppDbContext db) : IMemberQuery
 
         // Enum -> name after materialising: ToString() on an enum has no SQL translation, and forcing
         // one would cost more than mapping a short list in memory.
-        return rows
+        var items = rows
             .Select(r => new MemberSummary(
                 r.Id,
                 r.UserId,
@@ -82,6 +117,8 @@ public class MemberQuery(AppDbContext db) : IMemberQuery
                 r.HasAccessCode,
                 r.CreatedAt))
             .ToList();
+
+        return new PagedResult<MemberSummary>(items, total, page, pageSize);
     }
 
     public async Task<MemberDetail?> FindDetailAsync(Guid memberId, CancellationToken cancellationToken)
@@ -192,4 +229,38 @@ public class MemberQuery(AppDbContext db) : IMemberQuery
 
             _ => members,
         };
+
+    /// <summary>
+    /// A substring of the display name OR the e-mail, case- and accent-insensitive (S-21).
+    ///
+    /// <para>
+    /// <c>ł</c> IS FOLDED BY HAND, on both sides. Every other Polish diacritic decomposes into a base
+    /// letter plus a combining mark, which is what an accent-insensitive collation ignores; <c>ł</c>
+    /// is a letter of its own with no decomposition, so under any AI collation "lukasz" still does
+    /// not find "Łukasz". An admin on a phone rarely types Polish letters, and Ł starts common names.
+    /// </para>
+    ///
+    /// <para>
+    /// A <c>%</c> or <c>_</c> in the term matches literally: EF translates <c>Contains</c> over a
+    /// parameter with the wildcards escaped, and <c>MemberAdminEndpointTests</c> pins that.
+    /// </para>
+    /// </summary>
+    private static IQueryable<Member> Searched(IQueryable<Member> members, string? search)
+    {
+        if (search is null)
+        {
+            return members;
+        }
+
+        var term = FoldL(search);
+
+        return members.Where(m =>
+            EF.Functions.Collate(m.DisplayName.Replace("ł", "l").Replace("Ł", "L"), SearchCollation)
+                .Contains(term)
+            || (m.Email != null
+                && EF.Functions.Collate(m.Email.Replace("ł", "l").Replace("Ł", "L"), SearchCollation)
+                    .Contains(term)));
+    }
+
+    private static string FoldL(string value) => value.Replace('ł', 'l').Replace('Ł', 'L');
 }

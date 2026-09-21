@@ -34,9 +34,6 @@ public class AdminBookingEndpointTests(IntegrationTestFixture fixture)
     /// <summary>Mirrors ClassTypeSummary — only what these tests read from it.</summary>
     private sealed record ClassTypeBody(Guid Id, string Name);
 
-    /// <summary>Mirrors MemberSummary — only what these tests read from it.</summary>
-    private sealed record MemberBody(Guid Id, string? UserId, string Email);
-
     /// <summary>Mirrors ClassBooking.</summary>
     private sealed record ClassBookingBody(
         Guid BookingId,
@@ -89,9 +86,7 @@ public class AdminBookingEndpointTests(IntegrationTestFixture fixture)
         var email = $"trainer-{Guid.NewGuid():N}@test.local";
         await fixture.CreateUserAsync(email, AccountStatus.Active, ApplicationRoles.Trainer);
 
-        var members = await admin.GetFromJsonAsync<List<MemberBody>>("/api/admin/members");
-
-        return members!.Single(m => m.Email == email).Id;
+        return await fixture.FindMemberIdAsync(admin, email);
     }
 
     /// <summary>A class with the given capacity, and the admin who made it.</summary>
@@ -144,8 +139,7 @@ public class AdminBookingEndpointTests(IntegrationTestFixture fixture)
         await fixture.CreateUserAsync(
             email, AccountStatus.Active, ApplicationRoles.User, additionalRole: ApplicationRoles.Trainer);
 
-        var members = await admin.GetFromJsonAsync<List<MemberBody>>("/api/admin/members");
-        var memberId = members!.Single(m => m.Email == email).Id;
+        var memberId = await fixture.FindMemberIdAsync(admin, email);
 
         return (await fixture.CreateAuthenticatedClientAsync(email), memberId);
     }
@@ -311,8 +305,7 @@ public class AdminBookingEndpointTests(IntegrationTestFixture fixture)
         await fixture.CreateUserAsync(email, AccountStatus.Active, ApplicationRoles.User);
         await fixture.IssuePassForAccountAsync(email);
 
-        var members = await admin.GetFromJsonAsync<List<MemberBody>>("/api/admin/members");
-        var memberId = members!.Single(m => m.Email == email).Id;
+        var memberId = await fixture.FindMemberIdAsync(admin, email);
 
         Assert.Equal(HttpStatusCode.OK, (await BookAsync(admin, scheduled.Id, memberId)).StatusCode);
 

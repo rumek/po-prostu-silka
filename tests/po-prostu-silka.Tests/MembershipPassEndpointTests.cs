@@ -309,8 +309,7 @@ public class MembershipPassEndpointTests(IntegrationTestFixture fixture)
 
         var trainerEmail = $"pass-trainer-{Guid.NewGuid():N}@test.local";
         await fixture.CreateUserAsync(trainerEmail, AccountStatus.Active, ApplicationRoles.Trainer);
-        var members = await admin.GetFromJsonAsync<List<MemberRow>>("/api/admin/members");
-        var trainerId = members!.Single(m => m.Email == trainerEmail).Id;
+        var trainerId = await fixture.FindMemberIdAsync(admin, trainerEmail);
 
         var typeResponse = await admin.PostAsJsonAsync("/api/admin/class-types", new
         {
@@ -506,8 +505,7 @@ public class MembershipPassEndpointTests(IntegrationTestFixture fixture)
         var email = $"karnet-holder-{Guid.NewGuid():N}@test.local";
         await fixture.CreateUserAsync(email, AccountStatus.Active, ApplicationRoles.User);
 
-        var memberId = (await admin.GetFromJsonAsync<List<MemberRow>>("/api/admin/members"))!
-            .Single(m => m.Email == email).Id;
+        var memberId = await fixture.FindMemberIdAsync(admin, email);
 
         var today = DateOnly.FromDateTime(
             po_prostu_silka.Domain.Scheduling.ClubTime.ToClubLocal(DateTimeOffset.UtcNow).DateTime);
@@ -540,8 +538,7 @@ public class MembershipPassEndpointTests(IntegrationTestFixture fixture)
         var email = $"karnet-expired-{Guid.NewGuid():N}@test.local";
         await fixture.CreateUserAsync(email, AccountStatus.Active, ApplicationRoles.User);
 
-        var memberId = (await admin.GetFromJsonAsync<List<MemberRow>>("/api/admin/members"))!
-            .Single(m => m.Email == email).Id;
+        var memberId = await fixture.FindMemberIdAsync(admin, email);
 
         var today = DateOnly.FromDateTime(
             po_prostu_silka.Domain.Scheduling.ClubTime.ToClubLocal(DateTimeOffset.UtcNow).DateTime);
@@ -555,9 +552,6 @@ public class MembershipPassEndpointTests(IntegrationTestFixture fixture)
         Assert.Equal(
             HttpStatusCode.NoContent, (await member.GetAsync("/api/passes/mine")).StatusCode);
     }
-
-    /// <summary>Mirrors MemberSummary — only what these tests read from it.</summary>
-    private sealed record MemberRow(Guid Id, string? Email);
 
     /// <summary>
     /// THE TEST THE STAMP ROTATION EXISTS FOR. Two admins issue overlapping passes at the same

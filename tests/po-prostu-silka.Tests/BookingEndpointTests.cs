@@ -46,13 +46,6 @@ public class BookingEndpointTests(IntegrationTestFixture fixture)
     /// <summary>Mirrors ClassTypeSummary — only what these tests read from it.</summary>
     private sealed record ClassTypeBody(Guid Id, string Name);
 
-    /// <summary>Mirrors MemberSummary — only what these tests read from it.</summary>
-    /// <summary>
-    /// Mirrors MemberSummary — only what these tests read from it. Since S-14 that includes
-    /// <c>UserId</c>: <c>Id</c> is now the MEMBER, and these tests want the account behind them.
-    /// </summary>
-    private sealed record MemberBody(Guid Id, string? UserId, string Email);
-
     /// <summary>Mirrors MyBooking.</summary>
     private sealed record MyBookingBody(
         Guid BookingId,
@@ -131,9 +124,7 @@ public class BookingEndpointTests(IntegrationTestFixture fixture)
         var email = $"{role.ToLowerInvariant()}-{Guid.NewGuid():N}@test.local";
         await fixture.CreateUserAsync(email, status, role);
 
-        var members = await admin.GetFromJsonAsync<List<MemberBody>>("/api/admin/members");
-
-        return members!.Single(m => m.Email == email).Id;
+        return await fixture.FindMemberIdAsync(admin, email);
     }
 
     /// <summary>
@@ -931,8 +922,7 @@ public class BookingEndpointTests(IntegrationTestFixture fixture)
 
         await BookAsync(member, upcoming.Id);
 
-        var memberId = (await admin.GetFromJsonAsync<List<MemberBody>>("/api/admin/members"))!
-            .Single(m => m.Email == email).Id;
+        var memberId = await fixture.FindMemberIdAsync(admin, email);
 
         await using (var db = NewContext())
         {

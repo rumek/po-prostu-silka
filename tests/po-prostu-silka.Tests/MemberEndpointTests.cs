@@ -437,9 +437,9 @@ public class MemberEndpointTests(IntegrationTestFixture fixture)
         var name = $"Na Liście {Guid.NewGuid():N}";
         var id = await CreateAsync(admin, Request(displayName: name));
 
-        var rows = await admin.GetFromJsonAsync<MemberSummaryBody[]>(Endpoint);
+        var rows = await ListAsync(admin, $"search={Uri.EscapeDataString(name)}");
 
-        var row = Assert.Single(rows!, r => r.Id == id);
+        var row = Assert.Single(rows, r => r.Id == id);
         Assert.Equal(name, row.DisplayName);
         Assert.Null(row.UserId);
         Assert.Null(row.AccountStatus);
@@ -452,10 +452,10 @@ public class MemberEndpointTests(IntegrationTestFixture fixture)
         var admin = await AdminAsync();
         var id = await CreateAsync(admin, Request(displayName: $"Filtr {Guid.NewGuid():N}"));
 
-        var rows = await admin.GetFromJsonAsync<MemberSummaryBody[]>($"{Endpoint}?filter=WithoutAccount");
+        var rows = await ListAsync(admin, "filter=WithoutAccount&search=Filtr");
 
-        Assert.Contains(rows!, r => r.Id == id);
-        Assert.All(rows!, r => Assert.Null(r.UserId));
+        Assert.Contains(rows, r => r.Id == id);
+        Assert.All(rows, r => Assert.Null(r.UserId));
     }
 
     /// <summary>
@@ -466,26 +466,32 @@ public class MemberEndpointTests(IntegrationTestFixture fixture)
     public async Task The_active_filter_spans_both_kinds_of_member()
     {
         var admin = await AdminAsync();
-        var id = await CreateAsync(admin, Request(displayName: $"Aktywny {Guid.NewGuid():N}"));
+        var name = $"Aktywny {Guid.NewGuid():N}";
+        var id = await CreateAsync(admin, Request(displayName: name));
 
-        var rows = await admin.GetFromJsonAsync<MemberSummaryBody[]>($"{Endpoint}?filter=Active");
-
-        Assert.Contains(rows!, r => r.Id == id);
-        Assert.Contains(rows!, r => r.Email == TestUsers.ActiveMemberEmail);
-        Assert.DoesNotContain(rows!, r => r.Email == TestUsers.BlockedMemberEmail);
+        // Searched, one person at a time: the list is paged since S-21, so "is X in the whole
+        // filtered list" is only answerable by asking for X.
+        Assert.Contains(await ListAsync(admin, $"filter=Active&search={Uri.EscapeDataString(name)}"), r => r.Id == id);
+        Assert.Contains(
+            await ListAsync(admin, $"filter=Active&search={TestUsers.ActiveMemberEmail}"),
+            r => r.Email == TestUsers.ActiveMemberEmail);
+        Assert.DoesNotContain(
+            await ListAsync(admin, $"filter=Active&search={TestUsers.BlockedMemberEmail}"),
+            r => r.Email == TestUsers.BlockedMemberEmail);
     }
 
     [Fact]
     public async Task The_blocked_filter_includes_a_blocked_accountless_member()
     {
         var admin = await AdminAsync();
-        var id = await CreateAsync(admin, Request(displayName: $"Zablokowany {Guid.NewGuid():N}"));
+        var name = $"Zablokowany {Guid.NewGuid():N}";
+        var id = await CreateAsync(admin, Request(displayName: name));
         await admin.PostAsync($"{Endpoint}/{id}/block", content: null);
 
-        var rows = await admin.GetFromJsonAsync<MemberSummaryBody[]>($"{Endpoint}?filter=Blocked");
+        var rows = await ListAsync(admin, "filter=Blocked&search=Zablokowany");
 
-        Assert.Contains(rows!, r => r.Id == id);
-        Assert.All(rows!, r => Assert.Equal(nameof(MembershipStatus.Blocked), r.MembershipStatus));
+        Assert.Contains(rows, r => r.Id == id);
+        Assert.All(rows, r => Assert.Equal(nameof(MembershipStatus.Blocked), r.MembershipStatus));
     }
 
     /// <summary>
@@ -511,6 +517,10 @@ public class MemberEndpointTests(IntegrationTestFixture fixture)
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
+
+    /// <summary>The page's rows for a query string. Page size at the maximum, so a marker search is never cut short.</summary>
+    private static async Task<List<MemberSummaryBody>> ListAsync(HttpClient admin, string query) =>
+        (await admin.GetFromJsonAsync<MemberPageBody<MemberSummaryBody>>($"{Endpoint}?{query}&pageSize=100"))!.Items;
 
     private async Task<string> UserIdOfAsync(string email)
     {

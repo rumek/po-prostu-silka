@@ -48,13 +48,8 @@ public class MyPlanEndpointTests(IntegrationTestFixture fixture)
 
     private sealed record ExerciseBody(Guid Id, string Name, string? Execution, string? VideoId, bool IsActive);
 
-    /// <summary>
-    /// Mirrors MemberSummary. Since S-14 <c>Id</c> is the MEMBER and <c>UserId</c> the account
-    /// behind them; training plans still key on the account at this phase, so these tests read
-    /// <c>UserId</c>.
-    /// </summary>
-    private sealed record AdminMemberRow(
-        Guid Id, string? UserId, string Email, string DisplayName, string MembershipStatus);
+    /// <summary>Mirrors MemberDetail — only what these tests read from it.</summary>
+    private sealed record AdminMemberRow(Guid Id, string? Email);
 
     private const string Mine = "/api/plans/mine";
 
@@ -71,8 +66,7 @@ public class MyPlanEndpointTests(IntegrationTestFixture fixture)
         await fixture.CreateUserAsync(email, AccountStatus.Active, ApplicationRoles.User);
 
         var admin = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveAdminEmail);
-        var all = await admin.GetFromJsonAsync<List<AdminMemberRow>>("/api/admin/members");
-        var id = all!.Single(x => string.Equals(x.Email, email, StringComparison.OrdinalIgnoreCase)).Id;
+        var id = await fixture.FindMemberIdAsync(admin, email);
 
         return (id, await fixture.CreateAuthenticatedClientAsync(email));
     }
@@ -422,8 +416,8 @@ public class MyPlanEndpointTests(IntegrationTestFixture fixture)
     private async Task<string> EmailOfAsync(Guid memberId)
     {
         var admin = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveAdminEmail);
-        var all = await admin.GetFromJsonAsync<List<AdminMemberRow>>("/api/admin/members");
+        var member = await admin.GetFromJsonAsync<AdminMemberRow>($"/api/admin/members/{memberId}");
 
-        return all!.Single(x => x.Id == memberId).Email!;
+        return member!.Email!;
     }
 }
