@@ -1,7 +1,11 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using po_prostu_silka.Domain;
+using po_prostu_silka.Domain.Training;
+using po_prostu_silka.Infrastructure.Persistence;
 
 namespace po_prostu_silka.Tests;
 
@@ -10,7 +14,7 @@ namespace po_prostu_silka.Tests;
 ///
 /// <para>
 /// THE REASON THIS RUNS AGAINST A REAL ENGINE: the slice's central rule - a member has at most ONE
-/// active plan - is enforced by a FILTERED unique index (<c>IX_TrainingPlans_Member_Active</c>,
+/// active plan - is enforced by a FILTERED unique index (<c>IX_TrainingPlans_MemberId_Active</c>,
 /// <c>HasFilter("[Status] = 0")</c>) backing a rotated concurrency token. No in-memory provider
 /// implements filtered indexes or optimistic concurrency the way SQL Server does, so
 /// <see cref="Concurrent_assignments_leave_exactly_one_active_plan"/> is the only test that actually
@@ -56,18 +60,11 @@ public class TrainingPlanEndpointTests(IntegrationTestFixture fixture)
         DateTimeOffset CreatedAt,
         IReadOnlyList<ItemBody> Items);
 
-    /// <summary>Mirrors TrainingPlanSummary.</summary>
-    private sealed record PlanRow(
-        Guid Id,
-        string Name,
-        Guid MemberId,
-        string MemberDisplayName,
-        string AssignedByDisplayName,
-        DateTimeOffset CreatedAt,
-        int ItemCount);
-
-    /// <summary>Mirrors AssignableMember.</summary>
-    private sealed record MemberRow(Guid Id, string DisplayName, bool HasAccount);
+    /// <summary>
+    /// Mirrors MemberPlan's plan half — the read that replaced the retired plan list (S-22). The list
+    /// and picker payloads these tests used to mirror went with their routes.
+    /// </summary>
+    private sealed record MemberPlanBody(PlanBody? Plan);
 
     /// <summary>Mirrors ExerciseSummary, for the exercises these plans are built from.</summary>
     private sealed record ExerciseBody(Guid Id, string Name, bool IsActive);
@@ -142,8 +139,6 @@ public class TrainingPlanEndpointTests(IntegrationTestFixture fixture)
 
     public static TheoryData<string, string> EveryRoute => new()
     {
-        { "GET", Endpoint },
-        { "GET", $"{Endpoint}/members" },
         { "GET", $"{Endpoint}/{Guid.Empty}" },
         { "POST", Endpoint },
         { "PUT", $"{Endpoint}/{Guid.Empty}" },
@@ -287,11 +282,13 @@ public class TrainingPlanEndpointTests(IntegrationTestFixture fixture)
         var first = await AssignAsync(trainer, memberId, Item(exerciseId));
         var second = await AssignAsync(trainer, memberId, Item(exerciseId));
 
-        var active = await trainer.GetFromJsonAsync<List<PlanRow>>(Endpoint);
-        var mine = active!.Where(x => x.MemberId == memberId).ToList();
+        // Through the member-plan read since S-22 retired the list: the member's plan IS the second.
+        var current = await trainer.GetFromJsonAsync<MemberPlanBody>(
+            $"/api/trainer/members/{memberId}/plan");
 
         Assert.NotEqual(first.Id, second.Id);
-        Assert.Equal(second.Id, Assert.Single(mine).Id);
+        Assert.Equal(second.Id, current!.Plan!.Id);
+        Assert.Equal(second.Name, current.Plan.Name);
 
         // The archived plan is still addressable by id - the row survives, which is what makes a
         // history screen a later feature rather than a data-recovery exercise.
@@ -311,7 +308,7 @@ public class TrainingPlanEndpointTests(IntegrationTestFixture fixture)
     ///
     /// <para>
     /// It exercises both guards at once. Racers that find no active plan collide on
-    /// IX_TrainingPlans_Member_Active (the stamp cannot help - there is no row to rotate); racers
+    /// IX_TrainingPlans_MemberId_Active (the stamp cannot help - there is no row to rotate); racers
     /// that find one collide on the stamp. Comment out the rotation in CreateAsync and this test is
     /// what fails.
     /// </para>
@@ -339,10 +336,16 @@ public class TrainingPlanEndpointTests(IntegrationTestFixture fixture)
             response.StatusCode is HttpStatusCode.OK or HttpStatusCode.Conflict,
             $"unexpected {(int)response.StatusCode} from a racing assignment"));
 
-        var reader = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveTrainerEmail);
-        var active = await reader.GetFromJsonAsync<List<PlanRow>>(Endpoint);
+        // A COUNT, read from the table itself. The member-plan read returns one plan by construction,
+        // so it could not tell one active plan from two — and two is exactly what this test hunts.
+        using var scope = fixture.Factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-        Assert.Single(active!, x => x.MemberId == memberId);
+        var active = await db.TrainingPlans
+            .AsNoTracking()
+            .CountAsync(x => x.MemberId == memberId && x.Status == TrainingPlanStatus.Active);
+
+        Assert.Equal(1, active);
     }
 
     // --- editing --------------------------------------------------------------
@@ -442,59 +445,25 @@ public class TrainingPlanEndpointTests(IntegrationTestFixture fixture)
         Assert.Equal("member_not_active", (await response.Content.ReadFromJsonAsync<FailureBody>())!.Reason);
     }
 
-    /// <summary>The picker offers approved accounts only - a plan cannot be assigned to the others.</summary>
-    [Fact]
-    public async Task The_member_picker_offers_active_accounts_only()
-    {
-        var trainer = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveTrainerEmail);
-        var pendingId = await NewMemberIdAsync(AccountStatus.Pending);
-        var activeId = await NewMemberIdAsync();
-
-        var members = await trainer.GetFromJsonAsync<List<MemberRow>>($"{Endpoint}/members");
-
-        Assert.Contains(members!, x => x.Id == activeId);
-        Assert.DoesNotContain(members!, x => x.Id == pendingId);
-    }
+    // --- the retired list and picker (S-22) -------------------------------------
 
     /// <summary>
-    /// THE PICKER CARRIES NO EMAIL. It exists because /api/admin/members is Admin-only and "loosening
-    /// that endpoint instead would have handed every trainer the club's email list"
-    /// (TrainingPlanEndpoints) — and prd.md's privacy NFR keeps member data between the admin and the
-    /// member. A projection change that added the email would pass every other test in this file.
-    ///
-    /// <para>
-    /// Asserted on the RAW body, against a value rather than a field name: deserializing into the
-    /// current shape would only prove the fields it declares, which is a mirror of today's record.
-    /// </para>
+    /// <c>GET /</c> and <c>GET /members</c> went with the Plany screen: a plan is reached through its
+    /// member now (<c>TrainerMemberEndpointTests</c> carries their guarantees — no e-mail, active
+    /// members only). Asserted as the caller who USED to be allowed, so a refusal cannot be explained
+    /// away as authorization, and as "not JSON" rather than a status: an unmatched GET falls through to
+    /// the SPA fallback and may answer 200 with the shell. No 405-versus-404 pin.
     /// </summary>
-    [Fact]
-    public async Task The_member_picker_never_carries_an_email_address()
-    {
-        var email = $"picker-privacy-{Guid.NewGuid():N}@test.local";
-        var displayName = Unique("Picker Privacy");
-        await fixture.CreateUserAsync(email, AccountStatus.Active, ApplicationRoles.User, displayName);
-
-        var trainer = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveTrainerEmail);
-        var body = await trainer.GetStringAsync($"{Endpoint}/members");
-
-        // Listed — otherwise the absence below would prove nothing.
-        Assert.Contains(displayName, body, StringComparison.Ordinal);
-        Assert.DoesNotContain(email, body, StringComparison.OrdinalIgnoreCase);
-    }
-
-    /// <summary>
-    /// The literal segment is registered before the {id:guid} route. The guid constraint would save
-    /// it anyway, but the ordering is the contract and this is what notices if it is reversed.
-    /// </summary>
-    [Fact]
-    public async Task The_members_route_is_not_swallowed_by_the_id_route()
+    [Theory]
+    [InlineData(Endpoint)]
+    [InlineData(Endpoint + "/members")]
+    public async Task The_retired_plan_list_and_picker_answer_no_json(string url)
     {
         var trainer = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveTrainerEmail);
 
-        var response = await trainer.GetAsync($"{Endpoint}/members");
+        var response = await trainer.GetAsync(url);
 
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.NotNull(await response.Content.ReadFromJsonAsync<List<MemberRow>>());
+        Assert.NotEqual("application/json", response.Content.Headers.ContentType?.MediaType);
     }
 
     // --- the exercises a plan references --------------------------------------
@@ -816,19 +785,6 @@ public class TrainingPlanEndpointTests(IntegrationTestFixture fixture)
     }
 
     // --- reading --------------------------------------------------------------
-
-    [Fact]
-    public async Task The_list_counts_items_without_returning_them()
-    {
-        var (trainer, memberId, first) = await ArrangeAsync();
-        var second = await CreateExerciseAsync();
-
-        await AssignAsync(trainer, memberId, Item(first), Item(second));
-
-        var rows = await trainer.GetFromJsonAsync<List<PlanRow>>(Endpoint);
-
-        Assert.Equal(2, rows!.Single(x => x.MemberId == memberId).ItemCount);
-    }
 
     [Fact]
     public async Task Reading_a_plan_that_does_not_exist_is_404()

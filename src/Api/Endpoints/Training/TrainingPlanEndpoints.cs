@@ -30,6 +30,14 @@ namespace po_prostu_silka.Api.Endpoints.Training;
 /// NO DELETE. Assignment archives the plan it replaces (FR-016), and nothing removes a plan, matching
 /// every other aggregate here.
 /// </para>
+///
+/// <para>
+/// NO LIST AND NO MEMBER PICKER since S-22. <c>GET /</c> (every active plan) and <c>GET /members</c>
+/// (the picker) were retired with the Plany screen: a plan is reached through its member now, and the
+/// reads moved to <c>/api/trainer/members</c> (TrainerMemberEndpoints). Writes stay here, addressed by
+/// plan id, so a stale tab editing a plan that was replaced underneath it gets a 404 rather than
+/// overwriting the new one.
+/// </para>
 /// </summary>
 public static class TrainingPlanEndpoints
 {
@@ -51,14 +59,6 @@ public static class TrainingPlanEndpoints
         var plans = app.MapGroup("/api/trainer/plans")
             .WithTags("Training")
             .RequireAuthorization(AuthorizationPolicyNames.TrainerOrAdmin);
-
-        plans.MapGet("/", GetTrainingPlans.HandleAsync);
-
-        // BEFORE the {id:guid} route. The guid constraint would in fact save this one - "members"
-        // does not parse as a Guid - but relying on a constraint to disambiguate a literal is exactly
-        // the trap app.routes.ts warns about three times on the client side, and the next literal
-        // added here might not be so lucky.
-        plans.MapGet("/members", GetAssignableMembers.HandleAsync);
 
         plans.MapGet("/{id:guid}", GetTrainingPlan.HandleAsync);
         plans.MapPost("/", CreateTrainingPlan.HandleAsync);

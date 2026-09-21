@@ -392,10 +392,11 @@ public class MyPlanEndpointTests(IntegrationTestFixture fixture)
         var blocked = await admin.PostAsync($"/api/admin/members/{memberId}/block", null);
         Assert.Equal(HttpStatusCode.OK, blocked.StatusCode);
 
-        // The trainer's list is the view onto stored state: the plan is still active, untouched.
-        var trainer = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveTrainerEmail);
-        var rows = await trainer.GetFromJsonAsync<List<PlanRowBody>>(Plans);
-        Assert.Equal(assigned.Id, rows!.Single(x => x.MemberId == memberId).Id);
+        // The member-plan read is the view onto stored state: the plan is still active, untouched.
+        // Read as the admin, who reaches a blocked member's plan (S-22 replaced the trainer's list).
+        var current = await admin.GetFromJsonAsync<MemberPlanBody>(
+            $"/api/trainer/members/{memberId}/plan");
+        Assert.Equal(assigned.Id, current!.Plan!.Id);
 
         var unblocked = await admin.PostAsync($"/api/admin/members/{memberId}/unblock", null);
         Assert.Equal(HttpStatusCode.OK, unblocked.StatusCode);
@@ -411,7 +412,10 @@ public class MyPlanEndpointTests(IntegrationTestFixture fixture)
         client.Dispose();
     }
 
-    private sealed record PlanRowBody(Guid Id, Guid MemberId, int ItemCount);
+    /// <summary>Mirrors MemberPlan's plan half (S-22).</summary>
+    private sealed record MemberPlanBody(MemberPlanPlan? Plan);
+
+    private sealed record MemberPlanPlan(Guid Id);
 
     private async Task<string> EmailOfAsync(Guid memberId)
     {

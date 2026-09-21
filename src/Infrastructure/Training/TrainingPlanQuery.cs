@@ -15,48 +15,16 @@ namespace po_prostu_silka.Infrastructure.Training;
 /// </summary>
 public class TrainingPlanQuery(AppDbContext db) : ITrainingPlanQuery
 {
-    public async Task<IReadOnlyList<TrainingPlanSummary>> GetActiveAsync(
-        CancellationToken cancellationToken) =>
-        await db.TrainingPlans
-            .AsNoTracking()
-            .Where(x => x.Status == TrainingPlanStatus.Active)
-            .OrderBy(x => x.Member!.DisplayName)
-            .Select(x => new TrainingPlanSummary(
-                x.Id,
-                x.Name,
-                x.MemberId,
-                x.Member!.DisplayName,
-                x.AssignedBy!.DisplayName,
-                x.CreatedAt,
-                // A correlated count rather than loading the items to measure them - the list renders
-                // a number, not the rows.
-                x.Items.Count))
-            .ToListAsync(cancellationToken);
-
     /// <summary>
-    /// THE CHANGE THAT MAKES AN ACCOUNTLESS MEMBER ASSIGNABLE (S-14, AM-006). This used to read
-    /// <c>db.Users</c> filtered on an ACTIVE ACCOUNT, which by construction could never offer a person
-    /// the club recorded but who never registered. It reads members now, and the only filter left is
-    /// the one that means "may use the club".
+    /// The one definition of "may be assigned a plan", shared by the trainer's member list (S-22) and
+    /// the write-side validation, so the two cannot drift into disagreeing about who is eligible.
     ///
     /// <para>
-    /// WHAT DID NOT CHANGE is that an unvetted account is still refused. The predicate is "active
-    /// membership, and an approved account if there is one at all" — so a person the admin recorded is
-    /// offered, and someone who self-registered ten minutes ago and has not been approved is not.
-    /// Splitting the entity was never meant to loosen who may be given a plan.
+    /// AN ACCOUNTLESS MEMBER IS ASSIGNABLE (S-14, AM-006): the predicate is "active membership, and an
+    /// active account if there is one at all", so a person the club recorded but who never registered
+    /// is offered, and a blocked account is not. It once read <c>db.Users</c>, which by construction
+    /// could never offer the first kind. (It also fed the member picker, retired in S-22.)
     /// </para>
-    /// </summary>
-    public async Task<IReadOnlyList<AssignableMember>> GetAssignableMembersAsync(
-        CancellationToken cancellationToken) =>
-        await Assignable(db.Members.AsNoTracking())
-            .OrderBy(x => x.DisplayName)
-            .Select(x => new AssignableMember(x.Id, x.DisplayName, x.UserId != null))
-            .ToListAsync(cancellationToken);
-
-    /// <summary>
-    /// The one definition of "may be assigned a plan", shared by the picker, the trainer's member list
-    /// (S-22) and the write-side validation, so none of them can drift into disagreeing about who is
-    /// eligible.
     /// </summary>
     private static IQueryable<Member> Assignable(IQueryable<Member> members) =>
         members.Where(x => x.Status == MembershipStatus.Active
@@ -134,9 +102,9 @@ public class TrainingPlanQuery(AppDbContext db) : ITrainingPlanQuery
         //
         // THE ELIGIBILITY HALF GOES THROUGH Assignable, as a membership test rather than a restated
         // predicate. Writing the same condition out again here would have made the "one definition"
-        // Assignable claims a comment rather than a fact, and left the picker free to drift from the
-        // validation that is supposed to agree with it. It costs a correlated EXISTS over the primary
-        // key, in the query that was already being issued.
+        // Assignable claims a comment rather than a fact, and left the member list free to drift from
+        // the validation that is supposed to agree with it. It costs a correlated EXISTS over the
+        // primary key, in the query that was already being issued.
         var rows = await db.Members
             .AsNoTracking()
             .Where(x => x.Id == memberId)

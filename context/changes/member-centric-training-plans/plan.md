@@ -582,10 +582,10 @@ Remove `GET /api/trainer/plans` and `GET /api/trainer/plans/members`, which no l
 
 #### Automated
 
-- [x] 3.1 SPA unit tests pass
-- [x] 3.2 Lint and format pass
-- [x] 3.3 Production build succeeds with bundle size noted
-- [x] 3.4 No SPA reference to /trainer/plans remains
+- [x] 3.1 SPA unit tests pass — 133cc59
+- [x] 3.2 Lint and format pass — 133cc59
+- [x] 3.3 Production build succeeds with bundle size noted — 133cc59
+- [x] 3.4 No SPA reference to /trainer/plans remains — 133cc59
 
 #### Manual
 
@@ -598,11 +598,11 @@ Remove `GET /api/trainer/plans` and `GET /api/trainer/plans/members`, which no l
 
 #### Automated
 
-- [ ] 4.1 Build warning-free
-- [ ] 4.2 Plan, my-plan and member-claim tests green
-- [ ] 4.3 Access surface green
-- [ ] 4.4 Full suite green
-- [ ] 4.5 No server reference to the removed handlers
+- [x] 4.1 Build warning-free
+- [x] 4.2 Plan, my-plan and member-claim tests green
+- [x] 4.3 Access surface green
+- [x] 4.4 Full suite green
+- [x] 4.5 No server reference to the removed handlers
 
 #### Manual
 

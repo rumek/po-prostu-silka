@@ -21,7 +21,7 @@ public static class CreateTrainingPlan
     /// inserting is a read-then-write sequence committed in a single SaveChangesAsync - no explicit
     /// transaction is opened anywhere in this codebase, and opening one here would need the
     /// execution strategy because EnableRetryOnFailure is on. What keeps concurrent assignments
-    /// honest is IX_TrainingPlans_Member_Active, the filtered unique index every attempt's INSERT
+    /// honest is IX_TrainingPlans_MemberId_Active, the filtered unique index every attempt's INSERT
     /// has to get past; the loop below turns its rejection into a retry rather than a 500. The
     /// stamp rotation is the cheaper, earlier half of the same defence - see
     /// TrainingPlan.ConcurrencyStamp for why it is second and not first.
@@ -108,7 +108,7 @@ public static class CreateTrainingPlan
                 return Results.Ok(await query.FindDetailAsync(created.Id, cancellationToken));
             }
 
-            // UniqueViolation: IX_TrainingPlans_Member_Active caught two racers whose INSERTs both
+            // UniqueViolation: IX_TrainingPlans_MemberId_Active caught two racers whose INSERTs both
             // claimed the member's active slot. This is the usual outcome, and the reason the
             // invariant holds at all.
             // ConcurrencyConflict: the loser noticed earlier, on the UPDATE that archives the plan

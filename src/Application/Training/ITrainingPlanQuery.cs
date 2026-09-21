@@ -15,12 +15,6 @@ namespace po_prostu_silka.Application.Training;
 /// </summary>
 public interface ITrainingPlanQuery
 {
-    /// <summary>Every active plan, by member display name. Unbounded - a single gym's list.</summary>
-    Task<IReadOnlyList<TrainingPlanSummary>> GetActiveAsync(CancellationToken cancellationToken);
-
-    /// <summary>Approved accounts as picker rows, by display name.</summary>
-    Task<IReadOnlyList<AssignableMember>> GetAssignableMembersAsync(CancellationToken cancellationToken);
-
     /// <summary>One plan with its items in position order, or null. Active or archived.</summary>
     Task<TrainingPlanDetail?> FindDetailAsync(Guid id, CancellationToken cancellationToken);
 
@@ -51,8 +45,8 @@ public interface ITrainingPlanQuery
     ///
     /// <para>
     /// ONE QUESTION RATHER THAN A STATUS, because since S-14 the answer depends on two of them and the
-    /// read side and the write side must not be able to disagree: <see cref="GetAssignableMembersAsync"/>
-    /// offers exactly the members this returns true for.
+    /// read side and the write side must not be able to disagree: <see cref="GetTrainerMembersAsync"/>
+    /// lists exactly the members this returns true for.
     /// </para>
     /// </summary>
     Task<bool?> IsAssignableAsync(Guid memberId, CancellationToken cancellationToken);
