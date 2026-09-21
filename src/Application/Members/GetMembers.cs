@@ -50,7 +50,9 @@ public static class GetMembers
         var pageNumber = page ?? 1;
         var size = pageSize ?? DefaultPageSize;
 
-        if (pageNumber < 1 || size < 1 || size > MaxPageSize)
+        // The offset is (page - 1) * size in int arithmetic further down; a page far enough past any
+        // real list would wrap it negative and turn a caller's typo into a SQL error — a 500.
+        if (pageNumber < 1 || size < 1 || size > MaxPageSize || (long)(pageNumber - 1) * size > int.MaxValue)
         {
             return Results.Json(new MemberListFailure("invalid_page"), statusCode: 400);
         }

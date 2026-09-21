@@ -56,25 +56,31 @@
   </label>
 </div>
 
-@if (loading()) {
-  <app-loading />
-} @else if (loadFailed()) {
+<!-- The spinner stands in only while there is nothing to show yet. A reload — a page, a chip, a
+     phrase — keeps the table and the pager in the DOM: tearing them down destroyed the pager button
+     the admin had just pressed (focus fell to the body) and re-created the range's role="status"
+     already filled in, which screen readers do not announce. -->
+@if (loadFailed()) {
   <p class="alert" role="alert">
     Nie udało się wczytać listy członków.
     <button type="button" class="link-button" (click)="load()">Spróbuj ponownie</button>
   </p>
 } @else if (rows().length === 0) {
-  <!-- An explicit empty state, not a blank page: "nobody matches" and "it failed to load" must not
-       look the same to the admin. -->
-  <div class="card">
-    <app-empty>
-      @if (query()) {
-        Brak członków pasujących do wyszukiwania.
-      } @else {
-        Brak członków w tym widoku.
-      }
-    </app-empty>
-  </div>
+  @if (loading()) {
+    <app-loading />
+  } @else {
+    <!-- An explicit empty state, not a blank page: "nobody matches" and "it failed to load" must not
+         look the same to the admin. -->
+    <div class="card">
+      <app-empty>
+        @if (query()) {
+          Brak członków pasujących do wyszukiwania.
+        } @else {
+          Brak członków w tym widoku.
+        }
+      </app-empty>
+    </div>
+  }
 } @else {
   <!-- A TABLE, NOT app-list (S-21, UX-06). An admin reads this screen DOWN a column — whose status,
        which address, since when — and that is what columns are for; a stack of cards made every
@@ -83,24 +89,28 @@
        hand-rolled copy of it. Below `form-columns` the SAME DOM collapses, in CSS only, into one
        compact row per member (name, badges, Akcje) — a layout-only difference stays in the
        stylesheet (AGENTS.md, Breakpoints). -->
-  <table class="members-table">
+  <!-- The explicit roles restate what the elements already are, on purpose: below form-columns the
+       stylesheet turns them into blocks, and WebKit (every iOS browser) drops a table element's
+       implicit role once its display changes. Without these, VoiceOver loses the headers on exactly
+       the phone layout. -->
+  <table class="members-table" role="table" [attr.aria-busy]="loading()">
     <caption class="visually-hidden">
       Członkowie klubu
     </caption>
-    <thead>
-      <tr>
-        <th scope="col">Imię i nazwisko</th>
-        <th scope="col">Status</th>
-        <th scope="col">E-mail</th>
-        <th scope="col">Od</th>
-        <th scope="col"><span class="visually-hidden">Akcje</span></th>
+    <thead role="rowgroup">
+      <tr role="row">
+        <th scope="col" role="columnheader">Imię i nazwisko</th>
+        <th scope="col" role="columnheader">Status</th>
+        <th scope="col" role="columnheader">E-mail</th>
+        <th scope="col" role="columnheader">Od</th>
+        <th scope="col" role="columnheader"><span class="visually-hidden">Akcje</span></th>
       </tr>
     </thead>
-    <tbody>
+    <tbody role="rowgroup">
       @for (member of rows(); track member.id) {
-        <tr class="members-entry">
-          <th scope="row" class="members-cell-name">{{ member.displayName }}</th>
-          <td class="members-cell-status">
+        <tr class="members-entry" role="row">
+          <th scope="row" role="rowheader" class="members-cell-name">{{ member.displayName }}</th>
+          <td class="members-cell-status" role="cell">
             <span class="badge" [class]="'badge-' + statusKind(member)">{{
               statusLabel(member)
             }}</span>
@@ -110,9 +120,9 @@
           </td>
           <!-- A record kept at the desk may have no address at all; saying so beats an empty cell
                that reads like a rendering bug. -->
-          <td class="members-cell-email">{{ member.email ?? 'Brak adresu e-mail' }}</td>
-          <td class="members-cell-since">{{ member.createdAt | date: 'd MMMM y' }}</td>
-          <td class="members-cell-actions">
+          <td class="members-cell-email" role="cell">{{ member.email ?? 'Brak adresu e-mail' }}</td>
+          <td class="members-cell-since" role="cell">{{ member.createdAt | date: 'd MMMM y' }}</td>
+          <td class="members-cell-actions" role="cell">
             <div class="members-action">
               <!-- The wrapper is the "inside the menu" boundary the document click handler tests for. -->
               <div class="row-menu">
@@ -120,7 +130,7 @@
                   type="button"
                   class="button button--secondary"
                   [id]="triggerIdFor(member.id)"
-                  [disabled]="busy.isBusy(member.id)"
+                  [disabled]="busy.isBusy(member.id) || loading()"
                   [attr.aria-expanded]="openMenuId() === member.id"
                   aria-haspopup="menu"
                   (click)="toggleMenu(member)"
@@ -297,7 +307,8 @@
         Poprzednia
       </button>
       <!-- role="status" so a screen reader hears the new range after a page change — the list
-           itself changes silently. -->
+           itself changes silently. It only works because this element SURVIVES the reload and its
+           text changes in place; see the comment above the loading branch. -->
       <p class="members-pager-range" role="status">
         {{ rangeFrom() }}–{{ rangeTo() }} z {{ total() }}
       </p>

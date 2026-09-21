@@ -116,6 +116,13 @@ export class Members {
   protected readonly pageSize = signal(MEMBERS_PAGE_SIZE);
 
   /**
+   * The page the rows on screen ARE, as opposed to `page`, the one the URL asks for. They differ for
+   * one round-trip after every page change, while the old rows stay up — and the range must describe
+   * the rows, not announce the next page before it has arrived.
+   */
+  private readonly shownPage = signal(1);
+
+  /**
    * What is in the search box, which runs AHEAD of `query` by up to one debounce pause. Two signals,
    * because the box must never be overwritten mid-typing by the URL it is about to change.
    */
@@ -171,7 +178,7 @@ export class Members {
   private readonly fence = createLoadFence();
 
   /** The 1-based range the pager reads out, e.g. `26–50 z 312`. */
-  protected readonly rangeFrom = computed(() => (this.page() - 1) * this.pageSize() + 1);
+  protected readonly rangeFrom = computed(() => (this.shownPage() - 1) * this.pageSize() + 1);
   protected readonly rangeTo = computed(() => this.rangeFrom() + this.rows().length - 1);
 
   /** The pager exists only when there is somewhere to go. */
@@ -249,6 +256,7 @@ export class Members {
       }
 
       this.rows.set(result.items);
+      this.shownPage.set(page);
       this.total.set(result.total);
       this.pageSize.set(result.pageSize);
     } catch {
@@ -256,10 +264,14 @@ export class Members {
         return;
       }
 
+      // Rows stay up during a reload, so a failure has to drop them: otherwise "Spróbuj ponownie"
+      // would bring back rows from a view the admin has already left, instead of the spinner.
+      this.rows.set([]);
       this.loadFailed.set(true);
     } finally {
-      // Only the newest load owns the spinner; an older one finishing must not clear it while the
-      // newer request is still running.
+      // Only the newest load owns `loading`; an older one finishing must not clear it while the
+      // newer request is still running. It is a spinner only on a first load — on a reload it dims
+      // the rows already up and disables their actions (members.html).
       if (this.fence.isCurrent(generation)) {
         this.loading.set(false);
       }
@@ -336,6 +348,17 @@ export class Members {
     this.closeMenu();
     this.closeCode();
     this.failedId.set(null);
+
+    // A phrase still waiting out its debounce is a NEW list, and a page of the old one is not what
+    // the admin is looking at in the box. Commit it (page 1) rather than let the URL overwrite it.
+    const typed = this.searchInput().trim().slice(0, MAX_SEARCH_LENGTH);
+    if (this.searchTimer !== null && typed !== this.query()) {
+      this.cancelSearch();
+      await this.commitSearch();
+      return;
+    }
+
+    this.cancelSearch();
     await this.navigate({ q: this.query(), filter: this.filter(), page }, false);
   }
 

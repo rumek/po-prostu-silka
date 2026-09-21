@@ -575,6 +575,8 @@ public class MemberAdminEndpointTests(IntegrationTestFixture fixture)
         { "page=0", "invalid_page" },
         { "pageSize=0", "invalid_page" },
         { $"pageSize={GetMembers.MaxPageSize + 1}", "invalid_page" },
+        // (page - 1) * pageSize overflows int: must be refused, not wrapped into a negative OFFSET.
+        { $"page={int.MaxValue}&pageSize={GetMembers.MaxPageSize}", "invalid_page" },
         { $"search={new string('a', GetMembers.MaxSearchLength + 1)}", "invalid_search" },
     };
 

@@ -76,8 +76,10 @@
     </app-field>
 
     <!-- A phrase nobody bookable matches says so, rather than leaving an empty select and a disabled
-         button to explain themselves. -->
-    @if (searched() && bookable().length === 0) {
+         button to explain themselves. Only when these are ALL the matches, though: if every one shown
+         is already signed up but more exist past the first page, "nobody can be added" is not known —
+         the narrow-the-phrase hint below is the true answer. -->
+    @if (searched() && bookable().length === 0 && candidatesTotal() <= candidates().length) {
       <app-empty>Nikt pasujący nie może zostać dopisany.</app-empty>
     } @else {
       <div class="bookings-add-controls">

@@ -1,9 +1,9 @@
 ---
 project: "Po Prostu Siłka"
-version: 4
+version: 5
 status: draft
 created: 2026-08-31
-updated: 2026-09-19
+updated: 2026-09-21
 prd_version: 1, 2
 main_goal: quality
 top_blocker: none
@@ -69,6 +69,74 @@ entities); MediatR, FluentValidation, AutoMapper or a repository pattern; replac
 result union; moving component logic out of the large Angular screens into stores; Central Package
 Management for the four new project files. Each is a defensible next step and none of them is what
 this milestone is for.
+
+## Next milestone (queued)
+
+**M-7: Each surface works where it is used** (`surface-fitness`) - Status: queued, opens when S-19 is
+archived and M-6 closes. Recorded now rather than held, because the survey behind it is already done
+and the three slices below are what it found.
+
+- **Intent:** Three screens are measured against the device they are actually used on, and against
+  the number of rows they will actually hold. Nothing here is about how a screen looks - it is about
+  whether its capabilities can be reached at all. An action clipped out of a 60-pixel tile, a list
+  that fetches every member to hide all but four, and a training plan reached through a screen that
+  is a member list in disguise are the same kind of defect: a surface designed for a shape it is no
+  longer in.
+- **Source materials:** the user's own report on 2026-09-20 (mobile class editing, the member list at
+  scale, the Plany screen), plus a survey of `src/app/src/app/` and `src/Application/Members/` taken
+  the same day. No PRD version covers any of it: v1's NFR on a mobile-first surface is the nearest
+  published intent, and v2 FR-019 is what UX-01 deliberately narrows.
+- **Done when:** every S-NN in this milestone is `done`.
+- **Scope anchors:**
+  - UX-01: **The admin's class calendar becomes a web-only tool, and says so.** Below the shared
+    mobile breakpoint `/admin/classes` does not render the editing calendar at all - it renders a
+    screen state naming the reason and the phone-sized surface that does work (`/schedule`,
+    read-only). A DELIBERATE WITHHOLDING rather than a defect deferred: drawing, dragging and
+    resizing a half-hour block inside a scrolling 06:00-24:00 grid is a desk gesture, and the user
+    chose the honest refusal over a touch reimplementation. This narrows v2 FR-019, which describes
+    the gesture without naming a device. Revisiting it later is explicitly allowed; this milestone
+    does not.
+  - UX-02: **The gesture stops fighting the page.** `touch-action: none` applies only while a gesture
+    is genuinely on offer. Today `.calendar-segment-drawable` carries it on every future segment of
+    the admin grid (`schedule-calendar.scss:290`), so the whole column refuses to scroll under a
+    finger - the reason the screen reads as broken rather than as unsuited.
+  - UX-03: **A class's admin actions are reachable at every class length.** They are projected INSIDE
+    a tile that is `height: 100%; overflow: hidden` (`schedule-calendar.scss:166`), so for a 30- or
+    60-minute class - most of them - Edytuj / Powiel / Zapisani / Odwołaj are clipped away with no
+    scroll and no overflow affordance. This is a WEB defect as much as a mobile one, which is why it
+    is an anchor of its own and not a footnote to UX-01.
+  - UX-04: **One definition of "mobile".** Three independent thresholds exist today - `30rem` (the
+    bottom nav), `48rem` (`WEEK_VIEW_MIN_WIDTH`, the calendar's day/week switch) and `40rem` (one
+    form) - and none of them is the boundary UX-01 and UX-06 need. The mobile/web boundary becomes
+    one module that TypeScript and the stylesheets both read. The calendar's `48rem` answers a
+    SEPARATE question - how many day columns stay legible - and stays separate.
+  - UX-05: **The member list is paged, searched and filtered by the API.** `GetMembers` currently
+    documents the opposite in its own summary - "No pagination... Search is the SPA's job" - and
+    `members.ts` fetches every row to filter it in a `computed()`. `IMemberQuery.GetMembersAsync`
+    gains a page, a size and a search term, and returns a page plus a total.
+  - UX-06: **The member list is a table on web and one compact row per member on mobile.** Columns
+    from the shared breakpoint up; below it a single column carrying the name, the status and the way
+    into the record. One component, two shapes - not two screens.
+  - UX-07: **A training plan is reached through the member, never through a plan list.** An admin
+    opens Członkowie, then the member, then Plan, and edits it there. The route is
+    `/admin/members/:id/plan`, mirroring `/admin/members/:id/passes` exactly (S-16's precedent).
+  - UX-08: **The trainer gets the member list too, with a narrowed set of actions**, and
+    `/trainer/plans` is retired along with the "Plany" entry on `/more`. A screen whose first column
+    is the member's name is a member list; keeping it would leave two axes into the same person,
+    which is the defect UX-07 exists to remove. What a trainer may see is a decision for `/10x-plan`,
+    and Open Roadmap Question 8 is adjacent to it.
+  - UX-09: **No visual redesign.** Layout, spacing, typography and where elements sit are explicitly
+    NOT this milestone - the user deferred them on 2026-09-20. An anchor rather than a footnote,
+    because "while I am already in this stylesheet" is how this milestone would quietly become a
+    different one.
+
+**Not in scope, deliberately:** the plan builder's reorder, which is pointer-only by
+`@angular/cdk/drag-drop`'s own limits and is already recorded as an accepted gap in
+`plan-builder.ts` - the same class of problem as UX-01 and the obvious next one, but a capability
+nothing else depends on; a role-aware bottom nav (an admin carries `/my-plan` and `/my-classes` in
+the bar while Członkowie and Zajęcia sit two taps away under Więcej) - real, and a navigation change
+rather than a surface one; paging for the exercise, class-type and plan lists, which share the member
+list's design and not its growth rate - UX-05 is what makes doing them later cheap.
 
 ## PRD addendum (M-2)
 
@@ -145,7 +213,11 @@ out; a build error cannot.
 | S-16 | membership-pass-and-staff-booking | admin issues a karnet and books a member in; a trainer books into their own classes; a member with no valid karnet is refused; nobody self-books and nobody waits for approval | S-01, S-04, S-08, S-14 | M-4 MP-01–MP-07 (retires v1 US-01, FR-002, FR-003, FR-008, FR-009) | done        |
 | S-17 | invitation-only-registration | register only through an invitation link — the code is shown as text rather than typed, the form asks for an email and a password, and there is no way in without a code | S-14, S-16 | M-5 IR-01–IR-06 (supersedes v1 FR-001's open self-registration) | done |
 | S-18 | backend-layer-boundaries | (structural) nothing — the layering becomes a compiler constraint and the endpoint classes stop holding the logic | S-17 | M-6 CS-01, CS-02, CS-03 | done        |
-| S-19 | frontend-error-and-patterns | (structural) a failure is told one way instead of nine, and the patterns copied across screens are extracted once | S-17 | M-6 CS-04, CS-05, CS-06, CS-07 | in-progress |
+| S-19 | frontend-error-and-patterns | (structural) a failure is told one way instead of nine, and the patterns copied across screens are extracted once | S-17 | M-6 CS-04, CS-05, CS-06, CS-07 | done |
+| S-20 | admin-schedule-web-only | (admin) run the class calendar at a desk, with every per-class action reachable at every class length - and on a phone be told plainly that this screen is not one | S-19 | M-7 UX-01, UX-02, UX-03, UX-04 (narrows v2 FR-019) | in-progress |
+| S-21 | member-list-at-scale | (admin) find one member among hundreds - the API pages, searches and filters; a table on web, one compact row on a phone | S-20 | M-7 UX-05, UX-06 | in-progress |
+| S-22 | member-centric-training-plans | (admin, trainer) set a member's plan by opening the member, not a plan list; the Plany screen is retired | S-21 | M-7 UX-07, UX-08 (retires part of v1 FR-015's surface) | planned |
+| S-23 | frontend-presentational-kit | (structural) the presentational layer gets components instead of copies — one field, one select, one checkbox, one loading state, one empty state, one list row, enforced by a spec | S-19 | none — milestone unassigned, see the item body | done |
 
 ## Streams
 
@@ -157,6 +229,7 @@ Navigation aid — groups items that share a Prerequisites chain. Canonical orde
 | B      | Notification delivery | `F-03` → `S-09`                                    | Carries the north star; `S-09` joins Stream C at `S-08`, which produces the bookings to notify against. |
 | C      | Scheduling & booking  | `S-03` → `S-05` → `S-06` → `S-07` → `S-08` → `S-12` | The longest chain and the milestone's critical path; `S-12` also joins from Stream D at `S-11`.  |
 | D      | Training domain       | `S-10` → `S-11` → `S-15`                           | Independent bounded context — a separate agent run can build it alongside the whole of Stream C. `S-15` extends the plan surface `S-11` created; it is M-3's only slice. |
+| F      | Surface fitness       | `S-20` -> `S-21` -> `S-22`                         | M-7, and the first stream measured against a device and a row count rather than against a capability. A CHAIN, unlike Stream E: `S-20` defines the one mobile breakpoint `S-21` renders its table against, and `S-22` hangs the plan off the member list `S-21` rebuilds. Out of order, each boundary gets built twice. |
 | E      | Code structure        | `S-18` · `S-19`                                    | M-6, and the first stream that is not about the product. The two slices are siblings, not a chain — they share an intent and no files, so the `·` is deliberate: either order, or both at once in separate agent runs. |
 
 ## Baseline
@@ -556,7 +629,131 @@ rather than in a slice body:
   at the centre of the anchor. The second is the eager bundle: the toast host lives in the shell, so
   it lands in the initial chunk, and `angular.json`'s 550 kB warning threshold is the one number this
   slice can move.
+- **Status:** done
+
+### S-20: The admin's class calendar is a desk tool, and says so
+
+- **Outcome:** user (admin) opens `/admin/classes` on a computer and reaches every per-class action -
+  Edytuj, Powiel, Zapisani, Odwołaj - whatever the class's length, where today they are clipped out
+  of a 60-pixel tile; opening the same screen on a phone gets a plain statement that class editing
+  happens at a desk, with a way through to the read-only schedule, instead of a grid that will not
+  scroll and gestures that will not land.
+- **Change ID:** admin-schedule-web-only
+- **PRD refs:** M-7 UX-01, UX-02, UX-03, UX-04. Narrows v2 FR-019, which describes the drag-to-create
+  and drag-to-move gestures without naming a device; v1's mobile-first NFR is unaffected, because the
+  surface a member uses - `/schedule` - is untouched.
+- **Prerequisites:** S-19 (the screens this slice rewrites the states of are the ones S-19 just put
+  on the four-outlet rule; landing first would mean writing a tenth mechanism and then removing it)
+- **Parallel with:** -
+- **Blockers:** -
+- **Unknowns:**
+  - Where the per-class actions go once they leave the tile - an overlay opened by activating the
+    tile (the `selectable` / `classSelected` path the member's schedule already uses), or a panel
+    below the calendar (the shape the duplicate and cancel flows already take). Owner: `/10x-plan`.
+    Block: no. Both mechanisms are already in this screen, which is the point: a choice between two
+    shipped patterns, not new construction.
+  - Whether the mobile refusal belongs to `/admin/classes` alone or to a guard other desk-only
+    screens could reuse. Owner: `/10x-plan`. Block: no. One screen needs it today, and a guard built
+    for one caller is a guess about the second.
+- **Risk:** the shared breakpoint is the piece that outlives the slice. Three thresholds exist today
+  and UX-04 must replace none of them by accident - the calendar's `48rem` answers a different
+  question (how many day columns stay legible) and has to stay separate, or the day/week switch and
+  the desk/phone switch become one number and drift apart under the first design change. Second
+  risk: this slice WITHHOLDS a capability the admin nominally has today on a phone. That is the
+  user's explicit decision (2026-09-20), recorded in UX-01 rather than discovered later.
 - **Status:** in-progress
+
+### S-21: The member list holds a club, not a demo
+
+- **Outcome:** user (admin) opens Członkowie with hundreds of records and finds one - the API pages,
+  searches and filters, so the browser no longer fetches every member to hide all but four; from the
+  shared breakpoint up the list is a table with columns, and below it one compact row per member.
+- **Change ID:** member-list-at-scale
+- **PRD refs:** M-7 UX-05, UX-06. v1 FR-005 (the admin browses all members in one searchable list) is
+  the requirement; this slice changes where the search runs, not what it promises.
+- **Prerequisites:** S-20 (the one breakpoint module UX-04 creates is what decides table vs. compact
+  row here - building a second one is the outcome this ordering exists to prevent)
+- **Parallel with:** -
+- **Blockers:** -
+- **Unknowns:**
+  - Whether the four filter chips survive as chips or become a select once a page count sits beside
+    them. Owner: `/10x-plan`. Block: no. **Answered (plan, 2026-09-21): they stay chips** - four fit
+    at both widths, and turning them into a select is a redesign (UX-09).
+  - Whether search is debounced into one request per pause or fires per keystroke against an indexed
+    column. Owner: `/10x-plan`. Block: no - but it is the difference between a search box and a load
+    test, so the plan says which. **Answered (plan, 2026-09-21): debounced ~300 ms**, a substring
+    match on name or e-mail folding case, Polish diacritics and `ł`, with NO index - a substring
+    match cannot seek one, and the debounce is what bounds the request rate.
+- **Risk:** the contract. `MemberSummary` is mirrored field-for-field by the SPA's member-admin
+  service and its own doc comment warns that renaming a field breaks the screen silently; this slice
+  wraps the list in a page envelope, which is exactly the kind of change that does it. Second risk:
+  the filter is already an indexed server query and search is not - a search scanning `DisplayName`
+  and `Email` without an index turns a fixed client cost into a growing server one, and a club's
+  worth of members is small enough to hide that until it is not.
+- **Status:** in-progress
+
+### S-22: A member's plan is reached through the member
+
+- **Outcome:** user (admin) sets someone's training plan by opening Członkowie, opening that member
+  and editing the plan there - the same path the karnet already takes - and a trainer does the same
+  from a member list of their own; the standalone Plany screen and its entry on `/more` are gone.
+- **Change ID:** member-centric-training-plans
+- **PRD refs:** M-7 UX-07, UX-08. Retires part of v1 FR-015's surface - the requirement (an admin
+  builds and assigns a plan) is unchanged; the screen it was delivered on is not the one it keeps.
+- **Prerequisites:** S-21 (the member list is where the plan is now reached from, and S-21 rebuilds
+  it; hanging a new route off the list first means hanging it twice)
+- **Parallel with:** -
+- **Blockers:** -
+- **Unknowns:**
+  - What a trainer may see on the member list. Owner: user, via `/10x-plan`. Block: no, but it is the
+    substance of UX-08. Open Roadmap Question 8 asks the adjacent question about the class roster and
+    is unanswered; prd.md's privacy NFR says member data is visible to the admin and the member
+    themselves, and S-11 deliberately minimised the trainer's plan picker to an id and a name for
+    exactly this reason. A trainer's member list is wider than that picker by construction.
+  - Whether the builder route `/trainer/plans/:id` moves under the member or stays where it is with
+    only the list retired. Owner: `/10x-plan`. Block: no.
+- **Risk:** two routes behind two guards become one surface with two audiences. `/admin/members` sits
+  behind `adminGuard` and `/trainer/plans` behind `trainerGuard`; widening the first to trainers is a
+  visibility decision on the server as much as a route change, and a guard widened without the API
+  narrowed is how a trainer ends up reading the whole club's contact details. Second risk: the plan
+  builder assumes the member is chosen inside the form and locks that control on edit; reached
+  through a member, the member is chosen by the URL, and the `member_changed` refusal the server
+  already raises becomes the check that the two agree.
+- **Status:** planned
+
+### S-23: The presentational layer gets components, not copies
+
+- **Outcome:** (structural — no capability changes) every form control, loading state, empty state
+  and list row in the SPA is one component rather than one copy per screen: `app-field`,
+  `app-select`, `app-checkbox`, `app-loading`, `app-empty` and a list/row pair; `.empty`,
+  `.section-title` and `.form-actions` move into `src/styles.scss` where their comments already
+  claim they live; a success message stops being an inline `.notice` and becomes the toast outlet
+  S-19 built for it; and a contract spec fails the build when a screen hand-rolls one of them.
+- **Change ID:** frontend-presentational-kit
+- **PRD refs:** none. No PRD version describes SPA component structure, and M-6's CS anchors are
+  spent. **Milestone unassigned** — this slice was opened ahead of its roadmap entry and needs
+  either a home in a structural successor to M-6 or a milestone of its own; `/10x-roadmap` owns
+  that call.
+- **Prerequisites:** S-19 (its four-outlet rule is what decides where a message goes; this slice
+  only gives the outlets components. Landing first would mean building components for nine
+  mechanisms and then deleting most of them.)
+- **Parallel with:** -
+- **Blockers:** -
+- **Unknowns:**
+  - **Whether this runs before S-20 rather than after it.** Owner: user. Block: no, but the cost is
+    real — S-20, S-21 and S-22 each rewrite screens full of the copied blocks, so running them first
+    means writing those copies a further three times and migrating them afterwards. The ID is a
+    name, not a schedule.
+  - How much of the 56-copy `.field` block a single component can actually absorb. Owner:
+    `/10x-research`. Block: no. Some sites carry non-uniform validation branches —
+    `profile.html:145-160` has a `server`/fallback pair, `plan-builder.html` has fields inside a
+    loop — and a component that cannot hold them leaves a second, smaller copy behind.
+- **Risk:** two. The first is the eager bundle: these components land in `login`, `register` and the
+  dashboard, which are eager by design, against a 550 kB warning threshold last measured at
+  512.42 kB. The second is that a component set without the spec is just a ninth way to draw a
+  field — which is why the enforcement, not the components, is the anchor, exactly as CS-04 put the
+  rule rather than the toast at the centre of S-19.
+- **Status:** done
 
 ## Backlog Handoff
 
@@ -584,6 +781,10 @@ rather than in a slice body:
 | S-17       | invitation-only-registration     | Invitation-only registration; the code is shown as text, not typed | no                    | Done — archived 2026-09-10                          |
 | S-18       | backend-layer-boundaries         | Split src/ into Domain/Application/Infrastructure/Api projects and thin the endpoint classes | yes                   | North star. Run `/10x-plan backend-layer-boundaries` |
 | S-19       | frontend-error-and-patterns      | One error path with a toast component; extract the patterns copied across screens | yes                   | Run `/10x-plan frontend-error-and-patterns` — parallel with S-18 |
+| S-20       | admin-schedule-web-only          | Make the class calendar a desk tool: reachable per-class actions, and a plain refusal on a phone | no                    | Needs S-19 archived. Run `/10x-plan admin-schedule-web-only`  |
+| S-21       | member-list-at-scale             | Page, search and filter the member list on the API; table on web, compact row on mobile | no                    | Needs S-20 (the shared breakpoint)                 |
+| S-22       | member-centric-training-plans    | Reach a member's plan through the member; retire the standalone Plany screen | no                    | Needs S-21; carries an open question about what a trainer may see |
+| S-23       | frontend-presentational-kit      | Give the presentational layer components instead of copies, with a spec that enforces them | yes                   | Needs S-19 only (archived). Milestone unassigned; consider running it BEFORE S-20 |
 
 ## Open Roadmap Questions
 
@@ -739,3 +940,5 @@ Resolved since the previous roadmap: the sender-domain question that gated F-03 
 - **S-16: user (admin) issues a member a karnet — a type name, a validity range and a number of entries — and books that member into a class; a trainer does the same for the classes they instruct; the member opens the app, sees their karnet and how many entries are left, sees their upcoming classes and cannot book or cancel anything; a booking into a class the karnet does not cover, or with no entry left, is refused; a newly registered account is active immediately and there is no approvals tab.** — Archived 2026-09-09 → `context/archive/2026-09-09-membership-pass-and-staff-booking/`. Lesson: —.
 - **S-17: user (admin) records a member without an email address and hands them an invitation link; that person opens `/register?invitationCode=…`, finds the code shown to them rather than asked for, supplies only an email address and a password, and lands on the record the club already keeps — its bookings, its karnet and its plan already there; opening `/register` without a code sends them to the login screen, and the API refuses a registration that carries no code.** — Archived 2026-09-10 → `context/archive/2026-09-09-invitation-only-registration/`. Lesson: —.
 - **S-18: (structural — nothing a member or an admin can see changes) `src/` becomes four projects — `Domain`, `Application`, `Infrastructure`, `Api` — so that the layering table in `AGENTS.md` is something the build refuses to break rather than something a reviewer has to remember; and a `*Endpoints` class becomes route registration only, with the handler, its validation, its mapping, its ports and its resource-level authorization moved into Application, one file per use case.** — Archived 2026-09-19 → `context/archive/2026-09-18-backend-layer-boundaries/`. Lesson: —.
+- **S-19: (structural — the words a person reads may change; what the app does does not) the SPA gains a toast component and a written rule deciding whether a failure surfaces as a toast, a field error, a page banner or a screen state; the nine existing error-display mechanisms collapse onto that rule; the `HttpErrorResponse` unwrap becomes one function; and the patterns copied from screen to screen — the `reject()` helper, the generation-counter race guard, the page-header block, the four-signal form-state block — are extracted once.** — Archived 2026-09-20 → `context/archive/2026-09-19-frontend-error-and-patterns/`. Lesson: —.
+- **S-23: (structural — no capability changes) every form control, loading state, empty state and list row in the SPA is one component rather than one copy per screen: `app-field`, `app-select`, `app-checkbox`, `app-loading`, `app-empty` and a list/row pair; `.empty`, `.section-title` and `.form-actions` move into `src/styles.scss` where their comments already claim they live; a success message stops being an inline `.notice` and becomes the toast outlet S-19 built for it; and a contract spec fails the build when a screen hand-rolls one of them.** — Archived 2026-09-21 → `context/archive/2026-09-20-frontend-presentational-kit/`. Lesson: —.

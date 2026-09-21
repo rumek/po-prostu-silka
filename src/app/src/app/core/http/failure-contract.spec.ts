@@ -1,6 +1,7 @@
 import { accessCodeFailureMessage } from '../admin/access-code-failure';
 import { blockFailureMessage } from '../admin/block-failure';
 import { memberFailureMessage } from '../admin/member-failure';
+import { memberListFailureMessage } from '../admin/member-list-failure';
 import { membershipPassFailureMessage } from '../admin/membership-pass-failure';
 import { trainerRoleFailureMessage } from '../admin/trainer-role-failure';
 import { unblockFailureMessage } from '../admin/unblock-failure';
@@ -8,6 +9,7 @@ import {
   ACCESS_CODE_FAILURE_REASONS,
   BLOCK_FAILURE_REASONS,
   MEMBER_FAILURE_REASONS,
+  MEMBER_LIST_FAILURE_REASONS,
   MEMBERSHIP_PASS_FAILURE_REASONS,
   TRAINER_ROLE_FAILURE_REASONS,
   UNBLOCK_FAILURE_REASONS,
@@ -157,6 +159,11 @@ const UNIONS: readonly UnionUnderContract[] = [
     reasons: MEMBERSHIP_PASS_FAILURE_REASONS,
     message: membershipPassFailureMessage,
   },
+  {
+    name: 'MemberListFailure',
+    reasons: MEMBER_LIST_FAILURE_REASONS,
+    message: memberListFailureMessage,
+  },
 ];
 
 describe('the failure-message contract', () => {
@@ -165,9 +172,9 @@ describe('the failure-message contract', () => {
    * would otherwise slip through silently — which is the exact failure mode this whole spec exists
    * to stop, one level up.
    */
-  it('covers all seventeen failure unions', () => {
-    expect(UNIONS).toHaveLength(17);
-    expect(new Set(UNIONS.map((union) => union.name)).size).toBe(17);
+  it('covers all eighteen failure unions', () => {
+    expect(UNIONS).toHaveLength(18);
+    expect(new Set(UNIONS.map((union) => union.name)).size).toBe(18);
   });
 
   describe.each(UNIONS.map((union) => [union.name, union] as const))('%s', (_name, union) => {

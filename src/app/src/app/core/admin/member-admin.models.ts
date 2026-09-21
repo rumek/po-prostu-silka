@@ -346,3 +346,21 @@ export const ACCESS_CODE_FAILURE_REASONS = Object.keys({
   member_blocked: true,
   conflict: true,
 } satisfies Record<AccessCodeFailure['reason'], true>) as readonly AccessCodeFailure['reason'][];
+
+/**
+ * Mirrors MemberListFailure (S-21) — why a member-list READ was refused: `invalid_page` for a page
+ * below 1 or a page size outside 1–100, `invalid_search` for a phrase over 100 characters.
+ *
+ * Nothing renders it today: the SPA never sends such values, so both callers fall back to their own
+ * "failed to load" state. It exists for the same reason ScheduleReadFailure does — every `*Failure`
+ * union has a table (core/http/failure-contract.spec.ts).
+ */
+export interface MemberListFailure {
+  reason: 'invalid_page' | 'invalid_search';
+}
+
+/** Every reason in {@link MemberListFailure}, as a value. */
+export const MEMBER_LIST_FAILURE_REASONS = Object.keys({
+  invalid_page: true,
+  invalid_search: true,
+} satisfies Record<MemberListFailure['reason'], true>) as readonly MemberListFailure['reason'][];

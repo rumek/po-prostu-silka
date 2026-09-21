@@ -575,9 +575,9 @@ worker shows the list's load-failure state until it reloads.
 
 #### Automated
 
-- [x] 4.1 SPA unit tests pass: `npm test`
-- [x] 4.2 Lint and format pass (including the breakpoint literal check): `npm run quality:check`
-- [x] 4.3 Production build succeeds under the 600 kB warning: `npm run build`
+- [x] 4.1 SPA unit tests pass: `npm test` — 3cbcea9
+- [x] 4.2 Lint and format pass (including the breakpoint literal check): `npm run quality:check` — 3cbcea9
+- [x] 4.3 Production build succeeds under the 600 kB warning: `npm run build` — 3cbcea9
 
 #### Manual
 

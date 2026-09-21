@@ -61,6 +61,12 @@
   width: 100%;
 }
 
+// A reload keeps the previous rows up (see members.html) — dimmed, so they read as the page being
+// left rather than the answer. Their actions are disabled in the template, not here.
+.members-table[aria-busy='true'] {
+  opacity: 0.6;
+}
+
 // Visually hidden rather than display:none: once the cells are blocks the header row has nothing to
 // sit above, but it stays in the accessibility tree. The same technique as .visually-hidden below.
 .members-table thead {

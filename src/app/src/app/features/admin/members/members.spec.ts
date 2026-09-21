@@ -353,6 +353,31 @@ describe('Members', () => {
     expect(router.url).toBe('/?q=kow');
   });
 
+  /**
+   * The pager used to navigate with the COMMITTED phrase, and the URL change then overwrote the box —
+   * the admin's typing vanished. A pending phrase is a new list, so it wins over the page.
+   */
+  it('searches the pending phrase instead of discarding it when the pager is clicked', async () => {
+    await createWith(page(many(25), 75));
+
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      type('kow');
+      vi.advanceTimersByTime(SEARCH_DEBOUNCE_MS - 50);
+      pagerButton('Następna').click();
+    } finally {
+      vi.useRealTimers();
+    }
+
+    (
+      await vi.waitFor(() => controller.expectOne('/api/admin/members?search=kow&pageSize=25'))
+    ).flush(page([ANNA]));
+    await settle();
+
+    expect(router.url).toBe('/?q=kow');
+    expect(searchBox().value).toBe('kow');
+  });
+
   it('says the search found nobody, rather than that the view is empty', async () => {
     await createWith([], '/?q=zzz', '/api/admin/members?search=zzz&pageSize=25');
 
@@ -412,6 +437,43 @@ describe('Members', () => {
     await settle();
 
     expect(router.url).toBe('/');
+  });
+
+  /**
+   * A reload keeps the table and the pager in the DOM. Swapping them for the spinner destroyed the
+   * button the admin had pressed — focus fell to the body — and re-created the range's role="status"
+   * already filled in, which a screen reader does not announce.
+   */
+  it('keeps the pager, its range and the focus in place while the next page loads', async () => {
+    await createWith(page(many(25), 75));
+
+    const nav = pager()!;
+    const status = nav.querySelector('[role="status"]')!;
+    const next = pagerButton('Następna');
+    next.focus();
+    next.click();
+
+    const request = await vi.waitFor(() =>
+      controller.expectOne('/api/admin/members?page=2&pageSize=25'),
+    );
+    await settle();
+
+    // In flight: the old rows stay up, dimmed and inert, and the range still describes THEM.
+    const table = (fixture.nativeElement as HTMLElement).querySelector('table')!;
+    expect(table.getAttribute('aria-busy')).toBe('true');
+    expect(rows().length).toBe(25);
+    expect(menuTrigger(rows()[0]).disabled).toBe(true);
+    expect(status.textContent).toContain('1–25 z 75');
+
+    request.flush(page(many(25, 25), 75, 2));
+    await settle();
+
+    // The same elements, updated in place.
+    expect(pager()).toBe(nav);
+    expect(nav.querySelector('[role="status"]')).toBe(status);
+    expect(status.textContent).toContain('26–50 z 75');
+    expect(document.activeElement).toBe(next);
+    expect(table.getAttribute('aria-busy')).toBe('false');
   });
 
   /**

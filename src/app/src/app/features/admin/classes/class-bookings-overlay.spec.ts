@@ -324,6 +324,18 @@ describe('ClassBookingsOverlay', () => {
     expect(element().textContent).toContain('Nikt pasujący nie może zostać dopisany.');
   });
 
+  /**
+   * Every match SHOWN is signed up, but there are more past the page — "nobody can be added" would be
+   * a guess, and the narrow-the-phrase hint is what actually gets the admin to them.
+   */
+  it('asks for a narrower phrase, not "nobody", when every shown match is signed up', async () => {
+    await respond([signup({ memberId: 'm2' })]);
+    await search('jan', [member({ id: 'm2' })], 45);
+
+    expect(element().textContent).not.toContain('Nikt pasujący');
+    expect(element().textContent).toContain('zawęź');
+  });
+
   it('asks for a narrower phrase when there are more matches than it shows', async () => {
     await respond([]);
     await search('a', [member({ id: 'm2' })], 45);
