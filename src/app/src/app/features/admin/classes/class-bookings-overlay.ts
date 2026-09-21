@@ -27,6 +27,12 @@ import { Loading } from '../../../shared/forms/loading/loading';
 import { Empty } from '../../../shared/forms/empty/empty';
 import { Row } from '../../../shared/list/row';
 
+/** How many matches the picker offers. Past this, it asks the admin to narrow the phrase. */
+export const PICKER_RESULTS = 20;
+
+/** Same pause as the members screen's search box — one request per pause, not per key. */
+export const PICKER_DEBOUNCE_MS = 300;
+
 /**
  * Who signed up for a class, and the action to release a spot (prd.md FR-014).
  *
@@ -56,12 +62,6 @@ import { Row } from '../../../shared/list/row';
  * and a request nobody needed. It asks the paged endpoint for {@link PICKER_RESULTS} matches once
  * typing pauses, like the members screen does.
  */
-/** How many matches the picker offers. Past this, it asks the admin to narrow the phrase. */
-export const PICKER_RESULTS = 20;
-
-/** Same pause as the members screen's search box — one request per pause, not per key. */
-export const PICKER_DEBOUNCE_MS = 300;
-
 @Component({
   // On the host, not on the panel: Escape has to close the overlay wherever focus is, including
   // before the admin has touched anything.

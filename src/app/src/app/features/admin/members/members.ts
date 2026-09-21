@@ -248,11 +248,18 @@ export class Members {
 
       // The page ran out from under the URL — a block under the Aktywni filter, a bookmark from when
       // the club was bigger. "Brak członków" would be a lie, so go to the last page that exists
-      // instead; replacing, so Back does not return to the empty one.
-      if (result.items.length === 0 && page > 1 && result.total > 0) {
-        const last = Math.ceil(result.total / result.pageSize);
-        await this.navigate({ q: this.query(), filter: this.filter(), page: last }, true);
-        return;
+      // instead; replacing, so Back does not return to the empty one. A list that emptied entirely
+      // goes to page 1, so the empty state does not sit under a `?page=3` that no longer exists.
+      if (result.items.length === 0 && page > 1) {
+        const last = Math.max(1, Math.ceil(result.total / result.pageSize));
+
+        // Only ever backwards. The count and the page are two round-trips, so they can disagree;
+        // "last" landing on this very page would be a navigation the router ignores, leaving the old
+        // rows up — showing this page's (empty) answer is the honest fallback.
+        if (last < page) {
+          await this.navigate({ q: this.query(), filter: this.filter(), page: last }, true);
+          return;
+        }
       }
 
       this.rows.set(result.items);

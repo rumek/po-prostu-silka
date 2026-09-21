@@ -450,12 +450,16 @@ public class MemberEndpointTests(IntegrationTestFixture fixture)
     public async Task The_without_account_filter_returns_only_records_with_no_login()
     {
         var admin = await AdminAsync();
-        var id = await CreateAsync(admin, Request(displayName: $"Filtr {Guid.NewGuid():N}"));
+        var name = $"Filtr {Guid.NewGuid():N}";
+        var id = await CreateAsync(admin, Request(displayName: name));
 
-        var rows = await ListAsync(admin, "filter=WithoutAccount&search=Filtr");
+        // The unique name, not a shared word: a generic phrase only "works" while every match fits on
+        // one page, which is the assumption S-21 removed. The exclusion is asked for directly instead.
+        var rows = await ListAsync(admin, $"filter=WithoutAccount&search={Uri.EscapeDataString(name)}");
 
         Assert.Contains(rows, r => r.Id == id);
         Assert.All(rows, r => Assert.Null(r.UserId));
+        Assert.Empty(await ListAsync(admin, $"filter=WithoutAccount&search={TestUsers.ActiveMemberEmail}"));
     }
 
     /// <summary>
@@ -488,10 +492,12 @@ public class MemberEndpointTests(IntegrationTestFixture fixture)
         var id = await CreateAsync(admin, Request(displayName: name));
         await admin.PostAsync($"{Endpoint}/{id}/block", content: null);
 
-        var rows = await ListAsync(admin, "filter=Blocked&search=Zablokowany");
+        // The unique name — see The_without_account_filter_returns_only_records_with_no_login.
+        var rows = await ListAsync(admin, $"filter=Blocked&search={Uri.EscapeDataString(name)}");
 
         Assert.Contains(rows, r => r.Id == id);
         Assert.All(rows, r => Assert.Equal(nameof(MembershipStatus.Blocked), r.MembershipStatus));
+        Assert.Empty(await ListAsync(admin, $"filter=Blocked&search={TestUsers.ActiveMemberEmail}"));
     }
 
     /// <summary>

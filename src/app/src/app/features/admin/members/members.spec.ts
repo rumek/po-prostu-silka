@@ -378,6 +378,71 @@ describe('Members', () => {
     expect(searchBox().value).toBe('kow');
   });
 
+  /**
+   * Typing replaces the history entry — a phrase typed a letter at a time must not leave a Back press
+   * per pause — while a chip or a page is a place Back should return to, so those push.
+   */
+  it('replaces the history entry for a search, and pushes one for a filter or a page', async () => {
+    await createWith(page(many(25), 75));
+    const navigate = vi.spyOn(router, 'navigate');
+
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      type('kow');
+      vi.advanceTimersByTime(SEARCH_DEBOUNCE_MS);
+    } finally {
+      vi.useRealTimers();
+    }
+    (
+      await vi.waitFor(() => controller.expectOne('/api/admin/members?search=kow&pageSize=25'))
+    ).flush(page(many(25), 75));
+    await settle();
+
+    pagerButton('Następna').click();
+    (
+      await vi.waitFor(() =>
+        controller.expectOne('/api/admin/members?search=kow&page=2&pageSize=25'),
+      )
+    ).flush(page(many(25, 25), 75, 2));
+    await settle();
+
+    chip('Aktywni').click();
+    (
+      await vi.waitFor(() =>
+        controller.expectOne('/api/admin/members?filter=Active&search=kow&pageSize=25'),
+      )
+    ).flush(page([ANNA]));
+    await settle();
+
+    expect(navigate.mock.calls.map(([, extras]) => extras?.replaceUrl)).toEqual([
+      true,
+      false,
+      false,
+    ]);
+  });
+
+  /**
+   * Back and Forward change the URL under the screen; the box has to follow, or it would show one
+   * phrase above the results of another.
+   */
+  it('puts the phrase from the URL into the search box on Back or Forward', async () => {
+    await createWith([ANNA, BARTEK]);
+
+    await router.navigateByUrl('/?q=nowak');
+    (
+      await vi.waitFor(() => controller.expectOne('/api/admin/members?search=nowak&pageSize=25'))
+    ).flush(page([BARTEK]));
+    await settle();
+
+    expect(searchBox().value).toBe('nowak');
+
+    await router.navigateByUrl('/');
+    (await vi.waitFor(() => controller.expectOne(LIST))).flush(page([ANNA, BARTEK]));
+    await settle();
+
+    expect(searchBox().value).toBe('');
+  });
+
   it('says the search found nobody, rather than that the view is empty', async () => {
     await createWith([], '/?q=zzz', '/api/admin/members?search=zzz&pageSize=25');
 
@@ -494,6 +559,24 @@ describe('Members', () => {
     expect(router.url).toBe('/?page=2');
     expect(rows().length).toBe(5);
     expect(html()).not.toContain('Brak członków');
+  });
+
+  /** A list that emptied entirely goes to page 1 rather than showing "Brak" under a dead `?page=3`. */
+  it('lands on the first page when the list emptied entirely', async () => {
+    await arrive('/?filter=Blocked&page=3');
+
+    (
+      await vi.waitFor(() =>
+        controller.expectOne('/api/admin/members?filter=Blocked&page=3&pageSize=25'),
+      )
+    ).flush(page([], 0, 3));
+    (
+      await vi.waitFor(() => controller.expectOne('/api/admin/members?filter=Blocked&pageSize=25'))
+    ).flush(page([], 0));
+    await settle();
+
+    expect(router.url).toBe('/?filter=Blocked');
+    expect(html()).toContain('Brak członków w tym widoku.');
   });
 
   /**

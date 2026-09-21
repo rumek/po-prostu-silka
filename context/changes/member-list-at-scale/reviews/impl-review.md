@@ -150,7 +150,7 @@ Benign extras outside the plan:
 - **Location**: src/app/src/app/features/admin/classes/class-bookings-overlay.ts:30-63
 - **Detail**: `PICKER_RESULTS` and `PICKER_DEBOUNCE_MS` were inserted between the long class doc (including the new "A SEARCH, NOT THE CLUB (S-21)" paragraph) and `@Component`. The class doc now documents `PICKER_RESULTS`, and two `/** */` blocks stand back to back.
 - **Fix**: Move the two constants above the class doc comment.
-- **Decision**: PENDING
+- **Decision**: FIXED. Both constants now sit above the class doc. Overlay spec 19/19 passed; lint and format clean.
 
 ### F9 — Test gaps: generic search terms, and no history or Back sync coverage
 
@@ -160,7 +160,9 @@ Benign extras outside the plan:
 - **Location**: tests/po-prostu-silka.Tests/MemberEndpointTests.cs (~455, ~486); src/app/src/app/features/admin/members/members.spec.ts
 - **Detail**: Two integration tests search generic words (`search=Filtr`, `search=Zablokowany`) instead of the unique name they created. They pass only because everything matching fits in `pageSize=100`, which is the assumption Phase 1 step 5 set out to remove. On the SPA side, the specs check `router.url` but never that search replaces the history entry while filter and page push. Nothing asserts that the search box follows a Back/Forward navigation (the code does it at `members.ts:210-213`).
 - **Fix**: Search the full unique name in both integration tests. Add two specs: replaceUrl-vs-push on search vs page, and the box following a URL change.
-- **Decision**: PENDING
+- **Decision**: FIXED.
+  - Integration: both filter tests now search the unique name, plus an explicit `Assert.Empty` that the other status is excluded. MemberEndpointTests: 22/22 passed.
+  - SPA: two new specs, "replaces the history entry for a search, and pushes one for a filter or a page" and "puts the phrase from the URL into the search box on Back or Forward". members spec: 45/45 passed.
 
 ### F10 — An emptied list on page > 1 keeps a stale `?page=N`
 
@@ -170,4 +172,10 @@ Benign extras outside the plan:
 - **Location**: src/app/src/app/features/admin/members/members.ts:245-249
 - **Detail**: The out-of-range redirect fires only when `total > 0`. If the list drops to zero while on page 3 (for example, the last blocked member is unblocked under the Zablokowani filter), the screen shows the empty state with `?page=3` still in the URL. It is harmless but not canonical, and a later member appearing would land on an out-of-range page and redirect again.
 - **Fix**: Also redirect to page 1 (with `replaceUrl`) when `total === 0 && page > 1`.
-- **Decision**: PENDING
+- **Decision**: FIXED. An empty page > 1 now redirects to `max(1, ceil(total / pageSize))`, and only backwards (`last < page`). That also closes the count/page race, where the redirect would have targeted the same URL and left stale rows up. New spec: "lands on the first page when the list emptied entirely". Full SPA suite 747/747 passed; lint clean.
+
+## Triage summary
+
+- Fixed: F1 (Fix A), F2 (Fix A), F3, F4, F5, F6, F7, F8, F9, F10.
+- Skipped, accepted or recorded as a rule: none.
+- F1–F7 are in commit 77536fc. F8–F10 and this report's final decisions are in the commit that follows it.
