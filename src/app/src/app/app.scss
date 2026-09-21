@@ -1,3 +1,5 @@
+@use 'breakpoints' as bp;
+
 // Shell layout only. Colours, typography and the shared .card/.button/.field classes live in
 // src/styles.scss — do not re-declare them here.
 
@@ -81,7 +83,7 @@
   margin: 0 auto;
 }
 
-@media (max-width: 30rem) {
+@include bp.narrow {
   .shell-main {
     // The bottom padding clears the fixed bar plus the iOS home indicator, so the last element of a
     // scrolling screen is reachable rather than parked underneath it. The bar occupies one tab's

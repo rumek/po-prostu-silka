@@ -1,0 +1,60 @@
+// Every width threshold the SPA's stylesheets use (S-20, UX-04). The ONLY place a width media
+// condition is written: `core/layout/breakpoints.spec.ts` fails on a literal `min-width`/`max-width`
+// in any other stylesheet. Reach it with `@use 'breakpoints' as bp;` — `src/styles` is on the
+// preprocessor include path in angular.json.
+//
+// Sass values rather than custom properties, unlike every other token in styles.scss: a custom
+// property is illegal in a media condition, so `@media (max-width: var(--x))` never matches. The
+// cost is the `@use` per stylesheet that styles.scss's token comment warns about — paid only by the
+// stylesheets that actually branch on width.
+//
+// What is NOT here: 48rem, the calendar's day/week switch. It answers a different question — how
+// many day columns stay legible — and is a `matchMedia` read with no stylesheet side, so it lives in
+// `shared/calendar/calendar-breakpoint.ts` alone. Merging it with the desk boundary would make the
+// two switches one number that drifts apart under the first design change.
+
+// The phone layout: the header nav gives way to the bottom bar, and forms and rows go single-column.
+$narrow-max: 30rem;
+
+@mixin narrow {
+  @media (max-width: $narrow-max) {
+    @content;
+  }
+}
+
+// The exact complement of `narrow`.
+//
+// 30.0001rem, not 30.0625rem: .shell-nav hides at `max-width: 30rem`, so anything above 30rem must
+// show the header and hide the bottom bar. A 1px gap (30rem–30.0625rem) left a fractional width such
+// as 480.5px — reachable through browser zoom — where NEITHER rule applied and both navigations
+// rendered at once. The two conditions must partition the axis exactly.
+@mixin above-narrow {
+  @media (min-width: 30.0001rem) {
+    @content;
+  }
+}
+
+// Wide enough for a form to set two short fields side by side.
+@mixin form-columns {
+  @media (min-width: 40rem) {
+    @content;
+  }
+}
+
+// The desk: wide enough for a tool built for a mouse and a big screen (the admin's class calendar).
+// Has a TS twin — DESK_MIN_WIDTH in `core/layout/breakpoints.ts` — because withholding a screen is a
+// rendering decision, not a layout one. `core/layout/breakpoints.spec.ts` fails when they disagree.
+$desk-min-width: 64rem;
+
+@mixin desk {
+  @media (min-width: $desk-min-width) {
+    @content;
+  }
+}
+
+// The exact complement of `desk`, on the same reasoning as `above-narrow`.
+@mixin below-desk {
+  @media (max-width: 63.9999rem) {
+    @content;
+  }
+}

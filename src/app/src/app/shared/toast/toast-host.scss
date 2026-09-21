@@ -1,3 +1,5 @@
+@use 'breakpoints' as bp;
+
 // Layout and tone only — the palette lives in src/styles.scss.
 
 :host {
@@ -100,7 +102,7 @@
   }
 }
 
-@media (max-width: 30rem) {
+@include bp.narrow {
   .toast-host {
     // Full width, and clearing the fixed bar the same way .shell-main does: one tab's height plus
     // its 1px border-top, plus the home indicator. The shared token is what keeps this in step with

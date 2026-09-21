@@ -1,9 +1,8 @@
-import { DatePipe, NgTemplateOutlet, isPlatformBrowser } from '@angular/common';
+import { DatePipe, NgTemplateOutlet } from '@angular/common';
 import {
   Component,
   DestroyRef,
   LOCALE_ID,
-  PLATFORM_ID,
   TemplateRef,
   computed,
   contentChild,
@@ -23,6 +22,7 @@ import {
 } from 'angular-calendar';
 import { adapterFactory } from 'angular-calendar/date-adapters/date-fns';
 import { addDays, addMinutes, isSameDay, setHours, startOfDay, startOfWeek } from 'date-fns';
+import { mediaQuerySignal } from '../../core/layout/media-query';
 import { ScheduledClass } from '../../core/scheduling/class.models';
 import { WEEK_VIEW_MEDIA_QUERY } from './calendar-breakpoint';
 import { CalendarWeekStrip } from './calendar-week-strip';
@@ -133,7 +133,6 @@ export interface CalendarRange {
   templateUrl: './schedule-calendar.html',
 })
 export class ScheduleCalendar {
-  private readonly platformId = inject(PLATFORM_ID);
   private readonly destroyRef = inject(DestroyRef);
 
   /**
@@ -217,13 +216,13 @@ export class ScheduleCalendar {
   protected readonly anchor = signal(startOfDay(new Date()));
 
   /**
-   * False until something measures the viewport.
+   * Whether the viewport is wide enough for seven day columns.
    *
-   * The initial value is what renders before the first `matchMedia` read AND what the specs see, since
-   * jsdom provides no `matchMedia` at all. Day-first is the mobile-first answer: the narrow device,
-   * which is also the slow one, gets the right view with no reflow.
+   * Falls back to false wherever there is no viewport to measure — a server, or the specs, since jsdom
+   * provides no `matchMedia` at all. Day-first is the mobile-first answer: the narrow device, which is
+   * also the slow one, gets the right view with no reflow.
    */
-  protected readonly weekView = signal(false);
+  protected readonly weekView = mediaQuerySignal(WEEK_VIEW_MEDIA_QUERY, false);
 
   protected readonly daysInWeek = computed(() => (this.weekView() ? 7 : 1));
 
@@ -341,29 +340,8 @@ export class ScheduleCalendar {
   });
 
   constructor() {
-    // The ONLY place the viewport is measured. Guarded even though nothing renders on a server
-    // today: main.server.ts and app.routes.server.ts are present and one angular.json key away from
-    // being live, and an unguarded matchMedia would turn that switch-on into a crash three files
-    // from the change that caused it.
-    // `typeof` rather than a bare platform check: being in a browser platform does NOT guarantee the
-    // API. jsdom, which the specs run in, is a browser platform with no matchMedia at all - so the
-    // day-first default this component documents has to actually survive its absence, not just be
-    // claimed.
-    if (isPlatformBrowser(this.platformId) && typeof window.matchMedia === 'function') {
-      const query = window.matchMedia(WEEK_VIEW_MEDIA_QUERY);
-      const follow = (event: MediaQueryListEvent) => this.weekView.set(event.matches);
-
-      this.weekView.set(query.matches);
-      query.addEventListener('change', follow);
-
-      // A MediaQueryList lives as long as the page, so an un-removed listener outlives this
-      // component - and BOTH routes that host it are lazy, so it is destroyed on every navigation
-      // away. Without this, each visit to /schedule leaves another listener holding a dead instance.
-      this.destroyRef.onDestroy(() => query.removeEventListener('change', follow));
-    }
-
-    // Same reasoning for a gesture interrupted by a route change: the listeners are on the document,
-    // which does not go away when this component does.
+    // A gesture interrupted by a route change: the listeners are on the document, which does not go
+    // away when this component does.
     this.destroyRef.onDestroy(() => this.stopDrag?.());
 
     // Emits on creation too — that first emission is what triggers the initial load, so the parent

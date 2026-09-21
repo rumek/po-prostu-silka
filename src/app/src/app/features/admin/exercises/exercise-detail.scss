@@ -1,3 +1,5 @@
+@use 'breakpoints' as bp;
+
 // Layout only — .card/.button/.alert/.notice/.badge/.hint and .page-header come from
 // src/styles.scss.
 .exercise-detail-actions {
@@ -65,7 +67,7 @@
   font-weight: 400;
 }
 
-@media (max-width: 30rem) {
+@include bp.narrow {
   .exercise-detail-actions {
     width: 100%;
   }

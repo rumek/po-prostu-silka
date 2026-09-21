@@ -1,3 +1,5 @@
+@use 'breakpoints' as bp;
+
 // Layout only — .panel/.field/.field-error/.button/.alert/.notice come from src/styles.scss, and
 // the textarea rules mirror class-type-form.scss (styles.scss styles .field input, not textarea).
 
@@ -31,7 +33,7 @@
   gap: var(--space-4);
 }
 
-@media (min-width: 40rem) {
+@include bp.form-columns {
   .exercise-form-pair {
     grid-template-columns: 1fr 1fr;
   }
@@ -45,7 +47,7 @@
   margin-top: var(--space-5);
 }
 
-@media (max-width: 30rem) {
+@include bp.narrow {
   .exercise-form-actions .button {
     width: 100%;
   }

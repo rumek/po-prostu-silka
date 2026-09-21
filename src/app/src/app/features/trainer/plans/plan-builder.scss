@@ -1,3 +1,5 @@
+@use 'breakpoints' as bp;
+
 .builder-section {
   margin-bottom: var(--space-5);
   padding: var(--space-5);
@@ -179,7 +181,7 @@
   }
 }
 
-@media (max-width: 30rem) {
+@include bp.narrow {
   .builder-remove {
     margin-left: 0;
     width: 100%;

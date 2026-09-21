@@ -1,3 +1,5 @@
+@use 'breakpoints' as bp;
+
 // Layout only — colours come from src/styles.scss tokens.
 
 // BELOW the overlays, and the exact number matters — but the number itself no longer lives here.
@@ -21,13 +23,9 @@
   padding-bottom: env(safe-area-inset-bottom);
 
   // A phone-only surface: above 30rem the header carries the same links, and showing both would be
-  // two navigations for one view.
-  //
-  // 30.0001rem, not 30.0625rem: .shell-nav hides at `max-width: 30rem`, so anything above 30rem must
-  // show the header and hide this. A 1px gap (30rem–30.0625rem) left a fractional width such as
-  // 480.5px — reachable through browser zoom — where NEITHER rule applied and both navigations
-  // rendered at once. These two breakpoints must partition the axis exactly.
-  @media (min-width: 30.0001rem) {
+  // two navigations for one view. `above-narrow` is the exact complement of the `narrow` that hides
+  // .shell-nav in app.scss — see src/styles/_breakpoints.scss for why the pair must partition the axis.
+  @include bp.above-narrow {
     display: none;
   }
 }

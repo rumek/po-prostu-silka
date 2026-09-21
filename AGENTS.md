@@ -141,6 +141,30 @@ rule, so nothing stops those templates drifting back.
 **`.notice` now carries one meaning** — informational screen content — in five places, instead of
 four meanings in thirty-three. Loading is `app-loading`, empty is `app-empty`, success is a toast.
 
+### Breakpoints (S-20)
+
+Every width threshold a stylesheet uses is a mixin in **`src/app/src/styles/_breakpoints.scss`**,
+reached with `@use 'breakpoints' as bp;` (`src/styles` is on `stylePreprocessorOptions.includePaths`
+in `angular.json`). The values: `narrow` / `above-narrow` (30rem — the phone layout, and an exact
+partition of the axis: the header nav and the bottom bar must never both render), `form-columns`
+(40rem), and `desk` / `below-desk` (64rem — where a tool built for a mouse, the admin's class
+calendar, renders at all). Sass values and not custom properties, because a custom property is
+illegal in a media condition.
+
+TypeScript gets only what it needs to **withhold rendering** rather than restyle:
+`core/layout/breakpoints.ts` carries `DESK_MIN_WIDTH` / `DESK_MEDIA_QUERY` (the twin of
+`$desk-min-width`) and `FINE_POINTER_MEDIA_QUERY`, and `core/layout/media-query.ts`'s
+`mediaQuerySignal(query, fallback)` is the one guarded `matchMedia` read — call it in an injection
+context, and choose the fallback for a server or jsdom deliberately. A layout-only difference stays in
+the stylesheet; `bottom-nav` hides in CSS for exactly that reason.
+
+`core/layout/breakpoints.spec.ts` fails when the Sass and TS desk values disagree, and when any
+stylesheet other than the partial writes a literal `min-width` / `max-width` media query.
+
+**48rem is not in the partial.** It is the calendar's day/week switch — how many day columns stay
+legible — lives in `shared/calendar/calendar-breakpoint.ts` alone, and must not be merged with the
+desk boundary: two different questions, one number, and they drift apart under the first redesign.
+
 ### Shared shapes, not copied ones (S-19)
 
 Six blocks were copied from screen to screen until S-19; each now exists once, and a seventh copy
