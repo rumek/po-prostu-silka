@@ -179,6 +179,7 @@ The helper lives in `Members`, not in `Paging`. It returns `MemberListFailure`, 
 - `GET /api/trainer/members/{memberId:guid}/plan` returns 200 `MemberPlan` or 404 when no such member exists.
   - The plan comes from `FindActiveForMemberAsync` and may be null.
   - Status is not filtered, because an admin must reach a blocked member's plan (plan decision). A trainer reaching one by a typed id learns only a name.
+    - **Adapted during implementation (impl-review F5).** "Only a name" was wrong. The payload carries the member's active plan too. That is no wider than the retired `GET /api/trainer/plans`, which listed every active plan whatever the member's status. `A_blocked_members_plan_is_readable_by_a_trainer_who_knows_the_id` pins it.
 - The group doc comment explains:
   - why this is not `/api/admin/members` loosened (the policy is set on the whole group, and its rows carry contact data);
   - why the search is name-only (the e-mail oracle).
@@ -598,11 +599,11 @@ Remove `GET /api/trainer/plans` and `GET /api/trainer/plans/members`, which no l
 
 #### Automated
 
-- [x] 4.1 Build warning-free
-- [x] 4.2 Plan, my-plan and member-claim tests green
-- [x] 4.3 Access surface green
-- [x] 4.4 Full suite green
-- [x] 4.5 No server reference to the removed handlers
+- [x] 4.1 Build warning-free — 7ea78eb
+- [x] 4.2 Plan, my-plan and member-claim tests green — 7ea78eb
+- [x] 4.3 Access surface green — 7ea78eb
+- [x] 4.4 Full suite green — 7ea78eb
+- [x] 4.5 No server reference to the removed handlers — 7ea78eb
 
 #### Manual
 

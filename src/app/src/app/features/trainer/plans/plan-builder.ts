@@ -6,6 +6,7 @@ import {
   moveItemInArray,
 } from '@angular/cdk/drag-drop';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
   FormBuilder,
   FormControl,
@@ -153,8 +154,13 @@ export class PlanBuilder implements OnInit {
   /** The table, exposed to the template so client and server messages cannot disagree. */
   protected readonly failureMessage = trainingPlanFailureMessage;
 
-  /** The member id from the URL — whose plan this is, for the load and for every save. */
-  private readonly memberId = this.route.snapshot.paramMap.get('id') ?? '';
+  /**
+   * The member id from the URL — whose plan this is, for the load and for every save. A signal fed by
+   * `paramMap`, not a snapshot: the router REUSES this component when only `:id` changes, and a
+   * snapshot would then show one member's plan under another's URL and save it with the wrong id —
+   * which `member_changed` cannot catch, since the body and the stored plan would still agree.
+   */
+  private readonly memberId = signal('');
 
   /**
    * Whose plan this is, from the load. Any status: an admin opens a BLOCKED member's plan too, so
@@ -200,12 +206,24 @@ export class PlanBuilder implements OnInit {
 
   protected readonly atItemLimit = computed(() => this.chosenIds().length >= MAX_ITEMS);
 
-  async ngOnInit(): Promise<void> {
+  constructor() {
+    // The ONLY thing that loads the member's plan, as the query-param subscription is on the trainer's
+    // list: a new id is a new member, and everything on screen belongs to the old one.
+    this.route.paramMap.pipe(takeUntilDestroyed()).subscribe((params) => {
+      const id = params.get('id') ?? '';
+      if (id === this.memberId()) {
+        return;
+      }
+
+      this.memberId.set(id);
+      void this.load();
+    });
+  }
+
+  ngOnInit(): void {
     // Not awaited before the form is usable: the library is data the trainer types alongside, and a
     // slow fetch must not delay naming the plan.
     void this.loadLibrary();
-
-    await this.load();
   }
 
   /** The member and their plan. Also the load-failure state's retry. */
@@ -217,7 +235,7 @@ export class PlanBuilder implements OnInit {
     this.notFound.set(null);
 
     try {
-      const { member, plan } = await this.plans.getMemberPlan(this.memberId);
+      const { member, plan } = await this.plans.getMemberPlan(this.memberId());
 
       if (!this.fence.isCurrent(generation)) {
         return;
@@ -225,8 +243,13 @@ export class PlanBuilder implements OnInit {
 
       this.member.set(member);
       this.items.clear();
+      this.state.error.set(null);
 
-      if (plan) {
+      if (!plan) {
+        // Reset rather than assumed: after a member change the previous member's plan is still here.
+        this.editingId.set(null);
+        this.form.reset();
+      } else {
         this.editingId.set(plan.id);
         this.form.setValue({ name: plan.name });
 
@@ -344,7 +367,7 @@ export class PlanBuilder implements OnInit {
     // plan and refuses a mismatch with `member_changed` — the URL/body agreement check.
     const request = {
       name: this.form.getRawValue().name.trim(),
-      memberId: this.memberId,
+      memberId: this.memberId(),
       items: this.items.controls.map((control) => toItemRequest(control.getRawValue())),
     };
 
@@ -356,6 +379,12 @@ export class PlanBuilder implements OnInit {
         // THE SCREEN BECOMES THE EDIT VIEW of what it just created. Without this a second save would
         // POST again — archiving the plan just made and creating another.
         const created = await this.plans.create(request);
+
+        // The URL moved to another member while the POST was in flight: this plan is not theirs.
+        if (request.memberId !== this.memberId()) {
+          return;
+        }
+
         this.editingId.set(created.id);
       }
 

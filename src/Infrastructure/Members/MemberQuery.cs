@@ -225,8 +225,8 @@ public class MemberQuery(AppDbContext db) : IMemberQuery
 
     /// <summary>
     /// A substring of the display name OR the e-mail, case- and accent-insensitive (S-21). The
-    /// collation and the <c>ł</c> fold are <see cref="MemberSearch"/>'s, shared with the trainer's
-    /// name-only search so the two cannot drift apart on what "matches" means.
+    /// whole match — collation, <c>ł</c> fold and all — is <see cref="MemberSearch"/>'s, shared with
+    /// the trainer's name-only search so the two cannot drift apart on what "matches" means.
     ///
     /// <para>
     /// THE E-MAIL HALF IS THE ADMIN'S ALONE. The trainer's list searches names only (S-22): a search
@@ -234,20 +234,6 @@ public class MemberQuery(AppDbContext db) : IMemberQuery
     /// even without ever returning an address.
     /// </para>
     /// </summary>
-    private static IQueryable<Member> Searched(IQueryable<Member> members, string? search)
-    {
-        if (search is null)
-        {
-            return members;
-        }
-
-        var term = MemberSearch.Fold(search);
-
-        return members.Where(m =>
-            EF.Functions.Collate(m.DisplayName.Replace("ł", "l").Replace("Ł", "L"), MemberSearch.Collation)
-                .Contains(term)
-            || (m.Email != null
-                && EF.Functions.Collate(m.Email.Replace("ł", "l").Replace("Ł", "L"), MemberSearch.Collation)
-                    .Contains(term)));
-    }
+    private static IQueryable<Member> Searched(IQueryable<Member> members, string? search) =>
+        MemberSearch.ByNameOrEmail(members, search);
 }

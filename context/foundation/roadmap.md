@@ -216,7 +216,7 @@ out; a build error cannot.
 | S-19 | frontend-error-and-patterns | (structural) a failure is told one way instead of nine, and the patterns copied across screens are extracted once | S-17 | M-6 CS-04, CS-05, CS-06, CS-07 | done |
 | S-20 | admin-schedule-web-only | (admin) run the class calendar at a desk, with every per-class action reachable at every class length - and on a phone be told plainly that this screen is not one | S-19 | M-7 UX-01, UX-02, UX-03, UX-04 (narrows v2 FR-019) | in-progress |
 | S-21 | member-list-at-scale | (admin) find one member among hundreds - the API pages, searches and filters; a table on web, one compact row on a phone | S-20 | M-7 UX-05, UX-06 | in-progress |
-| S-22 | member-centric-training-plans | (admin, trainer) set a member's plan by opening the member, not a plan list; the Plany screen is retired | S-21 | M-7 UX-07, UX-08 (retires part of v1 FR-015's surface) | planned |
+| S-22 | member-centric-training-plans | (admin, trainer) set a member's plan by opening the member, not a plan list; the Plany screen is retired | S-21 | M-7 UX-07, UX-08 (retires part of v1 FR-015's surface) | in-progress |
 | S-23 | frontend-presentational-kit | (structural) the presentational layer gets components instead of copies — one field, one select, one checkbox, one loading state, one empty state, one list row, enforced by a spec | S-19 | none — milestone unassigned, see the item body | done |
 
 ## Streams
@@ -719,7 +719,7 @@ rather than in a slice body:
   builder assumes the member is chosen inside the form and locks that control on edit; reached
   through a member, the member is chosen by the URL, and the `member_changed` refusal the server
   already raises becomes the check that the two agree.
-- **Status:** planned
+- **Status:** in-progress
 
 ### S-23: The presentational layer gets components, not copies
 

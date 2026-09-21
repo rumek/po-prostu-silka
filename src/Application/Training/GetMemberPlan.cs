@@ -12,7 +12,9 @@ namespace po_prostu_silka.Application.Training;
 /// <para>
 /// STATUS IS NOT FILTERED. An admin must reach a blocked member's plan to read or edit it, and the
 /// write side still refuses to CREATE one for them (<c>member_not_active</c>). A trainer who reaches a
-/// blocked member by typing an id learns only a name — the same trainer-safe identity the list shows.
+/// blocked member by typing an id learns their name and active plan — no wider than the retired plan
+/// list, which showed every active plan whatever the member's status — and still none of their
+/// contact data.
 /// </para>
 ///
 /// <para>

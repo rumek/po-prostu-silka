@@ -21,9 +21,9 @@ namespace po_prostu_silka.Application.Training;
 /// </para>
 /// </summary>
 /// <param name="Id">The MEMBER's id (S-14), not an account's — which is what lets a person the club
-/// recorded but who never registered be offered here at all.</param>
+/// recorded but who never registered have a plan at all, and what the plan screen's URL carries.</param>
 /// <param name="HasAccount">
-/// Whether they can sign in. The picker says so, because a plan assigned to someone with no login is
-/// real work the member will never see in the app until they claim their record.
+/// Whether they can sign in. The plan screen says so, because a plan assigned to someone with no login
+/// is real work the member will never see in the app until they claim their record.
 /// </param>
 public record AssignableMember(Guid Id, string DisplayName, bool HasAccount);

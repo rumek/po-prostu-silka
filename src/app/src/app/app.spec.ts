@@ -142,25 +142,6 @@ describe('App', () => {
     ).toBeNull();
   });
 
-  // The header's condition must match adminGuard and the backend Admin policy: an admin whose own
-  // account is unusable is not an admin anywhere else either.
-  it('hides the member-list link from an admin whose account is not active', async () => {
-    configure({
-      user: () => ADMIN,
-      isAuthenticated: () => true,
-      isAdmin: () => true,
-      isTrainer: () => false,
-      isActive: () => false,
-    } as unknown as Partial<AuthService>);
-
-    const fixture = TestBed.createComponent(App);
-    await fixture.whenStable();
-
-    expect(
-      (fixture.nativeElement as HTMLElement).querySelector('a[href="/trainer/members"]'),
-    ).toBeNull();
-  });
-
   /**
    * S-22: "Plany" is retired, and an admin is NOT offered the trainer's member list — they reach
    * members, and so plans, through their own list. One role, one path to one list.

@@ -166,6 +166,98 @@ describe('TrainerMembers', () => {
     expect(navigate.mock.calls.at(-1)?.[1]?.replaceUrl).toBe(true);
   });
 
+  /**
+   * Typing replaces the history entry — a phrase typed a letter at a time must not leave a Back press
+   * per pause — while a page is a place Back should return to, so it pushes.
+   */
+  it('replaces the history entry for a search, and pushes one for a page', async () => {
+    await createWith(page(many(25), 75));
+    const navigate = vi.spyOn(router, 'navigate');
+
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      type('kow');
+      vi.advanceTimersByTime(TRAINER_SEARCH_DEBOUNCE_MS);
+    } finally {
+      vi.useRealTimers();
+    }
+    (
+      await vi.waitFor(() => controller.expectOne('/api/trainer/members?search=kow&pageSize=25'))
+    ).flush(page(many(25), 75));
+    await settle();
+
+    pagerButton('Następna').click();
+    (
+      await vi.waitFor(() =>
+        controller.expectOne('/api/trainer/members?search=kow&page=2&pageSize=25'),
+      )
+    ).flush(page(many(25, 25), 75, 2));
+    await settle();
+
+    expect(navigate.mock.calls.map(([, extras]) => extras?.replaceUrl)).toEqual([true, false]);
+  });
+
+  /**
+   * Back and Forward change the URL under the screen; the box has to follow, or it would show one
+   * phrase above the results of another.
+   */
+  it('puts the phrase from the URL into the search box on Back or Forward', async () => {
+    await createWith([ANNA, PIOTR]);
+    const searchBox = () => root().querySelector<HTMLInputElement>('input[type="search"]')!;
+
+    await router.navigateByUrl('/?q=nowak');
+    (
+      await vi.waitFor(() => controller.expectOne('/api/trainer/members?search=nowak&pageSize=25'))
+    ).flush(page([PIOTR]));
+    await settle();
+
+    expect(searchBox().value).toBe('nowak');
+
+    await router.navigateByUrl('/');
+    (await vi.waitFor(() => controller.expectOne(LIST))).flush(page([ANNA, PIOTR]));
+    await settle();
+
+    expect(searchBox().value).toBe('');
+  });
+
+  /**
+   * A pasted URL or an old bookmark may carry junk the API would refuse with a 400. It is normalised
+   * away instead — afterEach's verify() is what proves no request ever carried it.
+   */
+  it('normalises junk in the URL without sending it to the API', async () => {
+    await createWith([ANNA], '/?page=abc&q=%20%20');
+
+    expect(router.url).toBe('/');
+    expect(rows().length).toBe(1);
+  });
+
+  /**
+   * Nothing cancels an in-flight request, so without the load fence the last RESPONSE would win
+   * rather than the last request — leaving the rows disagreeing with the phrase in the box.
+   */
+  it('discards a stale load response that resolves after a newer one', async () => {
+    await createWith([ANNA, PIOTR]);
+
+    await router.navigateByUrl('/?q=anna');
+    const older = await vi.waitFor(() =>
+      controller.expectOne('/api/trainer/members?search=anna&pageSize=25'),
+    );
+    await router.navigateByUrl('/?q=nowak');
+    const newer = await vi.waitFor(() =>
+      controller.expectOne('/api/trainer/members?search=nowak&pageSize=25'),
+    );
+
+    // The NEWER request answers first, the older one second — the out-of-order case.
+    newer.flush(page([PIOTR]));
+    await settle();
+    older.flush(page([ANNA]));
+    await settle();
+
+    expect(rows().length).toBe(1);
+    expect(html()).toContain('Piotr Nowak');
+    expect(html()).not.toContain('Anna Kowalska');
+  });
+
   it('restores the phrase and the page from the URL', async () => {
     await createWith(
       page([ANNA], 26, 2),

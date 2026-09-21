@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using po_prostu_silka.Domain.Members;
 
@@ -33,20 +34,59 @@ internal static class MemberSearch
     public static string Fold(string value) => value.Replace('ł', 'l').Replace('Ł', 'L');
 
     /// <summary>
-    /// A substring of the display name, and NOTHING ELSE — the trainer's search (S-22). A caller that
-    /// also matches the e-mail does so on purpose, as <c>MemberQuery</c> does for the admin.
+    /// The ONE column-side match: the column folded, compared under <see cref="Collation"/>, containing
+    /// the already-folded term. Written once and inlined into each predicate below, because EF cannot
+    /// translate a call to a helper method — only the expression the helper would have returned.
     /// </summary>
-    public static IQueryable<Member> ByName(IQueryable<Member> members, string? term)
+    private static readonly Expression<Func<string, string, bool>> Matches = (column, term) =>
+        EF.Functions.Collate(column.Replace("ł", "l").Replace("Ł", "L"), Collation).Contains(term);
+
+    /// <summary>
+    /// A substring of the display name, and NOTHING ELSE — the trainer's search (S-22). A caller that
+    /// also matches the e-mail does so on purpose, through <see cref="ByNameOrEmail"/>.
+    /// </summary>
+    public static IQueryable<Member> ByName(IQueryable<Member> members, string? term) =>
+        term is null ? members : members.Where(Predicate(term, includeEmail: false));
+
+    /// <summary>
+    /// The display name OR the e-mail — the admin's search (S-21), and never a trainer's: a search that
+    /// matched addresses would answer "does anyone's e-mail contain x" through its result count.
+    /// </summary>
+    public static IQueryable<Member> ByNameOrEmail(IQueryable<Member> members, string? term) =>
+        term is null ? members : members.Where(Predicate(term, includeEmail: true));
+
+    private static Expression<Func<Member, bool>> Predicate(string term, bool includeEmail)
     {
-        if (term is null)
+        // Captured through a closure, not a constant, so EF sends it as a SQL parameter.
+        var folded = Fold(term);
+        Expression<Func<string>> captured = () => folded;
+
+        var member = Expression.Parameter(typeof(Member), "m");
+        Expression body = Inline(Expression.Property(member, nameof(Member.DisplayName)), captured.Body);
+
+        if (includeEmail)
         {
-            return members;
+            var email = Expression.Property(member, nameof(Member.Email));
+            body = Expression.OrElse(
+                body,
+                Expression.AndAlso(
+                    Expression.NotEqual(email, Expression.Constant(null, typeof(string))),
+                    Inline(email, captured.Body)));
         }
 
-        var folded = Fold(term);
+        return Expression.Lambda<Func<Member, bool>>(body, member);
+    }
 
-        return members.Where(m =>
-            EF.Functions.Collate(m.DisplayName.Replace("ł", "l").Replace("Ł", "L"), Collation)
-                .Contains(folded));
+    private static Expression Inline(Expression column, Expression term) =>
+        new Substitution(Matches.Parameters[0], column, Matches.Parameters[1], term).Visit(Matches.Body);
+
+    private sealed class Substitution(
+        ParameterExpression column,
+        Expression columnValue,
+        ParameterExpression term,
+        Expression termValue) : ExpressionVisitor
+    {
+        protected override Expression VisitParameter(ParameterExpression node) =>
+            node == column ? columnValue : node == term ? termValue : base.VisitParameter(node);
     }
 }

@@ -14,7 +14,7 @@ import { TRAINING_PLAN_BOUNDS, TrainingPlanFailure } from './training-plan.model
  */
 const MESSAGES: Record<TrainingPlanFailure['reason'], string> = {
   // 400 — bad input.
-  missing_field: 'Uzupełnij nazwę planu i wybierz członka.',
+  missing_field: 'Uzupełnij nazwę planu.',
   name_too_long: `Nazwa planu może mieć najwyżej ${TRAINING_PLAN_BOUNDS.maxName} znaków.`,
   no_items: 'Dodaj przynajmniej jedno ćwiczenie do planu.',
   too_many_items: `Plan może mieć najwyżej ${TRAINING_PLAN_BOUNDS.maxItems} ćwiczeń.`,
@@ -38,10 +38,8 @@ const MESSAGES: Record<TrainingPlanFailure['reason'], string> = {
   // Likewise a deliberate pair: whether the member was removed or is blocked, no plan can be
   // created for them. Since S-22 the member is fixed by the URL, so the words point back to the
   // member list rather than at a picker that no longer exists.
-  member_not_found:
-    'Tej osobie nie można przypisać planu — jej konto jest zablokowane lub nieaktywne. Wróć do listy członków.',
-  member_not_active:
-    'Tej osobie nie można przypisać planu — jej konto jest zablokowane lub nieaktywne. Wróć do listy członków.',
+  member_not_found: 'Tej osobie nie można teraz przypisać planu. Wróć do listy członków.',
+  member_not_active: 'Tej osobie nie można teraz przypisać planu. Wróć do listy członków.',
   member_changed:
     'Ten plan należy do innego członka, niż pokazuje ta strona. Odśwież ją i spróbuj ponownie.',
   conflict: 'Ktoś zmieniał ten plan w tej samej chwili. Odśwież stronę i spróbuj ponownie.',

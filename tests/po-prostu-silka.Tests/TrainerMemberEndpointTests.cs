@@ -368,6 +368,25 @@ public class TrainerMemberEndpointTests(IntegrationTestFixture fixture)
         Assert.Equal(plan.Id, body.Plan!.Id);
     }
 
+    /// <summary>
+    /// A decision, not an accident: a trainer who reaches a blocked member by id gets the name AND the
+    /// active plan — no wider than the retired plan list, which showed every active plan regardless
+    /// of the member's status. Pinned so narrowing or widening it is a visible change.
+    /// </summary>
+    [Fact]
+    public async Task A_blocked_members_plan_is_readable_by_a_trainer_who_knows_the_id()
+    {
+        var memberId = await fixture.CreateMemberAsync($"Zablokowany dla trenera {NewMarker()}");
+        var plan = await AssignAsync(memberId, "Siła");
+
+        var blocked = await (await AdminAsync()).PostAsync($"/api/admin/members/{memberId}/block", null);
+        Assert.Equal(HttpStatusCode.OK, blocked.StatusCode);
+
+        var body = await MemberPlanAsync(await TrainerAsync(), memberId);
+
+        Assert.Equal(plan.Id, body.Plan!.Id);
+    }
+
     [Fact]
     public async Task An_unknown_member_is_404()
     {

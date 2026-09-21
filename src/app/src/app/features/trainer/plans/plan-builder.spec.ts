@@ -5,7 +5,8 @@ import {
   provideHttpClientTesting,
 } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { ActivatedRoute, provideRouter } from '@angular/router';
+import { ActivatedRoute, ParamMap, convertToParamMap, provideRouter } from '@angular/router';
+import { BehaviorSubject } from 'rxjs';
 import { ExerciseSummary } from '../../../core/training/exercise.models';
 import {
   AssignableMember,
@@ -85,12 +86,15 @@ const PLAN: TrainingPlanDetail = {
 describe('PlanBuilder', () => {
   let fixture: ComponentFixture<PlanBuilder>;
   let controller: HttpTestingController;
+  let params: BehaviorSubject<ParamMap>;
 
   /**
    * Mounts the builder for a MEMBER (S-22): the route carries the member id and the list to return
    * to, and the load answers with the member and their plan — null when they have none.
    */
   function configure(memberId: string, membersLink = '/admin/members') {
+    params = new BehaviorSubject(convertToParamMap({ id: memberId }));
+
     TestBed.configureTestingModule({
       imports: [PlanBuilder],
       providers: [
@@ -100,7 +104,8 @@ describe('PlanBuilder', () => {
         {
           provide: ActivatedRoute,
           useValue: {
-            snapshot: { paramMap: new Map([['id', memberId]]), data: { membersLink } },
+            paramMap: params,
+            snapshot: { data: { membersLink } },
           },
         },
       ],
@@ -360,6 +365,37 @@ describe('PlanBuilder', () => {
     second.flush(PLAN);
   });
 
+  /**
+   * The router REUSES the component when only `:id` changes. The screen must follow the URL to the
+   * next member — otherwise it shows one member's plan under another's URL and saves it with the
+   * wrong id, which `member_changed` cannot catch.
+   */
+  it('follows the URL to another member instead of keeping the previous plan', async () => {
+    await create(PLAN);
+    expect(submitLabel()).toBe('Zapisz zmiany');
+
+    params.next(convertToParamMap({ id: ACCOUNTLESS.id }));
+    (
+      await vi.waitFor(() => controller.expectOne(`/api/trainer/members/${ACCOUNTLESS.id}/plan`))
+    ).flush({ member: ACCOUNTLESS, plan: null });
+    await settle();
+
+    expect(root().querySelector('h1')!.textContent).toContain('Plan — Piotr Nowak');
+    expect(itemNames()).toEqual([]);
+    expect(root().querySelector<HTMLInputElement>('#plan-name')!.value).toBe('');
+    expect(submitLabel()).toBe('Przypisz plan');
+
+    await setValue('#plan-name', 'Siła');
+    await pick('Martwy ciąg');
+    await submit();
+
+    const post = await vi.waitFor(() =>
+      controller.expectOne((r) => r.url === '/api/trainer/plans' && r.method === 'POST'),
+    );
+    expect(sentBody(post).memberId).toBe(ACCOUNTLESS.id);
+    post.flush({ ...PLAN, id: 'p2', memberId: ACCOUNTLESS.id });
+  });
+
   /** A member that does not exist is a screen state (outlet 4) — never a toast. */
   it('shows the not-found state when the member does not exist', async () => {
     configure('missing');
@@ -407,7 +443,7 @@ describe('PlanBuilder', () => {
    */
   it.each([
     ['member_changed', 'Ten plan należy do innego członka'],
-    ['member_not_active', 'Tej osobie nie można przypisać planu'],
+    ['member_not_active', 'Tej osobie nie można teraz przypisać planu'],
   ])('shows %s in the form banner', async (reason, text) => {
     await create(PLAN);
     await submit();
