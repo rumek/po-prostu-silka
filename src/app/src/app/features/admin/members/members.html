@@ -76,184 +76,214 @@
     </app-empty>
   </div>
 } @else {
-  <app-list>
-    @for (member of rows(); track member.id) {
-      <li appRow class="card">
-        <p class="row-name">
-          {{ member.displayName }}
-          <span class="badge" [class]="'badge-' + statusKind(member)">{{
-            statusLabel(member)
-          }}</span>
-          @for (role of notableRoles(member); track role) {
-            <span class="badge badge-role">{{ roleLabel(role) }}</span>
-          }
-        </p>
-        <!-- A record kept at the desk may have no address at all; saying so beats an empty line
-             that reads like a rendering bug. -->
-        <p class="members-email">{{ member.email ?? 'Brak adresu e-mail' }}</p>
-        <p class="members-since">Od {{ member.createdAt | date: 'd MMMM y' }}</p>
-
-        <div slot="actions" class="row-actions members-action">
-          <!-- The wrapper is the "inside the menu" boundary the document click handler tests for. -->
-          <div class="row-menu">
-            <button
-              type="button"
-              class="button button--secondary"
-              [id]="triggerIdFor(member.id)"
-              [disabled]="busy.isBusy(member.id)"
-              [attr.aria-expanded]="openMenuId() === member.id"
-              aria-haspopup="menu"
-              (click)="toggleMenu(member)"
-            >
-              {{ busy.isBusy(member.id) ? 'Pracuję…' : 'Akcje' }}
-            </button>
-
-            @if (openMenuId() === member.id) {
-              <!-- tabindex="-1" so the container carrying the keydown handler is focusable, which
-                   is what makes arrow-key roving legitimate rather than a trap. -->
-              <div
-                class="row-menu-list"
-                role="menu"
-                tabindex="-1"
-                [attr.aria-label]="'Akcje — ' + member.displayName"
-                (keydown)="onMenuKeydown($event)"
-              >
-                <a
-                  role="menuitem"
-                  class="row-menu-item"
-                  [routerLink]="['/admin/members', member.id]"
-                  (click)="closeMenu()"
+  <!-- A TABLE, NOT app-list (S-21, UX-06). An admin reads this screen DOWN a column — whose status,
+       which address, since when — and that is what columns are for; a stack of cards made every
+       comparison a scan. The S-23 kit's lint rule does not cover tables by design: the kit is for the
+       copied list-row shape, and a data table with a header row is a different thing, not a
+       hand-rolled copy of it. Below `form-columns` the SAME DOM collapses, in CSS only, into one
+       compact row per member (name, badges, Akcje) — a layout-only difference stays in the
+       stylesheet (AGENTS.md, Breakpoints). -->
+  <table class="members-table">
+    <caption class="visually-hidden">
+      Członkowie klubu
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Imię i nazwisko</th>
+        <th scope="col">Status</th>
+        <th scope="col">E-mail</th>
+        <th scope="col">Od</th>
+        <th scope="col"><span class="visually-hidden">Akcje</span></th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (member of rows(); track member.id) {
+        <tr class="members-entry">
+          <th scope="row" class="members-cell-name">{{ member.displayName }}</th>
+          <td class="members-cell-status">
+            <span class="badge" [class]="'badge-' + statusKind(member)">{{
+              statusLabel(member)
+            }}</span>
+            @for (role of notableRoles(member); track role) {
+              <span class="badge badge-role">{{ roleLabel(role) }}</span>
+            }
+          </td>
+          <!-- A record kept at the desk may have no address at all; saying so beats an empty cell
+               that reads like a rendering bug. -->
+          <td class="members-cell-email">{{ member.email ?? 'Brak adresu e-mail' }}</td>
+          <td class="members-cell-since">{{ member.createdAt | date: 'd MMMM y' }}</td>
+          <td class="members-cell-actions">
+            <div class="members-action">
+              <!-- The wrapper is the "inside the menu" boundary the document click handler tests for. -->
+              <div class="row-menu">
+                <button
+                  type="button"
+                  class="button button--secondary"
+                  [id]="triggerIdFor(member.id)"
+                  [disabled]="busy.isBusy(member.id)"
+                  [attr.aria-expanded]="openMenuId() === member.id"
+                  aria-haspopup="menu"
+                  (click)="toggleMenu(member)"
                 >
-                  Edytuj dane
-                </a>
+                  {{ busy.isBusy(member.id) ? 'Pracuję…' : 'Akcje' }}
+                </button>
 
-                <!-- Karnety (S-16). Offered on EVERY row, blocked members included: what a blocked
-                     person holds is exactly what the admin needs to see before deciding whether to
-                     unblock them, and the issue form on that screen refuses the write on its own. -->
-                <a
-                  role="menuitem"
-                  class="row-menu-item"
-                  [routerLink]="['/admin/members', member.id, 'passes']"
-                  (click)="closeMenu()"
-                >
-                  Karnety
-                </a>
-
-                <!-- The code attaches a NEW account to this record, so it is offered only where
-                     there is no login yet — see canIssueCode. -->
-                @if (canIssueCode(member)) {
-                  @if (member.hasAccessCode) {
-                    <button
-                      type="button"
-                      role="menuitem"
-                      class="row-menu-item"
-                      (click)="showCode(member)"
-                    >
-                      Pokaż kod klubowicza
-                    </button>
-                  }
-
-                  <button
-                    type="button"
-                    role="menuitem"
-                    class="row-menu-item"
-                    (click)="issueCode(member)"
+                @if (openMenuId() === member.id) {
+                  <!-- tabindex="-1" so the container carrying the keydown handler is focusable, which
+                       is what makes arrow-key roving legitimate rather than a trap. -->
+                  <div
+                    class="row-menu-list"
+                    role="menu"
+                    tabindex="-1"
+                    [attr.aria-label]="'Akcje — ' + member.displayName"
+                    (keydown)="onMenuKeydown($event)"
                   >
-                    {{ member.hasAccessCode ? 'Wygeneruj nowy kod' : 'Wygeneruj kod klubowicza' }}
-                  </button>
-
-                  @if (member.hasAccessCode) {
-                    <button
-                      type="button"
+                    <a
                       role="menuitem"
                       class="row-menu-item"
-                      (click)="revokeCode(member)"
+                      [routerLink]="['/admin/members', member.id]"
+                      (click)="closeMenu()"
                     >
-                      Unieważnij kod
-                    </button>
-                  }
-                }
+                      Edytuj dane
+                    </a>
 
-                @if (canChangeTrainer(member)) {
-                  <button
-                    type="button"
-                    role="menuitem"
-                    class="row-menu-item"
-                    (click)="toggleTrainer(member)"
-                  >
-                    {{ isTrainer(member) ? 'Odbierz rolę Trenera' : 'Nadaj rolę Trenera' }}
-                  </button>
-                }
-
-                <!-- An admin administers the club and is not a member; the API refuses the block
-                     anyway (is_admin), so offering it here would only produce a 409. -->
-                @if (!isAdmin(member)) {
-                  @if (canUnblock(member)) {
-                    <button
-                      type="button"
+                    <!-- Karnety (S-16). Offered on EVERY row, blocked members included: what a blocked
+                         person holds is exactly what the admin needs to see before deciding whether to
+                         unblock them, and the issue form on that screen refuses the write on its own. -->
+                    <a
                       role="menuitem"
                       class="row-menu-item"
-                      (click)="closeMenu(); unblock(member)"
+                      [routerLink]="['/admin/members', member.id, 'passes']"
+                      (click)="closeMenu()"
                     >
-                      Odblokuj
-                    </button>
-                  } @else {
-                    <button
-                      type="button"
-                      role="menuitem"
-                      class="row-menu-item"
-                      (click)="closeMenu(); block(member)"
-                    >
-                      Zablokuj
-                    </button>
-                  }
+                      Karnety
+                    </a>
+
+                    <!-- The code attaches a NEW account to this record, so it is offered only where
+                         there is no login yet — see canIssueCode. -->
+                    @if (canIssueCode(member)) {
+                      @if (member.hasAccessCode) {
+                        <button
+                          type="button"
+                          role="menuitem"
+                          class="row-menu-item"
+                          (click)="showCode(member)"
+                        >
+                          Pokaż kod klubowicza
+                        </button>
+                      }
+
+                      <button
+                        type="button"
+                        role="menuitem"
+                        class="row-menu-item"
+                        (click)="issueCode(member)"
+                      >
+                        {{
+                          member.hasAccessCode ? 'Wygeneruj nowy kod' : 'Wygeneruj kod klubowicza'
+                        }}
+                      </button>
+
+                      @if (member.hasAccessCode) {
+                        <button
+                          type="button"
+                          role="menuitem"
+                          class="row-menu-item"
+                          (click)="revokeCode(member)"
+                        >
+                          Unieważnij kod
+                        </button>
+                      }
+                    }
+
+                    @if (canChangeTrainer(member)) {
+                      <button
+                        type="button"
+                        role="menuitem"
+                        class="row-menu-item"
+                        (click)="toggleTrainer(member)"
+                      >
+                        {{ isTrainer(member) ? 'Odbierz rolę Trenera' : 'Nadaj rolę Trenera' }}
+                      </button>
+                    }
+
+                    <!-- An admin administers the club and is not a member; the API refuses the block
+                         anyway (is_admin), so offering it here would only produce a 409. -->
+                    @if (!isAdmin(member)) {
+                      @if (canUnblock(member)) {
+                        <button
+                          type="button"
+                          role="menuitem"
+                          class="row-menu-item"
+                          (click)="closeMenu(); unblock(member)"
+                        >
+                          Odblokuj
+                        </button>
+                      } @else {
+                        <button
+                          type="button"
+                          role="menuitem"
+                          class="row-menu-item"
+                          (click)="closeMenu(); block(member)"
+                        >
+                          Zablokuj
+                        </button>
+                      }
+                    }
+                  </div>
                 }
               </div>
-            }
-          </div>
 
-          @if (failedId() === member.id) {
-            <p class="field-error" role="alert">Nie udało się. Spróbuj ponownie.</p>
-          }
+              @if (failedId() === member.id) {
+                <p class="field-error" role="alert">Nie udało się. Spróbuj ponownie.</p>
+              }
 
-          @if (codeMemberId() === member.id) {
-            <div class="member-code" role="status">
-              @if (busy.isBusy(member.id)) {
-                <p class="member-code-status">Sprawdzam…</p>
-              } @else if (code(); as view) {
-                <p class="member-code-value">{{ view.code }}</p>
-                <p class="member-code-status">
-                  Ważny do {{ view.expiresAt | date: 'd MMMM y, HH:mm' }}
-                </p>
-                <!-- Two copies, because there are two ways to hand a code over: the LINK is
-                     pasted into a message, the CODE is read aloud at the desk. -->
-                <div class="member-code-actions">
-                  <button type="button" class="link-button" (click)="copyCode()">Kopiuj kod</button>
-                  <button type="button" class="link-button" (click)="copyInvitationLink()">
-                    Kopiuj link
-                  </button>
-                  <button type="button" class="link-button" (click)="closeCode()">Zamknij</button>
-                </div>
-                @if (codeCopied()) {
-                  <p class="member-code-status">Skopiowano.</p>
-                }
-                @if (codeCopyFailed()) {
-                  <p class="field-error" role="alert">
-                    Nie udało się skopiować — przepisz kod ręcznie.
-                  </p>
-                }
-              } @else if (codeMissing()) {
-                <p class="member-code-status">Brak ważnego kodu — wygeneruj nowy.</p>
-                <div class="member-code-actions">
-                  <button type="button" class="link-button" (click)="closeCode()">Zamknij</button>
+              @if (codeMemberId() === member.id) {
+                <div class="member-code" role="status">
+                  @if (busy.isBusy(member.id)) {
+                    <p class="member-code-status">Sprawdzam…</p>
+                  } @else if (code(); as view) {
+                    <p class="member-code-value">{{ view.code }}</p>
+                    <p class="member-code-status">
+                      Ważny do {{ view.expiresAt | date: 'd MMMM y, HH:mm' }}
+                    </p>
+                    <!-- Two copies, because there are two ways to hand a code over: the LINK is
+                         pasted into a message, the CODE is read aloud at the desk. -->
+                    <div class="member-code-actions">
+                      <button type="button" class="link-button" (click)="copyCode()">
+                        Kopiuj kod
+                      </button>
+                      <button type="button" class="link-button" (click)="copyInvitationLink()">
+                        Kopiuj link
+                      </button>
+                      <button type="button" class="link-button" (click)="closeCode()">
+                        Zamknij
+                      </button>
+                    </div>
+                    @if (codeCopied()) {
+                      <p class="member-code-status">Skopiowano.</p>
+                    }
+                    @if (codeCopyFailed()) {
+                      <p class="field-error" role="alert">
+                        Nie udało się skopiować — przepisz kod ręcznie.
+                      </p>
+                    }
+                  } @else if (codeMissing()) {
+                    <p class="member-code-status">Brak ważnego kodu — wygeneruj nowy.</p>
+                    <div class="member-code-actions">
+                      <button type="button" class="link-button" (click)="closeCode()">
+                        Zamknij
+                      </button>
+                    </div>
+                  }
                 </div>
               }
             </div>
-          }
-        </div>
-      </li>
-    }
-  </app-list>
+          </td>
+        </tr>
+      }
+    </tbody>
+  </table>
 
   <!-- Hidden while everything fits on one page: a pager with nowhere to go is two dead buttons. -->
   @if (paged()) {

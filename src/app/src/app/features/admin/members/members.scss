@@ -49,13 +49,159 @@
   font: inherit;
 }
 
-.members-email,
-.members-since {
-  margin: var(--space-1) 0 0;
+// --- the table (S-21, UX-06) ---------------------------------------------------
+//
+// MOBILE FIRST: the rules outside the media block are the compact rows a phone gets, and
+// `bp.form-columns` turns the same elements back into a table. One DOM, two layouts — the markup
+// never branches on width. Writing it the other way round would need a max-width query, and the
+// breakpoint partial deliberately offers `form-columns` only as a minimum.
+
+.members-table {
+  display: block;
+  width: 100%;
+}
+
+// Visually hidden rather than display:none: once the cells are blocks the header row has nothing to
+// sit above, but it stays in the accessibility tree. The same technique as .visually-hidden below.
+.members-table thead {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.members-table tbody {
+  display: grid;
+  gap: var(--space-3);
+}
+
+// One member, one compact card: name, badges and Akcje on one line where they fit, wrapping where
+// they do not. The card look is .card's, restated because a class on a <tr> would also style the
+// desktop row.
+.members-entry {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #fff;
+  box-shadow: var(--shadow-card);
+}
+
+.members-entry > * {
+  display: block;
+  padding: 0;
+}
+
+.members-cell-name {
+  flex: 1 1 8rem;
+  min-width: 0;
+  font-weight: 600;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.members-cell-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.members-cell-actions {
+  margin-left: auto;
+}
+
+// On a phone the row is for finding the person and acting on them; the address and the date are
+// one tap away in Edytuj dane.
+.members-cell-email,
+.members-cell-since {
+  display: none;
   color: var(--muted);
   font-size: 0.875rem;
-  // Long addresses must not push the action buttons off a phone screen.
+  // Long addresses must not push the action column off the table.
   overflow-wrap: anywhere;
+}
+
+@include bp.form-columns {
+  // THE TABLE. `form-columns` (40rem) because five columns stay legible there — no new threshold.
+  // A card of its own rather than per row: the rows are lines in one table now, not separate cards.
+  // Deliberately NO overflow:hidden on it, rounded corners notwithstanding: the row menu is an
+  // absolutely positioned child of a cell, and clipping the table would cut the menu off.
+  .members-table {
+    display: table;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    border-spacing: 0;
+    border-collapse: separate;
+    background: #fff;
+    box-shadow: var(--shadow-card);
+  }
+
+  .members-table thead {
+    position: static;
+    width: auto;
+    height: auto;
+    margin: 0;
+    overflow: visible;
+    clip: auto;
+    white-space: normal;
+  }
+
+  .members-table tbody {
+    display: table-row-group;
+  }
+
+  .members-entry {
+    display: table-row;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+  }
+
+  .members-table th,
+  .members-table td,
+  .members-entry > * {
+    display: table-cell;
+    padding: var(--space-3) var(--space-4);
+    border-bottom: 1px solid var(--line);
+    text-align: left;
+    vertical-align: middle;
+  }
+
+  .members-table thead th {
+    color: var(--muted);
+    font-size: 0.875rem;
+    font-weight: 500;
+  }
+
+  .members-entry:last-child > * {
+    border-bottom: 0;
+  }
+
+  .members-cell-status {
+    display: table-cell;
+  }
+
+  // The badges wrap inside their cell rather than widening the column.
+  .members-cell-status .badge {
+    display: inline-block;
+    margin: 0 var(--space-1) var(--space-1) 0;
+  }
+
+  .members-cell-since {
+    white-space: nowrap;
+  }
+
+  .members-cell-actions {
+    margin-left: 0;
+  }
 }
 
 // The .badge base rule lives in src/styles.scss — it is shared with the class-types screen, and a
@@ -91,11 +237,14 @@
 .members-action {
   display: flex;
   flex-direction: column;
+  align-items: flex-end;
   gap: var(--space-2);
 }
 
 // The first menu in the app. Anchored to its trigger rather than portalled: the list is short and
-// the row is never inside a scrolling or clipping container.
+// the row is never inside a scrolling or clipping container — which is why the table above must
+// never gain overflow:hidden. `right: 0` opens it leftwards from the Akcje button, which sits at the
+// row's right edge at both widths, so it stays on screen on a phone too.
 .row-menu {
   position: relative;
 }
@@ -187,22 +336,8 @@
 }
 
 @include bp.narrow {
-  .row {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .members-action .button {
-    width: 100%;
-  }
-
-  // At phone width the menu spans the row rather than hanging off its right edge, which would put
-  // part of it off-screen once the row goes full-width.
-  .row-menu-list {
-    left: 0;
-    right: 0;
-    min-width: 0;
-  }
+  // The stacked row and its full-width Akcje button are gone with S-21's compact row: the button
+  // stays at the row's right edge, so the menu keeps its default right-anchored position.
 
   // Full width at phone size, and left-aligned with the rest of the row once the card stacks.
   .member-code {

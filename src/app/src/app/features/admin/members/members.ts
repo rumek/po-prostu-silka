@@ -17,8 +17,6 @@ import { createBusySet } from '../../../shared/forms/busy-set';
 import { createLoadFence } from '../../../shared/forms/load-fence';
 import { Loading } from '../../../shared/forms/loading/loading';
 import { Empty } from '../../../shared/forms/empty/empty';
-import { List } from '../../../shared/list/list';
-import { Row } from '../../../shared/list/row';
 
 /** The filter positions, including "everyone". `null` means no filter parameter is sent. */
 type StatusFilter = MemberFilter | null;
@@ -91,7 +89,7 @@ function readState(params: ParamMap): { state: ListState; canonical: boolean } {
  * the admin somewhere else to do the obvious thing.
  */
 @Component({
-  imports: [Row, List, Empty, Loading, DatePipe, FormsModule, RouterLink],
+  imports: [Empty, Loading, DatePipe, FormsModule, RouterLink],
   selector: 'app-members',
   styleUrl: './members.scss',
   templateUrl: './members.html',

@@ -138,6 +138,11 @@ the point — a rule that over-fires teaches the next contributor to reach for a
 **The cost, recorded rather than hidden:** `shared/` was migrated in S-23 too but sits outside the
 rule, so nothing stops those templates drifting back.
 
+**A data table is not a list row.** Where an admin compares values down columns (`/admin/members`,
+S-21) the screen is a semantic `<table>`, not `app-list`, and it collapses to one compact row per
+item below `form-columns` in CSS alone — one DOM, no second template. The rule does not cover
+`<table>` by design; that is the exception, not a hole to disable-comment around.
+
 **`.notice` now carries one meaning** — informational screen content — in five places, instead of
 four meanings in thirty-three. Loading is `app-loading`, empty is `app-empty`, success is a toast.
 

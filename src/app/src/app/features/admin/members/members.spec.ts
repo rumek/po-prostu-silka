@@ -201,8 +201,9 @@ describe('Members', () => {
     return toasts.toasts().at(-1)?.tone;
   }
 
+  /** A table's body rows since S-21 (UX-06) — the header row is not a member. */
   function rows(): HTMLElement[] {
-    return Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('li.row'));
+    return Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('tbody tr'));
   }
 
   function menuTrigger(row: HTMLElement): HTMLButtonElement {
@@ -244,6 +245,43 @@ describe('Members', () => {
     expect(html()).toContain('Anna Kowalska');
     expect(html()).toContain('Aktywny');
     expect(html()).toContain('Zablokowany');
+  });
+
+  /**
+   * A table, not a list of cards (S-21, UX-06): the columns are what an admin reads down. The same
+   * DOM collapses to compact rows on a phone in CSS alone, so there is no second template to test.
+   */
+  it('lays the list out as a table with a header per column', async () => {
+    await createWith([ANNA]);
+
+    const table = (fixture.nativeElement as HTMLElement).querySelector('table')!;
+    const headers = Array.from(table.querySelectorAll('thead th'));
+
+    expect(table.querySelector('caption')!.textContent).toContain('Członkowie klubu');
+    expect(headers.map((th) => (th.textContent ?? '').trim())).toEqual([
+      'Imię i nazwisko',
+      'Status',
+      'E-mail',
+      'Od',
+      'Akcje',
+    ]);
+    expect(headers.every((th) => th.getAttribute('scope') === 'col')).toBe(true);
+
+    // The name heads its row, so a screen reader moving across a row's cells hears whose they are.
+    expect(rows()[0].querySelector('th[scope="row"]')!.textContent).toContain('Anna Kowalska');
+    expect(rows()[0].textContent).toContain('anna@test.local');
+  });
+
+  /** Moving into a table cell must not cost the row an action it offered as a list item. */
+  it('keeps every action reachable from a row in the table', async () => {
+    await createWith([FILIP]);
+
+    expect(menuLabels(rows()[0])).toEqual([
+      'Edytuj dane',
+      'Karnety',
+      'Wygeneruj kod klubowicza',
+      'Zablokuj',
+    ]);
   });
 
   /**

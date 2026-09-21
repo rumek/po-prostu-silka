@@ -34,7 +34,9 @@ $narrow-max: 30rem;
   }
 }
 
-// Wide enough for a form to set two short fields side by side.
+// Wide enough for a form to set two short fields side by side — and, since S-21, for the member list
+// to be a five-column table rather than one compact row per member (`members.scss`). Moving this
+// value moves that table's switch with it; that is intended, not a coincidence to preserve.
 @mixin form-columns {
   @media (min-width: 40rem) {
     @content;

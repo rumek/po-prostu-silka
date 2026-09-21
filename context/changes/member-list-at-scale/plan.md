@@ -434,6 +434,12 @@ menu); no literal media query (`breakpoints.spec.ts` fails on one). The row menu
 existing `.row-*` global classes are no longer used here; do not delete them from `styles.scss` —
 other screens use them.
 
+**Adapted during implementation.** The `<tr>` class is `members-entry`, not `members-row`: the kit's
+lint rule reports any `*-row` class on an element without `appRow`, and renaming the class was the
+smaller change than teaching the rule about `<tr>`. The phone layout also dropped the old `bp.narrow`
+full-width Akcje button and full-width menu — in a compact row the button stays at the right edge, so
+the menu keeps its default right anchor.
+
 #### 3. Breakpoint partial note
 
 **File**: `src/app/src/styles/_breakpoints.scss`
@@ -556,9 +562,9 @@ worker shows the list's load-failure state until it reloads.
 
 #### Automated
 
-- [x] 3.1 SPA unit tests pass: `npm test`
-- [x] 3.2 Lint and format pass: `npm run quality:check`
-- [x] 3.3 Nothing in the SPA requests the member list without a page size or a search
+- [x] 3.1 SPA unit tests pass: `npm test` — b2e139e
+- [x] 3.2 Lint and format pass: `npm run quality:check` — b2e139e
+- [x] 3.3 Nothing in the SPA requests the member list without a page size or a search — b2e139e
 
 #### Manual
 
@@ -569,9 +575,9 @@ worker shows the list's load-failure state until it reloads.
 
 #### Automated
 
-- [ ] 4.1 SPA unit tests pass: `npm test`
-- [ ] 4.2 Lint and format pass (including the breakpoint literal check): `npm run quality:check`
-- [ ] 4.3 Production build succeeds under the 600 kB warning: `npm run build`
+- [x] 4.1 SPA unit tests pass: `npm test`
+- [x] 4.2 Lint and format pass (including the breakpoint literal check): `npm run quality:check`
+- [x] 4.3 Production build succeeds under the 600 kB warning: `npm run build`
 
 #### Manual
 
