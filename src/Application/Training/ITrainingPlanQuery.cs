@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Identity;
 using po_prostu_silka.Application.Members;
+using po_prostu_silka.Application.Paging;
 using po_prostu_silka.Application.Persistence;
 using po_prostu_silka.Domain;
 using po_prostu_silka.Domain.Members;
@@ -27,10 +28,23 @@ public interface ITrainingPlanQuery
     Task<TrainingPlanDetail?> FindActiveForMemberAsync(Guid memberId, CancellationToken cancellationToken);
 
     /// <summary>
-    /// The account's status, or null when no such account exists. A status rather than the row: the
-    /// caller only needs to know whether a plan may be assigned, and returning ApplicationUser here
-    /// would invite a write path to mutate an account through a read seam.
+    /// One page of the trainer's member list (S-22): the members a plan may be given to, narrowed by
+    /// a NAME-ONLY search, each with their active plan's name. The eligibility rule is the same one
+    /// <see cref="IsAssignableAsync"/> answers, so a member drops off this list exactly when a plan
+    /// could no longer be created for them.
     /// </summary>
+    Task<PagedResult<TrainerMemberSummary>> GetTrainerMembersAsync(
+        string? search,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// The trainer-safe identity of one member, whatever their status, or null when no such member
+    /// exists. Status is not filtered because an admin must be able to reach a blocked member's plan.
+    /// </summary>
+    Task<AssignableMember?> FindMemberAsync(Guid memberId, CancellationToken cancellationToken);
+
     /// <summary>
     /// Whether this member may be assigned a plan, or null when no such member exists — so the caller
     /// can tell "no such member" from "not eligible" without a second round trip.

@@ -1,8 +1,10 @@
 using Microsoft.EntityFrameworkCore;
+using po_prostu_silka.Application.Paging;
 using po_prostu_silka.Application.Training;
 using po_prostu_silka.Domain;
 using po_prostu_silka.Domain.Members;
 using po_prostu_silka.Domain.Training;
+using po_prostu_silka.Infrastructure.Members;
 using po_prostu_silka.Infrastructure.Persistence;
 
 namespace po_prostu_silka.Infrastructure.Training;
@@ -52,12 +54,66 @@ public class TrainingPlanQuery(AppDbContext db) : ITrainingPlanQuery
             .ToListAsync(cancellationToken);
 
     /// <summary>
-    /// The one definition of "may be assigned a plan", shared by the picker and by the write-side
-    /// validation so the two cannot drift into disagreeing about who is eligible.
+    /// The one definition of "may be assigned a plan", shared by the picker, the trainer's member list
+    /// (S-22) and the write-side validation, so none of them can drift into disagreeing about who is
+    /// eligible.
     /// </summary>
     private static IQueryable<Member> Assignable(IQueryable<Member> members) =>
         members.Where(x => x.Status == MembershipStatus.Active
                            && (x.User == null || x.User.Status == AccountStatus.Active));
+
+    /// <summary>
+    /// Eligible, then searched by name, then counted, then ordered and paged — and only then
+    /// projected, so the plan-name lookup runs for the page's rows rather than for every match.
+    ///
+    /// <para>
+    /// NO ROLE FILTER. Every account has a member row and <see cref="Assignable"/> does not look at
+    /// roles, so the trainer themselves and every admin are on this list — the same set the picker
+    /// offered, and admins train too.
+    /// </para>
+    ///
+    /// <para>
+    /// THE PLAN NAME IS A CORRELATED LOOKUP of the member's one ACTIVE plan, which
+    /// IX_TrainingPlans_MemberId_Active turns into a seek. The filtered unique index is also what makes
+    /// "the" active plan well defined: there is never a second one to choose between.
+    /// </para>
+    /// </summary>
+    public async Task<PagedResult<TrainerMemberSummary>> GetTrainerMembersAsync(
+        string? search,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken)
+    {
+        var members = MemberSearch.ByName(Assignable(db.Members.AsNoTracking()), search);
+
+        var total = await members.CountAsync(cancellationToken);
+
+        var items = await members
+            // The id tiebreak keeps two members with one name from landing on both sides of a page
+            // boundary, as on the admin's list.
+            .OrderBy(x => x.DisplayName)
+            .ThenBy(x => x.Id)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(x => new TrainerMemberSummary(
+                x.Id,
+                x.DisplayName,
+                x.UserId != null,
+                db.TrainingPlans
+                    .Where(p => p.MemberId == x.Id && p.Status == TrainingPlanStatus.Active)
+                    .Select(p => p.Name)
+                    .FirstOrDefault()))
+            .ToListAsync(cancellationToken);
+
+        return new PagedResult<TrainerMemberSummary>(items, total, page, pageSize);
+    }
+
+    public Task<AssignableMember?> FindMemberAsync(Guid memberId, CancellationToken cancellationToken) =>
+        db.Members
+            .AsNoTracking()
+            .Where(x => x.Id == memberId)
+            .Select(x => new AssignableMember(x.Id, x.DisplayName, x.UserId != null))
+            .FirstOrDefaultAsync(cancellationToken);
 
     public Task<TrainingPlanDetail?> FindDetailAsync(Guid id, CancellationToken cancellationToken) =>
         ProjectDetail(db.TrainingPlans.Where(x => x.Id == id)).FirstOrDefaultAsync(cancellationToken);

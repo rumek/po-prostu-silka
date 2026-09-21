@@ -384,6 +384,7 @@ app.MapClassEndpoints();
 app.MapClassTypeEndpoints();
 app.MapExerciseEndpoints();
 app.MapTrainingPlanEndpoints();
+app.MapTrainerMemberEndpoints();
 app.MapMyPlanEndpoints();
 app.MapBookingEndpoints();
 

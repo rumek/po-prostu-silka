@@ -31,13 +31,6 @@ namespace po_prostu_silka.Infrastructure.Members;
 public class MemberQuery(AppDbContext db) : IMemberQuery
 {
     /// <summary>
-    /// The collation a search compares under: case- AND accent-insensitive, so "gesl" finds
-    /// "Gęślicka" and "ZANETA" finds "Żaneta". The 100 series, because the older Latin1_General
-    /// tables predate several of the weights this depends on.
-    /// </summary>
-    private const string SearchCollation = "Latin1_General_100_CI_AI";
-
-    /// <summary>
     /// Filter, then search, then count, then order and page — and only then project, so the Roles
     /// correlation runs for the page's rows rather than for every match.
     ///
@@ -231,18 +224,14 @@ public class MemberQuery(AppDbContext db) : IMemberQuery
         };
 
     /// <summary>
-    /// A substring of the display name OR the e-mail, case- and accent-insensitive (S-21).
+    /// A substring of the display name OR the e-mail, case- and accent-insensitive (S-21). The
+    /// collation and the <c>ł</c> fold are <see cref="MemberSearch"/>'s, shared with the trainer's
+    /// name-only search so the two cannot drift apart on what "matches" means.
     ///
     /// <para>
-    /// <c>ł</c> IS FOLDED BY HAND, on both sides. Every other Polish diacritic decomposes into a base
-    /// letter plus a combining mark, which is what an accent-insensitive collation ignores; <c>ł</c>
-    /// is a letter of its own with no decomposition, so under any AI collation "lukasz" still does
-    /// not find "Łukasz". An admin on a phone rarely types Polish letters, and Ł starts common names.
-    /// </para>
-    ///
-    /// <para>
-    /// A <c>%</c> or <c>_</c> in the term matches literally: EF translates <c>Contains</c> over a
-    /// parameter with the wildcards escaped, and <c>MemberAdminEndpointTests</c> pins that.
+    /// THE E-MAIL HALF IS THE ADMIN'S ALONE. The trainer's list searches names only (S-22): a search
+    /// that matched addresses would answer "does anyone's e-mail contain x" through its result count,
+    /// even without ever returning an address.
     /// </para>
     /// </summary>
     private static IQueryable<Member> Searched(IQueryable<Member> members, string? search)
@@ -252,15 +241,13 @@ public class MemberQuery(AppDbContext db) : IMemberQuery
             return members;
         }
 
-        var term = FoldL(search);
+        var term = MemberSearch.Fold(search);
 
         return members.Where(m =>
-            EF.Functions.Collate(m.DisplayName.Replace("ł", "l").Replace("Ł", "L"), SearchCollation)
+            EF.Functions.Collate(m.DisplayName.Replace("ł", "l").Replace("Ł", "L"), MemberSearch.Collation)
                 .Contains(term)
             || (m.Email != null
-                && EF.Functions.Collate(m.Email.Replace("ł", "l").Replace("Ł", "L"), SearchCollation)
+                && EF.Functions.Collate(m.Email.Replace("ł", "l").Replace("Ł", "L"), MemberSearch.Collation)
                     .Contains(term)));
     }
-
-    private static string FoldL(string value) => value.Replace('ł', 'l').Replace('Ł', 'L');
 }

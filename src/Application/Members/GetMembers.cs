@@ -47,25 +47,13 @@ public static class GetMembers
         IMemberQuery query,
         CancellationToken cancellationToken)
     {
-        var pageNumber = page ?? 1;
-        var size = pageSize ?? DefaultPageSize;
-
-        // The offset is (page - 1) * size in int arithmetic further down; a page far enough past any
-        // real list would wrap it negative and turn a caller's typo into a SQL error — a 500.
-        if (pageNumber < 1 || size < 1 || size > MaxPageSize || (long)(pageNumber - 1) * size > int.MaxValue)
+        // The bounds are MemberListRequest's, shared with the trainer's list (S-22).
+        if (!MemberListRequest.TryRead(page, pageSize, search, out var request, out var refusal))
         {
-            return Results.Json(new MemberListFailure("invalid_page"), statusCode: 400);
+            return refusal;
         }
 
-        // Whitespace is "no search", not a search for spaces: a box the admin cleared with the space
-        // bar should show the list, not an empty result.
-        var term = string.IsNullOrWhiteSpace(search) ? null : search.Trim();
-
-        if (term is { Length: > MaxSearchLength })
-        {
-            return Results.Json(new MemberListFailure("invalid_search"), statusCode: 400);
-        }
-
-        return Results.Ok(await query.GetMembersAsync(filter, term, pageNumber, size, cancellationToken));
+        return Results.Ok(await query.GetMembersAsync(
+            filter, request.Term, request.Page, request.PageSize, cancellationToken));
     }
 }
