@@ -21,6 +21,16 @@ public class ClassScheduleQuery(AppDbContext db) : IClassScheduleQuery
                 c.Status == ClassStatus.Scheduled && c.StartsAt >= from && c.StartsAt < to),
             cancellationToken);
 
+    public Task<IReadOnlyList<ScheduledClass>> GetForInstructorAsync(
+        Guid instructorMemberId, DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken) =>
+        // The schedule's predicate plus the instructor. Same projection, so a trainer's tile and an
+        // admin's tile of the same class carry identical numbers.
+        ProjectAsync(
+            db.Classes.Where(c =>
+                c.Status == ClassStatus.Scheduled && c.StartsAt >= from && c.StartsAt < to
+                && c.InstructorMemberId == instructorMemberId),
+            cancellationToken);
+
     public Task<IReadOnlyList<ScheduledClass>> GetUpcomingForAdminAsync(
         DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken) =>
         // SAME STATUS FILTER as the member's query since S-09. A cancelled class is done: the

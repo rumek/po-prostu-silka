@@ -77,6 +77,25 @@ public class EndpointAuthorizationTests(IntegrationTestFixture fixture)
         ("GET", "/api/admin/exercises/{id:guid}"),
     ];
 
+    /// <summary>
+    /// The member persona's own-data routes (S-25, PRD v2 "Amendment: role-based visibility"): the
+    /// karnet, the plan and the bookings belong to members, and staff hold none of them. MemberOnly —
+    /// not ActiveMember, which admits staff.
+    /// </summary>
+    private static readonly (string Method, string Pattern)[] MemberOnlyRoutes =
+    [
+        ("GET", "/api/passes/mine"),
+        ("GET", "/api/plans/mine"),
+        ("GET", "/api/plans/mine/exercises/{exerciseId:guid}"),
+        ("GET", "/api/bookings/mine"),
+    ];
+
+    /// <summary>
+    /// The schedule (S-25): a staff read. A member is refused; a trainer is narrowed to the classes
+    /// they instruct inside the handler, which ClassEndpointTests covers over HTTP.
+    /// </summary>
+    private static readonly (string Method, string Pattern) ScheduleRoute = ("GET", "/api/classes");
+
     private IReadOnlyList<Route> Routes()
     {
         var source = fixture.Factory.Services.GetRequiredService<EndpointDataSource>();
@@ -119,7 +138,7 @@ public class EndpointAuthorizationTests(IntegrationTestFixture fixture)
         // Without this, renaming /api/auth/login would leave the allowlist pointing at nothing and every
         // rule below would still pass. The same trap MemberAdminEndpointTests documents for a policy
         // test left pointing at a deleted route.
-        foreach (var entry in AnonymousApiRoutes.Concat(TrainerAdminRoutes))
+        foreach (var entry in AnonymousApiRoutes.Concat(TrainerAdminRoutes).Concat(MemberOnlyRoutes).Append(ScheduleRoute))
         {
             Assert.True(
                 routes.Any(r => Matches(r, entry)),
@@ -188,6 +207,51 @@ public class EndpointAuthorizationTests(IntegrationTestFixture fixture)
                 offenders.Add($"{route} must require {AuthorizationPolicyNames.Admin}");
             }
         }
+
+        Assert.True(offenders.Count == 0, string.Join("\n", offenders));
+    }
+
+    [Fact]
+    public void The_members_own_data_routes_require_the_member_only_policy()
+    {
+        var routes = Routes();
+
+        var offenders = MemberOnlyRoutes
+            .SelectMany(entry => routes.Where(r => Matches(r, entry)))
+            .Where(r => !r.Policies.Contains(AuthorizationPolicyNames.MemberOnly)
+                        || r.Policies.Contains(AuthorizationPolicyNames.ActiveMember))
+            .Select(r => r.ToString())
+            .ToList();
+
+        Assert.True(
+            offenders.Count == 0,
+            $"Own-data routes not under {AuthorizationPolicyNames.MemberOnly} (S-25):\n"
+            + string.Join("\n", offenders));
+    }
+
+    [Fact]
+    public void The_schedule_requires_the_trainer_or_admin_policy()
+    {
+        var schedule = Routes().Where(r => Matches(r, ScheduleRoute)).ToList();
+
+        Assert.NotEmpty(schedule);
+        Assert.All(schedule, r =>
+        {
+            Assert.Contains(AuthorizationPolicyNames.TrainerOrAdmin, r.Policies);
+            Assert.DoesNotContain(AuthorizationPolicyNames.ActiveMember, r.Policies);
+        });
+    }
+
+    [Fact]
+    public void No_product_route_uses_the_active_member_policy()
+    {
+        // S-25 moved every product route off ActiveMember; it stays only for the Testing probe,
+        // /test/active-member, which lives outside /api and is mapped only under Testing.
+        var offenders = Routes()
+            .Where(IsApi)
+            .Where(r => r.Policies.Contains(AuthorizationPolicyNames.ActiveMember))
+            .Select(r => r.ToString())
+            .ToList();
 
         Assert.True(offenders.Count == 0, string.Join("\n", offenders));
     }

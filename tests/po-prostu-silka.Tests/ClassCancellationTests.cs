@@ -413,8 +413,9 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
 
         var window = $"?from={Iso(startsAt.AddDays(-1))}&to={Iso(startsAt.AddDays(1))}";
 
-        var memberSees = await member.GetFromJsonAsync<List<ClassBody>>($"/api/classes/{window}");
-        Assert.DoesNotContain(memberSees!, c => c.Id == scheduled.Id);
+        // The schedule is a staff read since S-25, so the admin stands in for the reader here.
+        var scheduleSees = await admin.GetFromJsonAsync<List<ClassBody>>($"/api/classes/{window}");
+        Assert.DoesNotContain(scheduleSees!, c => c.Id == scheduled.Id);
 
         // AND THE ADMIN'S. A cancelled class is done - the members were told - and its tile would
         // leave an hour that looks occupied and is not. The overlap rule already ignores it

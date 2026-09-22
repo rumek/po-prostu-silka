@@ -13,9 +13,15 @@ namespace po_prostu_silka.Api.Endpoints.Scheduling;
 /// The class schedule (prd.md FR-007) and the admin's management of it (prd-v2 US-01, FR-008 –
 /// FR-013).
 ///
-/// Two groups with different policies: members read the schedule under ActiveMember, admins manage
-/// under Admin. The policy is applied at each GROUP, not per endpoint, so an endpoint added here
-/// later cannot accidentally ship unauthenticated.
+/// Three groups with different policies, applied at each GROUP rather than per endpoint, so an
+/// endpoint added here later cannot accidentally ship unauthenticated:
+/// <list type="bullet">
+/// <item>the schedule, under TrainerOrAdmin since S-25 — a member no longer sees the whole gym, and a
+/// trainer without Admin is narrowed to the classes they instruct inside the handler;</item>
+/// <item>the instructed-classes feed at <c>/api/trainer/classes</c> (S-25), the staff dashboard's
+/// "Twoje zajęcia", also under TrainerOrAdmin;</item>
+/// <item>the admin's management, under Admin.</item>
+/// </list>
 ///
 /// <para>
 /// THE ONE RULE THIS FILE EXISTS TO PROTECT (prd-v2 FR-007): the class type is loaded to be
@@ -34,20 +40,19 @@ namespace po_prostu_silka.Api.Endpoints.Scheduling;
 /// </summary>
 public static class ClassEndpoints
 {
-
-
-
-
-
-
-
     public static IEndpointRouteBuilder MapClassEndpoints(this IEndpointRouteBuilder app)
     {
         var schedule = app.MapGroup("/api/classes")
             .WithTags("Schedule")
-            .RequireAuthorization(AuthorizationPolicyNames.ActiveMember);
+            .RequireAuthorization(AuthorizationPolicyNames.TrainerOrAdmin);
 
         schedule.MapGet("/", GetSchedule.HandleAsync);
+
+        var instructed = app.MapGroup("/api/trainer/classes")
+            .WithTags("Schedule")
+            .RequireAuthorization(AuthorizationPolicyNames.TrainerOrAdmin);
+
+        instructed.MapGet("/", GetInstructedClasses.HandleAsync);
 
         var admin = app.MapGroup("/api/admin/classes")
             .WithTags("Schedule")

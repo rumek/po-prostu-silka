@@ -19,6 +19,14 @@ public interface IClassScheduleQuery
         DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken);
 
     /// <summary>
+    /// Scheduled classes starting within [from, to) that <paramref name="instructorMemberId"/>
+    /// instructs, time-ordered (S-25). A trainer's schedule and every staff member's dashboard feed.
+    /// The predicate is <see cref="BookingAuthorization.MayActOn"/>'s ownership half as SQL.
+    /// </summary>
+    Task<IReadOnlyList<ScheduledClass>> GetForInstructorAsync(
+        Guid instructorMemberId, DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken);
+
+    /// <summary>
     /// The admin's list for the window [<paramref name="from"/>, <paramref name="to"/>).
     ///
     /// <para>

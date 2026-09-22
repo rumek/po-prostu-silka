@@ -403,6 +403,15 @@ refusals and filters the matrix promises.
   used as a *booking, pass or plan target*. Phase 3 refuses those, so any hit moves to a plain member
   there.
 
+**Adapted during implementation.** The staff refusals on the four `/mine` routes live in one new
+theory class, `PersonaAccessTests.cs` (every staff fixture user, the Admin+Trainer one included, ×
+every own-data route, plus a member-admitted case), rather than as separate facts in
+`MyPlanEndpointTests` / `MembershipPassEndpointTests`. The member refusal is one theory over both
+routes in `ClassEndpointTests` (`A_member_is_refused_the_schedule_and_the_feed`). The extra
+`NextSlot()` draws moved `Duplicate_skips_and_reports_the_colliding_week_and_creates_the_rest` onto
+a fortnight crossing a DST change, exposing that it planted its collision with `AddDays(14)` (same
+instant) while the duplicate counts club-local days; it now plants with `ClubTime.AddLocalDays`.
+
 ### Success Criteria
 
 #### Automated Verification
@@ -930,7 +939,7 @@ every persona can open, and note why.
 
 #### Automated
 
-- [x] 1.1 No file under `context/archive/` is modified
+- [x] 1.1 No file under `context/archive/` is modified — ec34b23
 
 #### Manual
 
@@ -941,9 +950,9 @@ every persona can open, and note why.
 
 #### Automated
 
-- [ ] 2.1 Backend builds warning-free
-- [ ] 2.2 All integration tests pass
-- [ ] 2.3 `EndpointAuthorizationTests` includes the `MemberOnly` route list and the `/api/classes` policy assertion
+- [x] 2.1 Backend builds warning-free
+- [x] 2.2 All integration tests pass
+- [x] 2.3 `EndpointAuthorizationTests` includes the `MemberOnly` route list and the `/api/classes` policy assertion
 
 #### Manual
 

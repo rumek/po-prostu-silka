@@ -22,8 +22,9 @@ namespace po_prostu_silka.Api.Endpoints.Members;
 ///
 /// <para>
 /// SEPARATE FROM <see cref="MembershipPassEndpoints"/> on purpose, rather than one more route on that
-/// group. The two answer to different policies — ActiveMember here, Admin there — and this codebase
-/// applies one policy per group.
+/// group. The two answer to different policies — MemberOnly here (ActiveMember until S-25), Admin
+/// there — and this codebase applies one policy per group. Staff hold no karnet (S-25), so a staff
+/// caller is refused here rather than shown an empty answer.
 /// </para>
 /// </summary>
 public static class MyPassEndpoints
@@ -32,7 +33,7 @@ public static class MyPassEndpoints
     {
         var mine = app.MapGroup("/api/passes")
             .WithTags("MembershipPasses")
-            .RequireAuthorization(AuthorizationPolicyNames.ActiveMember);
+            .RequireAuthorization(AuthorizationPolicyNames.MemberOnly);
 
         mine.MapGet("/mine", GetMyPass.HandleAsync);
 

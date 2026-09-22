@@ -39,6 +39,13 @@ public static class ApplicationRoles
     public static readonly string[] All = [User, Admin, Trainer];
 
     /// <summary>
+    /// The staff roles (S-25): an account holding any of these is not the member persona, whatever
+    /// else it holds. The one server-side spelling of "staff" — the MemberOnly policy's negative
+    /// assertion and the Infrastructure "is staff" predicate both read it.
+    /// </summary>
+    public static readonly string[] Staff = [Trainer, Admin];
+
+    /// <summary>
     /// The roles that satisfy the ActiveMember policy - the set consumed by
     /// <c>Infrastructure/Authorization/AuthorizationPolicies.cs</c>.
     ///
@@ -46,6 +53,11 @@ public static class ApplicationRoles
     /// endpoints. Trainer deliberately does not: a real trainer is additive and already holds
     /// <see cref="User"/>, so it passes on that; an account holding only Trainer is a state nothing
     /// creates today and must not be authorised by accident if something ever does.
+    ///
+    /// <para>
+    /// No product route reads it since S-25 — see <see cref="AuthorizationPolicyNames.ActiveMember"/>
+    /// for why the policy, and therefore this set, remain.
+    /// </para>
     /// </summary>
     public static readonly string[] MemberFacing = [User, Admin];
 }

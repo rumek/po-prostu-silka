@@ -363,8 +363,10 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
 
         var source = await PostClassAsync(admin, type.Id, slot, trainerId);
 
-        // Plant a collision exactly where week 2 would land.
-        await PostClassAsync(admin, type.Id, slot.AddDays(14), trainerId);
+        // Plant a collision exactly where week 2 would land - in CLUB-LOCAL days, as the duplicate
+        // counts them. slot.AddDays(14) keeps the instant, and lands an hour off whenever the
+        // fortnight crosses a DST change, which a slot allocator 60 days apart eventually reaches.
+        await PostClassAsync(admin, type.Id, ClubTime.AddLocalDays(slot, 14), trainerId);
 
         var response = await admin.PostAsJsonAsync($"{Endpoint}/{source.Id}/duplicate", new { weeks = 3 });
 
@@ -654,10 +656,10 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
         Assert.Equal(HttpStatusCode.OK, edit.StatusCode);
     }
 
-    // --- the member's view -----------------------------------------------------
+    // --- the schedule ----------------------------------------------------------
 
     [Fact]
-    public async Task The_member_schedule_resolves_the_name_and_instructor_too()
+    public async Task The_schedule_resolves_the_name_and_instructor_too()
     {
         // The member window is a fortnight, so this one class is created near "now" rather than in a
         // 2030 slot — and therefore has to dodge the other tests' classes by using a time no slot
@@ -667,8 +669,8 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
 
         var created = await PostClassAsync(admin, type.Id, soon, trainerId);
 
-        var member = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveMemberEmail);
-        var schedule = await member.GetFromJsonAsync<List<ClassBody>>("/api/classes");
+        // The admin reads the whole schedule since S-25; a member is refused it.
+        var schedule = await admin.GetFromJsonAsync<List<ClassBody>>("/api/classes");
 
         var row = schedule!.Single(c => c.Id == created.Id);
 
@@ -678,6 +680,130 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
 
         // FreeSpots is capacity by construction until Booking exists (S-08).
         Assert.Equal(row.Capacity, row.FreeSpots);
+    }
+
+    // --- who reads which classes (S-25) -------------------------------------------
+
+    /// <summary>
+    /// A trainer who can sign in, created with User + Trainer as promoting a member produces, so the
+    /// test holds both the client and the member id the instructor FK points at.
+    /// </summary>
+    private async Task<(HttpClient Client, Guid MemberId)> SignedInTrainerAsync(HttpClient admin)
+    {
+        var email = UniqueEmail("persona-trainer");
+        await fixture.CreateUserAsync(
+            email, AccountStatus.Active, ApplicationRoles.User, additionalRole: ApplicationRoles.Trainer);
+
+        return (await fixture.CreateAuthenticatedClientAsync(email), await fixture.FindMemberIdAsync(admin, email));
+    }
+
+    /// <summary>
+    /// Three classes in one slot, two hours apart so the club-wide overlap rule lets them coexist: one
+    /// taught by a signed-in trainer, one by another trainer, one by the Admin+Trainer fixture user.
+    /// </summary>
+    private async Task<(HttpClient Admin, (HttpClient Client, Guid Id) Trainer, ClassBody Own, ClassBody Other, ClassBody AdminTaught, string Window)>
+        ArrangeInstructedAsync()
+    {
+        var (admin, type, otherTrainerId) = await ArrangeAsync();
+        var trainer = await SignedInTrainerAsync(admin);
+        var adminTrainerId = await fixture.FindMemberIdAsync(admin, TestUsers.ActiveAdminTrainerEmail);
+        var slot = NextSlot();
+
+        var own = await PostClassAsync(admin, type.Id, slot, trainer.MemberId);
+        var other = await PostClassAsync(admin, type.Id, slot.AddHours(2), otherTrainerId);
+        var adminTaught = await PostClassAsync(admin, type.Id, slot.AddHours(4), adminTrainerId);
+
+        return (admin, (trainer.Client, trainer.MemberId), own, other, adminTaught,
+            Range(slot.AddDays(-1), slot.AddDays(1)));
+    }
+
+    [Theory]
+    [InlineData("/api/classes")]
+    [InlineData("/api/trainer/classes")]
+    public async Task A_member_is_refused_the_schedule_and_the_feed(string route)
+    {
+        var member = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveMemberEmail);
+
+        Assert.Equal(HttpStatusCode.Forbidden, (await member.GetAsync(route)).StatusCode);
+    }
+
+    [Fact]
+    public async Task A_trainer_reads_only_the_classes_they_instruct()
+    {
+        var (_, trainer, own, other, adminTaught, window) = await ArrangeInstructedAsync();
+
+        var schedule = (await trainer.Client.GetFromJsonAsync<List<ClassBody>>("/api/classes" + window))!;
+
+        Assert.Contains(schedule, c => c.Id == own.Id);
+        Assert.DoesNotContain(schedule, c => c.Id == other.Id);
+        Assert.DoesNotContain(schedule, c => c.Id == adminTaught.Id);
+        Assert.All(schedule, c => Assert.Equal(trainer.Id, c.InstructorMemberId));
+    }
+
+    [Fact]
+    public async Task An_admin_reads_every_class()
+    {
+        var (admin, _, own, other, adminTaught, window) = await ArrangeInstructedAsync();
+
+        var schedule = (await admin.GetFromJsonAsync<List<ClassBody>>("/api/classes" + window))!;
+
+        Assert.Contains(schedule, c => c.Id == own.Id);
+        Assert.Contains(schedule, c => c.Id == other.Id);
+        Assert.Contains(schedule, c => c.Id == adminTaught.Id);
+    }
+
+    /// <summary>Admin wins over Trainer: holding both must not narrow the owner to their own classes.</summary>
+    [Fact]
+    public async Task An_admin_who_is_also_a_trainer_reads_every_class()
+    {
+        var (_, _, own, other, adminTaught, window) = await ArrangeInstructedAsync();
+        var adminTrainer = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveAdminTrainerEmail);
+
+        var schedule = (await adminTrainer.GetFromJsonAsync<List<ClassBody>>("/api/classes" + window))!;
+
+        Assert.Contains(schedule, c => c.Id == own.Id);
+        Assert.Contains(schedule, c => c.Id == other.Id);
+        Assert.Contains(schedule, c => c.Id == adminTaught.Id);
+    }
+
+    /// <summary>
+    /// The dashboard feed answers "which classes do I teach" for every staff caller - an
+    /// Admin+Trainer is NOT widened to the club here, unlike on the schedule.
+    /// </summary>
+    [Fact]
+    public async Task The_feed_returns_only_the_callers_instructed_classes()
+    {
+        var (_, trainer, own, other, adminTaught, window) = await ArrangeInstructedAsync();
+        var adminTrainer = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveAdminTrainerEmail);
+
+        var trainerFeed = (await trainer.Client.GetFromJsonAsync<List<ClassBody>>("/api/trainer/classes" + window))!;
+        Assert.Equal([own.Id], trainerFeed.Select(c => c.Id));
+
+        var adminTrainerFeed = (await adminTrainer.GetFromJsonAsync<List<ClassBody>>("/api/trainer/classes" + window))!;
+        Assert.Contains(adminTrainerFeed, c => c.Id == adminTaught.Id);
+        Assert.DoesNotContain(adminTrainerFeed, c => c.Id == own.Id);
+        Assert.DoesNotContain(adminTrainerFeed, c => c.Id == other.Id);
+    }
+
+    [Fact]
+    public async Task An_admin_who_teaches_nothing_gets_an_empty_feed()
+    {
+        // ActiveAdmin holds Admin alone, so it can never be an instructor: the feed is empty in
+        // every window, including one full of other people's classes.
+        var (admin, _, _, _, _, window) = await ArrangeInstructedAsync();
+
+        var feed = (await admin.GetFromJsonAsync<List<ClassBody>>("/api/trainer/classes" + window))!;
+
+        Assert.Empty(feed);
+    }
+
+    [Fact]
+    public async Task A_malformed_range_is_refused_on_the_feed()
+    {
+        var admin = await AdminAsync();
+        var start = new DateTimeOffset(2030, 1, 1, 0, 0, 0, TimeSpan.Zero);
+
+        await AssertInvalidRangeAsync(admin, "/api/trainer/classes" + Range(start, start.AddDays(-1)));
     }
 
     // --- the date range (prd-v2 FR-015, FR-016) --------------------------------
@@ -706,8 +832,8 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
         // Years out: past both.
         var far = await PostClassAsync(admin, type.Id, NextSlot(), trainerId);
 
-        var member = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveMemberEmail);
-        var schedule = (await member.GetFromJsonAsync<List<ClassBody>>("/api/classes"))!;
+        // The admin reads the whole schedule since S-25; a member is refused it.
+        var schedule = (await admin.GetFromJsonAsync<List<ClassBody>>("/api/classes"))!;
 
         Assert.Contains(schedule, c => c.Id == near.Id);
         Assert.DoesNotContain(schedule, c => c.Id == mid.Id);
@@ -736,8 +862,8 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
         Assert.Contains(adminList, c => c.Id == inside.Id);
         Assert.DoesNotContain(adminList, c => c.Id == outside.Id);
 
-        var member = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveMemberEmail);
-        var schedule = (await member.GetFromJsonAsync<List<ClassBody>>("/api/classes" + window))!;
+        // The admin reads the whole schedule since S-25; a member is refused it.
+        var schedule = (await admin.GetFromJsonAsync<List<ClassBody>>("/api/classes" + window))!;
 
         Assert.Contains(schedule, c => c.Id == inside.Id);
         Assert.DoesNotContain(schedule, c => c.Id == outside.Id);
@@ -767,8 +893,8 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
         var adminList = (await admin.GetFromJsonAsync<List<ClassBody>>(Endpoint + window))!;
         Assert.Contains(adminList, c => c.Id == created.Id);
 
-        var member = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveMemberEmail);
-        var schedule = (await member.GetFromJsonAsync<List<ClassBody>>("/api/classes" + window))!;
+        // The admin reads the whole schedule since S-25; a member is refused it.
+        var schedule = (await admin.GetFromJsonAsync<List<ClassBody>>("/api/classes" + window))!;
         Assert.Contains(schedule, c => c.Id == created.Id);
     }
 
@@ -781,9 +907,8 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
     [InlineData(Endpoint)]
     public async Task A_malformed_range_is_refused(string endpoint)
     {
-        var client = endpoint == Endpoint
-            ? await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveAdminEmail)
-            : await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveMemberEmail);
+        // Both endpoints are staff reads since S-25, so one admin client serves the theory.
+        var client = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveAdminEmail);
 
         var start = new DateTimeOffset(2030, 1, 1, 0, 0, 0, TimeSpan.Zero);
 
@@ -844,8 +969,8 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
         var byId = await admin.GetFromJsonAsync<ClassBody>($"{Endpoint}/{cancelled.Id}");
         Assert.NotNull(byId);
 
-        var member = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveMemberEmail);
-        var schedule = (await member.GetFromJsonAsync<List<ClassBody>>("/api/classes" + window))!;
+        // The admin reads the whole schedule since S-25; a member is refused it.
+        var schedule = (await admin.GetFromJsonAsync<List<ClassBody>>("/api/classes" + window))!;
         Assert.DoesNotContain(schedule, c => c.Id == cancelled.Id);
     }
 

@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Identity;
 using po_prostu_silka.Application.Notifications;
 using po_prostu_silka.Application.Members;
@@ -9,12 +10,19 @@ using po_prostu_silka.Domain.Scheduling;
 namespace po_prostu_silka.Application.Scheduling;
 
 /// <summary>
-/// The member-facing schedule over a bounded window (FR-007).
+/// The schedule over a bounded window (FR-007), a STAFF read since S-25.
+///
+/// <para>
+/// One endpoint, two answers, picked from the principal the way
+/// <see cref="BookingAuthorization.MayActOn"/> picks: an admin reads every class, anyone else who
+/// passed the group's TrainerOrAdmin policy reads only the classes they instruct. A member never gets
+/// here — the policy refuses them.
+/// </para>
 /// </summary>
 public static class GetSchedule
 {
     /// <summary>
-    /// The member's schedule for a window, time-ordered and flat.
+    /// The schedule for a window, time-ordered and flat.
     ///
     /// FLAT, deliberately — the SPA groups by the BROWSER's local date. Grouping here would mean the
     /// server picking a timezone, and this stack has been UTC-in / local-render throughout. The
@@ -29,6 +37,7 @@ public static class GetSchedule
     /// </para>
     /// </summary>
     public static async Task<IResult> HandleAsync(
+        ClaimsPrincipal principal,
         IClassScheduleQuery query,
         TimeProvider timeProvider,
         CancellationToken cancellationToken,
@@ -44,7 +53,21 @@ public static class GetSchedule
             return rangeFailure;
         }
 
-        return Results.Ok(await query.GetScheduleAsync(
-            resolved.From, resolved.To!.Value, cancellationToken));
+        if (principal.IsInRole(ApplicationRoles.Admin))
+        {
+            return Results.Ok(await query.GetScheduleAsync(
+                resolved.From, resolved.To!.Value, cancellationToken));
+        }
+
+        // A missing member id is an EMPTY list, never "all". The policy's status claims come from the
+        // member row, so the case is unreachable - which is exactly why it must fail closed.
+        var memberId = principal.GetMemberId();
+        if (memberId is null)
+        {
+            return Results.Ok(Array.Empty<ScheduledClass>());
+        }
+
+        return Results.Ok(await query.GetForInstructorAsync(
+            memberId.Value, resolved.From, resolved.To!.Value, cancellationToken));
     }
 }

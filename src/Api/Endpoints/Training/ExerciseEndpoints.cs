@@ -19,7 +19,7 @@ namespace po_prostu_silka.Api.Endpoints.Training;
 ///
 /// <para>
 /// MEMBERS STILL NEVER READ THIS SURFACE. FR-020 reaches an exercise from inside an assigned plan,
-/// which MyPlanEndpoints serves under ActiveMember by joining through the member's own plan; prd.md
+/// which MyPlanEndpoints serves under MemberOnly by joining through the member's own plan; prd.md
 /// cuts standalone library browsing for members, and that is enforced by there being no route here
 /// they can reach.
 /// </para>

@@ -737,7 +737,7 @@ public class BookingEndpointTests(IntegrationTestFixture fixture)
 
     /// <summary>
     /// The read path's free-spot count, which was a placeholder equal to capacity until this phase.
-    /// Checked on BOTH the member schedule and the admin list because they share one projection —
+    /// Checked on BOTH the schedule (a staff read since S-25) and the admin list because they share one projection —
     /// and a regression that split them would be invisible from either side alone.
     /// </summary>
     [Fact]
@@ -756,11 +756,11 @@ public class BookingEndpointTests(IntegrationTestFixture fixture)
             return rows!.Single(r => r.Id == scheduled.Id).FreeSpots;
         }
 
-        Assert.Equal(5, await FreeSpotsAsync(member, "/api/classes"));
+        Assert.Equal(5, await FreeSpotsAsync(admin, "/api/classes"));
 
         await BookAsync(member, scheduled.Id);
 
-        Assert.Equal(4, await FreeSpotsAsync(member, "/api/classes"));
+        Assert.Equal(4, await FreeSpotsAsync(admin, "/api/classes"));
         Assert.Equal(4, await FreeSpotsAsync(admin, ClassesEndpoint));
 
         // The single-class read the edit form uses has its own construction of the same number.
@@ -769,7 +769,7 @@ public class BookingEndpointTests(IntegrationTestFixture fixture)
 
         await ReleaseAsync(member, scheduled.Id);
 
-        Assert.Equal(5, await FreeSpotsAsync(member, "/api/classes"));
+        Assert.Equal(5, await FreeSpotsAsync(admin, "/api/classes"));
     }
 
     /// <summary>

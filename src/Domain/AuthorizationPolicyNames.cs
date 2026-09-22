@@ -47,8 +47,25 @@ public static class AuthorizationPolicyNames
     /// </summary>
     public const string MemberIdClaimType = "member_id";
 
-    /// <summary>Authenticated, approved, and holding any application role. The default for member-facing endpoints.</summary>
+    /// <summary>
+    /// Authenticated, approved, and holding User or Admin.
+    ///
+    /// <para>
+    /// NO PRODUCT ROUTE USES IT SINCE S-25. It admitted staff to the member's own reads, which is
+    /// exactly what the persona model forbids; <see cref="MemberOnly"/> replaced it on every
+    /// <c>/mine</c> route and <see cref="TrainerOrAdmin"/> on the schedule. It remains because the
+    /// Testing-only probe <c>GET /test/active-member</c> and the tests built on it pin the two-status
+    /// half of the contract, which every other policy shares.
+    /// </para>
+    /// </summary>
     public const string ActiveMember = "ActiveMember";
+
+    /// <summary>
+    /// Active, holding User, and holding NEITHER Trainer NOR Admin — the member persona (S-25).
+    /// The policy of every route that returns the caller's own karnet, bookings or plan: staff hold
+    /// none of those, so a staff caller is refused rather than shown an empty answer.
+    /// </summary>
+    public const string MemberOnly = "MemberOnly";
 
     /// <summary>Everything ActiveMember requires, plus the Admin role.</summary>
     public const string Admin = "Admin";
@@ -67,7 +84,8 @@ public static class AuthorizationPolicyNames
     /// <para>
     /// NOT a superset of <see cref="ActiveMember"/> and not a substitute for it. An account holding
     /// only Trainer passes this and fails ActiveMember by design (see ApplicationRoles.MemberFacing).
-    /// Member-facing reads keep using ActiveMember.
+    /// Since S-25 it is also the policy of the schedule and of the instructed-classes feed, whose
+    /// handlers narrow a trainer to the classes they instruct.
     /// </para>
     /// </summary>
     public const string TrainerOrAdmin = "TrainerOrAdmin";

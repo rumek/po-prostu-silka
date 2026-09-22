@@ -62,6 +62,16 @@ public static class AuthorizationPolicies
                 .RequireClaim(StatusClaimType, nameof(AccountStatus.Active))
                 .RequireClaim(MemberStatusClaimType, nameof(MembershipStatus.Active))
                 .RequireRole(ApplicationRoles.MemberFacing))
+            // The member persona (S-25). A role set can only say "holds one of these"; it cannot say
+            // "holds none of those", and a trainer holds User too - so the staff exclusion is an
+            // assertion, the first in this file. It fails with 403, not 401, for a signed-in caller:
+            // the access-denied override in Program.cs answers every failed requirement the same way.
+            .AddPolicy(AuthorizationPolicyNames.MemberOnly, policy => policy
+                .RequireAuthenticatedUser()
+                .RequireClaim(StatusClaimType, nameof(AccountStatus.Active))
+                .RequireClaim(MemberStatusClaimType, nameof(MembershipStatus.Active))
+                .RequireRole(ApplicationRoles.User)
+                .RequireAssertion(ctx => !ApplicationRoles.Staff.Any(ctx.User.IsInRole)))
             .AddPolicy(Admin, policy => policy
                 .RequireAuthenticatedUser()
                 .RequireClaim(StatusClaimType, nameof(AccountStatus.Active))

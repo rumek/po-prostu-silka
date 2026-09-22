@@ -15,8 +15,9 @@ namespace po_prostu_silka.Api.Endpoints.Training;
 ///
 /// <para>
 /// SEPARATE FROM TrainingPlanEndpoints on purpose, rather than a few extra routes on that group. The
-/// two surfaces answer to different policies - ActiveMember here, TrainerOrAdmin there - and this
-/// codebase applies one policy per group. Splitting the file follows the split in the group.
+/// two surfaces answer to different policies - MemberOnly here (ActiveMember until S-25, when staff
+/// stopped holding plans), TrainerOrAdmin there - and this codebase applies one policy per group.
+/// Splitting the file follows the split in the group.
 /// </para>
 ///
 /// <para>
@@ -31,7 +32,7 @@ public static class MyPlanEndpoints
     {
         var mine = app.MapGroup("/api/plans")
             .WithTags("Training")
-            .RequireAuthorization(AuthorizationPolicyNames.ActiveMember);
+            .RequireAuthorization(AuthorizationPolicyNames.MemberOnly);
 
         mine.MapGet("/mine", GetMyPlan.HandleAsync);
         mine.MapGet("/mine/exercises/{exerciseId:guid}", GetMyPlanExercise.HandleAsync);

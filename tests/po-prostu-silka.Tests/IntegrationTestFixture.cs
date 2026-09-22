@@ -135,6 +135,15 @@ public class IntegrationTestFixture : IAsyncLifetime
             ApplicationRoles.User,
             displayName: "Test Active Trainer",
             additionalRole: ApplicationRoles.Trainer);
+
+        // S-25: an owner who teaches. The persona precedence (Admin > Trainer) is only testable
+        // with an account holding both - and no User, exactly as the seeded admin holds none.
+        await CreateUserAsync(
+            TestUsers.ActiveAdminTrainerEmail,
+            AccountStatus.Active,
+            ApplicationRoles.Admin,
+            displayName: "Test Admin Trainer",
+            additionalRole: ApplicationRoles.Trainer);
     }
 
     /// <summary>
@@ -467,6 +476,9 @@ public static class TestUsers
 
     /// <summary>An approved member who also holds Trainer - what promoting a member actually produces.</summary>
     public const string ActiveTrainerEmail = "active-trainer@test.local";
+
+    /// <summary>An admin who also holds Trainer (S-25) - the admin persona, instructing classes.</summary>
+    public const string ActiveAdminTrainerEmail = "active-admin-trainer@test.local";
 }
 
 /// <summary>

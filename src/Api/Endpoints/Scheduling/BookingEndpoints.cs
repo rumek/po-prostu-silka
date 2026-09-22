@@ -62,9 +62,12 @@ public static class BookingEndpoints
         // action now, because the karnet is what entitles somebody to a spot and the desk is what
         // knows whether they hold one. The member keeps the READ below - they still see what they are
         // committed to, they just do not change it themselves.
+        //
+        // MemberOnly since S-25: staff are never booked as participants, so "my bookings" is a
+        // member question and a staff caller is refused rather than shown an empty list.
         var myBookings = app.MapGroup("/api/bookings")
             .WithTags("Bookings")
-            .RequireAuthorization(AuthorizationPolicyNames.ActiveMember);
+            .RequireAuthorization(AuthorizationPolicyNames.MemberOnly);
 
         myBookings.MapGet("/mine", GetMyBookings.HandleAsync);
 
