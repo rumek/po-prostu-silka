@@ -640,3 +640,69 @@ a {
   gap: var(--space-2);
   margin-left: auto;
 }
+
+// -----------------------------------------------------------------------------
+// Routed-screen transitions (S-26).
+//
+// The screen slides out the way the navigation went and the next one slides in behind it: forward
+// for a link, backward for the browser's back button. `[data-nav-direction]` is set on <html> by
+// core/layout/view-transitions.ts for the length of the transition; forward is also the default, so
+// a transition that starts before the attribute lands still moves the right way.
+//
+// `page` is .shell-main's view-transition-name — the shell's frame is NOT part of it, which is the
+// whole point: a header and a bottom bar that slid with the content would read as the whole app
+// lurching rather than as one screen replacing another.
+//
+// These rules live at the document root because that is where the pseudo-elements resolve; the same
+// constraint as the --z-* scale above.
+// -----------------------------------------------------------------------------
+
+@keyframes page-slide-out {
+  to {
+    opacity: 0;
+    transform: translateX(var(--page-slide-exit));
+  }
+}
+
+@keyframes page-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(var(--page-slide-entry));
+  }
+}
+
+:root {
+  --page-slide-distance: 2.5rem;
+  --page-slide-entry: var(--page-slide-distance);
+  --page-slide-exit: calc(var(--page-slide-distance) * -1);
+}
+
+:root[data-nav-direction='back'] {
+  --page-slide-entry: calc(var(--page-slide-distance) * -1);
+  --page-slide-exit: var(--page-slide-distance);
+}
+
+// The old screen leaves faster than the new one arrives, and they overlap: the alternative — a full
+// cross-fade of two screens of different heights — shows the page's own background through the gap.
+::view-transition-old(page) {
+  animation: page-slide-out 180ms cubic-bezier(0.4, 0, 1, 1) both;
+}
+
+::view-transition-new(page) {
+  animation: page-slide-in 260ms cubic-bezier(0, 0, 0.2, 1) both;
+}
+
+// Two screens are rarely the same height, and the default group animation would scale the snapshots
+// between those heights — a zoom nobody asked for on top of the slide. Only the fade and the slide
+// above remain.
+::view-transition-group(page) {
+  animation-duration: 260ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(page),
+  ::view-transition-old(page),
+  ::view-transition-new(page) {
+    animation: none;
+  }
+}

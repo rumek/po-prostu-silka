@@ -81,6 +81,13 @@
   // edge is the single most common mobile layout failure.
   padding: var(--space-7) var(--space-5);
   margin: 0 auto;
+
+  // The one part of the shell a route change replaces, so it is the one part that slides (S-26).
+  // Naming it takes it out of the root snapshot, which is what keeps the header, the bottom bar and
+  // the toasts still while the screen underneath them moves. The animation itself is in
+  // src/styles.scss, because ::view-transition-* pseudo-elements resolve at the document root and a
+  // component's stylesheet cannot reach them.
+  view-transition-name: page;
 }
 
 @include bp.narrow {

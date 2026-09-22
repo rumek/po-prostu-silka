@@ -7,11 +7,12 @@ import {
 import { registerLocaleData } from '@angular/common';
 import localePl from '@angular/common/locales/pl';
 import { provideServiceWorker } from '@angular/service-worker';
-import { provideRouter } from '@angular/router';
+import { provideRouter, withViewTransitions } from '@angular/router';
 import { provideClientHydration } from '@angular/platform-browser';
 import { provideHttpClient, withFetch, withInterceptors } from '@angular/common/http';
 import { routes } from './app.routes';
 import { authInterceptor } from './core/auth/auth.interceptor';
+import { slideDirection } from './core/layout/view-transitions';
 
 // Locale DATA, not i18n. D9 rules out translation machinery; this is the CLDR table DatePipe needs
 // to render "1 września 2026" instead of throwing "Missing locale data for the locale pl". Without
@@ -22,7 +23,14 @@ export const appConfig: ApplicationConfig = {
   providers: [
     { provide: LOCALE_ID, useValue: 'pl' },
     provideBrowserGlobalErrorListeners(),
-    provideRouter(routes),
+    // Screens slide in and out (S-26). The animation is the browser's View Transition, described
+    // once in styles.scss; the router only starts it, and slideDirection only says which way. Not
+    // the initial navigation: there is nothing on screen yet for the first screen to slide over.
+    // A browser without the API navigates exactly as before — Angular checks for it.
+    provideRouter(
+      routes,
+      withViewTransitions({ skipInitialTransition: true, onViewTransitionCreated: slideDirection }),
+    ),
     provideClientHydration(),
 
     // No withCredentials and no API base URL: the SPA is served from the API's own wwwroot, so
