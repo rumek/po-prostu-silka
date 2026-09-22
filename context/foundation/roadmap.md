@@ -216,7 +216,7 @@ out; a build error cannot.
 | S-19 | frontend-error-and-patterns | (structural) a failure is told one way instead of nine, and the patterns copied across screens are extracted once | S-17 | M-6 CS-04, CS-05, CS-06, CS-07 | done |
 | S-20 | admin-schedule-web-only | (admin) run the class calendar at a desk, with every per-class action reachable at every class length - and on a phone be told plainly that this screen is not one | S-19 | M-7 UX-01, UX-02, UX-03, UX-04 (narrows v2 FR-019) | done |
 | S-21 | member-list-at-scale | (admin) find one member among hundreds - the API pages, searches and filters; a table on web, one compact row on a phone | S-20 | M-7 UX-05, UX-06 | done |
-| S-22 | member-centric-training-plans | (admin, trainer) set a member's plan by opening the member, not a plan list; the Plany screen is retired | S-21 | M-7 UX-07, UX-08 (retires part of v1 FR-015's surface) | in-progress |
+| S-22 | member-centric-training-plans | (admin, trainer) set a member's plan by opening the member, not a plan list; the Plany screen is retired | S-21 | M-7 UX-07, UX-08 (retires part of v1 FR-015's surface) | done |
 | S-23 | frontend-presentational-kit | (structural) the presentational layer gets components instead of copies — one field, one select, one checkbox, one loading state, one empty state, one list row, enforced by a spec | S-19 | none — milestone unassigned, see the item body | done |
 | S-24 | test-environment-seed-data | (dev tooling) open the development environment and find it populated - 200 members (some accountless), two admins, two trainers, passes, a schedule with bookings, an exercise library and assigned plans | S-16, S-22 | none - milestone unassigned, see the item body | in-progress |
 
@@ -720,7 +720,7 @@ rather than in a slice body:
   builder assumes the member is chosen inside the form and locks that control on edit; reached
   through a member, the member is chosen by the URL, and the `member_changed` refusal the server
   already raises becomes the check that the two agree.
-- **Status:** in-progress
+- **Status:** done
 
 ### S-23: The presentational layer gets components, not copies
 
@@ -970,3 +970,4 @@ Resolved since the previous roadmap: the sender-domain question that gated F-03 
 - **S-23: (structural — no capability changes) every form control, loading state, empty state and list row in the SPA is one component rather than one copy per screen: `app-field`, `app-select`, `app-checkbox`, `app-loading`, `app-empty` and a list/row pair; `.empty`, `.section-title` and `.form-actions` move into `src/styles.scss` where their comments already claim they live; a success message stops being an inline `.notice` and becomes the toast outlet S-19 built for it; and a contract spec fails the build when a screen hand-rolls one of them.** — Archived 2026-09-21 → `context/archive/2026-09-20-frontend-presentational-kit/`. Lesson: —.
 - **S-20: user (admin) opens `/admin/classes` on a computer and reaches every per-class action - Edytuj, Powiel, Zapisani, Odwołaj - whatever the class's length, where today they are clipped out of a 60-pixel tile; opening the same screen on a phone gets a plain statement that class editing happens at a desk, with a way through to the read-only schedule, instead of a grid that will not scroll and gestures that will not land.** — Archived 2026-09-22 → `context/archive/2026-09-21-admin-schedule-web-only/`. Lesson: —.
 - **S-21: user (admin) opens Członkowie with hundreds of records and finds one - the API pages, searches and filters, so the browser no longer fetches every member to hide all but four; from the shared breakpoint up the list is a table with columns, and below it one compact row per member.** — Archived 2026-09-22 → `context/archive/2026-09-21-member-list-at-scale/`. Lesson: —.
+- **S-22: user (admin) sets someone's training plan by opening Członkowie, opening that member and editing the plan there - the same path the karnet already takes - and a trainer does the same from a member list of their own; the standalone Plany screen and its entry on `/more` are gone.** — Archived 2026-09-22 → `context/archive/2026-09-21-member-centric-training-plans/`. Lesson: —.

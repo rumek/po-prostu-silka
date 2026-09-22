@@ -1,10 +1,10 @@
 ---
 change_id: member-centric-training-plans
 title: Member centric training plans
-status: impl_reviewed
+status: archived
 created: 2026-09-21
-updated: 2026-09-21
-archived_at: null
+updated: 2026-09-22
+archived_at: 2026-09-22T11:45:30Z
 ---
 
 ## Notes
