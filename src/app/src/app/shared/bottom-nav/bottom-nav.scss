@@ -17,7 +17,7 @@
   bottom: 0;
   left: 0;
   z-index: var(--z-bottom-nav);
-  margin: 12px 20px;
+  margin: 12px 8px;
   // The home indicator on a notched iPhone sits over the bottom of the viewport. This resolves to 0px
   // everywhere else — and would resolve to 0px there too without viewport-fit=cover in index.html.
   padding-bottom: env(safe-area-inset-bottom);
@@ -39,7 +39,7 @@
   border-radius: 32px;
   list-style: none;
   background: var(--section-warm);
-
+  box-shadow: var(--shadow-card);
   // `auto` basis, so each tab's share starts from its content. The active tab's label widens that
   // content frame by frame as its max-width transitions, and the neighbours shrink by the same amount
   // — that is the whole of the "the others slide over" motion, with no second animation to keep in sync.

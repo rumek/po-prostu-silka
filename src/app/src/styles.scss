@@ -160,6 +160,13 @@ html {
   // Respect the browser's font-size setting rather than pinning 16px: members read this on phones,
   // and some of them have bumped it up.
   -webkit-text-size-adjust: 100%;
+
+  // Reserve the classic scrollbar's gutter on every screen, so navigating from a short screen to a
+  // tall one does not narrow the viewport by ~12px the instant the route changes. The fixed bottom
+  // bar is measured against that viewport, so without this its tabs jump sideways mid-transition —
+  // the one place in the app where the shift is impossible to miss. A phone's overlay scrollbar
+  // takes no gutter, so this costs nothing there.
+  scrollbar-gutter: stable;
 }
 
 body {
