@@ -411,9 +411,9 @@ previous artifact). Seeded rows stay until the next reset or a manual wipe.
 
 #### Automated
 
-- [x] 1.1 Solution builds warning-free: `dotnet build po-prostu-silka.slnx`
-- [x] 1.2 All tests pass, the new seeder tests included: `dotnet test po-prostu-silka.slnx`
-- [x] 1.3 No EF Core reference leaked into Domain/Application (build stays green, CS0234 guard)
+- [x] 1.1 Solution builds warning-free: `dotnet build po-prostu-silka.slnx` — d3d40a1
+- [x] 1.2 All tests pass, the new seeder tests included: `dotnet test po-prostu-silka.slnx` — d3d40a1
+- [x] 1.3 No EF Core reference leaked into Domain/Application (build stays green, CS0234 guard) — d3d40a1
 
 #### Manual
 

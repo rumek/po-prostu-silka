@@ -252,3 +252,56 @@ acceptable; losing one violates the milestone's guardrail.
 - **Heartbeat volume.** One log line every 15s is ~5,760 lines/day. Readable in `az webapp log tail`,
   but worth revisiting if log noise becomes a problem — either a longer interval or logging only
   when counts are non-zero.
+
+## Test data (Staging only) — S-24, 2026-09-22
+
+The single App Service holds the environment used for manual testing. Change
+`test-environment-seed-data` added a config-gated `TestDataSeeder`
+(`src/Infrastructure/TestData/`). It fills the database with a deterministic club: 200 members
+(40 of them accountless, about half of those with a live claim code), 2 admins, 2 trainers, passes,
+four weeks of classes back and four ahead with bookings, an exercise library and 8 active plans.
+
+**It runs only in `Development` and `Staging`**, whatever the flags say. That environment check is
+the only thing that protects this database on the day it becomes production.
+
+### App Service settings
+
+| Setting | Value | Note |
+| --- | --- | --- |
+| `ASPNETCORE_ENVIRONMENT` | `Staging` | Unset means `Production`, where the seeder refuses. `Staging` rather than `Test`/`Testing`, because `Testing` maps the authorization probe endpoints. The code branches only on `Development` and `Testing`, so `Staging` otherwise behaves exactly like `Production`. |
+| `TestDataSeed__Enabled` | `true` | Seeds once, guarded on the `admin1@example.test` account. |
+| `TestDataSeed__Password` | a secret | The one password every seeded account shares. **Never in the repo.** |
+| `TestDataSeed__Reset` | `false` (normally) | `true` wipes every member, class, booking, pass, exercise, plan, outbox row and push subscription, keeping only the `AdminSeed__Email` account and the roles. The reset then reseeds. |
+
+```
+az webapp config appsettings set -n po-prostu-silka -g pps-rg --settings \
+  ASPNETCORE_ENVIRONMENT=Staging TestDataSeed__Enabled=true TestDataSeed__Password='<secret>'
+```
+
+### Reseed procedure
+
+1. `az webapp config appsettings set -n po-prostu-silka -g pps-rg --settings TestDataSeed__Reset=true`.
+   Changing an app setting restarts the app.
+2. `az webapp log tail -n po-prostu-silka -g pps-rg` and wait for `Test data reset: ...` followed by
+   `Seeded test data: ... accounts, ... members, ...`.
+3. `az webapp config appsettings set -n po-prostu-silka -g pps-rg --settings TestDataSeed__Reset=false`.
+   This restarts the app again, and the log shows `Test data already present; seeding skipped.`
+
+Seeded logins, all with the shared password:
+
+- `admin1@example.test` and `admin2@example.test` (Admin)
+- `trener1@example.test` and `trener2@example.test` (Trainer)
+- `czlonek001@example.test` … `czlonek160@example.test` (members; a few of them are blocked)
+
+The `example.test` domain is reserved, so a stray e-mail can never reach a real person.
+
+### Warnings
+
+- **`Reset` left `true` wipes the database on every recycle.** App Service recycles without warning,
+  and Always On restarts the app on its own schedule. Step 3 is not optional.
+- **Before real members are entered, set `ASPNETCORE_ENVIRONMENT=Production`, or delete the setting.**
+  Do this *first* when this environment goes live, and remove the three `TestDataSeed__*` settings in the
+  same step. Only the environment makes the seeder refuse. A `TestDataSeed__Reset=true` still set
+  on a `Staging` app would delete every real member.
+- The data is generated relative to the day of the seed: passes and classes move with "today". A
+  seed from several weeks ago has its whole window in the past, and a reseed renews it.
