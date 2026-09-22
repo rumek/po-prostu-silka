@@ -19,7 +19,9 @@
           [title]="tab.label"
         >
           <app-icon [name]="tab.icon" />
-          <span class="bottom-nav-tab-label">{{ tab.label }}</span>
+          <span class="bottom-nav-tab-label"
+            ><span>{{ tab.label }}</span></span
+          >
         </a>
       </li>
     }

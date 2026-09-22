@@ -50,13 +50,12 @@
 }
 
 // 44px is the tap-target floor .button sets in styles.scss; a tab that misses it is the one control
-// on the screen a thumb cannot hit reliably. Icon-only tabs are short, so the height comes from
+// on the screen a thumb cannot hit reliably. Tabs are short, so the height comes from
 // padding rather than from content — without it these would collapse to the icon's 24px.
 .bottom-nav-tab {
   --pill-duration: 320ms;
-  --pill-easing: cubic-bezier(0.2, 0, 0, 1);
+  --pill-easing: cubic-bezier(0.4, 0, 0.2, 1);
 
-  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -71,21 +70,28 @@
     color var(--pill-duration) var(--pill-easing),
     padding var(--pill-duration) var(--pill-easing);
 
-  // Collapsed rather than display:none, because display cannot be interpolated — the pill would snap
-  // open instead of growing. The label's margin, not the tab's gap, carries the spacing: a gap would
-  // stay 8px wide beside a zero-width label and push the icon off-centre on every inactive tab.
+  // A 0fr → 1fr grid column rather than display:none or a max-width guess. display cannot be
+  // interpolated, and a max-width has to be set above the longest label, so the transition reaches the
+  // real width early and then idles — on screen that reads as a jump. A fr track interpolates to exactly
+  // the text's own width, so the pill and its neighbours move for the whole duration. The inner span is
+  // what the track clips. The label's margin, not the tab's gap, carries the spacing: a gap would stay
+  // 8px wide beside a zero-width label and push the icon off-centre on every inactive tab.
   // The accessible name is unaffected either way; it comes from aria-label.
   .bottom-nav-tab-label {
-    max-width: 0;
+    display: grid;
+    grid-template-columns: 0fr;
     margin-inline-start: 0;
-    overflow: hidden;
-    white-space: nowrap;
-    text-overflow: ellipsis;
     opacity: 0;
     transition:
-      max-width var(--pill-duration) var(--pill-easing),
+      grid-template-columns var(--pill-duration) var(--pill-easing),
       margin-inline-start var(--pill-duration) var(--pill-easing),
-      opacity calc(var(--pill-duration) / 2) var(--pill-easing);
+      opacity var(--pill-duration) var(--pill-easing);
+
+    > span {
+      min-width: 0;
+      overflow: hidden;
+      white-space: nowrap;
+    }
   }
 
   &.is-active {
@@ -94,13 +100,9 @@
     background-color: var(--accent);
 
     .bottom-nav-tab-label {
-      // An upper bound for the transition to run towards, not a layout width — the label only ever
-      // takes what its text needs. Set well above the longest tab label so none of them is clipped.
-      max-width: 10rem;
+      grid-template-columns: 1fr;
       margin-inline-start: 8px;
       opacity: 1;
-      // The text fades in only once the pill has room for it, so letters never overlap the icon.
-      transition-delay: 0ms, 0ms, calc(var(--pill-duration) / 3);
     }
   }
 
@@ -109,20 +111,5 @@
     .bottom-nav-tab-label {
       transition: none;
     }
-  }
-
-  // Colour alone is doing too much work on an icon-only bar — there is no label to embolden, and a
-  // muted-to-accent shift is a weak signal for anyone who does not perceive that hue difference. The
-  // bar along the top edge is the redundant, non-colour half of the marking.
-  &.is-active::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 50%;
-    width: 1.75rem;
-    height: 2px;
-    transform: translateX(-50%);
-    border-radius: 0 0 2px 2px;
-    background: var(--accent);
   }
 }

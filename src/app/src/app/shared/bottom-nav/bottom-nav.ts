@@ -18,10 +18,9 @@ import { Icon } from '../icons/icon';
  * would need the isPlatformBrowser double-guard schedule-calendar.ts carries, to solve a problem CSS
  * already solves without touching the DOM on resize.
  *
- * ICON-ONLY, so each tab's accessible name comes from its aria-label rather than from anything on
- * screen. Two consequences worth keeping in mind when editing: the label is now invisible, so it can
- * only be verified by a test or a screen reader; and the active tab has no text weight to change,
- * which is why the marking is a colour shift plus a bar along the top edge.
+ * THE ACTIVE TAB IS A PILL: icon plus label, on the accent colour; every other tab is its icon alone,
+ * named by its aria-label. The label is in the DOM on every tab and only collapsed in CSS, so the pill
+ * can grow into it rather than snap — see bottom-nav.scss.
  */
 @Component({
   imports: [Icon, RouterLink, RouterLinkActive],
