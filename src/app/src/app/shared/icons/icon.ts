@@ -12,7 +12,8 @@ export type IconName =
   | 'idea'
   | 'clock'
   | 'repeat'
-  | 'hantle';
+  | 'hantle'
+  | 'members';
 
 /**
  * The app's icon primitive — the first one this codebase has had.

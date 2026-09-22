@@ -1,23 +1,34 @@
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
-import { BOTTOM_NAV_TABS, BottomNav } from './bottom-nav';
+import { NavLink, navigationFor } from '../../core/layout/navigation';
+import { BottomNav } from './bottom-nav';
 
 @Component({ template: '' })
 class Blank {}
 
+const MEMBER_TABS = navigationFor('member', false).bar;
+
+@Component({
+  imports: [BottomNav],
+  template: '<app-bottom-nav [links]="links()" />',
+})
+class Host {
+  readonly links = signal<readonly NavLink[]>(MEMBER_TABS);
+}
+
 /**
  * The phone's primary navigation (S-12).
  *
- * Two properties matter here and neither is cosmetic. The tab set must be IDENTICAL for every role —
- * that is what keeps a visibility matrix, and the S-01 F5 bug class with it, out of the bar. And the
- * Start tab must be exact-matched, because `/` is a prefix of every other route in the app: get that
- * wrong and every tab reads as active everywhere, which is worse than no marking at all.
+ * Since S-25 the bar renders whatever links the shell hands it — the persona's, from
+ * core/layout/navigation.ts, whose spec pins which links each persona gets. What stays here is what
+ * the bar itself owns: order, names, icons, and the Start tab's exact match, because `/` is a prefix
+ * of every other route and a prefix match would mark two tabs at once.
  */
 describe('BottomNav', () => {
-  async function create(url = '/') {
+  async function create(url = '/', links: readonly NavLink[] = MEMBER_TABS) {
     TestBed.configureTestingModule({
-      imports: [BottomNav],
+      imports: [Host],
       providers: [
         provideRouter([
           { path: '', component: Blank },
@@ -31,7 +42,8 @@ describe('BottomNav', () => {
 
     await TestBed.inject(Router).navigateByUrl(url);
 
-    const fixture = TestBed.createComponent(BottomNav);
+    const fixture = TestBed.createComponent(Host);
+    fixture.componentInstance.links.set(links);
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
@@ -43,24 +55,21 @@ describe('BottomNav', () => {
     return [...element.querySelectorAll<HTMLAnchorElement>('.bottom-nav-tab')];
   }
 
-  it('renders exactly the five declared tabs, in order', async () => {
-    const element = await create();
+  it('renders the links it is given, in order', async () => {
+    const staff = navigationFor('trainer', false).bar;
+    const element = await create('/', staff);
 
-    expect(tabs(element).map((a) => a.getAttribute('aria-label'))).toEqual([
-      'Start',
-      'Grafik',
-      'Zajęcia',
-      'Plan',
-      'Więcej',
-    ]);
-    expect(tabs(element).length).toBe(BOTTOM_NAV_TABS.length);
+    expect(tabs(element).map((a) => a.getAttribute('aria-label'))).toEqual(
+      staff.map((link) => link.label),
+    );
+    expect(tabs(element).map((a) => a.getAttribute('href'))).toEqual(
+      staff.map((link) => link.route),
+    );
   });
 
   /**
-   * The tabs carry a VISIBLE label beside the icon, so the accessible name is no longer carried by
-   * aria-label alone. What matters now is that the two AGREE: a spoken name that differs from the
-   * printed one leaves a voice-control user asking for a tab by the word they can see and being
-   * refused (WCAG 2.5.3, Label in Name). The icon stays hidden either way — it would otherwise
+   * The tabs carry a VISIBLE label beside the icon, so what matters is that the accessible name and
+   * the printed one AGREE (WCAG 2.5.3, Label in Name). The icon stays hidden — it would otherwise
    * announce the tab twice.
    */
   it('gives every tab an accessible name matching its visible label, and hides the icon', async () => {
@@ -75,24 +84,6 @@ describe('BottomNav', () => {
     }
   });
 
-  /** A distinct icon per tab: two tabs sharing one would be indistinguishable without labels. */
-  it('gives every tab its own icon', async () => {
-    const icons = BOTTOM_NAV_TABS.map((tab) => tab.icon);
-
-    expect(new Set(icons).size).toBe(icons.length);
-  });
-
-  /** Role-blind by construction: the component injects no AuthService and takes no inputs. */
-  it('carries no role-conditional destination', async () => {
-    const element = await create();
-    const hrefs = tabs(element).map((a) => a.getAttribute('href'));
-
-    for (const href of hrefs) {
-      expect(href).not.toContain('/admin');
-      expect(href).not.toContain('/trainer');
-    }
-  });
-
   it('marks the current tab with aria-current', async () => {
     const element = await create('/my-classes');
     const current = tabs(element).filter((a) => a.getAttribute('aria-current') === 'page');
@@ -101,12 +92,9 @@ describe('BottomNav', () => {
     expect(current[0].getAttribute('aria-label')).toBe('Zajęcia');
   });
 
-  /**
-   * The exact-match case. `/` prefixes every route, so without routerLinkActiveOptions the Start tab
-   * would claim to be current on /schedule too — and the bar would mark two tabs at once.
-   */
+  /** The exact-match case: without it Start would claim to be current on every route. */
   it('does not mark Start as current while on another route', async () => {
-    const element = await create('/schedule');
+    const element = await create('/my-plan');
     const start = tabs(element)[0];
 
     expect(start.getAttribute('aria-label')).toBe('Start');

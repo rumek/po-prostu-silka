@@ -12,39 +12,18 @@
   </ul>
 </nav>
 
-@if (canSeePanel()) {
+<!-- The persona's overflow (S-25) — whatever navigationFor() puts in `more`. Rendered only when there
+     is something in it: a member's and a trainer's whole menu fits the bar. -->
+@if (panel().length > 0) {
   <nav class="more-section" aria-label="Panel">
     <h2 class="more-heading">Panel</h2>
 
     <ul class="more-list">
-      @if (isAdmin()) {
+      @for (link of panel(); track link.route) {
         <li>
-          <a class="more-link" routerLink="/admin/members" routerLinkActive="is-active"
-            >Członkowie</a
-          >
-        </li>
-        <li>
-          <a class="more-link" routerLink="/admin/classes" routerLinkActive="is-active">Zajęcia</a>
-        </li>
-        <li>
-          <a class="more-link" routerLink="/admin/class-types" routerLinkActive="is-active"
-            >Typy zajęć</a
-          >
-        </li>
-        <li>
-          <a class="more-link" routerLink="/admin/exercises" routerLinkActive="is-active"
-            >Ćwiczenia</a
-          >
-        </li>
-      }
-
-      <!-- The trainer's member list (S-22), which replaced "Plany". Trainer WITHOUT Admin: an admin
-           already has Członkowie above, and one role gets one path to one member list. -->
-      @if (isTrainerOnly()) {
-        <li>
-          <a class="more-link" routerLink="/trainer/members" routerLinkActive="is-active"
-            >Członkowie</a
-          >
+          <a class="more-link" [routerLink]="link.route" routerLinkActive="is-active">{{
+            link.label
+          }}</a>
         </li>
       }
     </ul>

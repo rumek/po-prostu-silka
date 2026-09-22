@@ -647,6 +647,13 @@ cannot drift and each link's condition is its route's guard by construction.
 - The admin "Grafik" route is `desk ? '/admin/classes' : '/schedule'`.
 - A null persona yields empty header, bar and more lists. The shell still renders Moje konto and
   logout for any authenticated user, as today.
+  **Adapted during implementation.** A null persona's bar is `[Więcej]`, not empty: on a phone
+  the header is hidden, so an empty bar would leave a blocked account no path to `/more`, and
+  therefore none to Moje konto or logout. Header and `more` stay empty. The two guards live in one
+  file, `core/auth/persona.guards.ts` (+ `persona.guards.spec.ts`), built from one
+  `personaGuard(admits)` factory, rather than as `member.guard.ts` and `staff.guard.ts`. Typy zajęć
+  uses the existing `'repeat'` icon, and Członkowie the new `'members'` one.
+  **Measured:** the initial bundle is 522.10 kB after Phase 4 (warning at 600 kB).
 - Moje konto and logout are not table entries: the shell and `/more` render them for every
   authenticated account (a blocked account included, per `app.html`'s existing comment).
 - Specs:
@@ -970,10 +977,10 @@ every persona can open, and note why.
 
 #### Automated
 
-- [x] 3.1 Backend builds warning-free
-- [x] 3.2 All integration tests pass, including the new refusal tests
-- [x] 3.3 SPA unit tests pass, including `failure-contract.spec.ts` and `members.spec.ts`
-- [x] 3.4 Lint and format pass
+- [x] 3.1 Backend builds warning-free — 2b6b78b
+- [x] 3.2 All integration tests pass, including the new refusal tests — 2b6b78b
+- [x] 3.3 SPA unit tests pass, including `failure-contract.spec.ts` and `members.spec.ts` — 2b6b78b
+- [x] 3.4 Lint and format pass — 2b6b78b
 
 #### Manual
 
@@ -986,9 +993,9 @@ every persona can open, and note why.
 
 #### Automated
 
-- [ ] 4.1 SPA unit tests pass (persona, guards, navigation, app, bottom-nav, more)
-- [ ] 4.2 Lint and format pass
-- [ ] 4.3 Production build succeeds within the bundle budget, with the size recorded
+- [x] 4.1 SPA unit tests pass (persona, guards, navigation, app, bottom-nav, more)
+- [x] 4.2 Lint and format pass
+- [x] 4.3 Production build succeeds within the bundle budget, with the size recorded (522.10 kB)
 
 #### Manual
 

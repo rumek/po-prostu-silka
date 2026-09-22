@@ -5,34 +5,17 @@
 
   @if (auth.isAuthenticated()) {
     <nav class="shell-nav">
-      <!-- The member's two screens, and the first nav entries this app has ever had for them. Until
-           S-08 /schedule had no link anywhere: it was reachable only by typing the URL, and Home said
-           the schedule would appear "wkrótce".
-
-           Gated on isActive() alone rather than on a role — every account reads the schedule and its
-           own classes, the admin included, and the API applies ActiveMember at both endpoint groups.
-           A blocked member sees neither, which matches what those routes would do to them anyway.
-
-           Admin-only links are hidden rather than disabled, and their condition MUST match
-           adminGuard's (isAdmin && isActive) and the backend Admin policy (Active + Admin role): on
-           isAdmin() alone an unusable admin account would see a link that bounces them straight back
-           to /, which is the exact confusion hiding it prevents. -->
-      @if (auth.isActive()) {
-        <a routerLink="/schedule" routerLinkActive="is-active">Grafik</a>
-        <a routerLink="/my-classes" routerLinkActive="is-active">Zajęcia</a>
-        <!-- Gated on isActive() alone like its neighbours: every approved account has a plan
-             surface, whether or not one has been assigned yet. The screen says so itself when
-             there is no plan, which is a better answer than a missing link. -->
-        <a routerLink="/my-plan" routerLinkActive="is-active">Plan</a>
-      }
-
-      <!-- The trainer's member list (S-22, UX-08), which replaced "Plany": a plan is reached
-           through its member. Trainer WITHOUT Admin — STRICTER than trainerGuard, never weaker, so
-           it cannot produce the bounce the admin-link comment above warns about. Admins are left
-           out because they already have a member list (/admin/members) and one role gets one path
-           to one list. -->
-      @if (auth.isTrainer() && !auth.isAdmin() && auth.isActive()) {
-        <a routerLink="/trainer/members" routerLinkActive="is-active">Członkowie</a>
+      <!-- The persona's links (S-25), from the one table in core/layout/navigation.ts that the bottom
+           bar and /more also read. Each link's persona is its route guard's, by construction, so no
+           condition here can disagree with a guard (the S-01 F5 bug class). An account with no
+           persona — a blocked one — gets an empty list and keeps only Moje konto and logout below. -->
+      @for (link of nav().header; track link.route) {
+        <a
+          [routerLink]="link.route"
+          routerLinkActive="is-active"
+          [routerLinkActiveOptions]="{ exact: link.exact }"
+          >{{ link.label }}</a
+        >
       }
 
       <!-- Gated on isAuthenticated() by the enclosing block alone, unlike every link above it: the
@@ -66,7 +49,7 @@
 
 <!-- The phone's navigation. Inside the same isAuthenticated() gate the header's nav uses, and for the
      same reason: the shell renders before any guard runs, so until sessionResolved flips every role
-     signal reads false. The bar itself is role-blind — see BottomNav. -->
+     signal reads false. The bar itself stays role-blind — it renders the links the shell hands it. -->
 @if (auth.isAuthenticated()) {
-  <app-bottom-nav />
+  <app-bottom-nav [links]="nav().bar" />
 }

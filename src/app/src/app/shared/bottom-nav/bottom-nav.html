@@ -2,7 +2,7 @@
      pair is indistinguishable to a screen reader listing them. -->
 <nav class="bottom-nav" aria-label="Nawigacja główna">
   <ul class="bottom-nav-list">
-    @for (tab of tabs; track tab.route) {
+    @for (tab of links(); track tab.route) {
       <li>
         <!-- The label is printed beside the icon, so aria-label no longer carries the name alone -
              it must simply AGREE with the visible text, or a voice-control user asking for the tab by

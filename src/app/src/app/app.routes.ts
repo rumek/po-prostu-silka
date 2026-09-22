@@ -3,6 +3,7 @@ import { activeMemberGuard } from './core/auth/active-member.guard';
 import { adminGuard } from './core/auth/admin.guard';
 import { authGuard } from './core/auth/auth.guard';
 import { invitationGuard } from './core/auth/invitation.guard';
+import { memberGuard, staffGuard } from './core/auth/persona.guards';
 import { trainerGuard } from './core/auth/trainer.guard';
 import { ClassForm } from './features/admin/classes/class-form';
 import { ClassTypes } from './features/admin/class-types/class-types';
@@ -17,7 +18,9 @@ import { Dashboard } from './features/dashboard/dashboard';
  * redirects to it, and every identifier in the codebase is English already.
  *
  * The guards compose rather than nest (D12). authGuard answers "is there a session";
- * activeMemberGuard answers "may this person use the club".
+ * activeMemberGuard answers "may this person use the club"; memberGuard and staffGuard (S-25)
+ * answer "is this screen for this persona" — each the twin of one API policy, and each the
+ * condition its menu link is shown on (core/layout/navigation.ts).
  *
  * /pending and /admin/approvals are GONE (S-16, MP-03) along with the approval flow they served.
  * There is no waiting screen because there is nothing to wait for: registration produces an account
@@ -91,17 +94,21 @@ export const routes: Routes = [
   // angular-calendar plus date-fns and its two drag/resize peers; eagerly loaded that lands in the
   // initial bundle, which sits at 513.15 kB (measured after S-20) against a 600 kB warning. It also
   // means login and register — everything reachable without a session — never download a calendar.
+  //
+  // A STAFF SCREEN since S-25: a member has no schedule, and the API refuses them one. A trainer sees
+  // only the classes they instruct (narrowed on the server), an admin every class.
   {
     path: 'schedule',
     loadComponent: () => import('./features/schedule/schedule').then((m) => m.Schedule),
-    canActivate: [authGuard, activeMemberGuard],
+    canActivate: [authGuard, staffGuard],
   },
   // LAZY TOO, but for the opposite reason: /my-classes must not pull the calendar in, and loading it
   // eagerly beside routes that do is how it eventually would. It is a plain list by design (FR-010).
+  // memberGuard (S-25): staff are never booked as participants, and /api/bookings/mine refuses them.
   {
     path: 'my-classes',
     loadComponent: () => import('./features/my-classes/my-classes').then((m) => m.MyClasses),
-    canActivate: [authGuard, activeMemberGuard],
+    canActivate: [authGuard, memberGuard],
   },
   {
     path: 'admin/classes',
@@ -161,18 +168,19 @@ export const routes: Routes = [
     canActivate: [authGuard, trainerGuard],
     data: { membersLink: '/trainer/members' },
   },
-  // The member's own plan. activeMemberGuard, not trainerGuard: every approved account has a plan
-  // surface, the trainer's own included - the API applies ActiveMember at this group.
+  // The member's own plan. memberGuard since S-25, which reversed "every approved account has a plan
+  // surface, the trainer's own included": trainers and admins hold no plan, and the API applies
+  // MemberOnly at this group.
   {
     path: 'my-plan',
     loadComponent: () => import('./features/my-plan/my-plan').then((m) => m.MyPlan),
-    canActivate: [authGuard, activeMemberGuard],
+    canActivate: [authGuard, memberGuard],
   },
   {
     path: 'my-plan/exercises/:id',
     loadComponent: () =>
       import('./features/my-plan/plan-exercise-detail').then((m) => m.PlanExerciseDetail),
-    canActivate: [authGuard, activeMemberGuard],
+    canActivate: [authGuard, memberGuard],
   },
   // S-13's profile screen. authGuard ONLY, never activeMemberGuard — the API's /api/profile group
   // makes the same choice for the same reason: an account created before S-13 has no contact
@@ -185,8 +193,8 @@ export const routes: Routes = [
     loadComponent: () => import('./features/profile/profile').then((m) => m.Profile),
     canActivate: [authGuard],
   },
-  // S-12's hub for everything the bottom bar does not give a tab: the account screen, logout, and the
-  // panel links. authGuard ONLY, deliberately — once the header's links are hidden on a phone this is
+  // S-12's hub for everything the bottom bar does not give a tab: the account screen, logout, and —
+  // since S-25 — the persona's own overflow from core/layout/navigation.ts. authGuard ONLY, deliberately — once the header's links are hidden on a phone this is
   // the only path a Pending member has to /profile, and activeMemberGuard would bounce them off it.
   //
   // LAZY: the initial bundle now carries the dashboard, and a screen reached by one tap out of five
