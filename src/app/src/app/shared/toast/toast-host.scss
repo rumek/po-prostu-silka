@@ -7,6 +7,9 @@
 }
 
 .toast-host {
+  // Fixed, so out of the root snapshot for the same reason as the bottom bar — see its stylesheet
+  // and the rules in src/styles.scss.
+  view-transition-name: toast-host;
   position: fixed;
   right: var(--space-5);
   bottom: var(--space-5);

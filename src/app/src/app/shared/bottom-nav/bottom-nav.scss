@@ -18,6 +18,14 @@
   left: 0;
   z-index: var(--z-bottom-nav);
   margin: 12px 8px;
+  // OUT OF THE ROOT SNAPSHOT (S-26). A fixed element captured inside the root snapshot is painted
+  // into an image whose coordinate space is the whole scrollable page, not the viewport, so during a
+  // routed transition the bar lands in the wrong place and snaps back when the transition ends — the
+  // pill appeared to jump. Its own view-transition-name gives it its own layer, positioned against
+  // the viewport as it always is and rendered live, so its pill animation plays normally. The layer
+  // itself is told not to animate in src/styles.scss.
+  view-transition-name: bottom-nav;
+
   // The home indicator on a notched iPhone sits over the bottom of the viewport. This resolves to 0px
   // everywhere else — and would resolve to 0px there too without viewport-fit=cover in index.html.
   padding-bottom: env(safe-area-inset-bottom);

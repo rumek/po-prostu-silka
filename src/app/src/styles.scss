@@ -700,6 +700,27 @@ a {
   opacity: 0;
 }
 
+// The two fixed layers sit outside the root snapshot (see bottom-nav.scss and toast-host.scss) and
+// take no part in the transition: no fade, no slide, no snapshot geometry of their own. Only the new
+// — live — layer is shown, which is what lets the bar's own pill animation run while a screen slides
+// underneath it.
+::view-transition-group(bottom-nav),
+::view-transition-group(toast-host) {
+  animation: none;
+}
+
+::view-transition-old(bottom-nav),
+::view-transition-old(toast-host) {
+  animation: none;
+  opacity: 0;
+}
+
+::view-transition-new(bottom-nav),
+::view-transition-new(toast-host) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
 // The old screen leaves faster than the new one arrives, and they overlap: the alternative — a full
 // cross-fade of two screens of different heights — shows the page's own background through the gap.
 ::view-transition-old(page) {
