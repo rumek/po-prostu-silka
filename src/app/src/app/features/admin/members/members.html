@@ -157,29 +157,31 @@
                       Edytuj dane
                     </a>
 
-                    <!-- Karnety (S-16). Offered on EVERY row, blocked members included: what a blocked
-                         person holds is exactly what the admin needs to see before deciding whether to
-                         unblock them, and the issue form on that screen refuses the write on its own. -->
-                    <a
-                      role="menuitem"
-                      class="row-menu-item"
-                      [routerLink]="['/admin/members', member.id, 'passes']"
-                      (click)="closeMenu()"
-                    >
-                      Karnety
-                    </a>
+                    <!-- Karnety (S-16) and Plan (S-22, UX-07) — on every MEMBER row, blocked members
+                         included: what a blocked person holds is exactly what the admin needs to see
+                         before deciding whether to unblock them, and each screen refuses the write on
+                         its own. NOT on a staff row (S-25): trainers and admins hold no karnet and no
+                         plan, and the API refuses both with member_is_staff. Both routes stay
+                         reachable by URL, so data that predates the rule can still be cleared. -->
+                    @if (!isAdmin(member) && !isTrainer(member)) {
+                      <a
+                        role="menuitem"
+                        class="row-menu-item"
+                        [routerLink]="['/admin/members', member.id, 'passes']"
+                        (click)="closeMenu()"
+                      >
+                        Karnety
+                      </a>
 
-                    <!-- Plan (S-22, UX-07). On every row, by Karnety's rule: a blocked member's plan
-                         is still worth reading and editing, and the screen itself explains the refusal
-                         when a plan cannot be created for them. -->
-                    <a
-                      role="menuitem"
-                      class="row-menu-item"
-                      [routerLink]="['/admin/members', member.id, 'plan']"
-                      (click)="closeMenu()"
-                    >
-                      Plan
-                    </a>
+                      <a
+                        role="menuitem"
+                        class="row-menu-item"
+                        [routerLink]="['/admin/members', member.id, 'plan']"
+                        (click)="closeMenu()"
+                      >
+                        Plan
+                      </a>
+                    }
 
                     <!-- The code attaches a NEW account to this record, so it is offered only where
                          there is no login yet — see canIssueCode. -->

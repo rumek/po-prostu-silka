@@ -869,6 +869,26 @@ describe('Members', () => {
    * offering it would only produce a 409. The role action must still be there — that is the whole
    * reason admins became visible (FR-003).
    */
+  /**
+   * S-25: trainers and admins hold no karnet and no plan, so their rows stop offering either — the
+   * API refuses both with member_is_staff. A plain member's row keeps both.
+   */
+  it('offers Karnety and Plan on a member row but not on a staff row', async () => {
+    await createWith([ANNA, DOROTA, EWA]);
+
+    const links = (row: HTMLElement) =>
+      openMenu(row)
+        .map((item) => item.getAttribute('href') ?? '')
+        .filter((href) => href.endsWith('/passes') || href.endsWith('/plan'));
+
+    expect(links(rows()[0])).toEqual([
+      `/admin/members/${ANNA.id}/passes`,
+      `/admin/members/${ANNA.id}/plan`,
+    ]);
+    expect(links(rows()[1])).toEqual([]);
+    expect(links(rows()[2])).toEqual([]);
+  });
+
   it('offers the role action but not block on an admin row', async () => {
     await createWith([EWA]);
 

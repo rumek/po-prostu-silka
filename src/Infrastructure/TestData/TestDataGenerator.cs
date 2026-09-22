@@ -141,9 +141,13 @@ public sealed class TestDataGenerator
 
     private void AddStaff()
     {
+        // admin2 also teaches (S-25): an Admin+Trainer instructing part of the schedule, so the staff
+        // dashboard and the Admin-over-Trainer precedence are visible on Staging. admin1 stays the
+        // admin who teaches nothing, whose "Twoje zajęcia" is empty.
         for (var i = 1; i <= 2; i++)
         {
-            _admins.Add(AddAccountMember($"admin{i}@{EmailDomain}", [ApplicationRoles.Admin], blocked: false));
+            string[] roles = i == 2 ? [ApplicationRoles.Admin, ApplicationRoles.Trainer] : [ApplicationRoles.Admin];
+            _admins.Add(AddAccountMember($"admin{i}@{EmailDomain}", roles, blocked: false));
         }
 
         for (var i = 1; i <= 2; i++)
@@ -396,7 +400,7 @@ public sealed class TestDataGenerator
                     CreatedAt = At(Math.Min(day - 21, -1), 9, 0),
                     ConcurrencyStamp = NewId().ToString(),
                     ClassTypeId = type.Id,
-                    InstructorMemberId = Pick(_trainers).Id,
+                    InstructorMemberId = Pick(Instructors).Id,
                 });
             }
         }
@@ -659,6 +663,9 @@ public sealed class TestDataGenerator
     // ------------------------------------------------------------------
 
     /// <summary>Everyone but the four staff accounts - the 200 people the club serves.</summary>
+    /// <summary>Everyone who may stand in front of a class: the trainers, plus admin2, who holds Trainer too.</summary>
+    private List<Member> Instructors => [.. _trainers, _admins[1]];
+
     private IEnumerable<Member> ClubMembers() =>
         _members.Where(m => !_admins.Contains(m) && !_trainers.Contains(m));
 

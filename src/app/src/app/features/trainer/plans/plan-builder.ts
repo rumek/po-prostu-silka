@@ -435,7 +435,8 @@ export class PlanBuilder implements OnInit {
         this.state.error.set(message);
         return;
 
-      // member_not_found, member_not_active and member_changed land here, in the banner (outlet 2):
+      // member_not_found, member_not_active, member_is_staff and member_changed land here, in the
+      // banner (outlet 2):
       // the member is fixed by the URL, so there is no control left to name.
       default:
         this.state.error.set(message);

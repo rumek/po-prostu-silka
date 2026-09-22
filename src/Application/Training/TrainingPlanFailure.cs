@@ -21,7 +21,8 @@ namespace po_prostu_silka.Application.Training;
 ///
 /// <para>
 /// 409 (conflict with existing state): <c>member_not_found</c>, <c>member_not_active</c>,
-/// <c>member_changed</c>, <c>conflict</c>.
+/// <c>member_is_staff</c> (S-25 — trainers and admins hold no plan), <c>member_changed</c>,
+/// <c>conflict</c>.
 /// </para>
 ///
 /// <para>

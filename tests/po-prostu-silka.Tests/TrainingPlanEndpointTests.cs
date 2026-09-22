@@ -445,6 +445,28 @@ public class TrainingPlanEndpointTests(IntegrationTestFixture fixture)
         Assert.Equal("member_not_active", (await response.Content.ReadFromJsonAsync<FailureBody>())!.Reason);
     }
 
+    /// <summary>
+    /// Trainers and admins hold no plan (S-25) - the trainer themselves included, and an Admin-only
+    /// account holding no User. Refused with its own reason, distinct from member_not_active, because
+    /// the account is perfectly active; it is the persona that has no plan screen.
+    /// </summary>
+    [Theory]
+    [InlineData(TestUsers.ActiveTrainerEmail)]
+    [InlineData(TestUsers.ActiveAdminEmail)]
+    [InlineData(TestUsers.ActiveAdminTrainerEmail)]
+    public async Task Assigning_a_plan_to_staff_is_refused(string staffEmail)
+    {
+        var (trainer, _, exerciseId) = await ArrangeAsync();
+        var admin = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveAdminEmail);
+        var staffId = await fixture.FindMemberIdAsync(admin, staffEmail);
+
+        var response = await trainer.PostAsJsonAsync(
+            Endpoint, Request("x", staffId, Item(exerciseId)));
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal("member_is_staff", (await response.Content.ReadFromJsonAsync<FailureBody>())!.Reason);
+    }
+
     // --- the retired list and picker (S-22) -------------------------------------
 
     /// <summary>

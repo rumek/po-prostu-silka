@@ -34,4 +34,11 @@ public interface IMemberStore
     /// caller passing raw input would match nothing and answer "unknown code" for a code that exists.
     /// </param>
     Task<Member?> FindByAccessCodeAsync(string code, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Whether this member's account holds Trainer or Admin (S-25). Staff hold no karnet and are never
+    /// booked, so the write paths that would give them one ask this first. A member without an account
+    /// is never staff. Not tracked — it reads roles, not the member row.
+    /// </summary>
+    Task<bool> IsStaffAsync(Guid memberId, CancellationToken cancellationToken);
 }

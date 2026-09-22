@@ -40,16 +40,17 @@ public interface ITrainingPlanQuery
     Task<AssignableMember?> FindMemberAsync(Guid memberId, CancellationToken cancellationToken);
 
     /// <summary>
-    /// Whether this member may be assigned a plan, or null when no such member exists — so the caller
-    /// can tell "no such member" from "not eligible" without a second round trip.
+    /// Whether this member may be assigned a plan, and if not, why — so the caller can tell "no such
+    /// member", "not active" and "staff" apart without a second round trip.
     ///
     /// <para>
-    /// ONE QUESTION RATHER THAN A STATUS, because since S-14 the answer depends on two of them and the
-    /// read side and the write side must not be able to disagree: <see cref="GetTrainerMembersAsync"/>
-    /// lists exactly the members this returns true for.
+    /// ONE QUESTION RATHER THAN A STATUS, because since S-14 the answer depends on two of them (and
+    /// since S-25 on the roles too) and the read side and the write side must not be able to disagree:
+    /// <see cref="GetTrainerMembersAsync"/> lists exactly the members this answers
+    /// <see cref="MemberAssignability.Assignable"/> for.
     /// </para>
     /// </summary>
-    Task<bool?> IsAssignableAsync(Guid memberId, CancellationToken cancellationToken);
+    Task<MemberAssignability> IsAssignableAsync(Guid memberId, CancellationToken cancellationToken);
 
     /// <summary>
     /// One exercise, but ONLY if it appears in the given member's active plan. Null otherwise -

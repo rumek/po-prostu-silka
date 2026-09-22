@@ -66,6 +66,9 @@ export interface ClassBooking {
  * `member_blocked` reaches only the ADMIN booking route (S-14): on the member's own route the
  * ActiveMember policy has already vouched for them, so it cannot occur there.
  *
+ * `member_is_staff` (S-25): trainers and admins are never booked as participants. The trainer's
+ * picker never offers them; the admin's does, and this is the refusal it then shows.
+ *
  * `conflict` is the only one that is not a product rule: the server's retry loop lost its race on
  * every attempt, and the honest advice is to try again.
  */
@@ -76,6 +79,7 @@ export interface BookingFailure {
     | 'already_booked'
     | 'class_full'
     | 'member_blocked'
+    | 'member_is_staff'
     | 'no_valid_pass'
     | 'no_entries_left'
     | 'conflict';
@@ -98,6 +102,7 @@ export const BOOKING_FAILURE_REASONS = Object.keys({
   already_booked: true,
   class_full: true,
   member_blocked: true,
+  member_is_staff: true,
   no_valid_pass: true,
   no_entries_left: true,
   conflict: true,

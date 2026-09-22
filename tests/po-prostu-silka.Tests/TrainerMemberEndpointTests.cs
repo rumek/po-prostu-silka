@@ -177,12 +177,13 @@ public class TrainerMemberEndpointTests(IntegrationTestFixture fixture)
     }
 
     /// <summary>
-    /// A DECISION, NOT AN ACCIDENT: the list has no role filter. Every account has a member row and
-    /// the eligibility rule does not look at roles, so trainers and admins are here — the same set
-    /// the picker offered, and admins train too.
+    /// A DECISION, NOT AN ACCIDENT (S-25, reversing S-22's "admins train too"): staff hold no plan,
+    /// so neither a trainer nor an admin is offered — and an Admin-only account, which holds no User,
+    /// is excluded as surely as a User+Trainer one. The plain member beside them proves the search
+    /// itself still matches.
     /// </summary>
     [Fact]
-    public async Task The_list_includes_trainers_and_admins_who_are_active_members()
+    public async Task The_list_excludes_trainers_and_admins()
     {
         var marker = NewMarker();
         var adminEmail = $"list-admin-{marker}@test.local";
@@ -193,15 +194,17 @@ public class TrainerMemberEndpointTests(IntegrationTestFixture fixture)
             trainerEmail, AccountStatus.Active, ApplicationRoles.User, $"Trener {marker}",
             additionalRole: ApplicationRoles.Trainer);
 
+        var memberEmail = $"list-member-{marker}@test.local";
+        await fixture.CreateUserAsync(
+            memberEmail, AccountStatus.Active, ApplicationRoles.User, $"Członek {marker}");
+
         var admin = await AdminAsync();
-        var adminId = await fixture.FindMemberIdAsync(admin, adminEmail);
-        var trainerId = await fixture.FindMemberIdAsync(admin, trainerEmail);
+        var memberId = await fixture.FindMemberIdAsync(admin, memberEmail);
 
         var page = await PageAsync(await TrainerAsync(), Search(marker));
 
-        Assert.Equal(2, page.Total);
-        Assert.Contains(page.Items, m => m.Id == adminId);
-        Assert.Contains(page.Items, m => m.Id == trainerId);
+        Assert.Equal(1, page.Total);
+        Assert.Equal(memberId, Assert.Single(page.Items).Id);
     }
 
     /// <summary>

@@ -40,6 +40,9 @@ const MESSAGES: Record<TrainingPlanFailure['reason'], string> = {
   // member list rather than at a picker that no longer exists.
   member_not_found: 'Tej osobie nie można teraz przypisać planu. Wróć do listy członków.',
   member_not_active: 'Tej osobie nie można teraz przypisać planu. Wróć do listy członków.',
+  // S-25: a different sentence from the pair above on purpose — the person is active and exists,
+  // and "try later" would be wrong advice. Staff hold no plan.
+  member_is_staff: 'Planu treningowego nie przypisuje się trenerom ani administratorom.',
   member_changed:
     'Ten plan należy do innego członka, niż pokazuje ta strona. Odśwież ją i spróbuj ponownie.',
   conflict: 'Ktoś zmieniał ten plan w tej samej chwili. Odśwież stronę i spróbuj ponownie.',

@@ -72,6 +72,13 @@ public static class BookForMember
             return BookingProtocol.Refuse("member_blocked");
         }
 
+        // Staff are never participants (S-25). Checked HERE and not in the protocol, which stays a
+        // pure capacity-and-karnet transaction that knows nothing about roles.
+        if (await members.IsStaffAsync(member.Id, cancellationToken))
+        {
+            return BookingProtocol.Refuse("member_is_staff");
+        }
+
         return await BookingProtocol.TryBookAsync(
             classId, member.Id, classes, bookings, passes, unitOfWork, timeProvider,
             cancellationToken);

@@ -48,6 +48,13 @@ public static class IssuePass
             return Results.Json(new MembershipPassFailure("member_blocked"), statusCode: 409);
         }
 
+        // Staff hold no karnet (S-25). The admin's screen stops offering the action on a staff row,
+        // but the screen is not the boundary: a typed URL reaches this handler all the same.
+        if (await members.IsStaffAsync(memberId, cancellationToken))
+        {
+            return Results.Json(new MembershipPassFailure("member_is_staff"), statusCode: 409);
+        }
+
         var overlapping = await passes.FindOverlappingAsync(
             memberId,
             request.ValidFrom,

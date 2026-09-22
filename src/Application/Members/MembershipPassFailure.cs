@@ -13,6 +13,8 @@ namespace po_prostu_silka.Application.Members;
 /// <item><c>member_not_found</c> — no such member. Answered as 404, not in this record.</item>
 /// <item><c>member_blocked</c> — the member's membership is not Active, so a pass would entitle them
 /// to nothing. Refused for the same reason issuing an access code to a blocked member is.</item>
+/// <item><c>member_is_staff</c> — the member's account holds Trainer or Admin (S-25). Staff hold no
+/// karnet; the persona that would read it cannot see it.</item>
 /// <item><c>invalid_type_name</c> — blank, or longer than
 /// <see cref="MembershipPassRules.TypeNameMaxLength"/>.</item>
 /// <item><c>invalid_range</c> — <c>ValidTo</c> before <c>ValidFrom</c>, or a span wider than

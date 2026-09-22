@@ -306,7 +306,8 @@ start on B1.
 
 Seeded logins, all with the shared password:
 
-- `admin1@example.test` and `admin2@example.test` (Admin)
+- `admin1@example.test` (Admin, teaches nothing) and `admin2@example.test` (Admin + Trainer since
+  S-25, instructs part of the schedule)
 - `trener1@example.test` and `trener2@example.test` (Trainer)
 - `czlonek001@example.test` … `czlonek160@example.test` (members; a few of them are blocked)
 
@@ -322,3 +323,41 @@ The `example.test` domain is reserved, so a stray e-mail can never reach a real 
   on a `Staging` app would delete every real member.
 - The data is generated relative to the day of the seed: passes and classes move with "today". A
   seed from several weeks ago has its whole window in the past, and a reseed renews it.
+
+## Staff holding member data (S-25) — 2026-09-22
+
+Since S-25 a trainer or an admin holds no karnet, no booking and no training plan: the API refuses to
+create them (`member_is_staff`). Rows that **predate** the rule stay where they are. Their holder can
+no longer see them, and nothing migrates them, because a clean-up migration would have no working
+`Down`. This read-only query lists the people concerned. Run it against the database in the Azure
+portal's query editor or in `sqlcmd`:
+
+```sql
+-- Members whose account holds Trainer or Admin AND who still hold live member data.
+SELECT m.Id, m.DisplayName, m.Email,
+       CASE WHEN EXISTS (SELECT 1 FROM MembershipPasses p
+                         WHERE p.MemberId = m.Id
+                           AND p.ValidTo >= CAST(SYSUTCDATETIME() AS date)) THEN 1 ELSE 0 END AS HasLivePass,
+       CASE WHEN EXISTS (SELECT 1 FROM Bookings b JOIN Classes c ON c.Id = b.ClassId
+                         WHERE b.MemberId = m.Id AND b.Status = 0      -- BookingStatus.Active
+                           AND c.StartsAt > SYSUTCDATETIME()) THEN 1 ELSE 0 END AS HasFutureBooking,
+       CASE WHEN EXISTS (SELECT 1 FROM TrainingPlans t
+                         WHERE t.MemberId = m.Id AND t.Status = 0      -- TrainingPlanStatus.Active
+                        ) THEN 1 ELSE 0 END AS HasActivePlan
+FROM Members m
+WHERE m.UserId IS NOT NULL
+  AND EXISTS (SELECT 1 FROM AspNetUserRoles ur JOIN AspNetRoles r ON r.Id = ur.RoleId
+              WHERE ur.UserId = m.UserId AND r.NormalizedName IN ('TRAINER', 'ADMIN'))
+  AND (   EXISTS (SELECT 1 FROM MembershipPasses p
+                  WHERE p.MemberId = m.Id AND p.ValidTo >= CAST(SYSUTCDATETIME() AS date))
+       OR EXISTS (SELECT 1 FROM Bookings b JOIN Classes c ON c.Id = b.ClassId
+                  WHERE b.MemberId = m.Id AND b.Status = 0 AND c.StartsAt > SYSUTCDATETIME())
+       OR EXISTS (SELECT 1 FROM TrainingPlans t WHERE t.MemberId = m.Id AND t.Status = 0));
+```
+
+Clean-up is manual and goes through the admin UI, not SQL. Release a booking from the class's
+bookings overlay: it holds a spot a real member could take. Shorten or revoke a karnet on
+`/admin/members/<id>/passes`, which stays reachable by URL for a staff member. The app has no
+route that ends a plan, so an active plan held by staff stays in place. That is harmless, because
+`/api/plans/mine` refuses its holder. The Staging seed never gives staff any of the three, so the
+query returns nothing there after a reseed.

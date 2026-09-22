@@ -280,6 +280,7 @@ export interface IssuePassRequest {
 export interface MembershipPassFailure {
   reason:
     | 'member_blocked'
+    | 'member_is_staff'
     | 'invalid_type_name'
     | 'invalid_range'
     | 'invalid_entry_count'
@@ -295,6 +296,7 @@ export interface MembershipPassFailure {
  */
 export const MEMBERSHIP_PASS_FAILURE_REASONS = Object.keys({
   member_blocked: true,
+  member_is_staff: true,
   invalid_type_name: true,
   invalid_range: true,
   invalid_entry_count: true,

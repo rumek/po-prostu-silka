@@ -181,6 +181,54 @@ public class MembershipPassEndpointTests(IntegrationTestFixture fixture)
         Assert.Equal("invalid_type_name", await ReasonAsync(response));
     }
 
+    // --- staff hold no karnet (S-25) ---------------------------------------------
+
+    /// <summary>
+    /// A karnet is a member thing: the persona that would read it — a trainer's or an admin's — cannot
+    /// open it. Refused on the write, not only hidden on the admin's list, because a typed URL reaches
+    /// the handler all the same. Nothing is written.
+    /// </summary>
+    [Theory]
+    [InlineData(TestUsers.ActiveTrainerEmail)]
+    [InlineData(TestUsers.ActiveAdminEmail)]
+    [InlineData(TestUsers.ActiveAdminTrainerEmail)]
+    public async Task Issuing_a_karnet_to_staff_is_refused(string staffEmail)
+    {
+        var admin = await AdminAsync();
+        var staffId = await fixture.FindMemberIdAsync(admin, staffEmail);
+        var before = await PassCountAsync(staffId);
+
+        var response = await admin.PostAsJsonAsync(
+            $"/api/admin/members/{staffId}/passes", Request(Anchor, Anchor.AddDays(9)));
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal("member_is_staff", await ReasonAsync(response));
+        Assert.Equal(before, await PassCountAsync(staffId));
+    }
+
+    /// <summary>
+    /// The grant stays allowed (S-25): a member who already holds a karnet can still be made a
+    /// trainer. The karnet is left where it is — invisible to its holder now, cleared by the admin
+    /// through the existing screens if at all.
+    /// </summary>
+    [Fact]
+    public async Task Granting_trainer_to_a_member_with_a_karnet_still_succeeds()
+    {
+        var admin = await AdminAsync();
+        var email = $"karnet-to-trainer-{Guid.NewGuid():N}@test.local";
+        await fixture.CreateUserAsync(email, AccountStatus.Active, ApplicationRoles.User);
+        var memberId = await fixture.FindMemberIdAsync(admin, email);
+
+        var issued = await admin.PostAsJsonAsync(
+            $"/api/admin/members/{memberId}/passes", Request(Anchor, Anchor.AddDays(9)));
+        Assert.Equal(HttpStatusCode.Created, issued.StatusCode);
+
+        var grant = await admin.PostAsync($"/api/admin/members/{memberId}/roles/trainer", content: null);
+
+        Assert.True(grant.IsSuccessStatusCode, $"grant answered {(int)grant.StatusCode}");
+        Assert.Equal(1, await PassCountAsync(memberId));
+    }
+
     /// <summary>
     /// A pass for a blocked member entitles them to nothing — the membership check refuses the booking
     /// long before the pass is consulted — so selling them one would be a receipt for nothing.

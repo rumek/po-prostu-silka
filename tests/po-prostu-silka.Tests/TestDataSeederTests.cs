@@ -96,7 +96,8 @@ public class TestDataSeederTests(IntegrationTestFixture fixture)
         Assert.Equal(205, await db.Members.CountAsync());
 
         Assert.Equal(2, await CountSeededInRoleAsync(db, ApplicationRoles.Admin));
-        Assert.Equal(2, await CountSeededInRoleAsync(db, ApplicationRoles.Trainer));
+        // trener1, trener2 and admin2, who also teaches (S-25).
+        Assert.Equal(3, await CountSeededInRoleAsync(db, ApplicationRoles.Trainer));
         Assert.Equal(8, await db.TrainingPlans.CountAsync(p => p.Status == TrainingPlanStatus.Active));
 
         // About half the accountless members hold a live invitation code.

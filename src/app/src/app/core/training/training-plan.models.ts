@@ -174,6 +174,7 @@ export interface TrainingPlanFailure {
     // 409 — a clash with existing state rather than bad input.
     | 'member_not_found'
     | 'member_not_active'
+    | 'member_is_staff'
     | 'member_changed'
     | 'conflict';
 }
@@ -227,6 +228,7 @@ export const TRAINING_PLAN_FAILURE_REASONS = Object.keys({
   duplicate_exercise: true,
   member_not_found: true,
   member_not_active: true,
+  member_is_staff: true,
   member_changed: true,
   conflict: true,
 } satisfies Record<

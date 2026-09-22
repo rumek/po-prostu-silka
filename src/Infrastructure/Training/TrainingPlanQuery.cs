@@ -25,8 +25,18 @@ public class TrainingPlanQuery(AppDbContext db) : ITrainingPlanQuery
     /// is offered, and a blocked account is not. It once read <c>db.Users</c>, which by construction
     /// could never offer the first kind. (It also fed the member picker, retired in S-22.)
     /// </para>
+    ///
+    /// <para>
+    /// STAFF ARE NOT ASSIGNABLE (S-25). A trainer or an admin holds no plan, so the list stops offering
+    /// them and the write path refuses them - both through this one predicate, via
+    /// <see cref="StaffPredicate"/>.
+    /// </para>
     /// </summary>
-    private static IQueryable<Member> Assignable(IQueryable<Member> members) =>
+    private IQueryable<Member> Assignable(IQueryable<Member> members) =>
+        Active(members).Where(StaffPredicate.IsNotStaff(db));
+
+    /// <summary>The status half of <see cref="Assignable"/>: active membership, active account if any.</summary>
+    private static IQueryable<Member> Active(IQueryable<Member> members) =>
         members.Where(x => x.Status == MembershipStatus.Active
                            && (x.User == null || x.User.Status == AccountStatus.Active));
 
@@ -35,9 +45,10 @@ public class TrainingPlanQuery(AppDbContext db) : ITrainingPlanQuery
     /// projected, so the plan-name lookup runs for the page's rows rather than for every match.
     ///
     /// <para>
-    /// NO ROLE FILTER. Every account has a member row and <see cref="Assignable"/> does not look at
-    /// roles, so the trainer themselves and every admin are on this list — the same set the picker
-    /// offered, and admins train too.
+    /// NO STAFF (S-25, reversing S-22's "admins train too"). Every account has a member row, but
+    /// <see cref="Assignable"/> excludes anyone holding Trainer or Admin, so neither the trainer
+    /// themselves nor any admin is on this list. That also makes it exactly the set staff may BOOK,
+    /// which is why the schedule's booking picker reuses it for a trainer.
     /// </para>
     ///
     /// <para>
@@ -93,12 +104,11 @@ public class TrainingPlanQuery(AppDbContext db) : ITrainingPlanQuery
                 .Where(x => x.MemberId == memberId && x.Status == TrainingPlanStatus.Active))
             .FirstOrDefaultAsync(cancellationToken);
 
-    public async Task<bool?> IsAssignableAsync(Guid memberId, CancellationToken cancellationToken)
+    public async Task<MemberAssignability> IsAssignableAsync(Guid memberId, CancellationToken cancellationToken)
     {
-        // Two questions in one round trip: does the member exist, and are they eligible. Materialised
-        // as a list and read with FirstOrDefault so "no such member" comes back as null rather than as
-        // false — the caller answers member_not_found and member_not_active differently, and a bool
-        // alone could not tell them apart.
+        // Three questions in one round trip: does the member exist, are they active, are they staff.
+        // Materialised as a list and read with FirstOrDefault so "no such member" is an empty list
+        // rather than a row of falses — the caller answers each case with its own reason.
         //
         // THE ELIGIBILITY HALF GOES THROUGH Assignable, as a membership test rather than a restated
         // predicate. Writing the same condition out again here would have made the "one definition"
@@ -108,10 +118,22 @@ public class TrainingPlanQuery(AppDbContext db) : ITrainingPlanQuery
         var rows = await db.Members
             .AsNoTracking()
             .Where(x => x.Id == memberId)
-            .Select(x => (bool?)Assignable(db.Members).Any(a => a.Id == x.Id))
+            .Select(x => new
+            {
+                IsActive = Active(db.Members).Any(a => a.Id == x.Id),
+                IsAssignable = Assignable(db.Members).Any(a => a.Id == x.Id),
+            })
             .ToListAsync(cancellationToken);
 
-        return rows.FirstOrDefault();
+        var row = rows.FirstOrDefault();
+
+        return row switch
+        {
+            null => MemberAssignability.NotFound,
+            { IsActive: false } => MemberAssignability.NotActive,
+            { IsAssignable: false } => MemberAssignability.Staff,
+            _ => MemberAssignability.Assignable,
+        };
     }
 
     public Task<ExerciseSummary?> FindPlanExerciseAsync(

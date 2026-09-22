@@ -550,6 +550,14 @@ listing members whose account holds Trainer or Admin **and** who have a pass wit
 today`, an active booking on a future class, or an active plan. It says that clean-up is manual in
 the admin UI.
 
+**Adapted during implementation.** The app has no route that ends a training plan (only create and
+update), so the runbook says a staff-held plan stays in place, harmless because `/api/plans/mine`
+refuses its holder. Bookings are released from the bookings overlay and karnets shortened or revoked
+on the passes screen. In the tests, the staff refusals are theories over all three staff fixture
+users (Trainer, Admin, Admin+Trainer). The booking refusal plants a karnet straight in the database
+first, so `member_is_staff` cannot pass as `no_valid_pass`. `IsAssignableAsync` returns a new
+`MemberAssignability` enum (`src/Application/Training/MemberAssignability.cs`).
+
 ### Success Criteria
 
 #### Automated Verification
@@ -950,9 +958,9 @@ every persona can open, and note why.
 
 #### Automated
 
-- [x] 2.1 Backend builds warning-free
-- [x] 2.2 All integration tests pass
-- [x] 2.3 `EndpointAuthorizationTests` includes the `MemberOnly` route list and the `/api/classes` policy assertion
+- [x] 2.1 Backend builds warning-free — 52e962d
+- [x] 2.2 All integration tests pass — 52e962d
+- [x] 2.3 `EndpointAuthorizationTests` includes the `MemberOnly` route list and the `/api/classes` policy assertion — 52e962d
 
 #### Manual
 
@@ -962,10 +970,10 @@ every persona can open, and note why.
 
 #### Automated
 
-- [ ] 3.1 Backend builds warning-free
-- [ ] 3.2 All integration tests pass, including the new refusal tests
-- [ ] 3.3 SPA unit tests pass, including `failure-contract.spec.ts` and `members.spec.ts`
-- [ ] 3.4 Lint and format pass
+- [x] 3.1 Backend builds warning-free
+- [x] 3.2 All integration tests pass, including the new refusal tests
+- [x] 3.3 SPA unit tests pass, including `failure-contract.spec.ts` and `members.spec.ts`
+- [x] 3.4 Lint and format pass
 
 #### Manual
 

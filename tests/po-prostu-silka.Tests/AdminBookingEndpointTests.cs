@@ -743,6 +743,53 @@ public class AdminBookingEndpointTests(IntegrationTestFixture fixture)
     }
 
     /// <summary>
+    /// Staff are never participants (S-25). Each one holds a karnet here, planted straight in the
+    /// database, so the refusal is member_is_staff and cannot be passing as no_valid_pass.
+    /// </summary>
+    [Theory]
+    [InlineData(TestUsers.ActiveTrainerEmail)]
+    [InlineData(TestUsers.ActiveAdminEmail)]
+    [InlineData(TestUsers.ActiveAdminTrainerEmail)]
+    public async Task Booking_staff_is_refused(string staffEmail)
+    {
+        var (admin, scheduled) = await ArrangeAsync();
+        var staffId = await fixture.FindMemberIdAsync(admin, staffEmail);
+        await fixture.IssuePassAsync(staffId);
+
+        var response = await BookAsync(admin, scheduled.Id, staffId);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal("member_is_staff", await ReasonAsync(response));
+        Assert.Empty(await BookingsForAsync(scheduled.Id));
+    }
+
+    /// <summary>
+    /// The trainer's own route refuses the same way — including booking THEMSELVES into the class
+    /// they instruct, the one staff member MayActOn would otherwise let them name.
+    /// </summary>
+    [Fact]
+    public async Task A_trainer_booking_staff_into_their_own_class_is_refused()
+    {
+        var admin = await AdminAsync();
+        var (trainer, trainerMemberId) = await NewTrainerAsync(admin);
+        var (scheduled, _) = await ClassWithInstructorAsync(admin, trainerMemberId);
+        await fixture.IssuePassAsync(trainerMemberId);
+
+        var self = await BookAsync(trainer, scheduled.Id, trainerMemberId);
+        Assert.Equal(HttpStatusCode.Conflict, self.StatusCode);
+        Assert.Equal("member_is_staff", await ReasonAsync(self));
+
+        var adminId = await fixture.FindMemberIdAsync(admin, TestUsers.ActiveAdminEmail);
+        await fixture.IssuePassAsync(adminId);
+
+        var other = await BookAsync(trainer, scheduled.Id, adminId);
+        Assert.Equal(HttpStatusCode.Conflict, other.StatusCode);
+        Assert.Equal("member_is_staff", await ReasonAsync(other));
+
+        Assert.Empty(await BookingsForAsync(scheduled.Id));
+    }
+
+    /// <summary>
     /// A blocked member may not attend. Writing the spot anyway would have the club promising a seat
     /// it has already decided not to honour — and the next block cascade would cancel it regardless.
     /// </summary>

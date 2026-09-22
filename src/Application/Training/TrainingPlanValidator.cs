@@ -170,14 +170,14 @@ internal static class TrainingPlanValidator
         ITrainingPlanQuery query,
         CancellationToken cancellationToken)
     {
-        var assignable = await query.IsAssignableAsync(memberId, cancellationToken);
-
-        if (assignable is null)
+        return await query.IsAssignableAsync(memberId, cancellationToken) switch
         {
-            return Refuse("member_not_found", 409);
-        }
-
-        return assignable.Value ? null : Refuse("member_not_active", 409);
+            MemberAssignability.NotFound => Refuse("member_not_found", 409),
+            MemberAssignability.NotActive => Refuse("member_not_active", 409),
+            // Trainers and admins hold no plan (S-25): the persona that would read it cannot open it.
+            MemberAssignability.Staff => Refuse("member_is_staff", 409),
+            _ => null,
+        };
     }
 
     /// <summary>

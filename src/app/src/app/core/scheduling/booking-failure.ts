@@ -26,6 +26,7 @@ const MESSAGES: Record<BookingFailure['reason'], string> = {
   already_booked: 'Ta osoba jest już zapisana na te zajęcia.',
   class_full: 'Brak wolnych miejsc na tych zajęciach.',
   member_blocked: 'Ta osoba jest zablokowana i nie może być zapisana na zajęcia.',
+  member_is_staff: 'Trenerów i administratorów nie zapisuje się na zajęcia jako uczestników.',
   // The two karnet refusals (S-16). Kept apart because they are different conversations at the desk:
   // one is "sell them a karnet", the other is "this one is used up".
   no_valid_pass: 'Ta osoba nie ma karnetu ważnego w dniu tych zajęć.',

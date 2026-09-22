@@ -24,4 +24,11 @@ public class MemberStore(AppDbContext db) : IMemberStore
 
     public Task<Member?> FindByAccessCodeAsync(string code, CancellationToken cancellationToken) =>
         db.Members.FirstOrDefaultAsync(x => x.AccessCode == code, cancellationToken);
+
+    public Task<bool> IsStaffAsync(Guid memberId, CancellationToken cancellationToken) =>
+        db.Members
+            .AsNoTracking()
+            .Where(x => x.Id == memberId)
+            .Where(StaffPredicate.IsStaff(db))
+            .AnyAsync(cancellationToken);
 }
