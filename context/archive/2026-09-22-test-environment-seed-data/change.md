@@ -1,10 +1,10 @@
 ---
 change_id: test-environment-seed-data
 title: Seed a realistic test data set for the development environment
-status: impl_reviewed
+status: archived
 created: 2026-09-22
 updated: 2026-09-22
-archived_at: null
+archived_at: 2026-09-22T11:45:31Z
 ---
 
 ## Notes

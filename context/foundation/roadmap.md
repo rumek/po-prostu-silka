@@ -218,7 +218,7 @@ out; a build error cannot.
 | S-21 | member-list-at-scale | (admin) find one member among hundreds - the API pages, searches and filters; a table on web, one compact row on a phone | S-20 | M-7 UX-05, UX-06 | done |
 | S-22 | member-centric-training-plans | (admin, trainer) set a member's plan by opening the member, not a plan list; the Plany screen is retired | S-21 | M-7 UX-07, UX-08 (retires part of v1 FR-015's surface) | done |
 | S-23 | frontend-presentational-kit | (structural) the presentational layer gets components instead of copies — one field, one select, one checkbox, one loading state, one empty state, one list row, enforced by a spec | S-19 | none — milestone unassigned, see the item body | done |
-| S-24 | test-environment-seed-data | (dev tooling) open the development environment and find it populated - 200 members (some accountless), two admins, two trainers, passes, a schedule with bookings, an exercise library and assigned plans | S-16, S-22 | none - milestone unassigned, see the item body | in-progress |
+| S-24 | test-environment-seed-data | (dev tooling) open the development environment and find it populated - 200 members (some accountless), two admins, two trainers, passes, a schedule with bookings, an exercise library and assigned plans | S-16, S-22 | none - milestone unassigned, see the item body | done |
 
 ## Streams
 
@@ -778,7 +778,7 @@ rather than in a slice body:
 - **Risk:** the seeder runs against the only Azure database there is. A flag left on after that
   database becomes production would wipe real members, so the gate must fail closed and the plan
   must say what makes it refuse to run.
-- **Status:** in-progress
+- **Status:** done
 
 ## Backlog Handoff
 
@@ -971,3 +971,4 @@ Resolved since the previous roadmap: the sender-domain question that gated F-03 
 - **S-20: user (admin) opens `/admin/classes` on a computer and reaches every per-class action - Edytuj, Powiel, Zapisani, Odwołaj - whatever the class's length, where today they are clipped out of a 60-pixel tile; opening the same screen on a phone gets a plain statement that class editing happens at a desk, with a way through to the read-only schedule, instead of a grid that will not scroll and gestures that will not land.** — Archived 2026-09-22 → `context/archive/2026-09-21-admin-schedule-web-only/`. Lesson: —.
 - **S-21: user (admin) opens Członkowie with hundreds of records and finds one - the API pages, searches and filters, so the browser no longer fetches every member to hide all but four; from the shared breakpoint up the list is a table with columns, and below it one compact row per member.** — Archived 2026-09-22 → `context/archive/2026-09-21-member-list-at-scale/`. Lesson: —.
 - **S-22: user (admin) sets someone's training plan by opening Członkowie, opening that member and editing the plan there - the same path the karnet already takes - and a trainer does the same from a member list of their own; the standalone Plany screen and its entry on `/more` are gone.** — Archived 2026-09-22 → `context/archive/2026-09-21-member-centric-training-plans/`. Lesson: —.
+- **S-24: (dev tooling — no capability changes) a config-gated `TestDataSeeder`, running next to `AdminSeeder` only when `TestDataSeed:*` settings ask for it, wipes the domain data and inserts a deterministic, realistic data set: 200 members (part of them accountless with a claim code), two admins, two trainers, membership passes (valid, expired and used up), class types and a schedule for the coming weeks, bookings (some classes full), an exercise library and a few assigned training plans.** — Archived 2026-09-22 → `context/archive/2026-09-22-test-environment-seed-data/`. Lesson: —.
