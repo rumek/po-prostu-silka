@@ -1,5 +1,4 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
-import { RouterLink } from '@angular/router';
 import { BookingService } from '../../core/scheduling/booking.service';
 import { MyBooking } from '../../core/scheduling/booking.models';
 import { classifyFailure } from '../../core/http/failure';
@@ -26,7 +25,7 @@ import { Row } from '../../shared/list/row';
  * Shell shape follows `schedule.ts` — rows, loading, loadFailed, a generation fence.
  */
 @Component({
-  imports: [Row, Empty, Loading, ClassSummary, RouterLink],
+  imports: [Row, Empty, Loading, ClassSummary],
   selector: 'app-my-classes',
   styleUrl: './my-classes.scss',
   templateUrl: './my-classes.html',

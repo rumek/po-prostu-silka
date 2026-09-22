@@ -10,25 +10,28 @@ import {
   signal,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Member } from '../../../core/admin/member-admin.models';
-import { MemberAdminService } from '../../../core/admin/member-admin.service';
-import { bookingFailureMessage } from '../../../core/scheduling/booking-failure';
-import { classifyFailure } from '../../../core/http/failure';
-import { transportMessage } from '../../../core/http/transport-messages';
-import { BookingService } from '../../../core/scheduling/booking.service';
-import { ClassBooking } from '../../../core/scheduling/booking.models';
-import { ScheduledClass } from '../../../core/scheduling/class.models';
-import { createBusySet } from '../../../shared/forms/busy-set';
-import { createLoadFence } from '../../../shared/forms/load-fence';
-import { useOverlayFocus } from '../../../shared/forms/overlay-focus';
-import { Field } from '../../../shared/forms/field/field';
-import { Select } from '../../../shared/forms/select/select';
-import { Loading } from '../../../shared/forms/loading/loading';
-import { Empty } from '../../../shared/forms/empty/empty';
-import { Row } from '../../../shared/list/row';
+import {
+  BookingCandidate,
+  BookingCandidateSearch,
+  CANDIDATE_RESULTS,
+} from '../../core/scheduling/booking-candidates';
+import { bookingFailureMessage } from '../../core/scheduling/booking-failure';
+import { classifyFailure } from '../../core/http/failure';
+import { transportMessage } from '../../core/http/transport-messages';
+import { BookingService } from '../../core/scheduling/booking.service';
+import { ClassBooking } from '../../core/scheduling/booking.models';
+import { ScheduledClass } from '../../core/scheduling/class.models';
+import { createBusySet } from '../../shared/forms/busy-set';
+import { createLoadFence } from '../../shared/forms/load-fence';
+import { useOverlayFocus } from '../../shared/forms/overlay-focus';
+import { Field } from '../../shared/forms/field/field';
+import { Select } from '../../shared/forms/select/select';
+import { Loading } from '../../shared/forms/loading/loading';
+import { Empty } from '../../shared/forms/empty/empty';
+import { Row } from '../../shared/list/row';
 
-/** How many matches the picker offers. Past this, it asks the admin to narrow the phrase. */
-export const PICKER_RESULTS = 20;
+/** How many matches the picker offers. Past this, it asks to narrow the phrase. */
+export const PICKER_RESULTS = CANDIDATE_RESULTS;
 
 /** Same pause as the members screen's search box — one request per pause, not per key. */
 export const PICKER_DEBOUNCE_MS = 300;
@@ -61,6 +64,15 @@ export const PICKER_DEBOUNCE_MS = 300;
  * member list's second "fetch everyone" — which at hundreds of members is a select nobody can scroll
  * and a request nobody needed. It asks the paged endpoint for {@link PICKER_RESULTS} matches once
  * typing pauses, like the members screen does.
+ *
+ * <h2>Two personas, one overlay (S-25)</h2>
+ *
+ * It opens from the admin's calendar and from the staff schedule, where a trainer signs members into
+ * the classes they instruct. The only thing that differs is WHERE the picker searches — the admin
+ * member list or the trainer's — so the caller hands in a `search` (core/scheduling/
+ * booking-candidates.ts) and the overlay injects no member service of its own. It lives in a
+ * neutral feature folder so neither screen imports from the other's, and under `features/` so the
+ * presentational-kit lint still covers it.
  */
 @Component({
   // On the host, not on the panel: Escape has to close the overlay wherever focus is, including
@@ -77,9 +89,11 @@ export class ClassBookingsOverlay implements OnInit {
   private readonly focus = useOverlayFocus();
 
   private readonly bookings = inject(BookingService);
-  private readonly members = inject(MemberAdminService);
 
   readonly row = input.required<ScheduledClass>();
+
+  /** Where the picker finds people: the admin's member list, or the trainer's. */
+  readonly search = input.required<BookingCandidateSearch>();
 
   /** One spot was released. The screen patches the tile's free-spot count. */
   readonly released = output<void>();
@@ -116,7 +130,7 @@ export class ClassBookingsOverlay implements OnInit {
   protected readonly searched = signal('');
 
   /** The active members matching `searched`, with or without a login — at most PICKER_RESULTS. */
-  protected readonly candidates = signal<Member[]>([]);
+  protected readonly candidates = signal<BookingCandidate[]>([]);
 
   /** How many match in all, so the picker can say when it is showing only some of them. */
   protected readonly candidatesTotal = signal(0);
@@ -180,11 +194,7 @@ export class ClassBookingsOverlay implements OnInit {
     const generation = this.searchFence.begin();
 
     try {
-      const page = await this.members.getMembers({
-        filter: 'Active',
-        search: phrase,
-        pageSize: PICKER_RESULTS,
-      });
+      const page = await this.search().find(phrase);
 
       if (!this.searchFence.isCurrent(generation)) {
         return;

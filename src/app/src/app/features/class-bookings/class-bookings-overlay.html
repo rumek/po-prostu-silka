@@ -68,7 +68,7 @@
         type="search"
         autocomplete="off"
         maxlength="100"
-        placeholder="Imię, nazwisko lub e-mail"
+        [placeholder]="search().placeholder"
         [ngModel]="addSearch()"
         (ngModelChange)="onAddSearchInput($event)"
         [disabled]="adding()"
@@ -94,7 +94,7 @@
             <option value="">{{ searched() ? 'Wybierz osobę…' : 'Wpisz imię lub e-mail…' }}</option>
             @for (member of bookable(); track member.id) {
               <option [value]="member.id">
-                {{ member.displayName }}{{ member.userId ? '' : ' — bez konta' }}
+                {{ member.displayName }}{{ member.hasAccount ? '' : ' — bez konta' }}
               </option>
             }
           </select>

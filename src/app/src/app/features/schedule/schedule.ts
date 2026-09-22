@@ -1,76 +1,81 @@
-import { Component, inject, signal } from '@angular/core';
-import { BookingService } from '../../core/scheduling/booking.service';
-import { ClassService } from '../../core/scheduling/class.service';
-import { ScheduledClass } from '../../core/scheduling/class.models';
+import { Component, computed, inject, signal } from '@angular/core';
+import { MemberAdminService } from '../../core/admin/member-admin.service';
+import { AuthService } from '../../core/auth/auth.service';
+import { personaOf } from '../../core/auth/persona';
 import { classifyFailure } from '../../core/http/failure';
 import { transportMessage } from '../../core/http/transport-messages';
+import {
+  BookingCandidateSearch,
+  adminCandidateSearch,
+  trainerCandidateSearch,
+} from '../../core/scheduling/booking-candidates';
+import { ClassService } from '../../core/scheduling/class.service';
+import { ScheduledClass } from '../../core/scheduling/class.models';
+import { TrainingPlanService } from '../../core/training/training-plan.service';
 import { CalendarRange, ScheduleCalendar } from '../../shared/calendar/schedule-calendar';
-import { ClassDetailsOverlay } from './class-details-overlay/class-details-overlay';
 import { createLoadFence } from '../../shared/forms/load-fence';
+import { ClassBookingsOverlay } from '../class-bookings/class-bookings-overlay';
 
 /**
- * The member's schedule (prd.md FR-007, FR-008, FR-009; prd-v2 FR-015, FR-016, FR-018).
+ * The schedule (prd.md FR-007; prd-v2 FR-015, FR-016, FR-018) — a STAFF screen since S-25.
  *
- * A CALENDAR since S-07, not the day-grouped list it was: one day at a time on a phone, the whole
- * week from 48rem up. The grouping this screen used to do in a `computed` moved into the shared
- * calendar, which is also what the admin panel renders — FR-017's whole point is that there is one
- * of them.
+ * A CALENDAR since S-07: one day at a time on a phone, the whole week from 48rem up, the same shared
+ * calendar the admin panel renders.
  *
- * <h2>Browsing only, since S-16</h2>
+ * <h2>Who sees what (S-25)</h2>
  *
- * Tapping a class opens a detail overlay — with no action in it. MP-01 removed self-service booking,
- * so this screen reads the schedule and nothing else; the `act()` path that used to apply a booking
- * result back into the week went with it.
+ * A member has no schedule: staffGuard sends them home, and `GET /api/classes` refuses them. What the
+ * endpoint returns is the persona's schedule, decided on the server — every class for an admin, only
+ * the classes they instruct for a trainer — so this screen never filters and never asks for the
+ * caller's own bookings (staff hold none).
  *
- * The screen still holds the member's own bookings as a set of class ids, so a tile can show that the
- * caller is in it, without the shared `ScheduledClass` projection growing a `bookedByMe` field —
- * splitting the member and admin projections was weighed and declined in S-06, and adding a
- * member-only field would be the same decision by the back door. It is now loaded and never
- * modified, because nothing on this screen can change it.
+ * <h2>A class opens its roster</h2>
+ *
+ * Tapping a class opens the bookings overlay the admin calendar uses, so staff can see who is coming,
+ * release a spot and sign a member up from here — on a phone too, where the admin calendar refuses to
+ * render (UX-01). The API narrows a trainer to their own classes (`MayActOn`); this screen only
+ * chooses where the picker searches: the admin member list for an admin, the trainer's member list
+ * (name-only, members only) for a trainer.
  */
 @Component({
-  imports: [ClassDetailsOverlay, ScheduleCalendar],
+  imports: [ClassBookingsOverlay, ScheduleCalendar],
   selector: 'app-schedule',
   styleUrl: './schedule.scss',
   templateUrl: './schedule.html',
 })
 export class Schedule {
   private readonly classes = inject(ClassService);
-  private readonly bookings = inject(BookingService);
+  private readonly auth = inject(AuthService);
+
+  protected readonly persona = computed(() => personaOf(this.auth.user()));
+
+  /** Built once each; `candidateSearch` picks between them by persona. */
+  private readonly adminSearch = adminCandidateSearch(inject(MemberAdminService));
+  private readonly trainerSearch = trainerCandidateSearch(inject(TrainingPlanService));
+
+  protected readonly candidateSearch = computed<BookingCandidateSearch>(() =>
+    this.persona() === 'admin' ? this.adminSearch : this.trainerSearch,
+  );
 
   protected readonly rows = signal<ScheduledClass[]>([]);
   protected readonly loading = signal(true);
   protected readonly loadFailed = signal(false);
 
   /**
-   * WHY the load failed, when the transport can say (S-19).
-   *
-   * Still outlet 4 — the calendar states the failure and the screen owns the retry. What is new is
-   * that a dead network now says so, where before a killed API read exactly like a server that
-   * answered and refused.
+   * WHY the load failed, when the transport can say (S-19). Still outlet 4 — the calendar states the
+   * failure and the screen owns the retry.
    */
   protected readonly loadMessage = signal<string | null>(null);
 
-  /**
-   * Class ids the member currently holds an active booking on.
-   *
-   * Refetched with every window change and never modified locally — since S-16 nothing on this
-   * screen can change it. A set rather than the bookings themselves because that is all this screen
-   * asks: "is the caller in this class?". The list of bookings belongs to /my-classes.
-   */
-  protected readonly bookedClassIds = signal<ReadonlySet<string>>(new Set());
-
-  /** The class whose overlay is open, or null. */
+  /** The class whose roster is open, or null. */
   protected readonly selected = signal<ScheduledClass | null>(null);
 
   /** The window the calendar is showing. Null until its first emission, which is the first load. */
   private readonly range = signal<CalendarRange | null>(null);
 
   /**
-   * NEW IN S-07, and not optional. Nothing cancels an in-flight request, so the last RESPONSE would
-   * otherwise win: two quick taps on "next week" can land their responses in either order, and the
-   * loser would overwrite the week actually on screen. The single fetch this screen used to do could
-   * not race with anything; navigation is what made it possible. Same guard as classes.ts.
+   * Nothing cancels an in-flight request, so the last RESPONSE would otherwise win: two quick taps on
+   * "next week" can land their responses in either order. Same guard as classes.ts.
    */
   private readonly fence = createLoadFence();
 
@@ -79,7 +84,7 @@ export class Schedule {
     this.range.set(range);
 
     // A window change invalidates the open overlay: its class may not even be on screen any more.
-    this.closeDetails();
+    this.closeBookings();
 
     const generation = this.fence.begin();
 
@@ -87,21 +92,13 @@ export class Schedule {
     this.loadFailed.set(false);
 
     try {
-      // In parallel, and the bookings are fetched on EVERY window change rather than once on init.
-      // They are unbounded by window — a member has a handful of upcoming bookings, not a page of
-      // them — but refetching is what keeps the set honest when the same tab is left open across a
-      // cancellation made elsewhere.
-      const [rows, mine] = await Promise.all([
-        this.classes.getSchedule(range.from, range.to),
-        this.bookings.getMine(),
-      ]);
+      const rows = await this.classes.getSchedule(range.from, range.to);
 
       if (!this.fence.isCurrent(generation)) {
         return;
       }
 
       this.rows.set(rows);
-      this.bookedClassIds.set(new Set(mine.map((booking) => booking.classId)));
     } catch (failure) {
       if (!this.fence.isCurrent(generation)) {
         return;
@@ -116,11 +113,8 @@ export class Schedule {
   }
 
   /**
-   * Refetches the window on screen.
-   *
-   * The member's only recovery from a failed load. The calendar owns navigation, so there is no
-   * gesture that would retry as a side effect — without this the answer to a dropped connection is
-   * "reload the page", which is not an answer a schedule should give.
+   * Refetches the window on screen. The calendar owns navigation, so there is no gesture that would
+   * retry as a side effect — without this the answer to a dropped connection is "reload the page".
    */
   protected async reload(): Promise<void> {
     const range = this.range();
@@ -130,15 +124,28 @@ export class Schedule {
     }
   }
 
-  protected openDetails(row: ScheduledClass): void {
+  protected openBookings(row: ScheduledClass): void {
     this.selected.set(row);
   }
 
-  protected closeDetails(): void {
+  protected closeBookings(): void {
     this.selected.set(null);
   }
 
-  protected isBooked(id: string): boolean {
-    return this.bookedClassIds().has(id);
+  /** A spot was released — the tile and the overlay's header both show one more free. */
+  protected afterRelease(row: ScheduledClass): void {
+    const freed = (candidate: ScheduledClass) =>
+      candidate.id === row.id ? { ...candidate, freeSpots: candidate.freeSpots + 1 } : candidate;
+
+    this.rows.update((rows) => rows.map(freed));
+    this.selected.update((open) => (open ? freed(open) : open));
+  }
+
+  /** Somebody was signed up — the server answered with the class as it now stands; trust that. */
+  protected afterBooking(updated: ScheduledClass): void {
+    this.rows.update((rows) =>
+      rows.map((candidate) => (candidate.id === updated.id ? updated : candidate)),
+    );
+    this.selected.update((open) => (open && open.id === updated.id ? updated : open));
   }
 }

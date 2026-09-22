@@ -37,7 +37,7 @@ export class BookingService {
     return firstValueFrom(this.http.get<MyBooking[]>('/api/bookings/mine'));
   }
 
-  /** Who signed up for a class (FR-014). Admin only. */
+  /** Who signed up for a class (FR-014). A trainer on their own classes, or an admin. */
   getForClass(classId: string): Promise<ClassBooking[]> {
     return firstValueFrom(
       this.http.get<ClassBooking[]>(`/api/admin/classes/${encodeURIComponent(classId)}/bookings`),
@@ -45,7 +45,7 @@ export class BookingService {
   }
 
   /**
-   * Books somebody else in (S-14, AM-007). Admin only. Resolves with the class as it now stands,
+   * Books somebody else in (S-14, AM-007). A trainer on their own classes, or an admin. Resolves with the class as it now stands,
    * exactly like `book`.
    *
    * THE ONE BOOKING CALL THAT NAMES ITS MEMBER. Every other route here takes the member from the
@@ -60,7 +60,7 @@ export class BookingService {
     );
   }
 
-  /** Releases somebody else's spot. Admin only. */
+  /** Releases somebody else's spot. A trainer on their own classes, or an admin. */
   async cancelAsAdmin(classId: string, bookingId: string): Promise<void> {
     await firstValueFrom(
       this.http.delete<void>(

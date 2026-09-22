@@ -8,6 +8,8 @@ import { ClassService } from '../../../core/scheduling/class.service';
 import { DESK_MEDIA_QUERY } from '../../../core/layout/breakpoints';
 import { mediaQuerySignal } from '../../../core/layout/media-query';
 import { ScheduledClass } from '../../../core/scheduling/class.models';
+import { adminCandidateSearch } from '../../../core/scheduling/booking-candidates';
+import { MemberAdminService } from '../../../core/admin/member-admin.service';
 import {
   CalendarRange,
   DrawnRange,
@@ -15,7 +17,7 @@ import {
   ScheduleCalendar,
 } from '../../../shared/calendar/schedule-calendar';
 import { ClassActionsOverlay, bookedCount } from './class-actions-overlay';
-import { ClassBookingsOverlay } from './class-bookings-overlay';
+import { ClassBookingsOverlay } from '../../class-bookings/class-bookings-overlay';
 import { ClassCreateOverlay } from './class-create-overlay';
 import { createBusySet } from '../../../shared/forms/busy-set';
 import { createLoadFence } from '../../../shared/forms/load-fence';
@@ -125,6 +127,9 @@ export class Classes {
    * `class-bookings-overlay`, the same way the create overlay owns its own two selects.
    */
   protected readonly viewingBookings = signal<ScheduledClass | null>(null);
+
+  /** The bookings overlay's picker searches the admin member list here (S-25). */
+  protected readonly candidateSearch = adminCandidateSearch(inject(MemberAdminService));
 
   /** The range drawn on the grid, awaiting a type and a trainer. Null when no overlay is open. */
   protected readonly drawn = signal<DrawnRange | null>(null);

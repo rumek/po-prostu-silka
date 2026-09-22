@@ -65,6 +65,7 @@
   @if (viewingBookings(); as row) {
     <app-class-bookings-overlay
       [row]="row"
+      [search]="candidateSearch"
       (released)="afterRelease(row)"
       (booked)="afterAdminBooking($event)"
       (closed)="closeBookings()"

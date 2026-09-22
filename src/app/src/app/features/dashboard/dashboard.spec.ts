@@ -13,16 +13,25 @@ import { Dashboard } from './dashboard';
 const BOOKINGS_URL = '/api/bookings/mine';
 const PLAN_URL = '/api/plans/mine';
 const PASS_URL = '/api/passes/mine';
+const FEED_URL = '/api/trainer/classes';
 
+// The seeded admin's shape: Admin alone, no User.
 const ADMIN: CurrentUser = {
   id: 'a1',
   email: 'admin@test.local',
   displayName: 'Admin',
   status: 'Active',
-  roles: ['User', 'Admin'],
+  membershipStatus: 'Active',
+  roles: ['Admin'],
 };
 
 const MEMBER: CurrentUser = { ...ADMIN, id: 'm1', displayName: 'Ala', roles: ['User'] };
+const TRAINER: CurrentUser = {
+  ...ADMIN,
+  id: 't1',
+  displayName: 'Marek',
+  roles: ['User', 'Trainer'],
+};
 
 const PLAN: TrainingPlanDetail = {
   id: 'p1',
@@ -87,11 +96,11 @@ function atLocalHour(dayOffset: number, hour: number): string {
 /**
  * The landing screen (prd.md FR-023, FR-024).
  *
- * Two things these tests exist for. First, the ROLE BRANCH: the admin half must be invisible to a
- * member, and its two requests must not even be fired for one — a member's dashboard issuing two
- * guaranteed 403s is a bug you only see in the network tab. Second, the LOCAL-MIDNIGHT WINDOW: a
- * class that started earlier today belongs under "Dzisiaj", and the API's default window would have
- * dropped it.
+ * Two things these tests exist for. First, the PERSONA BRANCH (S-25): a member gets the three
+ * member cards and never requests the staff feed; staff get "Twoje zajęcia" and never request
+ * the `/mine` routes — each would be a guaranteed 403 you only see in the network tab. Second, the
+ * LOCAL-MIDNIGHT WINDOW: a class that started earlier today belongs under "Dzisiaj", and the API's
+ * default window would have dropped it.
  */
 describe('Dashboard', () => {
   let fixture: ComponentFixture<Dashboard>;
@@ -236,7 +245,7 @@ describe('Dashboard', () => {
     controller.verify();
   });
 
-  it('never renders the admin section for a member, and fires no admin requests', async () => {
+  it('never renders the staff section for a member, and fires no staff requests', async () => {
     configure(MEMBER);
 
     controller.expectOne(BOOKINGS_URL).flush([booking()]);
@@ -244,25 +253,51 @@ describe('Dashboard', () => {
     flushPass();
     await settle();
 
-    expect(text()).not.toContain('Wymaga uwagi');
-    // The point of the isAdmin() guard in ngOnInit: a member must not fire an endpoint that answers
-    // 403. verify() is what proves it — an unexpected admin request would be an open request here.
+    expect(text()).not.toContain('Twoje zajęcia');
+    controller.expectNone((r) => r.url === FEED_URL);
+    controller.expectNone((r) => r.url === '/api/admin/classes');
     controller.verify();
   });
 
-  it('renders the admin section on top of the member cards for an admin', async () => {
-    configure(ADMIN);
+  /** A member's empty "Najbliższe zajęcia" no longer points at a schedule they cannot open. */
+  it('sends a member with no bookings to the club, not to a schedule', async () => {
+    configure(MEMBER);
 
     controller.expectOne(BOOKINGS_URL).flush([]);
-    controller.expectOne(PLAN_URL).flush(null, { status: 204, statusText: 'No Content' });
+    controller.expectOne(PLAN_URL).flush(PLAN);
     flushPass();
-    controller.expectOne((r) => r.url === '/api/admin/classes').flush([]);
     await settle();
 
-    // The approvals card that used to sit here is gone with the flow it counted (S-16, MP-03), so
-    // "Wymaga uwagi" is now the day's classes alone.
-    expect(text()).toContain('Wymaga uwagi');
-    expect(text()).not.toContain('Zgłoszenia');
+    expect(text()).toContain('Zapisy prowadzi klub');
+    expect(element().querySelector('a[href="/schedule"]')).toBeNull();
+    controller.verify();
+  });
+
+  it.each([
+    ['a trainer', TRAINER, '/schedule'],
+    // jsdom has no matchMedia, so the desk fallback (true) sends the admin to the calendar.
+    ['an admin', ADMIN, '/admin/classes'],
+  ])('gives %s only "Twoje zajęcia" and requests no member data', async (_, user, grafik) => {
+    configure(user);
+
+    controller.expectOne((r) => r.url === FEED_URL).flush([]);
+    await settle();
+
+    expect(text()).toContain('Twoje zajęcia');
+    expect(text()).toContain('Nie prowadzisz dziś zajęć.');
+    expect(text()).toContain('Nie prowadzisz zajęć w najbliższym tygodniu.');
+    expect(text()).not.toContain('Twój karnet');
+    expect(text()).not.toContain('Twój plan treningowy');
+
+    // Rendered with no rows: an admin who teaches nothing still reaches the club's calendar.
+    const link = element().querySelector<HTMLAnchorElement>('a.dashboard-more')!;
+    expect(link.textContent?.trim()).toBe('Zobacz grafik');
+    expect(link.getAttribute('href')).toBe(grafik);
+
+    for (const url of [BOOKINGS_URL, PLAN_URL, PASS_URL]) {
+      controller.expectNone(url);
+    }
+    controller.expectNone((r) => r.url === '/api/admin/classes');
     controller.verify();
   });
 
@@ -272,13 +307,9 @@ describe('Dashboard', () => {
    * midnight, and the row must land in the today bucket rather than the upcoming one.
    */
   it('asks from local midnight and buckets a class that already started today as today', async () => {
-    configure(ADMIN);
+    configure(TRAINER);
 
-    controller.expectOne(BOOKINGS_URL).flush([]);
-    controller.expectOne(PLAN_URL).flush(null, { status: 204, statusText: 'No Content' });
-    flushPass();
-
-    const request = controller.expectOne((r) => r.url === '/api/admin/classes');
+    const request = controller.expectOne((r) => r.url === FEED_URL);
     const from = new Date(request.request.params.get('from')!);
     const midnight = new Date();
     midnight.setHours(0, 0, 0, 0);

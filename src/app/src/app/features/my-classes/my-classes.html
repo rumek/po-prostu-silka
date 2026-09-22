@@ -17,11 +17,10 @@
     <button type="button" class="link-button" (click)="load()">Spróbuj ponownie</button>
   </p>
 } @else if (rows().length === 0) {
-  <!-- An empty state that leads somewhere. "Nothing here" with no next step is the one version of
-       this screen a new member will always see first. -->
+  <!-- An empty state that names the next step. It used to link to /schedule; since S-25 a member has
+       no schedule, so the next step is the club itself. -->
   <app-empty>
     Nie masz jeszcze żadnych zapisów. Zapisy prowadzi klub — odezwij się w recepcji.
-    <a routerLink="/schedule">Zobacz grafik zajęć</a>
   </app-empty>
 } @else {
   <ul class="my-classes-list">

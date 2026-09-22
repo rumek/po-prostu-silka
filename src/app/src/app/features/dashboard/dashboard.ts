@@ -2,6 +2,10 @@ import { DatePipe } from '@angular/common';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
+import { isStaff, personaOf } from '../../core/auth/persona';
+import { DESK_MEDIA_QUERY } from '../../core/layout/breakpoints';
+import { mediaQuerySignal } from '../../core/layout/media-query';
+import { navigationFor } from '../../core/layout/navigation';
 import { MemberAdminService } from '../../core/admin/member-admin.service';
 import { BookingService } from '../../core/scheduling/booking.service';
 import { ClassService } from '../../core/scheduling/class.service';
@@ -19,17 +23,23 @@ import { Empty } from '../../shared/forms/empty/empty';
 /** How many upcoming bookings the member's card shows before deferring to /my-classes (FR-023). */
 const NEAREST_CLASSES = 3;
 
-/** Days past today the admin's "upcoming" card looks ahead. Well inside the API's 62-day cap. */
+/** Days past today the staff "upcoming" card looks ahead. Well inside the API's 62-day cap. */
 const UPCOMING_DAYS = 7;
 
 /**
  * The landing screen for every approved account (prd.md FR-023, FR-024).
  *
- * ONE ROUTE, TWO AUDIENCES. `/` carries authGuard + activeMemberGuard, which admit member, trainer
- * and admin alike, and adminGuard sends a rebuffed admin here — so this is where an admin lands
- * whatever else happens. The admin section is therefore a branch inside the component rather than a
- * route of its own, exactly as app.html branches its links. An admin is also a member who books
- * classes, and sees both halves.
+ * ONE ROUTE, TWO AUDIENCES (S-25). `/` carries authGuard + activeMemberGuard, which admit every
+ * persona, and every persona guard sends a rebuffed user here — so this is where everyone lands. It
+ * branches on the persona, and the halves no longer overlap:
+ *
+ * - a MEMBER gets their nearest bookings, their karnet and their plan;
+ * - STAFF (trainer or admin) get "Twoje zajęcia" — the classes they instruct, today and the next
+ *   week — and nothing of the member's: staff hold no bookings, karnet or plan.
+ *
+ * NOT FIRED, NOT MERELY HIDDEN. Staff never request the `/mine` routes (MemberOnly would refuse them) and
+ * a member never requests the feed (TrainerOrAdmin would refuse them); the spec pins both with
+ * expectNone.
  *
  * EVERY CARD LOADS ON ITS OWN. Four independent requests with four independent states, because a
  * dashboard that blanks itself when one of them fails is worse than one that shows three cards and
@@ -55,7 +65,21 @@ export class Dashboard implements OnInit {
   private readonly classes = inject(ClassService);
 
   protected readonly displayName = computed(() => this.auth.user()?.displayName ?? null);
-  protected readonly isAdmin = computed(() => this.auth.isAdmin());
+  protected readonly persona = computed(() => personaOf(this.auth.user()));
+  protected readonly isMember = computed(() => this.persona() === 'member');
+  protected readonly isStaff = computed(() => isStaff(this.persona()));
+
+  private readonly desk = mediaQuerySignal(DESK_MEDIA_QUERY, true);
+
+  /**
+   * Where "Zobacz grafik" goes — the persona's own Grafik from the navigation table, so the admin's
+   * follows the desk boundary exactly as the menu's does.
+   */
+  protected readonly scheduleLink = computed(
+    () =>
+      navigationFor(this.persona(), this.desk()).header.find((link) => link.label === 'Grafik')
+        ?.route ?? '/schedule',
+  );
 
   // --- Member: nearest classes -------------------------------------------------------------------
 
@@ -101,7 +125,7 @@ export class Dashboard implements OnInit {
   protected readonly passFailed = signal(false);
   private readonly passFence = createLoadFence();
 
-  // --- Admin: today and upcoming -----------------------------------------------------------------
+  // --- Staff: the classes I instruct, today and upcoming (S-25) ----------------------------------
 
   protected readonly todayClasses = signal<ScheduledClass[]>([]);
   protected readonly upcomingClasses = signal<ScheduledClass[]>([]);
@@ -110,19 +134,15 @@ export class Dashboard implements OnInit {
   private readonly classesFence = createLoadFence();
 
   ngOnInit(): void {
-    void this.loadBookings();
-    void this.loadPlan();
+    // Each branch fires only what its persona's API policy admits — see the class comment.
+    if (this.isMember()) {
+      void this.loadBookings();
+      void this.loadPlan();
 
-    // In PARALLEL with the two above, not after them — this route is eager and every serialised
-    // request here is latency every member pays on every visit.
-    void this.loadPass();
-
-    // Guarded, not merely hidden: this endpoint answers 403 to a non-admin, and firing it for every
-    // member would put a guaranteed failure in the console on every visit to the home screen.
-    //
-    // The pending-approvals card that used to sit beside it is gone (S-16, MP-03) — there is no
-    // queue, so "wymaga uwagi" is now just the day's classes.
-    if (this.isAdmin()) {
+      // In PARALLEL with the two above, not after them — this route is eager and every serialised
+      // request here is latency every member pays on every visit.
+      void this.loadPass();
+    } else if (this.isStaff()) {
       void this.loadClasses();
     }
   }
@@ -216,11 +236,11 @@ export class Dashboard implements OnInit {
   }
 
   /**
-   * ONE request, bucketed here, for both admin class cards.
+   * ONE request, bucketed here, for both staff class cards: the classes the caller instructs.
    *
-   * The window MUST start at local midnight. Called with no bounds this endpoint defaults to
-   * `[now, now + 62d)` — which silently drops the classes that started earlier today, and those are
-   * precisely the ones an admin running the day is looking for.
+   * The window MUST start at local midnight. Called with no bounds the endpoint defaults to a window
+   * starting NOW — which silently drops the classes that started earlier today, and those are
+   * precisely the ones a trainer running the day is looking for.
    */
   protected async loadClasses(): Promise<void> {
     const generation = this.classesFence.begin();
@@ -231,7 +251,7 @@ export class Dashboard implements OnInit {
     const { from, to, tomorrow } = this.todayWindow();
 
     try {
-      const rows = await this.classes.getAdminClasses(from, to);
+      const rows = await this.classes.getInstructedClasses(from, to);
 
       if (!this.classesFence.isCurrent(generation)) {
         return;

@@ -71,12 +71,13 @@ describe('MyClasses', () => {
     expect(rows()[0].textContent).toContain('Ala');
   });
 
-  it('shows an empty state that leads to the schedule', async () => {
+  /** S-25: the next step is the club, not a schedule the member can no longer open. */
+  it('shows an empty state that sends the member to the club, with no schedule link', async () => {
     await respond([]);
 
-    // "Nothing here" with no next step is the version of this screen every new member sees first.
     expect(element().textContent).toContain('Nie masz jeszcze żadnych zapisów');
-    expect(element().querySelector('a[href="/schedule"]')).not.toBeNull();
+    expect(element().textContent).toContain('Zapisy prowadzi klub');
+    expect(element().querySelector('a[href="/schedule"]')).toBeNull();
   });
 
   it('offers a retry when the load fails', async () => {

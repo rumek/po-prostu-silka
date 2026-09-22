@@ -34,7 +34,8 @@ export class ClassService {
   private readonly http = inject(HttpClient);
 
   /**
-   * The member's schedule, flat and time-ordered.
+   * The schedule, flat and time-ordered — a STAFF read since S-25: every class for an admin, only
+   * the classes they instruct for a trainer (narrowed on the server). A member gets 403.
    *
    * Both bounds or neither — the API refuses a half-supplied range with `invalid_range` rather than
    * pairing one bound with a default nobody asked for. Omitted, the server answers the fortnight it
@@ -43,6 +44,16 @@ export class ClassService {
   getSchedule(from?: Date, to?: Date): Promise<ScheduledClass[]> {
     return firstValueFrom(
       this.http.get<ScheduledClass[]>('/api/classes', { params: rangeParams(from, to) }),
+    );
+  }
+
+  /**
+   * "Twoje zajęcia" (S-25): the classes the CALLER instructs over the window, for a trainer and an
+   * admin alike — an admin is not widened to the club here. The staff dashboard's feed.
+   */
+  getInstructedClasses(from?: Date, to?: Date): Promise<ScheduledClass[]> {
+    return firstValueFrom(
+      this.http.get<ScheduledClass[]>('/api/trainer/classes', { params: rangeParams(from, to) }),
     );
   }
 

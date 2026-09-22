@@ -5,7 +5,8 @@ import {
   TestRequest,
 } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { MyBooking } from '../../core/scheduling/booking.models';
+import { AuthService } from '../../core/auth/auth.service';
+import { CurrentUser } from '../../core/auth/auth.models';
 import { ScheduledClass } from '../../core/scheduling/class.models';
 import { Schedule } from './schedule';
 
@@ -37,20 +38,42 @@ function at(local: string, over: Partial<ScheduledClass> = {}): ScheduledClass {
  * jsdom provides no `matchMedia`, so the calendar stays in its day-first default here. That is
  * deliberate: it is the same shape as a phone, which is the case this screen is designed around.
  */
+function staff(roles: string[]): CurrentUser {
+  return {
+    id: roles.join('-'),
+    email: 'staff@test.local',
+    displayName: 'Staff',
+    status: 'Active',
+    membershipStatus: 'Active',
+    roles,
+  };
+}
+
+const ADMIN = staff(['Admin']);
+const TRAINER = staff(['User', 'Trainer']);
+
 describe('Schedule', () => {
   let fixture: ComponentFixture<Schedule>;
   let controller: HttpTestingController;
 
-  beforeEach(() => {
+  /** A STAFF screen since S-25: every case renders as a trainer or an admin. */
+  function create(current: CurrentUser): void {
+    TestBed.resetTestingModule();
     TestBed.configureTestingModule({
       imports: [Schedule],
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: AuthService, useValue: { user: () => current } as unknown as AuthService },
+      ],
     });
 
     controller = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(Schedule);
     fixture.detectChanges();
-  });
+  }
+
+  beforeEach(() => create(ADMIN));
 
   afterEach(() => controller.verify());
 
@@ -59,17 +82,12 @@ describe('Schedule', () => {
   }
 
   /**
-   * Answers every outstanding "my bookings" request with an empty list.
-   *
-   * Since S-08 a load fetches the week AND the caller's own bookings, in parallel — so every test
-   * that triggers a load has two requests to settle, and `controller.verify()` in afterEach is what
-   * would otherwise fail. Flushed FIRST, so the order the schedule responses arrive in is what
-   * decides which load wins: that is the property the generation-guard test is about.
+   * Asserts the load asked for NO member data. Until S-25 a load fetched the caller's own bookings
+   * beside the week; staff hold none, and `/api/bookings/mine` refuses them, so every load checks
+   * here that the request did not come back.
    */
-  function flushMine(rows: MyBooking[] = []): void {
-    for (const request of controller.match('/api/bookings/mine')) {
-      request.flush(rows);
-    }
+  function flushMine(): void {
+    controller.expectNone('/api/bookings/mine');
   }
 
   /**
@@ -198,9 +216,9 @@ describe('Schedule', () => {
     expect(html.querySelector('.alert')).toBeNull();
   });
 
-  // --- S-16: the schedule is browsing only -----------------------------------
+  // --- S-25: a class opens its roster -----------------------------------------
 
-  /** Opens the detail overlay for the only class on screen. */
+  /** Opens the overlay for the only class on screen. */
   async function openFirstTile(): Promise<HTMLElement> {
     const html = fixture.nativeElement as HTMLElement;
 
@@ -220,46 +238,84 @@ describe('Schedule', () => {
     });
   }
 
-  /**
-   * MP-01, asserted from the screen's side. The overlay's own spec pins that it renders no action;
-   * this one pins that the schedule no longer WIRES one — the `act()` path that applied a booking
-   * result back into the week is gone, so there is nothing here that could issue a booking request.
-   */
-  it('opens a class without offering any booking action', async () => {
+  async function showTile(): Promise<HTMLElement> {
     flushMine();
     scheduleRequests()[0].flush([tile()]);
     await settle();
 
-    const html = await openFirstTile();
+    return openFirstTile();
+  }
 
-    expect(html.textContent).not.toContain('Zapisz się');
-    expect(html.textContent).not.toContain('Anuluj zapis');
-    expect(html.textContent).toContain('Zapisów dokonuje klub');
+  function typeInPicker(html: HTMLElement, phrase: string): void {
+    const box = html.querySelector<HTMLInputElement>('#add-member-search')!;
+    box.value = phrase;
+    box.dispatchEvent(new Event('input'));
+  }
 
-    // Nothing was requested by opening it, and nothing can be.
-    controller.verify();
+  it('opens the bookings overlay for a selected class', async () => {
+    const html = await showTile();
+
+    controller.expectOne('/api/admin/classes/c1/bookings').flush([]);
+    await settle();
+
+    expect(html.querySelector('app-class-bookings-overlay')).not.toBeNull();
+    expect(html.textContent).toContain('Zapisani na „Joga”');
   });
 
-  it('knows which classes the member already holds', async () => {
-    flushMine([
+  it("searches the admin member list from an admin's overlay", async () => {
+    const html = await showTile();
+    controller.expectOne('/api/admin/classes/c1/bookings').flush([]);
+    await settle();
+
+    typeInPicker(html, 'jan');
+    (
+      await vi.waitFor(() =>
+        controller.expectOne('/api/admin/members?filter=Active&search=jan&pageSize=20'),
+      )
+    ).flush({ items: [], total: 0, page: 1, pageSize: 20 });
+    await settle();
+  });
+
+  /** A trainer would get 403 on the admin list; their picker searches their own, name-only. */
+  it("searches /api/trainer/members from a trainer's overlay, and says the grafik is theirs", async () => {
+    create(TRAINER);
+    const html = await showTile();
+    controller.expectOne('/api/admin/classes/c1/bookings').flush([]);
+    await settle();
+
+    expect(html.textContent).toContain('tylko zajęcia, które prowadzisz');
+
+    typeInPicker(html, 'jan');
+    (
+      await vi.waitFor(() => controller.expectOne('/api/trainer/members?search=jan&pageSize=20'))
+    ).flush({ items: [], total: 0, page: 1, pageSize: 20 });
+    await settle();
+
+    controller.expectNone((request) => request.url === '/api/admin/members');
+  });
+
+  it('patches the tile when the overlay releases a spot', async () => {
+    const html = await showTile();
+    controller.expectOne('/api/admin/classes/c1/bookings').flush([
       {
         bookingId: 'b1',
-        classId: 'c1',
-        name: 'Joga',
-        description: null,
-        startsAt: tile().startsAt,
-        durationMinutes: 60,
-        instructor: 'Ola',
+        memberId: 'm1',
+        userId: 'u1',
+        displayName: 'Ala',
+        email: 'ala@example.test',
         bookedAt: new Date().toISOString(),
       },
     ]);
-    scheduleRequests()[0].flush([tile()]);
     await settle();
 
-    const html = await openFirstTile();
+    [...html.querySelectorAll<HTMLButtonElement>('button')]
+      .find((b) => b.textContent?.includes('Zwolnij miejsce'))!
+      .click();
+    await settle();
 
-    // Resolved from the member's own bookings rather than from a field on ScheduledClass - the
-    // shared projection deliberately carries no bookedByMe.
-    expect(html.textContent).toContain('Jesteś zapisany');
+    controller.expectOne('/api/admin/classes/c1/bookings/b1').flush(null);
+    await settle();
+
+    expect(html.textContent).toContain('7 / 12 miejsc zajętych');
   });
 });

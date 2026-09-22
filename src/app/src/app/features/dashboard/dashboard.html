@@ -1,114 +1,121 @@
 <h1>Cześć{{ displayName() ? ', ' + displayName() : '' }}</h1>
 
-<!-- The member's half, shown to every approved account — the admin's included, because an admin books
-     classes like anyone else. -->
-<section class="dashboard-cards" aria-label="Twoje zajęcia i plan">
-  <article class="card dashboard-card">
-    <h2 class="dashboard-card-title">Najbliższe zajęcia</h2>
+<!-- The member's half (S-25): the member persona only. Staff hold no bookings, karnet or plan, and the
+     requests behind these cards are never fired for them. -->
+@if (isMember()) {
+  <section class="dashboard-cards" aria-label="Twoje zajęcia i plan">
+    <article class="card dashboard-card">
+      <h2 class="dashboard-card-title">Najbliższe zajęcia</h2>
 
-    @if (bookingsLoading()) {
-      <app-loading />
-    } @else if (bookingsFailed()) {
-      <p class="alert" role="alert">
-        Nie udało się wczytać zapisów.
-        <button type="button" class="link-button" (click)="loadBookings()">Spróbuj ponownie</button>
-      </p>
-    } @else if (nearestBookings().length === 0) {
-      <app-empty>
-        Nie masz jeszcze żadnych zapisów.
-        <a routerLink="/schedule">Zobacz grafik zajęć</a>
-      </app-empty>
-    } @else {
-      <ul class="dashboard-list">
-        @for (row of nearestBookings(); track row.bookingId) {
-          <li>
-            <app-class-summary
-              [name]="row.name"
-              [startsAt]="row.startsAt"
-              [durationMinutes]="row.durationMinutes"
-              [instructor]="row.instructor"
-            />
-          </li>
-        }
-      </ul>
+      @if (bookingsLoading()) {
+        <app-loading />
+      } @else if (bookingsFailed()) {
+        <p class="alert" role="alert">
+          Nie udało się wczytać zapisów.
+          <button type="button" class="link-button" (click)="loadBookings()">
+            Spróbuj ponownie
+          </button>
+        </p>
+      } @else if (nearestBookings().length === 0) {
+        <!-- No link to a schedule: a member has none (S-25). The club books them, and says so. -->
+        <app-empty>
+          Nie masz jeszcze żadnych zapisów. Zapisy prowadzi klub — odezwij się w recepcji.
+        </app-empty>
+      } @else {
+        <ul class="dashboard-list">
+          @for (row of nearestBookings(); track row.bookingId) {
+            <li>
+              <app-class-summary
+                [name]="row.name"
+                [startsAt]="row.startsAt"
+                [durationMinutes]="row.durationMinutes"
+                [instructor]="row.instructor"
+              />
+            </li>
+          }
+        </ul>
 
-      <!-- Shown only when the card is actually hiding something: a "see all" that leads to the same
+        <!-- Shown only when the card is actually hiding something: a "see all" that leads to the same
            three rows teaches the member the link is not worth pressing. -->
-      @if (hasMoreBookings()) {
-        <a class="dashboard-more" routerLink="/my-classes">Zobacz wszystkie zapisy</a>
+        @if (hasMoreBookings()) {
+          <a class="dashboard-more" routerLink="/my-classes">Zobacz wszystkie zapisy</a>
+        }
       }
-    }
-  </article>
+    </article>
 
-  <!-- The karnet (S-16, MP-07). READ-ONLY like everything else here: a member never buys, extends or
+    <!-- The karnet (S-16, MP-07). READ-ONLY like everything else here: a member never buys, extends or
        requests one in this app — they read what the club issued them. Markup kept lean deliberately,
        since this route is eager and the initial-bundle warning budget is 550 kB. -->
-  <article class="card dashboard-card">
-    <h2 class="dashboard-card-title">Twój karnet</h2>
+    <article class="card dashboard-card">
+      <h2 class="dashboard-card-title">Twój karnet</h2>
 
-    @if (passLoading()) {
-      <app-loading />
-    } @else if (passFailed()) {
-      <p class="alert" role="alert">
-        Nie udało się wczytać karnetu.
-        <button type="button" class="link-button" (click)="loadPass()">Spróbuj ponownie</button>
-      </p>
-    } @else if (pass(); as karnet) {
-      <p class="dashboard-pass-name">{{ karnet.typeName }}</p>
-      <p class="dashboard-count">{{ karnet.entriesLeft }}</p>
-      <p class="dashboard-pass-meta">
-        {{ karnet.entriesLeft === 1 ? 'wejście' : 'wejść' }} z {{ karnet.entryCount }} — ważny do
-        {{ karnet.validTo | date: 'd MMMM y' }}
-      </p>
-    } @else {
-      <!-- NOT an error, and deliberately not styled as one: the API says 204. It names the
+      @if (passLoading()) {
+        <app-loading />
+      } @else if (passFailed()) {
+        <p class="alert" role="alert">
+          Nie udało się wczytać karnetu.
+          <button type="button" class="link-button" (click)="loadPass()">Spróbuj ponownie</button>
+        </p>
+      } @else if (pass(); as karnet) {
+        <p class="dashboard-pass-name">{{ karnet.typeName }}</p>
+        <p class="dashboard-count">{{ karnet.entriesLeft }}</p>
+        <p class="dashboard-pass-meta">
+          {{ karnet.entriesLeft === 1 ? 'wejście' : 'wejść' }} z {{ karnet.entryCount }} — ważny do
+          {{ karnet.validTo | date: 'd MMMM y' }}
+        </p>
+      } @else {
+        <!-- NOT an error, and deliberately not styled as one: the API says 204. It names the
            consequence rather than only the fact, because "brak karnetu" on its own does not tell a
            member why nobody is signing them up for anything. -->
-      <app-empty>
-        Nie masz aktywnego karnetu. Bez niego klub nie zapisze Cię na zajęcia — odezwij się w
-        recepcji.
-      </app-empty>
-    }
-  </article>
+        <app-empty>
+          Nie masz aktywnego karnetu. Bez niego klub nie zapisze Cię na zajęcia — odezwij się w
+          recepcji.
+        </app-empty>
+      }
+    </article>
 
-  <article class="card dashboard-card">
-    <!-- The static heading appears ONLY in the states that have no plan name to show. When a plan is
+    <article class="card dashboard-card">
+      <!-- The static heading appears ONLY in the states that have no plan name to show. When a plan is
          loaded, plan-summary's own h2 is the card's heading — two sibling h2s would read to a screen
          reader as two unrelated topics rather than a label and its content. -->
-    @if (!plan() || planLoading() || planFailed()) {
-      <h2 class="dashboard-card-title">Twój plan treningowy</h2>
-    }
+      @if (!plan() || planLoading() || planFailed()) {
+        <h2 class="dashboard-card-title">Twój plan treningowy</h2>
+      }
 
-    @if (planLoading()) {
-      <app-loading />
-    } @else if (planFailed()) {
-      <p class="alert" role="alert">
-        Nie udało się wczytać planu.
-        <button type="button" class="link-button" (click)="loadPlan()">Spróbuj ponownie</button>
-      </p>
-    } @else if (plan(); as row) {
-      <!-- h2, not h1: this card sits under the dashboard's own heading, and a second h1 would flatten
+      @if (planLoading()) {
+        <app-loading />
+      } @else if (planFailed()) {
+        <p class="alert" role="alert">
+          Nie udało się wczytać planu.
+          <button type="button" class="link-button" (click)="loadPlan()">Spróbuj ponownie</button>
+        </p>
+      } @else if (plan(); as row) {
+        <!-- h2, not h1: this card sits under the dashboard's own heading, and a second h1 would flatten
            the outline for anyone navigating by heading. -->
-      <app-plan-summary
-        headingLevel="h2"
-        [name]="row.name"
-        [assignedByDisplayName]="row.assignedByDisplayName"
-        [createdAt]="row.createdAt"
-      />
-      <a class="dashboard-more" routerLink="/my-plan">Otwórz plan</a>
-    } @else {
-      <!-- NOT an error, and deliberately not styled as one: the API says 204, and a member who has not
+        <app-plan-summary
+          headingLevel="h2"
+          [name]="row.name"
+          [assignedByDisplayName]="row.assignedByDisplayName"
+          [createdAt]="row.createdAt"
+        />
+        <a class="dashboard-more" routerLink="/my-plan">Otwórz plan</a>
+      } @else {
+        <!-- NOT an error, and deliberately not styled as one: the API says 204, and a member who has not
            been given a plan has nothing to retry. Same distinction /my-plan draws. -->
-      <app-empty>
-        Nie masz jeszcze przypisanego planu treningowego. Poproś trenera, żeby Ci go ułożył.
-      </app-empty>
-    }
-  </article>
-</section>
+        <app-empty>
+          Nie masz jeszcze przypisanego planu treningowego. Poproś trenera, żeby Ci go ułożył.
+        </app-empty>
+      }
+    </article>
+  </section>
+}
 
-@if (isAdmin()) {
-  <section class="dashboard-cards" aria-label="Wymaga uwagi">
-    <h2 class="dashboard-section-title">Wymaga uwagi</h2>
+<!-- The staff half (S-25): the classes this account INSTRUCTS, for a trainer and an admin alike —
+     never the whole club, which is one tap away on the schedule. An admin who teaches nothing sees
+     the empty states, which is the true answer. -->
+@if (isStaff()) {
+  <section class="dashboard-cards" aria-label="Twoje zajęcia">
+    <h2 class="dashboard-section-title">Twoje zajęcia</h2>
 
     <article class="card dashboard-card">
       <h3 class="dashboard-card-title">Dzisiaj</h3>
@@ -123,7 +130,7 @@
           </button>
         </p>
       } @else if (todayClasses().length === 0) {
-        <app-empty>Dzisiaj nie ma zaplanowanych zajęć.</app-empty>
+        <app-empty>Nie prowadzisz dziś zajęć.</app-empty>
       } @else {
         <ul class="dashboard-list">
           @for (row of todayClasses(); track row.id) {
@@ -155,7 +162,7 @@
           </button>
         </p>
       } @else if (upcomingClasses().length === 0) {
-        <app-empty>Brak zajęć w najbliższym tygodniu.</app-empty>
+        <app-empty>Nie prowadzisz zajęć w najbliższym tygodniu.</app-empty>
       } @else {
         <ul class="dashboard-list">
           @for (row of upcomingClasses(); track row.id) {
@@ -169,9 +176,11 @@
             </li>
           }
         </ul>
-
-        <a class="dashboard-more" routerLink="/admin/classes">Zarządzaj zajęciami</a>
       }
+
+      <!-- Outside the state branch: the schedule is worth opening whether or not this card has rows,
+           and an admin who teaches nothing reaches the club's calendar from here. -->
+      <a class="dashboard-more" [routerLink]="scheduleLink()">Zobacz grafik</a>
     </article>
   </section>
 }

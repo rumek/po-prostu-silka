@@ -1,19 +1,23 @@
 <h1>Grafik zajęć</h1>
-<p class="hint">Wybierz zajęcia, aby zobaczyć szczegóły i się zapisać.</p>
+@if (persona() === 'trainer') {
+  <!-- The server narrows a trainer to their own classes (S-25); the screen says so, so an empty week
+       is not read as "the club has nothing on". -->
+  <p class="hint">Grafik pokazuje tylko zajęcia, które prowadzisz.</p>
+}
+<p class="hint">Wybierz zajęcia, aby zobaczyć listę zapisanych i zapisać członka.</p>
 
 <!-- Loading, failure and the empty state all live inside the calendar: it keeps the grid mounted
      through all three, so navigating between weeks never makes the page jump.
 
-     `selectable`, not `readOnly`: the member schedule stays read-only in every sense that word
-     covers — no drag, no resize, no draw, no actions — and selection is a separate concept with a
-     separate input. See the calendar component. -->
+     `selectable`, not `readOnly`: no drag, no resize, no draw — those are the desk calendar's. A
+     selected class opens its roster. -->
 <app-schedule-calendar
   [classes]="rows()"
   [loading]="loading()"
   [loadFailed]="loadFailed()"
   [selectable]="true"
   (rangeChange)="load($event)"
-  (classSelected)="openDetails($event)"
+  (classSelected)="openBookings($event)"
 />
 
 @if (loadFailed()) {
@@ -28,5 +32,11 @@
 }
 
 @if (selected(); as row) {
-  <app-class-details-overlay [row]="row" [booked]="isBooked(row.id)" (closed)="closeDetails()" />
+  <app-class-bookings-overlay
+    [row]="row"
+    [search]="candidateSearch()"
+    (released)="afterRelease(row)"
+    (booked)="afterBooking($event)"
+    (closed)="closeBookings()"
+  />
 }

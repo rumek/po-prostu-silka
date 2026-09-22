@@ -781,6 +781,13 @@ feature.
 - `BookingService`'s stale "Admin only" JSDoc (`booking.service.ts:40,48,63`) is corrected to "a
   trainer on their own classes, or an admin".
 
+**Adapted during implementation.** `BookingCandidateSearch` is an object,
+`{ placeholder, find(phrase) → Promise<{ items, total }> }`, rather than a bare
+`(phrase) => Promise<BookingCandidate[]>`. The overlay's "zawęź wyszukiwanie" hint needs the total,
+and the placeholder travels with its source, so the overlay takes one input instead of two. The
+factories take the service as an argument (`adminCandidateSearch(inject(MemberAdminService))`), so
+callers build them in a field initializer. The initial bundle is 522.68 kB after Phase 5.
+
 #### 2. Staff schedule
 
 **Files**: `src/app/src/app/features/schedule/schedule.ts`, `schedule.html`, `schedule.spec.ts`;
@@ -993,9 +1000,9 @@ every persona can open, and note why.
 
 #### Automated
 
-- [x] 4.1 SPA unit tests pass (persona, guards, navigation, app, bottom-nav, more)
-- [x] 4.2 Lint and format pass
-- [x] 4.3 Production build succeeds within the bundle budget, with the size recorded (522.10 kB)
+- [x] 4.1 SPA unit tests pass (persona, guards, navigation, app, bottom-nav, more) — 28d16ca
+- [x] 4.2 Lint and format pass — 28d16ca
+- [x] 4.3 Production build succeeds within the bundle budget, with the size recorded (522.10 kB) — 28d16ca
 
 #### Manual
 
@@ -1009,11 +1016,11 @@ every persona can open, and note why.
 
 #### Automated
 
-- [ ] 5.1 SPA unit tests pass (dashboard, schedule, class-bookings overlay, my-classes, classes)
-- [ ] 5.2 Lint and format pass, including the moved overlay
-- [ ] 5.3 Production build succeeds within budget
-- [ ] 5.4 Backend suite still green
-- [ ] 5.5 E2E passes against the local stack
+- [x] 5.1 SPA unit tests pass (dashboard, schedule, class-bookings overlay, my-classes, classes)
+- [x] 5.2 Lint and format pass, including the moved overlay
+- [x] 5.3 Production build succeeds within budget
+- [x] 5.4 Backend suite still green
+- [x] 5.5 E2E passes against the local stack
 
 #### Manual
 

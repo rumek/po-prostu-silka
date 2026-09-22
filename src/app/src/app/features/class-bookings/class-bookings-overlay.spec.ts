@@ -1,10 +1,17 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { Component, signal } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { Member } from '../../../core/admin/member-admin.models';
-import { ClassBooking } from '../../../core/scheduling/booking.models';
-import { ScheduledClass } from '../../../core/scheduling/class.models';
+import { Member } from '../../core/admin/member-admin.models';
+import { MemberAdminService } from '../../core/admin/member-admin.service';
+import {
+  BookingCandidateSearch,
+  adminCandidateSearch,
+  trainerCandidateSearch,
+} from '../../core/scheduling/booking-candidates';
+import { TrainingPlanService } from '../../core/training/training-plan.service';
+import { ClassBooking } from '../../core/scheduling/booking.models';
+import { ScheduledClass } from '../../core/scheduling/class.models';
 import { ClassBookingsOverlay } from './class-bookings-overlay';
 
 const JOGA: ScheduledClass = {
@@ -52,6 +59,7 @@ function member(over: Partial<Member> = {}): Member {
   template: `
     <app-class-bookings-overlay
       [row]="row()"
+      [search]="search()"
       (released)="releases = releases + 1"
       (booked)="booked = $event"
       (closed)="closes = closes + 1"
@@ -60,6 +68,10 @@ function member(over: Partial<Member> = {}): Member {
 })
 class Host {
   readonly row = signal<ScheduledClass>(JOGA);
+
+  readonly admin = adminCandidateSearch(inject(MemberAdminService));
+  readonly trainer = trainerCandidateSearch(inject(TrainingPlanService));
+  readonly search = signal<BookingCandidateSearch>(this.admin);
   releases = 0;
   closes = 0;
 
@@ -416,5 +428,54 @@ describe('ClassBookingsOverlay', () => {
     expect(rows().length).toBe(1);
     expect(element().textContent).not.toContain('Nikt pasujący');
     expect(optionLabels()).toEqual(['Wpisz imię lub e-mail…']);
+  });
+
+  // --- the trainer's source (S-25) -------------------------------------------
+
+  /**
+   * On the staff schedule a trainer's picker searches THEIR member list: name only, members only,
+   * and never an admin endpoint — the trainer would get 403 there. The placeholder says what the box
+   * accepts, because the trainer list does not search e-mails.
+   */
+  it('searches the trainer member list when handed the trainer source', async () => {
+    host.search.set(host.trainer);
+    fixture.detectChanges();
+    await respond([]);
+
+    expect(searchBox().placeholder).toBe('Imię i nazwisko');
+
+    type('jan');
+    (
+      await vi.waitFor(() => controller.expectOne('/api/trainer/members?search=jan&pageSize=20'))
+    ).flush({
+      items: [{ id: 'm7', displayName: 'Jan Trenowany', hasAccount: false, planName: null }],
+      total: 1,
+      page: 1,
+      pageSize: 20,
+    });
+    await settle();
+
+    controller.expectNone((request) => request.url === '/api/admin/members');
+    expect(optionLabels()).toEqual(['Wybierz osobę…', 'Jan Trenowany — bez konta']);
+  });
+
+  /** An admin may pick a staff account from their list; the server refuses it, and says why. */
+  it('names the staff refusal when the admin picks a trainer', async () => {
+    await respond([]);
+    await search('ola', [member({ id: 'm3', displayName: 'Ola Trenerka' })]);
+
+    picker()!.value = 'm3';
+    picker()!.dispatchEvent(new Event('change'));
+    await settle();
+
+    buttonWith('Zapisz')!.click();
+    await settle();
+
+    controller
+      .expectOne('/api/admin/classes/c1/bookings')
+      .flush({ reason: 'member_is_staff' }, { status: 409, statusText: 'Conflict' });
+    await settle();
+
+    expect(element().textContent).toContain('Trenerów i administratorów nie zapisuje się');
   });
 });
