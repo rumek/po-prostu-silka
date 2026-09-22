@@ -34,8 +34,14 @@ public static class MemberAccessCode
     /// earlier version of this comment argued the code space was large enough "even though /register
     /// carries no rate limit"; it has carried one since S-16, and the pair together is why no further
     /// hardening was added.
+    ///
+    /// <para>
+    /// Public for one reader besides <see cref="Generate"/>: the test-data seeder (S-24) draws codes
+    /// from a fixed-seed Random over this alphabet so a reseed is reproducible, and a private copy of
+    /// the string there would drift from this one.
+    /// </para>
     /// </summary>
-    private const string Alphabet = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+    public const string Alphabet ="ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 
     /// <summary>Characters in a code, excluding the display separator.</summary>
     public const int Length = 8;

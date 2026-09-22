@@ -3,7 +3,7 @@ project: "Po Prostu Siłka"
 version: 5
 status: draft
 created: 2026-08-31
-updated: 2026-09-21
+updated: 2026-09-22
 prd_version: 1, 2
 main_goal: quality
 top_blocker: none
@@ -218,6 +218,7 @@ out; a build error cannot.
 | S-21 | member-list-at-scale | (admin) find one member among hundreds - the API pages, searches and filters; a table on web, one compact row on a phone | S-20 | M-7 UX-05, UX-06 | in-progress |
 | S-22 | member-centric-training-plans | (admin, trainer) set a member's plan by opening the member, not a plan list; the Plany screen is retired | S-21 | M-7 UX-07, UX-08 (retires part of v1 FR-015's surface) | in-progress |
 | S-23 | frontend-presentational-kit | (structural) the presentational layer gets components instead of copies — one field, one select, one checkbox, one loading state, one empty state, one list row, enforced by a spec | S-19 | none — milestone unassigned, see the item body | done |
+| S-24 | test-environment-seed-data | (dev tooling) open the development environment and find it populated - 200 members (some accountless), two admins, two trainers, passes, a schedule with bookings, an exercise library and assigned plans | S-16, S-22 | none - milestone unassigned, see the item body | in-progress |
 
 ## Streams
 
@@ -755,6 +756,30 @@ rather than in a slice body:
   rule rather than the toast at the centre of S-19.
 - **Status:** done
 
+### S-24: The development environment starts with realistic data
+
+- **Outcome:** (dev tooling — no capability changes) a config-gated `TestDataSeeder`, running next
+  to `AdminSeeder` only when `TestDataSeed:*` settings ask for it, wipes the domain data and inserts
+  a deterministic, realistic data set: 200 members (part of them accountless with a claim code),
+  two admins, two trainers, membership passes (valid, expired and used up), class types and a
+  schedule for the coming weeks, bookings (some classes full), an exercise library and a few
+  assigned training plans.
+- **Change ID:** test-environment-seed-data
+- **PRD refs:** none. No PRD version describes test data. **Milestone unassigned** — requested by the
+  user on 2026-09-22 for manual testing during development; `/10x-roadmap` owns where it lands.
+- **Prerequisites:** S-16 (a booking needs a pass valid on the class's club-local date with a free
+  entry — the seeder must produce data the live rules would have accepted) and S-22 (the plan is
+  reached through the member, so seeded plans must hang off members).
+- **Parallel with:** S-21, S-22 finishing — the seeder touches no screen.
+- **Blockers:** -
+- **Unknowns:**
+  - What triggers the wipe. Owner: `/10x-plan`. Block: yes — App Service recycles on its own
+    schedule, so "reset on start" would erase the environment on every restart.
+- **Risk:** the seeder runs against the only Azure database there is. A flag left on after that
+  database becomes production would wipe real members, so the gate must fail closed and the plan
+  must say what makes it refuse to run.
+- **Status:** in-progress
+
 ## Backlog Handoff
 
 | Roadmap ID | Change ID                        | Suggested issue title                                        | Ready for `/10x-plan` | Notes                                              |
@@ -785,6 +810,7 @@ rather than in a slice body:
 | S-21       | member-list-at-scale             | Page, search and filter the member list on the API; table on web, compact row on mobile | no                    | Needs S-20 (the shared breakpoint)                 |
 | S-22       | member-centric-training-plans    | Reach a member's plan through the member; retire the standalone Plany screen | no                    | Needs S-21; carries an open question about what a trainer may see |
 | S-23       | frontend-presentational-kit      | Give the presentational layer components instead of copies, with a spec that enforces them | yes                   | Needs S-19 only (archived). Milestone unassigned; consider running it BEFORE S-20 |
+| S-24       | test-environment-seed-data       | Config-gated seeder that fills the development environment with a realistic data set | yes                   | Run `/10x-plan test-environment-seed-data`. Milestone unassigned |
 
 ## Open Roadmap Questions
 

@@ -28,6 +28,7 @@ using po_prostu_silka.Api.Endpoints.Notifications;
 using po_prostu_silka.Api.Endpoints.Scheduling;
 using po_prostu_silka.Api.Endpoints.Training;
 using po_prostu_silka.Infrastructure.Auth;
+using po_prostu_silka.Infrastructure.TestData;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -344,6 +345,20 @@ using (var scope = app.Services.CreateScope())
         // before /health is even mapped, so App Service sees a crash-loop instead of a running app
         // that reports itself unhealthy. Log loudly and carry on.
         seedLogger.LogError(ex, "Admin seeding failed; continuing startup so /health can report.");
+    }
+
+    // S-24's test data, AFTER the admin seed: the wipe keeps the AdminSeed account and the seed needs
+    // the roles, both of which the call above guarantees. Its own try/catch and logger category, so a
+    // seed failure neither masks nor is masked by an admin-seed failure. Refuses outside Development
+    // and Staging whatever the TestDataSeed flags say.
+    var testDataLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("TestDataSeeder");
+    try
+    {
+        await TestDataSeeder.SeedAsync(scope.ServiceProvider, app.Configuration, app.Environment, testDataLogger);
+    }
+    catch (Exception ex)
+    {
+        testDataLogger.LogError(ex, "Test data seeding failed; continuing startup so /health can report.");
     }
 }
 
