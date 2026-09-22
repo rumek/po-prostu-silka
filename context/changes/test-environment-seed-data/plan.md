@@ -48,7 +48,7 @@ account. There is no schema change, no migration, and no SPA change.
   With `Reset` back to `false`, restarts leave the data alone.
 - On Azure: `ASPNETCORE_ENVIRONMENT=Staging`, `TestDataSeed__Enabled=true` and
   `TestDataSeed__Password=<secret>`. An admin, a trainer and a member can log in with the shared
-  password, and the admin's member list pages through 204 people.
+  password, and the admin's member list pages through 205 people (the 204 seeded plus the AdminSeed account).
 - In `Production`, or with the flag off, the seeder logs one line and touches nothing.
 - `dotnet test` includes a seeder test class that proves the gate, the counts, the S-16 invariants,
   idempotency without reset, and a reproducible reset.
@@ -171,9 +171,13 @@ members, passes, class types, classes, bookings, exercises, plans with items). T
 
   **Adapted during implementation.** Phone numbers are stored as nine bare digits (`5xxxxxxxx`,
   prefixes 5–8), because that is what `ContactDetails.TryNormalisePhone` stores for every number a
-  user types. A `+48 …` string would be a shape no real row has. The access-code draw reads
-  `MemberAccessCode.Alphabet`, which was `private` and is now `public` for this one reader, so the
-  seeder cannot drift from the real alphabet.
+  user types. A `+48 …` string would be a shape no real row has.
+
+  **Adapted after impl review (F1).** Access codes are credentials, so they come from
+  `MemberAccessCode.Generate()` (a CSPRNG), not from the seeded `Random`. Codes drawn from a fixed seed
+  in the repo would let anyone compute every live code on the public Staging app. The seeded `Random`
+  is still advanced `MemberAccessCode.Length` times per code, so every id drawn after it is unchanged.
+  Only the codes themselves differ between reseeds. `MemberAccessCode.Alphabet` stays `private`.
 - **Passes:** most members hold one or two. The mix includes valid monthly passes (8, 12 or
   30 entries), passes that expired within the window, a few used up (every entry consumed by past
   bookings), and a few members with no pass at all.
@@ -203,6 +207,13 @@ members, passes, class types, classes, bookings, exercises, plans with items). T
   members who also hold an active one, so the one-active-plan index is exercised.
 
 Ids are `Guid`s built from the seeded `Random`, so a reseed on the same day yields identical rows.
+
+**Adapted after impl review (F4).** Booking generation first split past from future on the `now`
+instant. That made the draw sequence depend on the time of day, so bookings, exercises and plans
+differed between a morning and an evening reseed. The split is now the start of tomorrow, club-local.
+Today's classes count as past, and the full and cancelled classes always land from tomorrow on.
+`TestDataGeneratorTests` pins this without a database, by generating at 08:00 and at 20:00 on the same
+day and comparing the booking, exercise and plan ids.
 
 #### 3. The seeder
 
@@ -279,6 +290,16 @@ first add a stray member and then assert that every row count is unchanged, whic
 the wipe nor the insert ran. The file carries 9 test cases, because the environment refusal is a
 theory over `Production` and `Testing`.
 
+**Adapted after impl review (F2, F3, F7).** Three refusals were added, each with its own test, which
+brings the file to 12 cases:
+- `Refuses_a_password_the_policy_rejects`: the shared password must pass Identity's password policy,
+  and this is checked before any wipe.
+- `Refuses_to_seed_over_existing_data_without_reset`: without `Reset`, the seeder refuses a database
+  that already holds domain data.
+- `Reset_refuses_when_the_admin_seed_account_is_missing`.
+
+The seeder also runs in its own DI scope in `Program.cs` (F6).
+
 ### Success Criteria:
 
 #### Automated Verification:
@@ -292,7 +313,7 @@ theory over `Production` and `Testing`.
 - Local: with `Enabled`/`Reset` true, `dotnet run --project src/Api/po-prostu-silka.Api.csproj`
   seeds, and the log shows the counts. Startup stays under ~30 s on Docker SQL Server.
 - Local: after resetting `Reset` to false, a restart logs "already present" and changes nothing.
-- Local: `admin1@example.test` sees 204 members paged in `/admin/members`. `trener1@example.test`
+- Local: `admin1@example.test` sees 205 members paged in `/admin/members`. `trener1@example.test`
   sees their classes and can book a member with a valid pass into a non-full class. A member with
   a used-up pass is refused with the "no free entry" message. A full class refuses.
 - Local: a member account sees an active plan with exercise details, and an accountless member's
@@ -349,6 +370,12 @@ merged and deployed.
 **Contract**: the settings named in the runbook. The user confirms before anything is set, since
 it restarts the only environment and wipes its data.
 
+**Adapted during implementation.** The App Service had container logging off, so the seed's log
+lines were not visible anywhere: stdout was not persisted, and `log tail` joins after startup. It was
+switched on with `az webapp log config --docker-container-logging filesystem`. That restart, with
+`Reset` still `true`, ran a second deterministic reseed, and that run's counts are the ones recorded
+in the runbook. The user set the password in their own terminal, so it never passed through the session.
+
 ### Success Criteria:
 
 #### Automated Verification:
@@ -375,7 +402,7 @@ it restarts the only environment and wipes its data.
 
 ### Integration Tests:
 
-- The eight tests under Phase 1 §5, on a dedicated Testcontainers SQL Server.
+- The seeder tests under Phase 1 §5 (12 cases after the impl review), on a dedicated Testcontainers SQL Server, plus two database-free `TestDataGeneratorTests`.
 
 ### Manual Testing Steps:
 
@@ -426,11 +453,11 @@ previous artifact). Seeded rows stay until the next reset or a manual wipe.
 
 #### Automated
 
-- [ ] 2.1 Deploy workflow on `main` succeeds
-- [ ] 2.2 `GET /health` on Azure returns healthy after the settings change
+- [x] 2.1 Deploy workflow on `main` succeeds
+- [x] 2.2 `GET /health` on Azure returns healthy after the settings change
 
 #### Manual
 
-- [ ] 2.3 Log stream shows seed counts after the reset restart
+- [x] 2.3 Log stream shows seed counts after the reset restart
 - [ ] 2.4 With Reset off, a restart logs "already present" and data is unchanged
 - [ ] 2.5 Admin, trainer and member log in on Azure and see populated dashboards

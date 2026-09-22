@@ -278,12 +278,29 @@ az webapp config appsettings set -n po-prostu-silka -g pps-rg --settings \
   ASPNETCORE_ENVIRONMENT=Staging TestDataSeed__Enabled=true TestDataSeed__Password='<secret>'
 ```
 
+On a database that already holds domain data (anything beyond the AdminSeed account's member),
+the first seed also needs `TestDataSeed__Reset=true`. Without it the seeder refuses, because the seed
+would collide with existing names and e-mails, or overlap existing classes.
+
 ### Reseed procedure
+
+**Container logging must be on**, or none of the log lines below are visible. App stdout is not
+persisted by default, and `az webapp log tail` joins too late to see a startup. It was switched on
+during the first seed (2026-09-22) with
+`az webapp log config -n po-prostu-silka -g pps-rg --docker-container-logging filesystem`. Read a past
+startup from `https://po-prostu-silka.scm.azurewebsites.net/api/logs/docker`, the
+`*_default_docker.log` file.
+
+First seed, 2026-09-22 09:09 UTC: `Seeded test data: 164 accounts, 204 members, 266 passes,
+192 classes, 1009 bookings, 27 exercises, 10 plans.` The reset and the seed took about 16 s of cold
+start on B1.
 
 1. `az webapp config appsettings set -n po-prostu-silka -g pps-rg --settings TestDataSeed__Reset=true`.
    Changing an app setting restarts the app.
-2. `az webapp log tail -n po-prostu-silka -g pps-rg` and wait for `Test data reset: ...` followed by
-   `Seeded test data: ... accounts, ... members, ...`.
+2. Wait until `GET /health` answers again, then open the newest `*_default_docker.log` under
+   `https://po-prostu-silka.scm.azurewebsites.net/api/logs/docker`. Check for `Test data reset: ...`
+   followed by `Seeded test data: ... accounts, ... members, ...`. Do not rely on `az webapp log tail`:
+   it joins after the startup lines have been written.
 3. `az webapp config appsettings set -n po-prostu-silka -g pps-rg --settings TestDataSeed__Reset=false`.
    This restarts the app again, and the log shows `Test data already present; seeding skipped.`
 

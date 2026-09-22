@@ -346,15 +346,19 @@ using (var scope = app.Services.CreateScope())
         // that reports itself unhealthy. Log loudly and carry on.
         seedLogger.LogError(ex, "Admin seeding failed; continuing startup so /health can report.");
     }
+}
 
-    // S-24's test data, AFTER the admin seed: the wipe keeps the AdminSeed account and the seed needs
-    // the roles, both of which the call above guarantees. Its own try/catch and logger category, so a
-    // seed failure neither masks nor is masked by an admin-seed failure. Refuses outside Development
-    // and Staging whatever the TestDataSeed flags say.
-    var testDataLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("TestDataSeeder");
+// S-24's test data, AFTER the admin seed: the wipe keeps the AdminSeed account and the seed needs the
+// roles, both of which the call above guarantees. Its own scope, try/catch and logger category, so a
+// seed failure neither masks nor is masked by an admin-seed failure - the own scope is what makes that
+// true, since a shared DbContext would still be tracking whatever the admin seed failed to save.
+// Refuses outside Development and Staging whatever the TestDataSeed flags say.
+var testDataLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("TestDataSeeder");
+using (var testDataScope = app.Services.CreateScope())
+{
     try
     {
-        await TestDataSeeder.SeedAsync(scope.ServiceProvider, app.Configuration, app.Environment, testDataLogger);
+        await TestDataSeeder.SeedAsync(testDataScope.ServiceProvider, app.Configuration, app.Environment, testDataLogger);
     }
     catch (Exception ex)
     {

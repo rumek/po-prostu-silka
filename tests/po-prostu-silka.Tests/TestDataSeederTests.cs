@@ -65,6 +65,18 @@ public class TestDataSeederTests(IntegrationTestFixture fixture)
     }
 
     [Fact]
+    public async Task Refuses_a_password_the_policy_rejects()
+    {
+        await fixture.CreateMemberAsync($"Stray {Guid.NewGuid():N}");
+        var before = await CountsAsync();
+
+        // Seven characters, one short of RequiredLength.
+        await SeedAsync("Development", reset: true, password: "Short12");
+
+        Assert.Equal(before, await CountsAsync());
+    }
+
+    [Fact]
     public async Task Seeds_the_expected_population()
     {
         await SeedAsync("Staging", reset: true);
@@ -167,6 +179,39 @@ public class TestDataSeederTests(IntegrationTestFixture fixture)
     }
 
     [Fact]
+    public async Task Reset_refuses_when_the_admin_seed_account_is_missing()
+    {
+        await fixture.CreateMemberAsync($"Stray {Guid.NewGuid():N}");
+        var before = await CountsAsync();
+
+        // Without the one account the wipe keeps, it would delete every admin there is.
+        await SeedAsync("Development", reset: true, adminSeedEmail: "nobody@example.invalid");
+
+        Assert.Equal(before, await CountsAsync());
+    }
+
+    [Fact]
+    public async Task Refuses_to_seed_over_existing_data_without_reset()
+    {
+        await SeedAsync("Development", reset: true);
+
+        // Take the sentinel away, so the seeder sees a populated database that is not its own seed.
+        await using (var scope = fixture.Factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            await db.Users
+                .Where(u => u.Email == TestDataGenerator.SentinelEmail)
+                .ExecuteUpdateAsync(s => s.SetProperty(u => u.NormalizedEmail, "RENAMED@EXAMPLE.TEST"));
+        }
+
+        var before = await CountsAsync();
+
+        await SeedAsync("Development", reset: false);
+
+        Assert.Equal(before, await CountsAsync());
+    }
+
+    [Fact]
     public async Task Reset_reproduces_the_same_data_and_keeps_the_admin_seed_account()
     {
         await SeedAsync("Development", reset: true);
@@ -215,7 +260,11 @@ public class TestDataSeederTests(IntegrationTestFixture fixture)
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
-    private async Task SeedAsync(string environment, bool reset, string password = TestUsers.Password)
+    private async Task SeedAsync(
+        string environment,
+        bool reset,
+        string password = TestUsers.Password,
+        string adminSeedEmail = TestUsers.SeededAdminEmail)
     {
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
@@ -223,7 +272,7 @@ public class TestDataSeederTests(IntegrationTestFixture fixture)
                 ["TestDataSeed:Enabled"] = "true",
                 ["TestDataSeed:Reset"] = reset ? "true" : "false",
                 ["TestDataSeed:Password"] = password,
-                ["AdminSeed:Email"] = TestUsers.SeededAdminEmail,
+                ["AdminSeed:Email"] = adminSeedEmail,
             })
             .Build();
 

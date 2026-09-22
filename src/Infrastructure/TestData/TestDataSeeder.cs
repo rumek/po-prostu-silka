@@ -59,6 +59,25 @@ public static class TestDataSeeder
             return;
         }
 
+        // The one hash below skips CreateAsync, and with it the password policy - so the policy runs here,
+        // BEFORE a reset wipes anything. The shared password guards 164 accounts on a public Staging URL,
+        // two of them admins whose e-mails the runbook lists.
+        var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
+        var policyErrors = new List<IdentityError>();
+        foreach (var validator in userManager.PasswordValidators)
+        {
+            policyErrors.AddRange((await validator.ValidateAsync(userManager, new ApplicationUser(), options.Password)).Errors);
+        }
+
+        if (policyErrors.Count > 0)
+        {
+            // Codes only, never the password or its descriptions - the same stance as AdminSeeder.
+            logger.LogError(
+                "Test data seeding refused: {Section}:Password fails the password policy ({Errors}).",
+                TestDataSeedOptions.SectionName, string.Join("; ", policyErrors.Select(e => e.Code)));
+            return;
+        }
+
         var db = services.GetRequiredService<AppDbContext>();
         var normalizer = services.GetRequiredService<ILookupNormalizer>();
 
@@ -73,6 +92,22 @@ public static class TestDataSeeder
         if (await db.Users.AnyAsync(u => u.NormalizedEmail == sentinel))
         {
             logger.LogInformation("Test data already present; seeding skipped.");
+            return;
+        }
+
+        // Without a reset the seed must land on an empty club: seeded classes are placed without the
+        // club-wide overlap check (HasTimeConflictAsync), and seeded names and e-mails would collide with
+        // existing ones. Anything beyond the AdminSeed account's own member row means "reset first".
+        if (await db.Members.CountAsync() > 1
+            || await db.ClassTypes.AnyAsync()
+            || await db.Classes.AnyAsync()
+            || await db.MembershipPasses.AnyAsync()
+            || await db.Exercises.AnyAsync()
+            || await db.TrainingPlans.AnyAsync())
+        {
+            logger.LogError(
+                "Test data seeding refused: the database already holds domain data. Set {Section}:Reset to wipe it and seed.",
+                TestDataSeedOptions.SectionName);
             return;
         }
 

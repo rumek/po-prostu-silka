@@ -57,6 +57,12 @@ public sealed class TestDataGenerator
     private const int UsedUpPassCount = 6;
     private const int FullClassCount = 3;
 
+    /// <summary>
+    /// The newest a member can be. Older than the oldest pass (an expired one issued up to about 61 days
+    /// back) and the oldest class, so no member's pass or booking predates the member.
+    /// </summary>
+    private const int MemberMinAgeDays = 90;
+
     private static readonly (string Name, int Entries)[] PassTypes =
     [
         ("Karnet 8 wejść", 8),
@@ -76,9 +82,16 @@ public sealed class TestDataGenerator
     private static readonly int[] RestSeconds = [60, 90, 120];
 
     private readonly Random _random;
-    private readonly DateTimeOffset _now;
     private readonly DateOnly _today;
     private readonly TimeZoneInfo _zone = ClubTime.Zone;
+
+    /// <summary>
+    /// Where booking generation splits "past" from "future": the start of TOMORROW, club-local, rather than
+    /// <c>now</c>. A split on the instant would make the draw sequence depend on the time of day, and with
+    /// it every booking, exercise and plan after it. Today's classes count as past, so the full and the
+    /// cancelled classes always land from tomorrow on, whatever hour the seed runs.
+    /// </summary>
+    private readonly DateTimeOffset _endOfToday;
 
     private readonly List<SeedAccount> _accounts = [];
     private readonly List<Member> _members = [];
@@ -101,8 +114,8 @@ public sealed class TestDataGenerator
     private TestDataGenerator(int seed, DateTimeOffset now)
     {
         _random = new Random(seed);
-        _now = now;
         _today = DateOnly.FromDateTime(ClubTime.ToClubLocal(now).DateTime);
+        _endOfToday = At(1, 0, 0);
     }
 
     public static TestDataSet Generate(int seed, DateTimeOffset now) => new TestDataGenerator(seed, now).Build();
@@ -160,7 +173,7 @@ public sealed class TestDataGenerator
                 // A quarter carry no e-mail at all - the club recorded only a name and a phone.
                 email: i % 4 == 0 ? null : $"bezkonta{i:00}@{EmailDomain}",
                 blocked: i == blockedAccountless,
-                createdAt: At(-_random.Next(10, 300), 11, 0));
+                createdAt: At(-_random.Next(MemberMinAgeDays, 300), 11, 0));
 
             // Every other one holds a live code, as if the admin had just printed an invitation.
             if (i % 2 == 1 && member.Status == MembershipStatus.Active)
@@ -175,7 +188,7 @@ public sealed class TestDataGenerator
 
     private Member AddAccountMember(string email, string[] roles, bool blocked)
     {
-        var createdAt = At(-_random.Next(30, 400), 12, 0);
+        var createdAt = At(-_random.Next(MemberMinAgeDays, 400), 12, 0);
 
         var user = new ApplicationUser
         {
@@ -232,15 +245,18 @@ public sealed class TestDataGenerator
 
     private string NewAccessCode(HashSet<string> taken)
     {
+        // The code is a credential, so it comes from MemberAccessCode.Generate's CSPRNG rather than the
+        // seeded Random - a fixed seed in the repo would let anyone compute every live code on Staging.
+        // The seeded Random is still advanced once per character, outside the retry loop, so every id
+        // drawn after this stays exactly what it was.
+        for (var i = 0; i < MemberAccessCode.Length; i++)
+        {
+            _random.Next();
+        }
+
         while (true)
         {
-            var characters = new char[MemberAccessCode.Length];
-            for (var i = 0; i < characters.Length; i++)
-            {
-                characters[i] = MemberAccessCode.Alphabet[_random.Next(MemberAccessCode.Alphabet.Length)];
-            }
-
-            var code = new string(characters);
+            var code = MemberAccessCode.Generate();
             if (taken.Add(code))
             {
                 return code;
@@ -393,8 +409,8 @@ public sealed class TestDataGenerator
     private void AddBookings()
     {
         var bookable = ClubMembers().Where(m => m.Status == MembershipStatus.Active).ToList();
-        var past = _classes.Where(c => c.StartsAt <= _now).ToList();
-        var future = _classes.Where(c => c.StartsAt > _now).ToList();
+        var past = _classes.Where(c => c.StartsAt <= _endOfToday).ToList();
+        var future = _classes.Where(c => c.StartsAt > _endOfToday).ToList();
 
         // 1. Used-up passes: every entry spent on past classes inside the pass's range.
         // Walked in member order, not HashSet order, so the draw sequence cannot depend on hashing.
@@ -449,7 +465,7 @@ public sealed class TestDataGenerator
         foreach (var cls in _classes.Where(c => !fullIds.Contains(c.Id)).OrderBy(c => c.StartsAt))
         {
             var daysAhead = ClubDate(cls).DayNumber - _today.DayNumber;
-            var (min, max) = cls.StartsAt <= _now ? (30, 80) : daysAhead <= 7 ? (20, 70) : (0, 35);
+            var (min, max) = cls.StartsAt <= _endOfToday ? (30, 80) : daysAhead <= 7 ? (20, 70) : (0, 35);
             var target = cls.Capacity * _random.Next(min, max + 1) / 100;
 
             foreach (var member in Shuffle(bookable.ToList()))
@@ -496,7 +512,7 @@ public sealed class TestDataGenerator
             MemberId = memberId,
             MembershipPassId = pass.Id,
             Status = BookingStatus.Active,
-            CreatedAt = cls.StartsAt <= _now
+            CreatedAt = cls.StartsAt <= _endOfToday
                 ? cls.StartsAt.AddHours(-_random.Next(2, 145))
                 : At(-_random.Next(1, 8), _random.Next(8, 22), 0),
         });
