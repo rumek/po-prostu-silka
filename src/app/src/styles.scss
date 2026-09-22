@@ -682,6 +682,24 @@ a {
   --page-slide-exit: var(--page-slide-distance);
 }
 
+// THE SHELL DOES NOT CROSS-FADE, and this rule is why the bottom bar stopped flickering. Everything
+// not named `page` — the header, the bottom bar, the toasts — stays in the root snapshot, and the
+// default root animation cross-fades the old snapshot into the new one. The bar's active tab is in a
+// DIFFERENT place in those two images, so for the length of the transition BOTH pills were on screen,
+// one fading out under the other. Holding the new snapshot at full opacity from the first frame shows
+// the shell in its final state instead, which is what a frame that does not move should look like.
+// `mix-blend-mode` has to be reset with it: the browser's cross-fade relies on `plus-lighter`, which
+// without the fade would light the shell up.
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+::view-transition-old(root) {
+  opacity: 0;
+}
+
 // The old screen leaves faster than the new one arrives, and they overlap: the alternative — a full
 // cross-fade of two screens of different heights — shows the page's own background through the gap.
 ::view-transition-old(page) {
