@@ -11,6 +11,10 @@ below are the ones most easily broken by accident.
   `app-field`, `app-select`, `app-checkbox`, `app-loading`, `app-empty`, `app-list` / `li[appRow]`.
   `npm run quality:check` fails and names the component to use instead. See @AGENTS.md,
   "The presentational kit (S-23)", for what each one is and why they project rather than own.
+- **Personas (S-25).** Gate a screen or endpoint on one persona — Admin > Trainer > Member, from
+  `core/auth/persona.ts` / `core/layout/navigation.ts` and the `MemberOnly` / `TrainerOrAdmin`
+  policies — identically in menu, guard and API; never on `isActive()` alone. Staff hold no karnet,
+  booking or plan. See @AGENTS.md, "Personas (S-25)".
 - **Layering.** `src/` is **four projects**: `Domain` → `Application` (references Domain) →
   `Infrastructure` (references both) → `Api` (the host). **Only `Infrastructure` may reference
   EF Core**, and the compiler now enforces it — an EF Core `using` in `Domain` or `Application`

@@ -34,6 +34,10 @@ MVP proof flow (the smallest end-to-end flow that proves the product works):
 
 1. Member registers → admin approves the account
 2. Member logs in and sees the class schedule (name, date/time, room, instructor, free spots)
+
+   > **Superseded by PRD v2 "Amendment: role-based visibility" (roadmap S-25), 2026-09-22.** The
+   > member sees their own classes, not the schedule; the schedule is a staff screen.
+
 3. Member books a spot in a class
 4. Member can cancel their booking
 5. Admin cancels a class → every booked member receives a notification (email + push)
@@ -94,6 +98,9 @@ Scope decision (revised in the Socratic round): MVP notifications are delivered 
 ### Class schedule & bookings
 - FR-007: Member can browse the class schedule (name, date/time, room, instructor, free spots). Priority: must-have
   > Socrates: "'Schedule' tempts a weekly calendar grid, which is painful on phones." Resolution: kept; design note — day-by-day list, not a calendar grid.
+
+  > **Superseded by PRD v2 "Amendment: role-based visibility" (roadmap S-25), 2026-09-22.** Members
+  > no longer browse the schedule; it is a staff screen. A member sees their own classes as a list.
 - FR-008: Member can book a spot in a class that has free capacity. Priority: must-have
   > Socrates: "Two members grabbing the last spot simultaneously — no-overbooking is harder than the one-liner suggests." Resolution: kept; the no-overbooking guardrail must hold under concurrent booking.
 - FR-009: Member can cancel their booking; the cancelled booking stays in history. Priority: must-have
@@ -132,6 +139,10 @@ Scope decision (revised in the Socratic round): MVP notifications are delivered 
   > Socrates: "A dashboard is aggregation before content — the schedule could be the home screen." Resolution: kept as must-have; the unread-notifications card was removed along with the in-app center.
 - FR-024: Admin's dashboard shows items needing attention (pending approvals, today's and upcoming classes). Priority: must-have
   > Socrates: "Same aggregation trap as FR-023." Resolution: kept as must-have; it is the admin's daily entry point.
+
+  > **Superseded by PRD v2 "Amendment: role-based visibility" (roadmap S-25), 2026-09-22.** The
+  > dashboard of every staff account, the admin's included, shows only the classes that account
+  > instructs ("Twoje zajęcia"), not the club-wide list. The club-wide view is the schedule.
 
 ## Non-Functional Requirements
 

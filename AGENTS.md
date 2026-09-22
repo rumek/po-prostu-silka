@@ -8,6 +8,7 @@
 - No overbooking: any booking logic must guarantee a class never accepts more bookings than it has spots (SQL Server transaction via EF Core, per the PRD guardrail).
 - MVP notifications are email + push only; do not add an in-app notification center — that scope was explicitly rejected in the PRD.
 - **Booking is a staff action, and the karnet is what gates training** (S-16, supersedes v1 US-01/FR-002/FR-003/FR-008/FR-009). A member never books or cancels their own spot: an admin books anyone, a trainer books into the classes they personally instruct, and nobody may be booked without a `MembershipPass` valid on the class's club-local date with a free entry. Entries left is DERIVED from active bookings carrying that pass's id — never a stored counter. Admin approval of new accounts is gone; registration produces an active account and is rate-limited instead. `AccountStatus.Pending` stays declared but is never produced.
+- **Every screen and endpoint belongs to one persona** (S-25, supersedes v2 FR-002/FR-018). Roles stay a set, but what an account sees is its persona — **Admin > Trainer > Member** — and a screen gates on that, never on `isActive()` alone. Staff (Trainer or Admin) never hold a karnet, a booking or a training plan: the domain refuses them with `member_is_staff`. See "Personas (S-25)" below.
 - Known accepted risk: transitive HIGH vulnerability in `Microsoft.OpenApi 2.0.0` (GHSA-v5pm-xwqc-g5wc); don't "fix" it by downgrading `Microsoft.AspNetCore.OpenApi` — pin a patched transitive reference when available.
 
 ## Project structure
@@ -55,6 +56,30 @@ Frontend, from `src/app/` (npm 11, pinned via `packageManager`): `npm start` (de
 
 - C#: nullable reference types and implicit usings are enabled — keep new code warning-free under `<Nullable>enable</Nullable>`.
 - Angular: formatting/linting is enforced by Prettier and angular-eslint (@src/app/eslint.config.js), not by hand.
+
+### Personas (S-25)
+
+An account holds a set of roles; a **persona** is derived from it with the precedence
+**Admin > Trainer > Member**. Admin wins over everything (Admin+Trainer is an admin); Trainer wins
+over User; "member" means holding `User` and neither of the others. The seeded admin holds `Admin`
+alone, so no persona test may require `User` for staff. An inactive account, or one with no
+recognised role, has no persona and sees only Moje konto and logout.
+
+- **A screen or endpoint picks exactly one persona predicate, and it is identical in the menu, the
+  route guard and the API policy** — the S-01 "nav condition equals guard condition" rule, extended to
+  the server.
+- **Where it lives:** `core/auth/persona.ts` (`personaOf`) in the SPA, with `memberGuard` /
+  `staffGuard`; `core/layout/navigation.ts` (`navigationFor(persona, desk)`) is the one link table
+  read by the header, the bottom bar and `/more`, so the three cannot drift. On the server,
+  `AuthorizationPolicies.cs` carries `MemberOnly` (the `/mine` routes) and `TrainerOrAdmin` (the
+  schedule, the instructed-classes feed, the trainer screens); a trainer's schedule is narrowed in
+  the handler by the same rule as `BookingAuthorization.MayActOn`.
+- **Staff never see member data.** A staff screen must not even *request* `/api/*/mine` — hiding the
+  card is not enough, and the dashboard spec asserts it with `expectNone`.
+- **Staff never hold member data.** Issuing a karnet, booking, or assigning a plan to an account
+  holding Trainer or Admin is refused with `member_is_staff`; "is staff" has one Infrastructure
+  definition (`StaffPredicate`). Granting Trainer to a member who already holds such data stays
+  allowed — the data just becomes invisible to them.
 
 ### How a failure reaches the user (S-19)
 

@@ -135,7 +135,7 @@ and the three slices below are what it found.
 `plan-builder.ts` - the same class of problem as UX-01 and the obvious next one, but a capability
 nothing else depends on; a role-aware bottom nav (an admin carries `/my-plan` and `/my-classes` in
 the bar while Członkowie and Zajęcia sit two taps away under Więcej) - real, and a navigation change
-rather than a surface one; paging for the exercise, class-type and plan lists, which share the member
+rather than a surface one (delivered by S-25, `role-based-visibility`); paging for the exercise, class-type and plan lists, which share the member
 list's design and not its growth rate - UX-05 is what makes doing them later cheap.
 
 ## PRD addendum (M-2)
@@ -219,6 +219,7 @@ out; a build error cannot.
 | S-22 | member-centric-training-plans | (admin, trainer) set a member's plan by opening the member, not a plan list; the Plany screen is retired | S-21 | M-7 UX-07, UX-08 (retires part of v1 FR-015's surface) | done |
 | S-23 | frontend-presentational-kit | (structural) the presentational layer gets components instead of copies — one field, one select, one checkbox, one loading state, one empty state, one list row, enforced by a spec | S-19 | none — milestone unassigned, see the item body | done |
 | S-24 | test-environment-seed-data | (dev tooling) open the development environment and find it populated - 200 members (some accountless), two admins, two trainers, passes, a schedule with bookings, an exercise library and assigned plans | S-16, S-22 | none - milestone unassigned, see the item body | done |
+| S-25 | role-based-visibility | (member, trainer, admin) each role sees its own app - a member their classes, plan and karnet without the gym schedule; a trainer a schedule of their own classes with the roster; an admin everything - and the menu reaches every page at every width | S-16, S-22 | v2 "Amendment: role-based visibility" (supersedes v2 FR-002, FR-018; narrows v1 FR-007, FR-024) | in-progress |
 
 ## Streams
 
@@ -780,6 +781,33 @@ rather than in a slice body:
   must say what makes it refuse to run.
 - **Status:** done
 
+### S-25: Each role sees its own app, and the menu reaches every page
+
+- **Outcome:** (member, trainer, admin) every account resolves to one persona by the precedence
+  Admin > Trainer > Member, and the menu, the route guards and the API enforce the same predicate.
+  A member sees their own classes, plan, karnet (the dashboard card) and profile, and no schedule. A
+  trainer sees a schedule of only the classes they instruct, opens a class's roster and books
+  members into it, and has their member list and a dashboard of their classes. An admin sees every
+  class and the management screens, with a dashboard of the classes they instruct. Staff hold no
+  karnet, booking or plan - the domain refuses them with `member_is_staff`. Every top-level screen
+  is reachable from the menu at every width, the desktop header included.
+- **Change ID:** role-based-visibility
+- **PRD refs:** v2 "Amendment: role-based visibility (S-25)" under Access Control Changes. It
+  supersedes v2 FR-002 and FR-018 and the "No trainer screen" Non-Goal, narrows v1 FR-007 and
+  FR-024, and reverses S-22's "admins train too". **Milestone unassigned**, as S-24 - requested by
+  the user on 2026-09-22.
+- **Prerequisites:** S-16 (booking is a staff action gated by the karnet - the trainer's roster
+  and booking API already exist) and S-22 (the trainer's member list, which becomes the trainer's
+  booking picker).
+- **Parallel with:** -
+- **Blockers:** -
+- **Unknowns:** none open - the plan resolved staff-as-participant (forbidden in the domain), the
+  admin's two calendars (one menu entry, routed by the desk breakpoint) and the trainer dashboard
+  (the instructed-classes feed).
+- **Risk:** the API and the SPA change who may reach what in the same release; merged apart, a
+  member's SPA would call a schedule that now refuses them. Phases 2-5 ship together.
+- **Status:** in-progress
+
 ## Backlog Handoff
 
 | Roadmap ID | Change ID                        | Suggested issue title                                        | Ready for `/10x-plan` | Notes                                              |
@@ -811,6 +839,7 @@ rather than in a slice body:
 | S-22       | member-centric-training-plans    | Reach a member's plan through the member; retire the standalone Plany screen | no                    | Needs S-21; carries an open question about what a trainer may see |
 | S-23       | frontend-presentational-kit      | Give the presentational layer components instead of copies, with a spec that enforces them | yes                   | Needs S-19 only (archived). Milestone unassigned; consider running it BEFORE S-20 |
 | S-24       | test-environment-seed-data       | Config-gated seeder that fills the development environment with a realistic data set | yes                   | Run `/10x-plan test-environment-seed-data`. Milestone unassigned |
+| S-25       | role-based-visibility            | Per-persona visibility (member, trainer, admin) enforced in menu, guard and API; the menu reaches every page | no                    | In progress. Milestone unassigned |
 
 ## Open Roadmap Questions
 
@@ -818,7 +847,7 @@ rather than in a slice body:
 2. **Who enters the initial exercise library content, and when?** — Owner: user. Block: none directly, but S-11 delivers no real value until dozens of exercises exist. (v1 Open Question 2, v2 Open Question 6.)
 3. **A guest instructor without an account runs one class — what then?** — Owner: user. Block: none; S-06 shipped with the case unsupported and S-14 keeps refusing it. S-14 does make it *representable* — the instructor foreign key moves onto `Member`, so a record with no account can hold the slot — but the `Trainer` role lives in Identity and an accountless record can hold none, so the validation still requires an active account. Closing this is now one column and one branch, not a schema change. (v2 Open Question 1.)
 4. **How dense can the full-week view get before it stops working?** — Owner: user. Block: none; a design-time check inside S-07. (v2 Open Question 2.)
-5. **What does a trainer eventually see after signing in?** — Owner: user. Block: none — explicitly out of scope for this milestone; the additive role model keeps the path open. (v2 Open Question 3.)
+5. **What does a trainer eventually see after signing in?** — Owner: user. Block: none — explicitly out of scope for this milestone; the additive role model keeps the path open. (v2 Open Question 3.) **ANSWERED 2026-09-22 by S-25:** a dashboard of the classes they instruct, a schedule of only those classes with each one's roster, and their member list.
 6. **Is best-effort push acceptable on recent iOS, with a home-screen install required and email as the guaranteed channel?** — Owner: user. Block: none; sets S-09's acceptance bar.
 7. **Should cancelling a class give back the karnet entries its bookings held?** — Owner: user. Block: none. A class the club cancels keeps its bookings Active (S-09's design, so the fan-out and the member's history see them), and entries left is derived from active bookings — so every booked member loses an entry for a class they could not attend. S-16 recorded this as existing behaviour rather than a decision (`context/archive/2026-09-09-membership-pass-and-staff-booking/plan.md:88-90`). Surfaced by the `testing-booking-invariants` test rollout, which deliberately left it unpinned by any test until this is answered.
 8. **Should a trainer see members' email addresses on the roster of the classes they instruct?** — Owner: user. Block: none. Since S-16 the roster route admits trainers for their own classes, and each row carries the member's email and account id; the payload's own doc comment still justifies the email as "admin-only surface". prd.md's privacy NFR says member data is visible only to the admin and the member themselves, and no slice records this widening as a decision. The trainer's plan picker was deliberately minimized to id and name for exactly this reason (S-11). Surfaced by the `testing-access-surface` test rollout, which left the roster payload unpinned by any test until this is answered.
@@ -828,7 +857,7 @@ Resolved since the previous roadmap: the sender-domain question that gated F-03 
 ## Parked
 
 - **Observability beyond a heartbeat + outbox-failure count** — Why parked: no must-have requirement needs it, `speed` is the goal, and monitoring bill-creep was flagged during infrastructure work; revisit if notification-failure visibility proves insufficient.
-- **Trainer screen ("my classes")** — Why parked: v2 §Non-Goals; the Trainer role populates the instructor selection and nothing more in this milestone.
+- **Trainer screen ("my classes")** — Why parked: v2 §Non-Goals; the Trainer role populates the instructor selection and nothing more in this milestone. **Delivered by S-25** as the trainer's filtered schedule.
 - **Multiple rooms** — Why parked: v2 §Non-Goals; the room disappears for good and no rooms lookup is introduced in advance.
 - **Month view, agenda view, external calendar export** — Why parked: v2 §Non-Goals; the calendar works in days and weeks.
 - **A latency target for week-to-week navigation, and one-handed reachability for calendar controls** — Why parked: v2 §Non-Goals; design intentions, deliberately not committed as measurable promises.

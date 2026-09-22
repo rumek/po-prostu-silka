@@ -79,6 +79,10 @@ elsewhere, controls to move by day and by week, and that day's classes; on table
 web, the whole week at once. Also sees a consistent class name across weeks, and a class
 description that has nowhere to live today.
 
+> **Superseded by "Amendment: role-based visibility" (roadmap S-25), 2026-09-22.** The member no
+> longer browses the schedule; the calendar is a staff screen. The member sees their own classes as
+> a list.
+
 ### New persona
 
 **Trainer.** A person who runs classes and now holds a real account carrying a `Trainer` role,
@@ -98,6 +102,10 @@ Proof flow for this change — what a user does differently once it ships:
 4. Member opens the schedule on a phone: the day view for today, moves by day and by week, sees
    that day's classes with times
 5. Member books a spot; the no-overbooking guarantee holds exactly as before
+
+> **Superseded in part by "Amendment: role-based visibility" (roadmap S-25), 2026-09-22.** Step 4
+> is now a staff step: members no longer open the schedule. Step 5 was already superseded by S-16 —
+> the club books the member.
 6. The same calendar serves the admin panel; on tablet and web the whole week is visible at once
 
 Delivery is staged: steps 1–3 are Stage 1 (model and admin form), steps 4–6 are Stage 2
@@ -198,6 +206,10 @@ a requirement from the product PRD, that original is named in parentheses.
   > Socratic: "Should a trainer really be able to book the classes they teach?" Resolution: kept;
   > exclusivity was tried and abandoned because it left a non-admin trainer with an empty
   > application. Additivity is what makes granting the role safe for existing members.
+  > **Superseded by "Amendment: role-based visibility" (roadmap S-25), 2026-09-22.** Roles stay a
+  > set, but a trainer no longer keeps member capabilities: no bookings, no plan, no karnet. The
+  > empty-application objection is answered by the trainer's own schedule, booking roster, member
+  > list and dashboard.
 - **[new]** FR-003: An account may hold Admin and Trainer at once, so an owner who teaches appears
   in the instructor selection. Priority: must-have
   > Socratic: "Two roles on one account complicates every authorization check." Resolution: kept;
@@ -315,6 +327,9 @@ a requirement from the product PRD, that original is named in parentheses.
   spots; the room is gone from the display. Priority: must-have (product PRD FR-007)
   > Socratic: "Losing the room from the display could confuse existing members." Resolution:
   > kept; a single-room club never used the information.
+  > **Superseded by "Amendment: role-based visibility" (roadmap S-25), 2026-09-22.** Members no
+  > longer see the schedule at all; the calendar serves staff only. A member sees the instructor on
+  > their own classes.
 - **[new]** FR-019: On the admin calendar, dragging across empty time creates a class: the gesture
   fixes the start time and the duration, and an overlay collects the class type and the trainer
   before anything is written. The same refusals apply as on the class form, the time conflict of
@@ -427,6 +442,8 @@ self-registered; a pending user able to sign in but seeing only the awaiting-app
 - **Trainer capability in this change: none beyond `User`.** The role is a label that populates the
   instructor selection. No trainer-only screen and no new authorization rule. Whether trainers
   eventually see their own classes is a later change; the additive role model keeps that path open.
+  > **Superseded by the amendment below (roadmap S-25), 2026-09-22.** This bullet and "Roles are
+  > additive" above now describe the stored role set only; what each account sees is its persona.
 - **Class type definitions are Admin-only**, consistent with every other write in the scheduling
   context.
 
@@ -434,12 +451,69 @@ Exclusivity was tried during shaping and abandoned: making `Trainer` exclude `Us
 left a trainer without the Admin role signing in to an application with no functionality at all —
 the role removed member features while this change adds no trainer features to replace them.
 
+### Amendment: role-based visibility (S-25), 2026-09-22
+
+Added by `role-based-visibility` (roadmap S-25). It supersedes FR-002, FR-018, the member's
+schedule browsing in "User & Persona" and success-criteria step 4, the "No trainer screen"
+Non-Goal, and the S-22 rule that "admins train too". Each of those carries a note pointing here.
+
+**Roles stay a set; what an account *sees* is a persona derived from it.** Precedence is
+**Admin > Trainer > Member**:
+
+- an account holding `Admin` is the **admin** persona, whatever else it holds (Admin+Trainer
+  included);
+- otherwise an account holding `Trainer` is the **trainer** persona;
+- otherwise an account holding `User` is the **member** persona;
+- an account holding none of them, or one that is not active, has no persona and keeps only its
+  account screen and sign-out.
+
+The seeded admin holds `Admin` alone, so no persona test may require `User` for staff.
+
+**Access matrix.** Every row holds in the menu, in the route guard and in the API — one predicate
+per persona, enforced identically in all three places.
+
+| Surface | Member | Trainer | Admin (incl. Admin+Trainer) |
+| --- | --- | --- | --- |
+| Start (dashboard) | nearest own classes, the karnet card, the own plan | "Twoje zajęcia": the classes they instruct, today and the next 7 days | "Twoje zajęcia": the classes they instruct (empty for an admin who teaches nothing) |
+| Schedule | **none** — refused by the API | only the classes they instruct; a class opens its roster and books members into it | every class; a class opens its roster and books members into it |
+| Own classes, own plan, own karnet | yes | no — refused by the API | no — refused by the API |
+| Trainer's member list | no | yes, members only (no trainers, no admins) | no — uses the admin member list |
+| Admin screens (members, classes, class types, exercises) | no | no | yes |
+| Own account (profile) | yes | yes | yes |
+
+The karnet stays a dashboard card, not a page. A member still sees the instructor's name on their
+own classes; what they lose is the whole-gym schedule.
+
+**Staff hold no member data.** A karnet, a booking and a training plan are member things. Issuing a
+karnet to, booking, or assigning a plan to an account holding `Trainer` or `Admin` is refused with
+`member_is_staff`. Granting `Trainer` to a member who already holds such data stays allowed: the
+data becomes invisible to its holder, nothing migrates it, and the admin clears it through the
+existing screens.
+
+**The main menu reaches every top-level page.** Each persona's menu is one table, read by the
+desktop header, the phone bar and the "Więcej" hub, so the three cannot drift:
+
+- **member** — Start, Zajęcia, Plan, Moje konto;
+- **trainer** — Start, Grafik, Członkowie, Moje konto;
+- **admin** — Start, Grafik, Członkowie, Typy zajęć, Ćwiczenia, Moje konto. The admin's Grafik opens
+  the management calendar on a desk-width screen and the schedule below it.
+
+Sub-screens (a member's passes, a plan, an exercise) stay reached from their list screens.
+
+**Why the FR-002 objection no longer holds.** Exclusivity was abandoned because a non-admin trainer
+would sign in to an empty application. Under this amendment the trainer has a schedule of their own
+classes, the booking roster for each, their member list and a dashboard — a real application, not a
+stripped member one.
+
 ## Non-Goals
 
 **Newly locked by this change:**
 
 - **No trainer screen.** The Trainer role gets no view and no permissions here; it exists to
   populate the instructor selection. A "my classes" view is a separate, later change.
+  > **Superseded by "Amendment: role-based visibility" (roadmap S-25), 2026-09-22.** The parked
+  > trainer "my classes" screen is delivered as the trainer's filtered schedule, with the booking
+  > roster of each class.
 - **No multiple rooms.** The room disappears for good; no rooms lookup is introduced "just in
   case". Returning to multiple rooms would be a deliberate future decision, not something this
   change prepares for.
@@ -474,6 +548,9 @@ was locked when instructors were free text; a selection over real people require
 3. **What does a trainer eventually see after signing in?** — Owner: user. Deliberately deferred,
    not overlooked; the additive role model keeps the path open but the scope of a future trainer
    view is unspecified. Block: no (explicitly a Non-Goal for this change).
+   **Answered 2026-09-22 by "Amendment: role-based visibility" (roadmap S-25):** a dashboard of the
+   classes they instruct, a schedule of only those classes with each one's booking roster, and
+   their member list.
 4. **What is the delivery budget in weeks?** — Owner: user. The shaping session recorded no hard
    deadline and an after-hours pace, answering the scope cost by two-stage delivery rather than a
    week count, so `timeline_budget.delivery_weeks` is null where the schema expects an integer.
