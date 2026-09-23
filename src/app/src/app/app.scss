@@ -138,6 +138,15 @@
       animation-range: 0 var(--space-4);
     }
 
+    // START IS THE EXCEPTION: its bar carries only the logo, and a pinned logo over the dashboard
+    // is chrome that says nothing about where the member is. It scrolls away with the greeting, so
+    // it needs no hairline either.
+    &.is-home {
+      position: static;
+      box-shadow: none;
+      animation: none;
+    }
+
     &.is-titled {
       justify-content: flex-start;
 
@@ -148,7 +157,7 @@
   }
 
   .shell-brand {
-    width: 112px;
+    width: 80px;
   }
 
   .shell-bar {

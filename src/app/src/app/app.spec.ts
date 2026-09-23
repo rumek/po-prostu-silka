@@ -185,6 +185,16 @@ describe('App', () => {
       expect(root.querySelector('.shell-back')).toBeNull();
     });
 
+    /** Start's logo bar scrolls away with the greeting; every titled bar stays pinned. */
+    it('unpins the bar on Start alone', async () => {
+      const start = await renderAt('brand', 'Start');
+      expect(start.querySelector('header.shell-header')!.classList).toContain('is-home');
+
+      TestBed.resetTestingModule();
+      const tab = await renderAt('tab', 'Zajęcia');
+      expect(tab.querySelector('header.shell-header')!.classList).not.toContain('is-home');
+    });
+
     it('titles a tab screen, with no way back', async () => {
       const root = await renderAt('tab', 'Zajęcia');
 

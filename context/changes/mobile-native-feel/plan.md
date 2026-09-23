@@ -286,6 +286,9 @@ there.
 - **Adapted during implementation.** The skip link surfaces at the top of the viewport, exactly
   where the pinned bar sits, so the scale is reordered: `--z-app-bar: 4`, `--z-bottom-nav: 5`,
   `--z-skip-link: 6` (was 1), `--z-overlay: 10`, `--z-toast: 20`.
+- **Adapted after manual testing.** Start's bar is NOT pinned. It carries only the logo, so it
+  scrolls away with the greeting (`.is-home`: `position: static`, no hairline). Every titled bar
+  stays pinned. The phone logo is 80px, not 112px.
 - **Adapted during implementation (review F8).** On the phone, `.shell-main`'s top padding drops
   from `--space-6` to `--space-5`: the pinned bar above it already gives the gap the old padding
   made on its own.
@@ -628,11 +631,11 @@ None. There is no data or API change. The manifest `id: "/"` equals the current 
 
 #### Manual
 
-- [ ] 1.8 390px member: brand bar on Start, titled bars on tabs, back+title on exercise and Moje konto
-- [ ] 1.9 390px trainer: titled Grafik/Członkowie, back + "Plan — {member}"
-- [ ] 1.10 Bar pinned while scrolling, hairline appears, no jump during transitions
-- [ ] 1.11 Desktop unchanged apart from /my-plan heading
-- [ ] 1.12 Installed Android: cream status bar and splash, dark status icons
+- [x] 1.8 390px member: brand bar on Start, titled bars on tabs, back+title on exercise and Moje konto
+- [x] 1.9 390px trainer: titled Grafik/Członkowie, back + "Plan — {member}"
+- [x] 1.10 Bar pinned while scrolling, hairline appears, no jump during transitions
+- [x] 1.11 Desktop unchanged apart from /my-plan heading
+- [x] 1.12 Installed Android: cream status bar and splash, dark status icons
 
 ### Phase 2: Android back stack, hierarchy-aware motion, overlays consume back
 
@@ -646,8 +649,8 @@ None. There is no data or API change. The manifest `id: "/"` equals the current 
 
 #### Manual
 
-- [ ] 2.6 Android: tab switches fade, back from a tab lands on Start, back from Start exits
-- [ ] 2.7 Android: child slides forward, back arrow slides back, system back from tab root goes to Start
-- [ ] 2.8 Deep-linked child: back arrow lands on parent without leaving the app
-- [ ] 2.9 Trainer: search/paging does not slide; back closes bookings overlay; no phantom step after ×
-- [ ] 2.10 Desktop: header links and Wróć links behave sensibly with browser back
+- [x] 2.6 Android: tab switches fade, back from a tab lands on Start, back from Start exits
+- [x] 2.7 Android: child slides forward, back arrow slides back, system back from tab root goes to Start
+- [x] 2.8 Deep-linked child: back arrow lands on parent without leaving the app
+- [x] 2.9 Trainer: search/paging does not slide; back closes bookings overlay; no phantom step after ×
+- [x] 2.10 Desktop: header links and Wróć links behave sensibly with browser back

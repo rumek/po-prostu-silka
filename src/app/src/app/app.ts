@@ -49,6 +49,11 @@ export class App {
     () => this.auth.isAuthenticated() && this.screen.level() !== 'brand' && !!this.screen.title(),
   );
 
+  /** Start: the one signed-in brand screen, where the logo bar scrolls away with the greeting. */
+  protected readonly home = computed(
+    () => this.auth.isAuthenticated() && this.screen.level() === 'brand',
+  );
+
   // Injected here, in the root component, so its history model starts with the first navigation.
   private readonly upward = inject(Up);
 
