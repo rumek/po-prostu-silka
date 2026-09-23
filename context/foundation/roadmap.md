@@ -141,7 +141,7 @@ under concurrency or it is not, and nothing else in this milestone tests that.
 | S-23 | frontend-presentational-kit | (structural) the presentational layer gets components instead of copies — one field, one select, one checkbox, one loading state, one empty state, one list row, enforced by a spec | S-19 | M-6 (folded in at close; extends CS-06) | done |
 | S-24 | test-environment-seed-data | (dev tooling) open the development environment and find it populated - 200 members (some accountless), two admins, two trainers, passes, a schedule with bookings, an exercise library and assigned plans | S-16, S-22 | none - outside any milestone (dev tooling) | done |
 | S-25 | role-based-visibility | (member, trainer, admin) each role sees its own app - a member their classes, plan and karnet without the gym schedule; a trainer a schedule of their own classes with the roster; an admin everything - and the menu reaches every page at every width | S-16, S-22 | M-8 PV-01 = v2 "Amendment: role-based visibility" (supersedes v2 FR-002, FR-018; narrows v1 FR-007, FR-024) | done |
-| S-27 | class-attendance | (trainer, admin, member) staff mark who attended a class from its roster; a karnet entry is spent by attending, not by booking; a member sees their attendance history as a readable view, not a wall of text | S-16, S-25 | M-8 AT-01–AT-05 (unparks v1 §Non-Goals "No attendance / check-in tracking"; amends M-4 MP-06) | proposed |
+| S-27 | class-attendance | (trainer, admin, member) staff mark who attended a class from its roster; a karnet entry is spent by attending, not by booking; a member sees their attendance history as a readable view, not a wall of text | S-16, S-25 | M-8 AT-01–AT-05 (unparks v1 §Non-Goals "No attendance / check-in tracking"; amends M-4 MP-06) | in-progress |
 
 ## Streams
 
@@ -772,7 +772,7 @@ rather than in a slice body:
   entries come back. The plan should say so explicitly rather than let it happen by accident. The
   secondary risk is AT-05: a history view is where "one more card with sentences" is the path of
   least resistance, so the anchor names the requirement up front.
-- **Status:** proposed
+- **Status:** in-progress
 
 ## Backlog Handoff
 

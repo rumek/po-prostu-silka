@@ -754,10 +754,10 @@ to the next phase.
 
 #### Automated
 
-- [x] 5.1 SPA unit tests pass
-- [x] 5.2 Lint and format pass
-- [x] 5.3 Route identity spec passes
-- [x] 5.4 Production build
+- [x] 5.1 SPA unit tests pass — 155200c
+- [x] 5.2 Lint and format pass — 155200c
+- [x] 5.3 Route identity spec passes — 155200c
+- [x] 5.4 Production build — 155200c
 
 #### Manual
 
