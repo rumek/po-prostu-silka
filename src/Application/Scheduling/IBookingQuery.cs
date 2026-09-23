@@ -46,4 +46,35 @@ public interface IBookingQuery
     /// </summary>
     Task<IReadOnlyList<ClassBooking>> GetForClassAsync(
         Guid classId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// The member's active bookings on classes that started in <c>[from, to)</c> and no later than
+    /// <paramref name="now"/>, newest first (S-27, AT-04).
+    ///
+    /// <para>
+    /// CANCELLED CLASSES ARE INCLUDED, unlike <see cref="GetUpcomingForMemberAsync"/>: a member whose
+    /// entry came back is owed the reason. Released bookings are not — they are
+    /// <c>BookingStatus.Cancelled</c>, and a spot the member gave up is not a class they had.
+    /// </para>
+    /// </summary>
+    Task<IReadOnlyList<MyAttendanceEntry>> GetHistoryForMemberAsync(
+        Guid memberId,
+        DateTimeOffset from,
+        DateTimeOffset to,
+        DateTimeOffset now,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Whether the member holds any active booking on a class that started before
+    /// <paramref name="before"/> — what decides whether the history has another page.
+    /// </summary>
+    Task<bool> HasHistoryBeforeAsync(
+        Guid memberId, DateTimeOffset before, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// The attendance counts of one karnet's active bookings on classes that started by
+    /// <paramref name="now"/> and were not cancelled.
+    /// </summary>
+    Task<AttendanceCounts> CountAttendanceForPassAsync(
+        Guid passId, DateTimeOffset now, CancellationToken cancellationToken);
 }

@@ -64,6 +64,18 @@ public static class ClubTime
         TimeZoneInfo.ConvertTime(instant, Zone);
 
     /// <summary>
+    /// The UTC instant at which a club-local date begins (S-27) — the bound a "this month at the gym"
+    /// window needs. Midnight is never inside a Warsaw DST transition (those happen at 02:00–03:00), so
+    /// the offset for that wall-clock reading is unambiguous.
+    /// </summary>
+    public static DateTimeOffset StartOfLocalDay(DateOnly date)
+    {
+        var local = date.ToDateTime(TimeOnly.MinValue);
+
+        return new DateTimeOffset(local, Zone.GetUtcOffset(local)).ToUniversalTime();
+    }
+
+    /// <summary>
     /// Adds whole days in the club's local time, so the wall-clock time survives a DST transition.
     ///
     /// Converts to club-local, adds the days there, then converts back to UTC. The two conversions

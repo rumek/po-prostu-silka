@@ -71,6 +71,9 @@ public static class BookingEndpoints
 
         myBookings.MapGet("/mine", GetMyBookings.HandleAsync);
 
+        // S-27, AT-04. The member's own past classes; MemberOnly with the rest of this group.
+        myBookings.MapGet("/history", GetMyAttendanceHistory.HandleAsync);
+
         // THE STAFF HALF. Under TrainerOrAdmin since S-16, and addressed under /api/admin/classes so
         // it sits beside the management endpoints it belongs with. The path still says "admin"; the
         // policy no longer does, and that is not an oversight - renaming the route would break the

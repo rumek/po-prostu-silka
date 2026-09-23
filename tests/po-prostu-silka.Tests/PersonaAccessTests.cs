@@ -23,6 +23,7 @@ public class PersonaAccessTests(IntegrationTestFixture fixture)
         "/api/plans/mine",
         $"/api/plans/mine/exercises/{Guid.Empty}",
         "/api/bookings/mine",
+        "/api/bookings/history",
     ];
 
     private static readonly string[] StaffEmails =
@@ -64,6 +65,7 @@ public class PersonaAccessTests(IntegrationTestFixture fixture)
     [InlineData("/api/passes/mine")]
     [InlineData("/api/plans/mine")]
     [InlineData("/api/bookings/mine")]
+    [InlineData("/api/bookings/history")]
     public async Task A_member_is_admitted_to_their_own_data(string route)
     {
         var member = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveMemberEmail);

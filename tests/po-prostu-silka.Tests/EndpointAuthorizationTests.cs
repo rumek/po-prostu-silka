@@ -90,6 +90,7 @@ public class EndpointAuthorizationTests(IntegrationTestFixture fixture)
         ("GET", "/api/plans/mine"),
         ("GET", "/api/plans/mine/exercises/{exerciseId:guid}"),
         ("GET", "/api/bookings/mine"),
+        ("GET", "/api/bookings/history"),
     ];
 
     /// <summary>

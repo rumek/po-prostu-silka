@@ -404,6 +404,12 @@ Give the member a read path for their past classes and a summary for their curre
   pass's started, non-cancelled Active bookings.
 - Club-local month arithmetic goes through `ClubTime`. Do not convert in UTC.
 
+**Adapted during implementation.** `MyAttendanceSummary` also carries `EntryCount`: Phase 5's dot
+strip draws "one dot per counted class up to the pass's count" and has no other way to learn the
+count. `ClubTime` gained `StartOfLocalDay(DateOnly)` for the window bounds. A `before` that is not the
+first of a month is a 400 validation problem, and the tests pin it
+(`A_before_that_is_not_the_first_of_a_month_is_a_bad_request`).
+
 #### 2. Tests
 
 **File**: `tests/po-prostu-silka.Tests/AttendanceHistoryTests.cs` (new), `PersonaAccessTests.cs`,
@@ -701,7 +707,7 @@ to the next phase.
 
 #### Automated
 
-- [x] 2.1 All backend tests pass
+- [x] 2.1 All backend tests pass — 9149170
 
 #### Manual
 
@@ -711,7 +717,7 @@ to the next phase.
 
 #### Automated
 
-- [ ] 3.1 All backend tests pass
+- [x] 3.1 All backend tests pass
 
 #### Manual
 

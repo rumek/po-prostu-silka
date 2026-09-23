@@ -75,4 +75,63 @@ public class BookingQuery(AppDbContext db) : IBookingQuery
                 : b.Attendance == BookingAttendance.Absent ? "absent"
                 : null))
             .ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<MyAttendanceEntry>> GetHistoryForMemberAsync(
+        Guid memberId,
+        DateTimeOffset from,
+        DateTimeOffset to,
+        DateTimeOffset now,
+        CancellationToken cancellationToken) =>
+        // Seeks IX_Bookings_MemberId_Status, then joins; bounded to three months per call.
+        //
+        // NO b.Class.Status FILTER, deliberately - the opposite of GetUpcomingForMemberAsync. A
+        // cancelled class is exactly the row that explains an entry coming back.
+        await db.Bookings
+            .AsNoTracking()
+            .Where(b => b.MemberId == memberId
+                        && b.Status == BookingStatus.Active
+                        && b.Class.StartsAt >= from
+                        && b.Class.StartsAt < to
+                        && b.Class.StartsAt <= now)
+            .OrderByDescending(b => b.Class.StartsAt)
+            .Select(b => new MyAttendanceEntry(
+                b.Id,
+                b.ClassId,
+                b.Class.ClassType.Name,
+                b.Class.StartsAt,
+                b.Class.DurationMinutes,
+                b.Class.Instructor!.DisplayName,
+                b.Class.Status == ClassStatus.Cancelled ? "cancelled"
+                : b.Attendance == BookingAttendance.Present ? "present"
+                : b.Attendance == BookingAttendance.Absent ? "absent"
+                : "unrecorded"))
+            .ToListAsync(cancellationToken);
+
+    public Task<bool> HasHistoryBeforeAsync(
+        Guid memberId, DateTimeOffset before, CancellationToken cancellationToken) =>
+        db.Bookings.AnyAsync(
+            b => b.MemberId == memberId
+                 && b.Status == BookingStatus.Active
+                 && b.Class.StartsAt < before,
+            cancellationToken);
+
+    public async Task<AttendanceCounts> CountAttendanceForPassAsync(
+        Guid passId, DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        // One grouped statement rather than three counts. A pass holds tens of rows.
+        var groups = await db.Bookings
+            .AsNoTracking()
+            .Where(b => b.MembershipPassId == passId
+                        && b.Status == BookingStatus.Active
+                        && b.Class.Status != ClassStatus.Cancelled
+                        && b.Class.StartsAt <= now)
+            .GroupBy(b => b.Attendance)
+            .Select(g => new { Attendance = g.Key, Count = g.Count() })
+            .ToListAsync(cancellationToken);
+
+        int CountOf(BookingAttendance? a) => groups.FirstOrDefault(g => g.Attendance == a)?.Count ?? 0;
+
+        return new AttendanceCounts(
+            CountOf(BookingAttendance.Present), CountOf(BookingAttendance.Absent), CountOf(null));
+    }
 }
