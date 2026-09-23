@@ -1,14 +1,14 @@
 ---
 project: "Po Prostu Siłka"
-version: 5
+version: 6
 status: draft
 created: 2026-08-31
-updated: 2026-09-22
+updated: 2026-09-23
 prd_version: 1, 2
 main_goal: quality
 top_blocker: none
-milestone_id: code-structure
-milestone_seq: 6
+milestone_id: persona-class-day
+milestone_seq: 8
 milestone_status: open
 ---
 
@@ -20,123 +20,43 @@ milestone_status: open
 
 ## Milestone
 
-**M-6: The structure is enforced, not promised** — Status: open
+**M-8: Each persona runs its own class day** (`persona-class-day`) — Status: open
 
-- **Intent:** The code stops growing in the two places it should not. On the server, the layering
-  `AGENTS.md` describes becomes something the compiler refuses to break, and the `*Endpoints` classes
-  stop being where every concern lives. In the SPA, a failure stops being told nine different ways
-  and the patterns copied from screen to screen get extracted once. Nothing a member or an admin can
-  see changes — this milestone is repaid in every slice after it, not in this one.
-- **Source materials:** the user's own description, recorded as the `CS-NN` anchors below, plus a
-  structural survey of `src/` and `src/app/` taken on 2026-09-10. No PRD version describes code
-  structure, so this milestone has no `FR`/`US` refs at all — the anchors are its whole trace.
-- **Done when:** every S-NN in this milestone is `done`.
+- **Intent:** The app stops being one app with role checks bolted on and becomes three: a member sees
+  only what is theirs, a trainer works the classes they instruct, and an admin runs the club. On top
+  of that split, staff record who actually came, and the karnet counts the classes a member attended
+  rather than the ones they were booked into, so what the club sees matches what happened in the room.
+- **Source materials:** the user's own description on 2026-09-22 (S-25, recorded verbatim in
+  `context/changes/role-based-visibility/change.md` and as v2's "Amendment: role-based visibility")
+  and on 2026-09-23 (S-27, recorded as the `AT-NN` anchors below). Attendance was a v1 Non-Goal; the
+  user unparked it on 2026-09-23.
+- **Done when:** S-25 and S-27 are both `done`.
 - **Scope anchors:**
-  - CS-01: The layering table in `AGENTS.md` stops being a convention and becomes a compiler
-    constraint. `src/` splits into four projects — `Domain`, `Application`, `Infrastructure`, `Api` —
-    and Application and Domain lose the ability to see EF Core at all. The proof is one sentence:
-    adding `using Microsoft.EntityFrameworkCore;` to a file in Application must fail the build.
-  - CS-02: A `*Endpoints` class stops being the place where everything lives. It registers routes and
-    nothing else; the handler, its validation, its mapping, its ports and its resource-level
-    authorization move into Application, one file per use case.
-  - CS-03: **No behaviour changes on either side.** No route moves, no `reason` code is added or
-    renamed, no schema changes, no migration is regenerated or squashed. This is an anchor rather
-    than a footnote because it is the thing most likely to erode while someone is already inside a
-    1082-line file.
-  - CS-04: The app gains one way to tell a person that something failed. A toast component exists,
-    and the rule deciding whether a failure surfaces as a toast, a field error, a page banner or a
-    screen state is written down and applied everywhere — the component without the rule would only
-    add a tenth mechanism.
-  - CS-05: The nine error-display mechanisms collapse onto that rule; the ~20 hand-written
-    `HttpErrorResponse` unwraps collapse to one function; `notice()` stops meaning both success and
-    failure.
-  - CS-06: The patterns copied across screens are extracted once — the `reject()` helper (seven
-    byte-identical copies), the generation-counter race guard (~10 copies), the page-header block
-    (three copies plus three near-identical stylesheets), the four-signal form-state block (seven
-    copies).
-  - CS-07: No UI library is introduced, and no API contract is reshaped. `{ reason }` stays the
-    failure shape on both sides; `ProblemDetails` is deliberately not adopted, because the reason
-    codes are mirrored field-for-field by the SPA's discriminated unions and moving them is a
-    coordinated change this milestone declines to take on.
+  - PV-01: Every account resolves to one persona, Admin > Trainer > Member, and the menu, the route
+    guard and the API policy gate every screen on the same predicate. The full statement is v2's
+    "Amendment: role-based visibility (S-25)"; this anchor points at it rather than restating it.
+  - AT-01: Attendance is recorded by staff, never by the member — a trainer for the classes they
+    personally instruct, an admin for any class. The same rule as booking (M-4 MP-02), so it has one
+    definition, not two.
+  - AT-02: Attendance is marked per booked member on the class roster. Only a member with a booking on
+    that class can be marked; a walk-in without a booking is out of scope.
+  - AT-03: **A karnet entry is spent by attending, not by booking.** This amends M-4's MP-06 ("an entry
+    is consumed by an active booking"). Entries left stays DERIVED from bookings and never becomes a
+    stored counter; what changes is which bookings count against it.
+  - AT-04: A member sees their own attendance history — past classes with present / absent / not yet
+    recorded — and nothing about anyone else's.
+  - AT-05: That history is designed for reading at a glance on a phone (grouping, visual status,
+    a summary rather than one sentence per class), not rendered as a wall of text. UX quality is a
+    requirement of this slice, not polish for a later one.
 
-**Why one milestone and not two:** S-18 and S-19 share an intent and share nothing else. They touch
-disjoint files, have no prerequisite between them, and can be executed by separate agent runs at the
-same time. Splitting them into M-6 and M-7 would buy a tidier history and cost a serial dependency
-that does not exist.
+**Why one milestone:** S-27 marks attendance on the trainer's roster of their own classes, which is
+S-25's surface, and it relies on S-25's rule that staff hold no karnet. The two form one chain with
+one intent.
 
-**Not in scope, deliberately:** enriching the Domain (moving invariants out of handlers and into
-entities); MediatR, FluentValidation, AutoMapper or a repository pattern; replacing `IResult` with a
-result union; moving component logic out of the large Angular screens into stores; Central Package
-Management for the four new project files. Each is a defensible next step and none of them is what
-this milestone is for.
-
-## Next milestone (queued)
-
-**M-7: Each surface works where it is used** (`surface-fitness`) - Status: queued, opens when S-19 is
-archived and M-6 closes. Recorded now rather than held, because the survey behind it is already done
-and the three slices below are what it found.
-
-- **Intent:** Three screens are measured against the device they are actually used on, and against
-  the number of rows they will actually hold. Nothing here is about how a screen looks - it is about
-  whether its capabilities can be reached at all. An action clipped out of a 60-pixel tile, a list
-  that fetches every member to hide all but four, and a training plan reached through a screen that
-  is a member list in disguise are the same kind of defect: a surface designed for a shape it is no
-  longer in.
-- **Source materials:** the user's own report on 2026-09-20 (mobile class editing, the member list at
-  scale, the Plany screen), plus a survey of `src/app/src/app/` and `src/Application/Members/` taken
-  the same day. No PRD version covers any of it: v1's NFR on a mobile-first surface is the nearest
-  published intent, and v2 FR-019 is what UX-01 deliberately narrows.
-- **Done when:** every S-NN in this milestone is `done`.
-- **Scope anchors:**
-  - UX-01: **The admin's class calendar becomes a web-only tool, and says so.** Below the shared
-    mobile breakpoint `/admin/classes` does not render the editing calendar at all - it renders a
-    screen state naming the reason and the phone-sized surface that does work (`/schedule`,
-    read-only). A DELIBERATE WITHHOLDING rather than a defect deferred: drawing, dragging and
-    resizing a half-hour block inside a scrolling 06:00-24:00 grid is a desk gesture, and the user
-    chose the honest refusal over a touch reimplementation. This narrows v2 FR-019, which describes
-    the gesture without naming a device. Revisiting it later is explicitly allowed; this milestone
-    does not.
-  - UX-02: **The gesture stops fighting the page.** `touch-action: none` applies only while a gesture
-    is genuinely on offer. Today `.calendar-segment-drawable` carries it on every future segment of
-    the admin grid (`schedule-calendar.scss:290`), so the whole column refuses to scroll under a
-    finger - the reason the screen reads as broken rather than as unsuited.
-  - UX-03: **A class's admin actions are reachable at every class length.** They are projected INSIDE
-    a tile that is `height: 100%; overflow: hidden` (`schedule-calendar.scss:166`), so for a 30- or
-    60-minute class - most of them - Edytuj / Powiel / Zapisani / Odwołaj are clipped away with no
-    scroll and no overflow affordance. This is a WEB defect as much as a mobile one, which is why it
-    is an anchor of its own and not a footnote to UX-01.
-  - UX-04: **One definition of "mobile".** Three independent thresholds exist today - `30rem` (the
-    bottom nav), `48rem` (`WEEK_VIEW_MIN_WIDTH`, the calendar's day/week switch) and `40rem` (one
-    form) - and none of them is the boundary UX-01 and UX-06 need. The mobile/web boundary becomes
-    one module that TypeScript and the stylesheets both read. The calendar's `48rem` answers a
-    SEPARATE question - how many day columns stay legible - and stays separate.
-  - UX-05: **The member list is paged, searched and filtered by the API.** `GetMembers` currently
-    documents the opposite in its own summary - "No pagination... Search is the SPA's job" - and
-    `members.ts` fetches every row to filter it in a `computed()`. `IMemberQuery.GetMembersAsync`
-    gains a page, a size and a search term, and returns a page plus a total.
-  - UX-06: **The member list is a table on web and one compact row per member on mobile.** Columns
-    from the shared breakpoint up; below it a single column carrying the name, the status and the way
-    into the record. One component, two shapes - not two screens.
-  - UX-07: **A training plan is reached through the member, never through a plan list.** An admin
-    opens Członkowie, then the member, then Plan, and edits it there. The route is
-    `/admin/members/:id/plan`, mirroring `/admin/members/:id/passes` exactly (S-16's precedent).
-  - UX-08: **The trainer gets the member list too, with a narrowed set of actions**, and
-    `/trainer/plans` is retired along with the "Plany" entry on `/more`. A screen whose first column
-    is the member's name is a member list; keeping it would leave two axes into the same person,
-    which is the defect UX-07 exists to remove. What a trainer may see is a decision for `/10x-plan`,
-    and Open Roadmap Question 8 is adjacent to it.
-  - UX-09: **No visual redesign.** Layout, spacing, typography and where elements sit are explicitly
-    NOT this milestone - the user deferred them on 2026-09-20. An anchor rather than a footnote,
-    because "while I am already in this stylesheet" is how this milestone would quietly become a
-    different one.
-
-**Not in scope, deliberately:** the plan builder's reorder, which is pointer-only by
-`@angular/cdk/drag-drop`'s own limits and is already recorded as an accepted gap in
-`plan-builder.ts` - the same class of problem as UX-01 and the obvious next one, but a capability
-nothing else depends on; a role-aware bottom nav (an admin carries `/my-plan` and `/my-classes` in
-the bar while Członkowie and Zajęcia sit two taps away under Więcej) - real, and a navigation change
-rather than a surface one (delivered by S-25, `role-based-visibility`); paging for the exercise, class-type and plan lists, which share the member
-list's design and not its growth rate - UX-05 is what makes doing them later cheap.
+**Not in scope, deliberately:** member self check-in (a QR code or a button at the door), which
+would bring back the member self-service S-16 removed; walk-ins recorded without a booking;
+attendance statistics beyond the member's own history, which sit next to v1's parked "advanced
+statistics".
 
 ## PRD addendum (M-2)
 
@@ -175,18 +95,19 @@ Mid-milestone, a second decision landed: a class stops being retyped text and be
 
 ## North star
 
-**S-18: The layering is enforced by the compiler, not by convention** — M-6's hypothesis is that a
-rule nothing checks is not a rule, and S-18 is the only slice that can test it. The test is a single
-sentence and it either passes or it does not: adding `using Microsoft.EntityFrameworkCore;` to a file
-in Application must fail the build. Today the same edit compiles and leaves no trace. S-19 makes the
-SPA more consistent, which is worth doing and proves nothing — consistency can always be argued back
-out; a build error cannot.
+**S-27: Staff record who came, and the karnet counts attendance** — M-8's hypothesis is that
+the app can reflect what actually happened in the room, not only what was booked. S-25 is the
+prerequisite: it gives each persona its own app and gives the trainer the roster of their own
+classes. But S-25 only rearranges who sees existing data, while S-27 is the slice that changes a rule
+the club relies on. A karnet that counts attended classes instead of booked ones is either correct
+under concurrency or it is not, and nothing else in this milestone tests that.
 
 > "North star" here means the smallest end-to-end slice whose successful delivery would prove the core
-> product hypothesis — or, for a milestone like this one that ships nothing user-facing, the core
-> structural hypothesis. M-1's was S-09 (email + push on class changes), M-2's was S-14 (the claim
-> path), M-3's was S-15 (the plan card), M-4's was S-16 (the karnet refusal) and M-5's was S-17
-> (the closed registration door); all shipped, and their entries live in `## Milestone History`.
+> product hypothesis — or, for a milestone that ships nothing user-facing, the core structural
+> hypothesis. M-1's was S-09 (email + push on class changes), M-2's was S-14 (the claim path), M-3's
+> was S-15 (the plan card), M-4's was S-16 (the karnet refusal), M-5's was S-17 (the closed
+> registration door) and M-6's was S-18 (the compiler-enforced layering); all shipped, and their
+> entries live in `## Milestone History`.
 
 ## At a glance
 
@@ -217,9 +138,10 @@ out; a build error cannot.
 | S-20 | admin-schedule-web-only | (admin) run the class calendar at a desk, with every per-class action reachable at every class length - and on a phone be told plainly that this screen is not one | S-19 | M-7 UX-01, UX-02, UX-03, UX-04 (narrows v2 FR-019) | done |
 | S-21 | member-list-at-scale | (admin) find one member among hundreds - the API pages, searches and filters; a table on web, one compact row on a phone | S-20 | M-7 UX-05, UX-06 | done |
 | S-22 | member-centric-training-plans | (admin, trainer) set a member's plan by opening the member, not a plan list; the Plany screen is retired | S-21 | M-7 UX-07, UX-08 (retires part of v1 FR-015's surface) | done |
-| S-23 | frontend-presentational-kit | (structural) the presentational layer gets components instead of copies — one field, one select, one checkbox, one loading state, one empty state, one list row, enforced by a spec | S-19 | none — milestone unassigned, see the item body | done |
-| S-24 | test-environment-seed-data | (dev tooling) open the development environment and find it populated - 200 members (some accountless), two admins, two trainers, passes, a schedule with bookings, an exercise library and assigned plans | S-16, S-22 | none - milestone unassigned, see the item body | done |
-| S-25 | role-based-visibility | (member, trainer, admin) each role sees its own app - a member their classes, plan and karnet without the gym schedule; a trainer a schedule of their own classes with the roster; an admin everything - and the menu reaches every page at every width | S-16, S-22 | v2 "Amendment: role-based visibility" (supersedes v2 FR-002, FR-018; narrows v1 FR-007, FR-024) | in-progress |
+| S-23 | frontend-presentational-kit | (structural) the presentational layer gets components instead of copies — one field, one select, one checkbox, one loading state, one empty state, one list row, enforced by a spec | S-19 | M-6 (folded in at close; extends CS-06) | done |
+| S-24 | test-environment-seed-data | (dev tooling) open the development environment and find it populated - 200 members (some accountless), two admins, two trainers, passes, a schedule with bookings, an exercise library and assigned plans | S-16, S-22 | none - outside any milestone (dev tooling) | done |
+| S-25 | role-based-visibility | (member, trainer, admin) each role sees its own app - a member their classes, plan and karnet without the gym schedule; a trainer a schedule of their own classes with the roster; an admin everything - and the menu reaches every page at every width | S-16, S-22 | M-8 PV-01 = v2 "Amendment: role-based visibility" (supersedes v2 FR-002, FR-018; narrows v1 FR-007, FR-024) | in-progress |
+| S-27 | class-attendance | (trainer, admin, member) staff mark who attended a class from its roster; a karnet entry is spent by attending, not by booking; a member sees their attendance history as a readable view, not a wall of text | S-16, S-25 | M-8 AT-01–AT-05 (unparks v1 §Non-Goals "No attendance / check-in tracking"; amends M-4 MP-06) | proposed |
 
 ## Streams
 
@@ -232,7 +154,8 @@ Navigation aid — groups items that share a Prerequisites chain. Canonical orde
 | C      | Scheduling & booking  | `S-03` → `S-05` → `S-06` → `S-07` → `S-08` → `S-12` | The longest chain and the milestone's critical path; `S-12` also joins from Stream D at `S-11`.  |
 | D      | Training domain       | `S-10` → `S-11` → `S-15`                           | Independent bounded context — a separate agent run can build it alongside the whole of Stream C. `S-15` extends the plan surface `S-11` created; it is M-3's only slice. |
 | F      | Surface fitness       | `S-20` -> `S-21` -> `S-22`                         | M-7, and the first stream measured against a device and a row count rather than against a capability. A CHAIN, unlike Stream E: `S-20` defines the one mobile breakpoint `S-21` renders its table against, and `S-22` hangs the plan off the member list `S-21` rebuilds. Out of order, each boundary gets built twice. |
-| E      | Code structure        | `S-18` · `S-19`                                    | M-6, and the first stream that is not about the product. The two slices are siblings, not a chain — they share an intent and no files, so the `·` is deliberate: either order, or both at once in separate agent runs. |
+| E      | Code structure        | `S-18` · `S-19` → `S-23`                           | M-6, and the first stream that is not about the product. The two slices are siblings, not a chain — they share an intent and no files, so the `·` is deliberate: either order, or both at once in separate agent runs. `S-23` follows `S-19`, whose four outlets it gives components, and was folded into M-6 at close. |
+| G      | Persona class day     | `S-25` → `S-27`                                    | M-8. A chain: attendance is marked on the roster of the trainer's own classes, which is the surface `S-25` builds, and relies on its rule that staff hold no karnet. |
 
 ## Baseline
 
@@ -732,10 +655,9 @@ rather than in a slice body:
   claim they live; a success message stops being an inline `.notice` and becomes the toast outlet
   S-19 built for it; and a contract spec fails the build when a screen hand-rolls one of them.
 - **Change ID:** frontend-presentational-kit
-- **PRD refs:** none. No PRD version describes SPA component structure, and M-6's CS anchors are
-  spent. **Milestone unassigned** — this slice was opened ahead of its roadmap entry and needs
-  either a home in a structural successor to M-6 or a milestone of its own; `/10x-roadmap` owns
-  that call.
+- **PRD refs:** none. No PRD version describes SPA component structure. **Folded into M-6 at its
+  close (2026-09-23)** as CS-06 carried on to the presentational layer; it was opened ahead of its
+  roadmap entry, without a milestone.
 - **Prerequisites:** S-19 (its four-outlet rule is what decides where a message goes; this slice
   only gives the outlets components. Landing first would mean building components for nine
   mechanisms and then deleting most of them.)
@@ -766,8 +688,9 @@ rather than in a slice body:
   schedule for the coming weeks, bookings (some classes full), an exercise library and a few
   assigned training plans.
 - **Change ID:** test-environment-seed-data
-- **PRD refs:** none. No PRD version describes test data. **Milestone unassigned** — requested by the
-  user on 2026-09-22 for manual testing during development; `/10x-roadmap` owns where it lands.
+- **PRD refs:** none. No PRD version describes test data. Requested by the user on 2026-09-22 for
+  manual testing during development. **Delivered outside any milestone**, recorded under M-7's
+  history entry: dev tooling with no capability belongs to no product outcome.
 - **Prerequisites:** S-16 (a booking needs a pass valid on the class's club-local date with a free
   entry — the seeder must produce data the live rules would have accepted) and S-22 (the plan is
   reached through the member, so seeded plans must hang off members).
@@ -794,8 +717,8 @@ rather than in a slice body:
 - **Change ID:** role-based-visibility
 - **PRD refs:** v2 "Amendment: role-based visibility (S-25)" under Access Control Changes. It
   supersedes v2 FR-002 and FR-018 and the "No trainer screen" Non-Goal, narrows v1 FR-007 and
-  FR-024, and reverses S-22's "admins train too". **Milestone unassigned**, as S-24 - requested by
-  the user on 2026-09-22.
+  FR-024, and reverses S-22's "admins train too". Requested by the user on 2026-09-22; **M-8**,
+  anchor PV-01.
 - **Prerequisites:** S-16 (booking is a staff action gated by the karnet - the trainer's roster
   and booking API already exist) and S-22 (the trainer's member list, which becomes the trainer's
   booking picker).
@@ -807,6 +730,49 @@ rather than in a slice body:
 - **Risk:** the API and the SPA change who may reach what in the same release; merged apart, a
   member's SPA would call a schedule that now refuses them. Phases 2-5 ship together.
 - **Status:** in-progress
+
+### S-27: Staff record who came, and the karnet counts attendance
+
+> Numbered S-27, not S-26: `S-26` is already used informally in `AGENTS.md` and the
+> mobile-native-feel plan for the routed-screen slide, which never received a roadmap entry.
+
+- **Outcome:** user (trainer) opens the roster of a class they instruct and marks each booked member
+  as present or absent; an admin does the same for any class; a karnet entry is spent when the member
+  attends, not when they are booked, so a recorded absence gives the entry back; the member opens
+  Moje zajęcia and sees their past classes with whether they attended, in a view built for scanning
+  rather than a list of sentences.
+- **Change ID:** class-attendance
+- **PRD refs:** none in any PRD version — v1 §Non-Goals explicitly excluded attendance ("booking lists
+  only; who actually showed up is not tracked in MVP"), and v1's Socrates note had already named it a
+  post-MVP candidate. **Unparked by the user on 2026-09-23.** **M-8**, anchors AT-01–AT-05 in the
+  milestone charter.
+- **Prerequisites:** S-16 (the karnet and its derived entry pool, which AT-03 changes the rule of) and
+  S-25 (the trainer's roster of their own classes, which is where attendance is marked, and the
+  persona rule that keeps staff out of member data).
+- **Parallel with:** —
+- **Blockers:** —
+- **Unknowns:**
+  - What a booking holds before attendance is recorded. If only attendance spends an entry, a member
+    with one entry left could otherwise be booked into five classes. The likely answer is that a
+    booking RESERVES an entry and attendance CONFIRMS it, while a recorded absence releases it. That
+    keeps the pass-level race `MembershipPass`'s concurrency stamp guards intact. Owner: `/10x-plan`.
+    Block: no, but it decides whether MP-06's invariant survives.
+  - What happens to a class whose attendance is never recorded (the trainer forgets). Either the
+    reserved entry stays spent, it is released after some window, or the class is flagged to staff.
+    Owner: user, via `/10x-plan`. Block: no.
+  - When attendance may be marked and corrected: from the class's start only, and how long after its
+    end. Owner: `/10x-plan`. Block: no.
+  - Whether a no-show is visible to staff as a pattern (per member) — adjacent to "advanced
+    statistics", which v1 parks. Owner: user. Block: no; out of scope unless the plan argues it in.
+- **Risk:** the karnet rule is the risk. AT-03 changes the invariant that sits inside the write path
+  that carries the club's headline no-overbooking guarantee, and the pass's entry pool is guarded by
+  its own concurrency stamp. A rule that spends entries at attendance but does not reserve them at
+  booking would let a pass be overdrawn, which is exactly the race S-16 closed. The change also
+  answers Open Roadmap Question 7 without being asked to: nobody attends a cancelled class, so its
+  entries come back. The plan should say so explicitly rather than let it happen by accident. The
+  secondary risk is AT-05: a history view is where "one more card with sentences" is the path of
+  least resistance, so the anchor names the requirement up front.
+- **Status:** proposed
 
 ## Backlog Handoff
 
@@ -837,9 +803,10 @@ rather than in a slice body:
 | S-20       | admin-schedule-web-only          | Make the class calendar a desk tool: reachable per-class actions, and a plain refusal on a phone | no                    | Needs S-19 archived. Run `/10x-plan admin-schedule-web-only`  |
 | S-21       | member-list-at-scale             | Page, search and filter the member list on the API; table on web, compact row on mobile | no                    | Needs S-20 (the shared breakpoint)                 |
 | S-22       | member-centric-training-plans    | Reach a member's plan through the member; retire the standalone Plany screen | no                    | Needs S-21; carries an open question about what a trainer may see |
-| S-23       | frontend-presentational-kit      | Give the presentational layer components instead of copies, with a spec that enforces them | yes                   | Needs S-19 only (archived). Milestone unassigned; consider running it BEFORE S-20 |
-| S-24       | test-environment-seed-data       | Config-gated seeder that fills the development environment with a realistic data set | yes                   | Run `/10x-plan test-environment-seed-data`. Milestone unassigned |
-| S-25       | role-based-visibility            | Per-persona visibility (member, trainer, admin) enforced in menu, guard and API; the menu reaches every page | no                    | In progress. Milestone unassigned |
+| S-23       | frontend-presentational-kit      | Give the presentational layer components instead of copies, with a spec that enforces them | no                    | Done — archived 2026-09-21. Folded into M-6 |
+| S-24       | test-environment-seed-data       | Config-gated seeder that fills the development environment with a realistic data set | no                    | Done — archived 2026-09-22. Outside any milestone |
+| S-25       | role-based-visibility            | Per-persona visibility (member, trainer, admin) enforced in menu, guard and API; the menu reaches every page | no                    | In progress. M-8 |
+| S-27       | class-attendance                 | Staff mark attendance on the class roster; karnet entries are spent by attending; member attendance history | no                    | North star of M-8. Needs S-25 archived, then `/10x-plan class-attendance` |
 
 ## Open Roadmap Questions
 
@@ -849,7 +816,7 @@ rather than in a slice body:
 4. **How dense can the full-week view get before it stops working?** — Owner: user. Block: none; a design-time check inside S-07. (v2 Open Question 2.)
 5. **What does a trainer eventually see after signing in?** — Owner: user. Block: none — explicitly out of scope for this milestone; the additive role model keeps the path open. (v2 Open Question 3.) **ANSWERED 2026-09-22 by S-25:** a dashboard of the classes they instruct, a schedule of only those classes with each one's roster, and their member list.
 6. **Is best-effort push acceptable on recent iOS, with a home-screen install required and email as the guaranteed channel?** — Owner: user. Block: none; sets S-09's acceptance bar.
-7. **Should cancelling a class give back the karnet entries its bookings held?** — Owner: user. Block: none. A class the club cancels keeps its bookings Active (S-09's design, so the fan-out and the member's history see them), and entries left is derived from active bookings — so every booked member loses an entry for a class they could not attend. S-16 recorded this as existing behaviour rather than a decision (`context/archive/2026-09-09-membership-pass-and-staff-booking/plan.md:88-90`). Surfaced by the `testing-booking-invariants` test rollout, which deliberately left it unpinned by any test until this is answered.
+7. **Should cancelling a class give back the karnet entries its bookings held?** — Owner: user. Block: none. A class the club cancels keeps its bookings Active (S-09's design, so the fan-out and the member's history see them), and entries left is derived from active bookings — so every booked member loses an entry for a class they could not attend. S-16 recorded this as existing behaviour rather than a decision (`context/archive/2026-09-09-membership-pass-and-staff-booking/plan.md:88-90`). Surfaced by the `testing-booking-invariants` test rollout, which deliberately left it unpinned by any test until this is answered. **Likely answered by S-27** (AT-03): if an entry is spent only by attending, a cancelled class, which nobody attends, spends none. Mark it resolved when S-27's plan confirms it.
 8. **Should a trainer see members' email addresses on the roster of the classes they instruct?** — Owner: user. Block: none. Since S-16 the roster route admits trainers for their own classes, and each row carries the member's email and account id; the payload's own doc comment still justifies the email as "admin-only surface". prd.md's privacy NFR says member data is visible only to the admin and the member themselves, and no slice records this widening as a decision. The trainer's plan picker was deliberately minimized to id and name for exactly this reason (S-11). Surfaced by the `testing-access-surface` test rollout, which left the roster payload unpinned by any test until this is answered.
 
 Resolved since the previous roadmap: the sender-domain question that gated F-03 is closed — the foundation shipped and was archived.
@@ -862,7 +829,7 @@ Resolved since the previous roadmap: the sender-domain question that gated F-03 
 - **Month view, agenda view, external calendar export** — Why parked: v2 §Non-Goals; the calendar works in days and weeks.
 - **A latency target for week-to-week navigation, and one-handed reachability for calendar controls** — Why parked: v2 §Non-Goals; design intentions, deliberately not committed as measurable promises.
 - **Multi-club / multi-tenancy** — Why parked: v1 §Non-Goals — one gym's app.
-- **Attendance / check-in tracking** — Why parked: v1 §Non-Goals; booking lists only.
+- **Attendance / check-in tracking** — Why parked: v1 §Non-Goals; booking lists only. **Unparked 2026-09-23 → S-27** (`class-attendance`), as staff-recorded attendance only. Member self check-in (a QR code or a button at the door) stays parked, because it would bring back the member self-service S-16 removed.
 - **Offline-first guarantee** — Why parked: v1 §Non-Goals; installable, but a connection is required.
 - **Cancellation deadline / late-cancel rules** — Why parked: v1 §Non-Goals; free cancel anytime is locked.
 - **In-app notification center** — Why parked: v1 §Non-Goals; delivery is email + push only.
@@ -971,6 +938,113 @@ Resolved since the previous roadmap: the sender-domain question that gated F-03 
   **Open when this closed:** the ten manual verification steps in S-17's plan
   (`context/archive/2026-09-09-invitation-only-registration/plan.md`) were deferred to a deployed
   environment and were still unchecked at archive time. Every automated gate was green.
+
+- **M-6: The structure is enforced, not promised** (`code-structure`) — seq 6, opened 2026-09-10,
+  closed 2026-09-23. Delivered S-18 (`src/` split into Domain / Application / Infrastructure / Api,
+  so an EF Core `using` in Application fails the build; the `*Endpoints` classes reduced to route
+  registration) and S-19 (one toast component and the four-outlet failure rule; the copied form-state,
+  `reject()`, load-fence and page-header blocks extracted once). Closed with its "Done when"
+  satisfied. **S-23 is folded into M-6 at close:** it was opened without a milestone, but it is the
+  same work as CS-06 carried on to the presentational layer (one component per field, select,
+  checkbox, loading, empty state and list row, enforced by a lint rule). It carries no CS anchor of
+  its own. Its scope anchors CS-01–CS-07 are preserved in this entry, because no PRD version
+  describes code structure:
+  - CS-01: The layering table in `AGENTS.md` stops being a convention and becomes a compiler
+    constraint. `src/` splits into four projects — `Domain`, `Application`, `Infrastructure`, `Api` —
+    and Application and Domain lose the ability to see EF Core at all. The proof is one sentence:
+    adding `using Microsoft.EntityFrameworkCore;` to a file in Application must fail the build.
+  - CS-02: A `*Endpoints` class stops being the place where everything lives. It registers routes and
+    nothing else; the handler, its validation, its mapping, its ports and its resource-level
+    authorization move into Application, one file per use case.
+  - CS-03: **No behaviour changes on either side.** No route moves, no `reason` code is added or
+    renamed, no schema changes, no migration is regenerated or squashed. This is an anchor rather
+    than a footnote because it is the thing most likely to erode while someone is already inside a
+    1082-line file.
+  - CS-04: The app gains one way to tell a person that something failed. A toast component exists,
+    and the rule deciding whether a failure surfaces as a toast, a field error, a page banner or a
+    screen state is written down and applied everywhere — the component without the rule would only
+    add a tenth mechanism.
+  - CS-05: The nine error-display mechanisms collapse onto that rule; the ~20 hand-written
+    `HttpErrorResponse` unwraps collapse to one function; `notice()` stops meaning both success and
+    failure.
+  - CS-06: The patterns copied across screens are extracted once — the `reject()` helper (seven
+    byte-identical copies), the generation-counter race guard (~10 copies), the page-header block
+    (three copies plus three near-identical stylesheets), the four-signal form-state block (seven
+    copies).
+  - CS-07: No UI library is introduced, and no API contract is reshaped. `{ reason }` stays the
+    failure shape on both sides; `ProblemDetails` is deliberately not adopted, because the reason
+    codes are mirrored field-for-field by the SPA's discriminated unions and moving them is a
+    coordinated change this milestone declines to take on.
+
+  **Not in scope, deliberately:** enriching the Domain (moving invariants out of handlers and into
+  entities); MediatR, FluentValidation, AutoMapper or a repository pattern; replacing `IResult` with a
+  result union; moving component logic out of the large Angular screens into stores; Central Package
+  Management for the four new project files. Each is a defensible next step and none of them is what
+  this milestone is for.
+
+- **M-7: Each surface works where it is used** (`surface-fitness`) — seq 7, never formally opened:
+  it was queued behind M-6 and its slices ran while M-6 was still marked open, 2026-09-21 to
+  2026-09-22. Closure recorded 2026-09-23. Delivered S-20 (the admin class calendar as a desk tool
+  with every per-class action reachable, and a plain refusal on a phone), S-21 (the member list
+  paged, searched and filtered by the API; a table on web, compact rows on a phone) and S-22 (a
+  member's plan reached through the member; the Plany screen retired). Closed with every slice
+  `done`. Its scope anchors UX-01–UX-09 are preserved in this entry:
+  - UX-01: **The admin's class calendar becomes a web-only tool, and says so.** Below the shared
+    mobile breakpoint `/admin/classes` does not render the editing calendar at all - it renders a
+    screen state naming the reason and the phone-sized surface that does work (`/schedule`,
+    read-only). A DELIBERATE WITHHOLDING rather than a defect deferred: drawing, dragging and
+    resizing a half-hour block inside a scrolling 06:00-24:00 grid is a desk gesture, and the user
+    chose the honest refusal over a touch reimplementation. This narrows v2 FR-019, which describes
+    the gesture without naming a device. Revisiting it later is explicitly allowed; this milestone
+    does not.
+  - UX-02: **The gesture stops fighting the page.** `touch-action: none` applies only while a gesture
+    is genuinely on offer. Today `.calendar-segment-drawable` carries it on every future segment of
+    the admin grid (`schedule-calendar.scss:290`), so the whole column refuses to scroll under a
+    finger - the reason the screen reads as broken rather than as unsuited.
+  - UX-03: **A class's admin actions are reachable at every class length.** They are projected INSIDE
+    a tile that is `height: 100%; overflow: hidden` (`schedule-calendar.scss:166`), so for a 30- or
+    60-minute class - most of them - Edytuj / Powiel / Zapisani / Odwołaj are clipped away with no
+    scroll and no overflow affordance. This is a WEB defect as much as a mobile one, which is why it
+    is an anchor of its own and not a footnote to UX-01.
+  - UX-04: **One definition of "mobile".** Three independent thresholds exist today - `30rem` (the
+    bottom nav), `48rem` (`WEEK_VIEW_MIN_WIDTH`, the calendar's day/week switch) and `40rem` (one
+    form) - and none of them is the boundary UX-01 and UX-06 need. The mobile/web boundary becomes
+    one module that TypeScript and the stylesheets both read. The calendar's `48rem` answers a
+    SEPARATE question - how many day columns stay legible - and stays separate.
+  - UX-05: **The member list is paged, searched and filtered by the API.** `GetMembers` currently
+    documents the opposite in its own summary - "No pagination... Search is the SPA's job" - and
+    `members.ts` fetches every row to filter it in a `computed()`. `IMemberQuery.GetMembersAsync`
+    gains a page, a size and a search term, and returns a page plus a total.
+  - UX-06: **The member list is a table on web and one compact row per member on mobile.** Columns
+    from the shared breakpoint up; below it a single column carrying the name, the status and the way
+    into the record. One component, two shapes - not two screens.
+  - UX-07: **A training plan is reached through the member, never through a plan list.** An admin
+    opens Członkowie, then the member, then Plan, and edits it there. The route is
+    `/admin/members/:id/plan`, mirroring `/admin/members/:id/passes` exactly (S-16's precedent).
+  - UX-08: **The trainer gets the member list too, with a narrowed set of actions**, and
+    `/trainer/plans` is retired along with the "Plany" entry on `/more`. A screen whose first column
+    is the member's name is a member list; keeping it would leave two axes into the same person,
+    which is the defect UX-07 exists to remove. What a trainer may see is a decision for `/10x-plan`,
+    and Open Roadmap Question 8 is adjacent to it.
+  - UX-09: **No visual redesign.** Layout, spacing, typography and where elements sit are explicitly
+    NOT this milestone - the user deferred them on 2026-09-20. An anchor rather than a footnote,
+    because "while I am already in this stylesheet" is how this milestone would quietly become a
+    different one.
+
+  **Not in scope, deliberately:** the plan builder's reorder, which is pointer-only by
+  `@angular/cdk/drag-drop`'s own limits and is already recorded as an accepted gap in
+  `plan-builder.ts` - the same class of problem as UX-01 and the obvious next one, but a capability
+  nothing else depends on; a role-aware bottom nav (an admin carries `/my-plan` and `/my-classes` in
+  the bar while Członkowie and Zajęcia sit two taps away under Więcej) - real, and a navigation change
+  rather than a surface one (delivered by S-25, `role-based-visibility`); paging for the exercise, class-type and plan lists, which share the member
+  list's design and not its growth rate - UX-05 is what makes doing them later cheap.
+
+  **Delivered outside any milestone, recorded here so the history is complete:** S-24
+  (`test-environment-seed-data`, config-gated seed data for Development and Staging, dev tooling
+  with no capability) and `mobile-native-feel` (archived 2026-09-23: the phone app bar, screen
+  titles, Android-style history and back, and the routed-screen slide referred to as "S-26" in
+  `AGENTS.md`). Neither has an anchor in any milestone, and `mobile-native-feel` never received a
+  roadmap item.
 
 ## Done
 
