@@ -104,7 +104,8 @@ describe('MyClasses', () => {
 
     const html = fixture.nativeElement as HTMLElement;
 
-    expect(html.querySelectorAll('button').length).toBe(0);
+    // The two tabs (S-27) are the only buttons; nothing on a booking row is one.
+    expect(html.querySelectorAll('button:not([role="tab"])').length).toBe(0);
     expect(html.textContent).not.toContain('Anuluj zapis');
   });
 

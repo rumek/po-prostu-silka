@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import { Attendance, ClassBooking, MyBooking } from './booking.models';
+import { Attendance, ClassBooking, MyAttendanceHistory, MyBooking } from './booking.models';
 import { ScheduledClass } from './class.models';
 
 /**
@@ -35,6 +35,20 @@ export class BookingService {
   /** The caller's upcoming bookings, chronological. Upcoming only — the past is history, not a list. */
   getMine(): Promise<MyBooking[]> {
     return firstValueFrom(this.http.get<MyBooking[]>('/api/bookings/mine'));
+  }
+
+  /**
+   * The caller's past classes, three club-local months a page (S-27). Without `before` the page
+   * ends now and carries the karnet summary; with it, it continues from the previous page's
+   * `earlierBefore`.
+   */
+  getHistory(before?: string): Promise<MyAttendanceHistory> {
+    return firstValueFrom(
+      this.http.get<MyAttendanceHistory>(
+        '/api/bookings/history',
+        before ? { params: { before } } : {},
+      ),
+    );
   }
 
   /** Who signed up for a class (FR-014). A trainer on their own classes, or an admin. */

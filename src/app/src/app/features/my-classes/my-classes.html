@@ -1,38 +1,89 @@
 <h1 class="screen-title">Moje zajęcia</h1>
-<p class="hint">
-  Zajęcia, na które zapisał Cię klub. Jeśli nie możesz przyjść, daj znać w recepcji lub trenerowi.
-</p>
 
-<!-- The loading / error / empty / content tri-state, in the order members.html established. Each
+<!-- Two tabs (S-27). The tab is in the URL, so a reload keeps it; switching replaces the history
+     entry, so system back leaves the screen rather than flipping tabs. Only the selected tab is in the
+     Tab order — the arrows move between them, per the WAI-ARIA tabs pattern. -->
+<div class="tabs" role="tablist" aria-label="Moje zajęcia">
+  <button
+    id="tab-upcoming"
+    type="button"
+    role="tab"
+    class="tab"
+    aria-controls="panel-upcoming"
+    [attr.aria-selected]="view() === 'upcoming'"
+    [tabindex]="view() === 'upcoming' ? 0 : -1"
+    (click)="select('upcoming')"
+    (keydown)="onTabKeydown($event)"
+  >
+    Nadchodzące
+  </button>
+  <button
+    id="tab-history"
+    type="button"
+    role="tab"
+    class="tab"
+    aria-controls="panel-history"
+    [attr.aria-selected]="view() === 'history'"
+    [tabindex]="view() === 'history' ? 0 : -1"
+    (click)="select('history')"
+    (keydown)="onTabKeydown($event)"
+  >
+    Historia
+  </button>
+</div>
+
+<div
+  id="panel-upcoming"
+  role="tabpanel"
+  aria-labelledby="tab-upcoming"
+  [hidden]="view() !== 'upcoming'"
+>
+  <p class="hint">
+    Zajęcia, na które zapisał Cię klub. Jeśli nie możesz przyjść, daj znać w recepcji lub trenerowi.
+  </p>
+
+  <!-- The loading / error / empty / content tri-state, in the order members.html established. Each
      branch is exclusive: a list that showed an empty state while still loading would tell the member
      they have no classes before it knows. -->
-@if (loading()) {
-  <app-loading />
-} @else if (loadFailed()) {
-  <p class="alert" role="alert">
-    Nie udało się wczytać zapisów.
-    @if (loadMessage(); as detail) {
-      {{ detail }}
-    }
-    <button type="button" class="link-button" (click)="load()">Spróbuj ponownie</button>
-  </p>
-} @else if (rows().length === 0) {
-  <!-- An empty state that names the next step. It used to link to /schedule; since S-25 a member has
+  @if (loading()) {
+    <app-loading />
+  } @else if (loadFailed()) {
+    <p class="alert" role="alert">
+      Nie udało się wczytać zapisów.
+      @if (loadMessage(); as detail) {
+        {{ detail }}
+      }
+      <button type="button" class="link-button" (click)="load()">Spróbuj ponownie</button>
+    </p>
+  } @else if (rows().length === 0) {
+    <!-- An empty state that names the next step. It used to link to /schedule; since S-25 a member has
        no schedule, so the next step is the club itself. -->
-  <app-empty>
-    Nie masz jeszcze żadnych zapisów. Zapisy prowadzi klub — odezwij się w recepcji.
-  </app-empty>
-} @else {
-  <ul class="my-classes-list">
-    @for (row of rows(); track row.bookingId) {
-      <li appRow class="card">
-        <app-class-summary
-          [name]="row.name"
-          [startsAt]="row.startsAt"
-          [durationMinutes]="row.durationMinutes"
-          [instructor]="row.instructor"
-        />
-      </li>
-    }
-  </ul>
-}
+    <app-empty>
+      Nie masz jeszcze żadnych zapisów. Zapisy prowadzi klub — odezwij się w recepcji.
+    </app-empty>
+  } @else {
+    <ul class="my-classes-list">
+      @for (row of rows(); track row.bookingId) {
+        <li appRow class="card">
+          <app-class-summary
+            [name]="row.name"
+            [startsAt]="row.startsAt"
+            [durationMinutes]="row.durationMinutes"
+            [instructor]="row.instructor"
+          />
+        </li>
+      }
+    </ul>
+  }
+</div>
+
+<div
+  id="panel-history"
+  role="tabpanel"
+  aria-labelledby="tab-history"
+  [hidden]="view() !== 'history'"
+>
+  @if (renderHistory()) {
+    <app-attendance-history />
+  }
+</div>

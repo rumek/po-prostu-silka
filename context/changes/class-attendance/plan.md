@@ -610,6 +610,18 @@ per class.
   - empty state;
   - a staff account never requests `/api/bookings/history`, because the route is `memberGuard`ed.
 
+**Adapted during implementation.**
+- **No dark-mode variant.** The app has no dark theme at all: `styles.scss` defines no
+  `prefers-color-scheme` block. The chips use the existing `--success`/`--danger`/`--muted` tokens,
+  and a dark variant arrives with a dark theme, not ahead of one. Manual check 5.5 is light only.
+- The tab, URL and keyboard cases live in `my-classes.tabs.spec.ts`, which uses
+  `RouterTestingHarness` because the tab state is in the URL. `my-classes.spec.ts` keeps its
+  list cases, and its "no buttons" assertion now excludes the two `role="tab"` buttons.
+- The history is lazy through a latch: it is not rendered until its tab is first selected, and after
+  that it stays mounted but hidden, so switching tabs back and forth does not refetch it.
+- `Intl.DateTimeFormat` with `timeZone: 'Europe/Warsaw'` does the club-local grouping and the date
+  column. Angular's `DatePipe` accepts only fixed offsets, not IANA zones.
+
 ### Success Criteria:
 
 #### Automated Verification:
@@ -727,9 +739,9 @@ to the next phase.
 
 #### Automated
 
-- [x] 4.1 SPA unit tests pass
-- [x] 4.2 Lint and format pass
-- [x] 4.3 Production build stays under the budget warning
+- [x] 4.1 SPA unit tests pass — b397a84
+- [x] 4.2 Lint and format pass — b397a84
+- [x] 4.3 Production build stays under the budget warning — b397a84
 
 #### Manual
 
@@ -742,10 +754,10 @@ to the next phase.
 
 #### Automated
 
-- [ ] 5.1 SPA unit tests pass
-- [ ] 5.2 Lint and format pass
-- [ ] 5.3 Route identity spec passes
-- [ ] 5.4 Production build
+- [x] 5.1 SPA unit tests pass
+- [x] 5.2 Lint and format pass
+- [x] 5.3 Route identity spec passes
+- [x] 5.4 Production build
 
 #### Manual
 

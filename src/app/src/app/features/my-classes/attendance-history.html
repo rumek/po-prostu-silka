@@ -1,0 +1,109 @@
+@if (loading()) {
+  <app-loading />
+} @else if (loadFailed()) {
+  <p class="alert" role="alert">
+    Nie udało się wczytać historii zajęć.
+    @if (loadMessage(); as detail) {
+      {{ detail }}
+    }
+    <button type="button" class="link-button" (click)="load()">Spróbuj ponownie</button>
+  </p>
+} @else {
+  <!-- The current karnet, read as attendance rather than as a balance. Only while one covers today:
+       the server sends no summary otherwise, and an empty card would say less than none. -->
+  @if (summary(); as pass) {
+    <section class="card history-summary" aria-labelledby="history-summary-title">
+      <h2 id="history-summary-title" class="history-summary-title">
+        {{ pass.typeName }}
+        <span class="history-summary-until">do {{ validTo() }}</span>
+      </h2>
+
+      <ul class="history-counts">
+        <li class="history-count">
+          <span class="history-count-number">{{ pass.present }}</span>
+          <span class="chip chip--present">
+            <app-icon name="present" />{{ labels.present.word }}
+          </span>
+        </li>
+        <li class="history-count">
+          <span class="history-count-number">{{ pass.absent }}</span>
+          <span class="chip chip--absent">
+            <app-icon name="absent" />{{ labels.absent.word }}
+          </span>
+        </li>
+        <li class="history-count">
+          <span class="history-count-number">{{ pass.unrecorded }}</span>
+          <span class="chip chip--unrecorded">
+            <app-icon name="unrecorded" />{{ labels.unrecorded.word }}
+          </span>
+        </li>
+      </ul>
+
+      @if (dots().length > 0) {
+        <!-- A picture of the pass, one dot per entry. aria-hidden: the counts above say it in words. -->
+        <div class="history-dots" aria-hidden="true">
+          @for (dot of dots(); track $index) {
+            <span class="history-dot history-dot--{{ dot }}"></span>
+          }
+        </div>
+      }
+    </section>
+  }
+
+  @if (items().length === 0 && !earlierBefore()) {
+    <app-empty>Nie masz jeszcze zajęć w historii.</app-empty>
+  } @else if (items().length === 0) {
+    <app-empty>W ostatnich miesiącach nie było Twoich zajęć.</app-empty>
+  }
+
+  @for (group of groups(); track group.key) {
+    <section class="history-month" [attr.aria-labelledby]="'month-' + group.key">
+      <header class="history-month-header">
+        <h2 [id]="'month-' + group.key" class="history-month-title">{{ group.heading }}</h2>
+        @if (group.counted > 0) {
+          <p class="history-month-tally">{{ group.attended }}/{{ group.counted }} obecności</p>
+        }
+      </header>
+
+      <app-list>
+        @for (row of group.rows; track row.entry.bookingId) {
+          <li appRow class="card history-row">
+            <!-- Fixed-width, so the names line up down the month and the eye can run the column. -->
+            <p slot="lead" class="history-date">
+              <span class="history-day">{{ row.day }}</span>
+              <span class="history-weekday">{{ row.weekday }}</span>
+            </p>
+
+            <p class="row-name" [class.history-cancelled]="row.entry.outcome === 'cancelled'">
+              {{ row.entry.name }}
+            </p>
+            <p class="row-meta">{{ row.time }} · {{ row.entry.instructor }}</p>
+
+            <span slot="actions" class="chip chip--{{ row.entry.outcome }}">
+              <app-icon [name]="labels[row.entry.outcome].icon" />{{
+                labels[row.entry.outcome].word
+              }}
+            </span>
+          </li>
+        }
+      </app-list>
+    </section>
+  }
+
+  @if (earlierBefore()) {
+    <div class="history-more">
+      <button
+        type="button"
+        class="button button--secondary"
+        [disabled]="loadingMore()"
+        (click)="loadEarlier()"
+      >
+        {{ loadingMore() ? 'Wczytywanie wcześniejszych…' : 'Pokaż wcześniejsze' }}
+      </button>
+
+      @if (moreFailure(); as failure) {
+        <p class="alert" role="alert">{{ failure }}</p>
+      }
+    </div>
+  }
+}

@@ -121,3 +121,45 @@ export const BOOKING_FAILURE_REASONS = Object.keys({
   class_not_started: true,
   conflict: true,
 } satisfies Record<BookingFailure['reason'], true>) as readonly BookingFailure['reason'][];
+
+/**
+ * What became of one past class of the member's (S-27). `cancelled` wins over any mark: nobody
+ * attends a cancelled class, and the member is owed the reason their entry came back.
+ */
+export type AttendanceOutcome = 'present' | 'absent' | 'unrecorded' | 'cancelled';
+
+/** Mirrors MyAttendanceEntry — one row of the member's history. */
+export interface MyAttendanceEntry {
+  bookingId: string;
+  classId: string;
+  name: string;
+
+  /** ISO 8601 UTC. Grouped and shown by the CLUB's calendar, not the device's. */
+  startsAt: string;
+  durationMinutes: number;
+  instructor: string;
+  outcome: AttendanceOutcome;
+}
+
+/** Mirrors MyAttendanceSummary — the current karnet, read as attendance. */
+export interface MyAttendanceSummary {
+  typeName: string;
+
+  /** ISO dates (YYYY-MM-DD), club-local and inclusive. */
+  validFrom: string;
+  validTo: string;
+  entryCount: number;
+  present: number;
+  absent: number;
+  unrecorded: number;
+}
+
+/** Mirrors MyAttendanceHistory — one page: three club-local months, newest first. */
+export interface MyAttendanceHistory {
+  /** Only on the first page, and only while a karnet covers today. */
+  summary: MyAttendanceSummary | null;
+  items: MyAttendanceEntry[];
+
+  /** The `before` for the next page back (YYYY-MM-DD), or null at the start of the history. */
+  earlierBefore: string | null;
+}
