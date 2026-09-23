@@ -7,11 +7,12 @@ import {
 import { registerLocaleData } from '@angular/common';
 import localePl from '@angular/common/locales/pl';
 import { provideServiceWorker } from '@angular/service-worker';
-import { provideRouter, withViewTransitions } from '@angular/router';
+import { TitleStrategy, provideRouter, withViewTransitions } from '@angular/router';
 import { provideClientHydration } from '@angular/platform-browser';
 import { provideHttpClient, withFetch, withInterceptors } from '@angular/common/http';
 import { routes } from './app.routes';
 import { authInterceptor } from './core/auth/auth.interceptor';
+import { ScreenTitleStrategy } from './core/layout/screen-title';
 import { slideDirection } from './core/layout/view-transitions';
 
 // Locale DATA, not i18n. D9 rules out translation machinery; this is the CLDR table DatePipe needs
@@ -31,6 +32,9 @@ export const appConfig: ApplicationConfig = {
       routes,
       withViewTransitions({ skipInitialTransition: true, onViewTransitionCreated: slideDirection }),
     ),
+    // Every route names itself (mobile-native-feel); this publishes the name and depth to the
+    // shell's phone app bar and to document.title. See core/layout/screen-title.ts.
+    { provide: TitleStrategy, useClass: ScreenTitleStrategy },
     provideClientHydration(),
 
     // No withCredentials and no API base URL: the SPA is served from the API's own wwwroot, so

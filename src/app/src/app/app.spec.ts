@@ -6,6 +6,8 @@ import { SwPush } from '@angular/service-worker';
 import { App } from './app';
 import { AuthService } from './core/auth/auth.service';
 import { CurrentUser } from './core/auth/auth.models';
+import { ScreenLevel } from './core/layout/screen';
+import { ScreenTitle } from './core/layout/screen-title';
 
 function user(id: string, roles: string[], overrides: Partial<CurrentUser> = {}): CurrentUser {
   return {
@@ -154,6 +156,56 @@ describe('App', () => {
    */
   it('renders the persona tabs in the bottom bar', async () => {
     expect(barLabels(await render(MEMBER))).toEqual(['Start', 'Zajęcia', 'Plan', 'Więcej']);
+  });
+
+  /**
+   * The phone's app bar (mobile-native-feel), per screen level. CSS decides the WIDTH it shows at,
+   * and jsdom applies none, so these pin what is rendered: the logo stays in the DOM throughout
+   * (the desktop header shows it), and the bar's h1 and back button appear only where they belong.
+   */
+  describe('app bar', () => {
+    async function renderAt(
+      level: ScreenLevel,
+      title: string,
+      parent: string | null = null,
+      current: CurrentUser | null = MEMBER,
+    ): Promise<HTMLElement> {
+      configure(current);
+      TestBed.inject(ScreenTitle).resolve(title, level, parent);
+      const fixture = TestBed.createComponent(App);
+      await fixture.whenStable();
+      return fixture.nativeElement as HTMLElement;
+    }
+
+    it('shows the logo and no title on a brand screen', async () => {
+      const root = await renderAt('brand', 'Start');
+
+      expect(root.querySelector('img.shell-brand')).not.toBeNull();
+      expect(root.querySelector('.shell-title')).toBeNull();
+      expect(root.querySelector('.shell-back')).toBeNull();
+    });
+
+    it('titles a tab screen, with no way back', async () => {
+      const root = await renderAt('tab', 'Zajęcia');
+
+      expect(root.querySelector('h1.shell-title')!.textContent!.trim()).toBe('Zajęcia');
+      expect(root.querySelector('.shell-back')).toBeNull();
+    });
+
+    it('gives a child screen a back button named Wróć beside its title', async () => {
+      const root = await renderAt('child', 'Moje konto', '/more');
+      const back = root.querySelector<HTMLButtonElement>('button.shell-back');
+
+      expect(back).not.toBeNull();
+      expect(back!.getAttribute('aria-label')).toBe('Wróć');
+      expect(root.querySelector('h1.shell-title')!.textContent!.trim()).toBe('Moje konto');
+    });
+
+    it('shows no title while signed out, whatever the route says', async () => {
+      const root = await renderAt('tab', 'Grafik', null, null);
+
+      expect(root.querySelector('.shell-title')).toBeNull();
+    });
   });
 
   it('renders a bar with only Więcej for a blocked account', async () => {

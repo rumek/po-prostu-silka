@@ -1,6 +1,7 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { ActivatedRoute, RouterLink } from '@angular/router';
+import { useScreenTitle } from '../../../core/layout/screen-title';
 import { ExerciseService } from '../../../core/training/exercise.service';
 import { ExerciseSummary } from '../../../core/training/exercise.models';
 import { embedUrl, isVideoId } from '../../../core/training/youtube';
@@ -31,6 +32,9 @@ export class ExerciseDetail implements OnInit {
   private readonly sanitizer = inject(DomSanitizer);
 
   protected readonly exercise = signal<ExerciseSummary | null>(null);
+
+  // The bar names the screen the way its h1 does (mobile-native-feel).
+  protected readonly screenTitleEffect = useScreenTitle(() => this.exercise()?.name ?? null);
 
   protected readonly loading = signal(true);
   protected readonly loadFailed = signal(false);

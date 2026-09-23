@@ -13,7 +13,8 @@ export type IconName =
   | 'clock'
   | 'repeat'
   | 'hantle'
-  | 'members';
+  | 'members'
+  | 'back';
 
 /**
  * The app's icon primitive — the first one this codebase has had.

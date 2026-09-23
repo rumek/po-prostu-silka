@@ -2,7 +2,7 @@
 <html lang="pl">
   <head>
     <meta charset="utf-8" />
-    <title>PoProstu Siłka</title>
+    <title>Po Prostu Siłka</title>
     <base href="/" />
     <!--
       viewport-fit=cover is what makes env(safe-area-inset-*) resolve to a real value on a notched
@@ -19,7 +19,10 @@
       never subscribes on any iPhone — no error, it simply never happens.
     -->
     <link rel="manifest" href="manifest.webmanifest" />
-    <meta name="theme-color" content="#1f2937" />
+    <!-- The app's own --ground (mobile-native-feel): the Android status bar is part of the screen, and
+         a dark slate one over a cream app is the most visible thing that made the PWA look foreign.
+         Mirrored by theme_color in the manifest; the two must agree. -->
+    <meta name="theme-color" content="#f7f3ef" />
     <link rel="apple-touch-icon" href="icons/icon-192.png" />
   </head>
   <body>

@@ -43,6 +43,12 @@
   text-decoration: none;
 }
 
+// The phone's app bar content (mobile-native-feel). Never shown above 30rem: there the screen's own
+// <h1 class="screen-title"> is the heading, and a second one here would duplicate it.
+.shell-bar {
+  display: none;
+}
+
 .shell-nav {
   display: flex;
   align-items: center;
@@ -96,15 +102,91 @@
     // scrolling screen is reachable rather than parked underneath it. The bar occupies one tab's
     // height plus its 1px border-top; --space-5 is breathing room on top of that. The height comes
     // from the shared token precisely so this cannot drift out of step again — it already did once.
-    padding: var(--space-6) var(--space-4)
+    padding: var(--space-5) var(--space-4)
       calc(var(--bottom-nav-tab-height) + 1px + var(--space-5) + env(safe-area-inset-bottom));
   }
 
-  // The links and the logout move to the bar and to /more on a phone; the header keeps the brand.
-  // Kept rather than removed entirely: it is the skip-link's target and the <header> landmark, and in
-  // standalone mode — no address bar — the brand is the only thing telling the member which app this
-  // is.
+  // The links and the logout move to the bar and to /more on a phone.
   .shell-nav {
     display: none;
+  }
+
+  // THE PHONE'S APP BAR (mobile-native-feel). What the header shows on a phone is where the member
+  // is, not which app this is: the brand's phone home is the Start screen, the launcher icon and the
+  // cream status bar (theme_color in the manifest), which is why the logo shows only on a brand
+  // screen. Pinned rather than scrolling away, as a native top bar is.
+  .shell-header {
+    position: sticky;
+    top: 0;
+    z-index: var(--z-app-bar);
+    flex-wrap: nowrap;
+    min-height: calc(var(--app-bar-height) + env(safe-area-inset-top));
+    padding: env(safe-area-inset-top) var(--space-4) 0;
+    background: var(--ground);
+    // A hairline under the bar, drawn only once content has scrolled beneath it — driven by the
+    // scroll position in CSS alone, with no listener. A browser without scroll-driven animations
+    // keeps the hairline on permanently, which is the safe half of the two states.
+    box-shadow: 0 1px 0 var(--line);
+    // Out of the root snapshot for the reason the bottom bar is (S-26, bottom-nav.scss): a pinned
+    // element captured in the page-sized root image lands in the wrong place mid-transition. The
+    // layer is told not to animate in src/styles.scss.
+    view-transition-name: app-bar;
+
+    @supports (animation-timeline: scroll()) {
+      animation: app-bar-lift linear both;
+      animation-timeline: scroll(root);
+      animation-range: 0 var(--space-4);
+    }
+
+    &.is-titled {
+      justify-content: flex-start;
+
+      .shell-brand {
+        display: none;
+      }
+    }
+  }
+
+  .shell-brand {
+    width: 112px;
+  }
+
+  .shell-bar {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    gap: var(--space-1);
+    min-width: 0;
+  }
+
+  // A 44px tap target, pulled left so the arrow's own edge lines up with the content's gutter.
+  .shell-back {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    margin-left: calc(var(--space-3) * -1);
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: none;
+    color: var(--ink);
+    cursor: pointer;
+  }
+
+  .shell-title {
+    margin: 0;
+    overflow: hidden;
+    font-size: 1.5rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+@keyframes app-bar-lift {
+  from {
+    box-shadow: 0 1px 0 transparent;
   }
 }

@@ -12,6 +12,7 @@ import { Members } from './features/admin/members/members';
 import { Login } from './features/auth/login/login';
 import { Register } from './features/auth/register/register';
 import { Dashboard } from './features/dashboard/dashboard';
+import { ScreenData } from './core/layout/screen';
 
 /**
  * Paths stay English while the copy is Polish (S-01 D10): /login already exists and authGuard
@@ -27,12 +28,23 @@ import { Dashboard } from './features/dashboard/dashboard';
  * that works, and what decides whether somebody may train is the karnet.
  */
 export const routes: Routes = [
-  { path: 'login', component: Login },
+  {
+    path: 'login',
+    title: 'Logowanie',
+    data: { level: 'brand' } satisfies ScreenData,
+    component: Login,
+  },
   // GUARDED SINCE S-17, and it is the only anonymous route that is. Registration stopped being a
   // public door: /register is reachable only with an ?invitationCode= the club handed over, and
   // nothing in the app links to it. invitationGuard checks that a code is PRESENT, never that it is
   // valid — that answer belongs to the API, and asking for it first would be a code oracle.
-  { path: 'register', component: Register, canActivate: [invitationGuard] },
+  {
+    path: 'register',
+    title: 'Załóż konto',
+    data: { level: 'brand' } satisfies ScreenData,
+    component: Register,
+    canActivate: [invitationGuard],
+  },
   // The pre-login recovery flow (S-13). GUARD-FREE, like login — a visitor who cannot sign in is
   // exactly who these are for, and authGuard would bounce them to /login, which is the screen they
   // just failed at. Register used to be grouped here and no longer is; see above.
@@ -42,11 +54,15 @@ export const routes: Routes = [
   // Identity's tokens contain characters a path segment mangles.
   {
     path: 'forgot-password',
+    title: 'Nie pamiętasz hasła?',
+    data: { level: 'brand' } satisfies ScreenData,
     loadComponent: () =>
       import('./features/auth/forgot-password/forgot-password').then((m) => m.ForgotPassword),
   },
   {
     path: 'reset-password',
+    title: 'Ustaw nowe hasło',
+    data: { level: 'brand' } satisfies ScreenData,
     loadComponent: () =>
       import('./features/auth/reset-password/reset-password').then((m) => m.ResetPassword),
   },
@@ -54,13 +70,27 @@ export const routes: Routes = [
   // chunk here would put a network round trip between signing in and seeing anything — the one place
   // in the app where that cost is paid by everyone, every visit. The 500 kB budget in angular.json is
   // what governs whether it stays that way.
-  { path: '', component: Dashboard, canActivate: [authGuard, activeMemberGuard] },
-  { path: 'admin/members', component: Members, canActivate: [authGuard, adminGuard] },
+  {
+    path: '',
+    title: 'Start',
+    data: { level: 'brand' } satisfies ScreenData,
+    component: Dashboard,
+    canActivate: [authGuard, activeMemberGuard],
+  },
+  {
+    path: 'admin/members',
+    title: 'Członkowie',
+    data: { level: 'tab' } satisfies ScreenData,
+    component: Members,
+    canActivate: [authGuard, adminGuard],
+  },
   // 'new' BEFORE ':id', or the literal would be matched as an id and the form would try to load a
   // member called "new". Lazy, like every admin form: only an admin creating or editing a record
   // ever downloads it.
   {
     path: 'admin/members/new',
+    title: 'Nowy członek',
+    data: { level: 'child', parent: '/admin/members' } satisfies ScreenData,
     loadComponent: () => import('./features/admin/members/member-form').then((m) => m.MemberForm),
     canActivate: [authGuard, adminGuard],
   },
@@ -69,6 +99,8 @@ export const routes: Routes = [
   // rule as 'new' above.
   {
     path: 'admin/members/:id/passes',
+    title: 'Karnety',
+    data: { level: 'child', parent: '/admin/members' } satisfies ScreenData,
     loadComponent: () =>
       import('./features/admin/members/member-passes').then((m) => m.MemberPasses),
     canActivate: [authGuard, adminGuard],
@@ -81,12 +113,15 @@ export const routes: Routes = [
   // the builder's own chunk and nowhere else.
   {
     path: 'admin/members/:id/plan',
+    title: 'Plan',
+    data: { level: 'child', parent: '/admin/members' } satisfies ScreenData,
     loadComponent: () => import('./features/trainer/plans/plan-builder').then((m) => m.PlanBuilder),
     canActivate: [authGuard, adminGuard],
-    data: { membersLink: '/admin/members' },
   },
   {
     path: 'admin/members/:id',
+    title: 'Edytuj członka',
+    data: { level: 'child', parent: '/admin/members' } satisfies ScreenData,
     loadComponent: () => import('./features/admin/members/member-form').then((m) => m.MemberForm),
     canActivate: [authGuard, adminGuard],
   },
@@ -99,6 +134,8 @@ export const routes: Routes = [
   // only the classes they instruct (narrowed on the server), an admin every class.
   {
     path: 'schedule',
+    title: 'Grafik',
+    data: { level: 'tab' } satisfies ScreenData,
     loadComponent: () => import('./features/schedule/schedule').then((m) => m.Schedule),
     canActivate: [authGuard, staffGuard],
   },
@@ -107,45 +144,87 @@ export const routes: Routes = [
   // memberGuard (S-25): staff are never booked as participants, and /api/bookings/mine refuses them.
   {
     path: 'my-classes',
+    title: 'Zajęcia',
+    data: { level: 'tab' } satisfies ScreenData,
     loadComponent: () => import('./features/my-classes/my-classes').then((m) => m.MyClasses),
     canActivate: [authGuard, memberGuard],
   },
   {
     path: 'admin/classes',
+    title: 'Grafik',
+    data: { level: 'tab' } satisfies ScreenData,
     loadComponent: () => import('./features/admin/classes/classes').then((m) => m.Classes),
     canActivate: [authGuard, adminGuard],
   },
   // 'new' MUST precede ':id', or the literal segment is swallowed by the parameter.
-  { path: 'admin/classes/new', component: ClassForm, canActivate: [authGuard, adminGuard] },
-  { path: 'admin/classes/:id', component: ClassForm, canActivate: [authGuard, adminGuard] },
-  { path: 'admin/class-types', component: ClassTypes, canActivate: [authGuard, adminGuard] },
+  {
+    path: 'admin/classes/new',
+    title: 'Nowe zajęcia',
+    data: { level: 'child', parent: '/admin/classes' } satisfies ScreenData,
+    component: ClassForm,
+    canActivate: [authGuard, adminGuard],
+  },
+  {
+    path: 'admin/classes/:id',
+    title: 'Edytuj zajęcia',
+    data: { level: 'child', parent: '/admin/classes' } satisfies ScreenData,
+    component: ClassForm,
+    canActivate: [authGuard, adminGuard],
+  },
+  {
+    path: 'admin/class-types',
+    title: 'Typy zajęć',
+    data: { level: 'tab' } satisfies ScreenData,
+    component: ClassTypes,
+    canActivate: [authGuard, adminGuard],
+  },
   // 'new' MUST precede ':id' here too, or the literal segment is swallowed by the parameter.
-  { path: 'admin/class-types/new', component: ClassTypeForm, canActivate: [authGuard, adminGuard] },
-  { path: 'admin/class-types/:id', component: ClassTypeForm, canActivate: [authGuard, adminGuard] },
+  {
+    path: 'admin/class-types/new',
+    title: 'Nowy typ zajęć',
+    data: { level: 'child', parent: '/admin/class-types' } satisfies ScreenData,
+    component: ClassTypeForm,
+    canActivate: [authGuard, adminGuard],
+  },
+  {
+    path: 'admin/class-types/:id',
+    title: 'Edytuj typ zajęć',
+    data: { level: 'child', parent: '/admin/class-types' } satisfies ScreenData,
+    component: ClassTypeForm,
+    canActivate: [authGuard, adminGuard],
+  },
   // S-10's exercise library. LAZY, and not for the reason the two routes above are: these screens
   // pull in nothing heavy. Eagerly loaded they still cost ~28 kB, which took the initial bundle from
   // 475 kB to 502.88 kB - past the 500 kB budget in angular.json, so `npm run build` started warning.
   // Lazy chunks keep the budget green and cost nothing an admin will notice.
   {
     path: 'admin/exercises',
+    title: 'Ćwiczenia',
+    data: { level: 'tab' } satisfies ScreenData,
     loadComponent: () => import('./features/admin/exercises/exercises').then((m) => m.Exercises),
     canActivate: [authGuard, adminGuard],
   },
   // 'new' MUST precede ':id' here too, or the literal segment is swallowed by the parameter.
   {
     path: 'admin/exercises/new',
+    title: 'Nowe ćwiczenie',
+    data: { level: 'child', parent: '/admin/exercises' } satisfies ScreenData,
     loadComponent: () =>
       import('./features/admin/exercises/exercise-form').then((m) => m.ExerciseForm),
     canActivate: [authGuard, adminGuard],
   },
   {
     path: 'admin/exercises/:id/edit',
+    title: 'Edytuj ćwiczenie',
+    data: { level: 'child', parent: '/admin/exercises' } satisfies ScreenData,
     loadComponent: () =>
       import('./features/admin/exercises/exercise-form').then((m) => m.ExerciseForm),
     canActivate: [authGuard, adminGuard],
   },
   {
     path: 'admin/exercises/:id',
+    title: 'Ćwiczenie',
+    data: { level: 'child', parent: '/admin/exercises' } satisfies ScreenData,
     loadComponent: () =>
       import('./features/admin/exercises/exercise-detail').then((m) => m.ExerciseDetail),
     canActivate: [authGuard, adminGuard],
@@ -155,6 +234,8 @@ export const routes: Routes = [
   // budget. BEFORE ':id/plan', by the literal-before-parameter habit.
   {
     path: 'trainer/members',
+    title: 'Członkowie',
+    data: { level: 'tab' } satisfies ScreenData,
     loadComponent: () =>
       import('./features/trainer/members/trainer-members').then((m) => m.TrainerMembers),
     canActivate: [authGuard, trainerGuard],
@@ -164,20 +245,25 @@ export const routes: Routes = [
   // LAZY, so @angular/cdk's drag-drop stays in the builder's own chunk and nowhere else.
   {
     path: 'trainer/members/:id/plan',
+    title: 'Plan',
+    data: { level: 'child', parent: '/trainer/members' } satisfies ScreenData,
     loadComponent: () => import('./features/trainer/plans/plan-builder').then((m) => m.PlanBuilder),
     canActivate: [authGuard, trainerGuard],
-    data: { membersLink: '/trainer/members' },
   },
   // The member's own plan. memberGuard since S-25, which reversed "every approved account has a plan
   // surface, the trainer's own included": trainers and admins hold no plan, and the API applies
   // MemberOnly at this group.
   {
     path: 'my-plan',
+    title: 'Plan',
+    data: { level: 'tab' } satisfies ScreenData,
     loadComponent: () => import('./features/my-plan/my-plan').then((m) => m.MyPlan),
     canActivate: [authGuard, memberGuard],
   },
   {
     path: 'my-plan/exercises/:id',
+    title: 'Ćwiczenie',
+    data: { level: 'child', parent: '/my-plan' } satisfies ScreenData,
     loadComponent: () =>
       import('./features/my-plan/plan-exercise-detail').then((m) => m.PlanExerciseDetail),
     canActivate: [authGuard, memberGuard],
@@ -190,6 +276,8 @@ export const routes: Routes = [
   // and a screen most members open twice has no business in it.
   {
     path: 'profile',
+    title: 'Moje konto',
+    data: { level: 'child', parent: '/more' } satisfies ScreenData,
     loadComponent: () => import('./features/profile/profile').then((m) => m.Profile),
     canActivate: [authGuard],
   },
@@ -201,6 +289,8 @@ export const routes: Routes = [
   // has no business in it.
   {
     path: 'more',
+    title: 'Więcej',
+    data: { level: 'tab' } satisfies ScreenData,
     loadComponent: () => import('./features/more/more').then((m) => m.More),
     canActivate: [authGuard],
   },

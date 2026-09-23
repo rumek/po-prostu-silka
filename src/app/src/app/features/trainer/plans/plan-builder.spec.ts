@@ -105,7 +105,7 @@ describe('PlanBuilder', () => {
           provide: ActivatedRoute,
           useValue: {
             paramMap: params,
-            snapshot: { data: { membersLink } },
+            snapshot: { data: { parent: membersLink } },
           },
         },
       ],

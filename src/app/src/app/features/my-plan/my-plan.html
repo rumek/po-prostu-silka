@@ -1,3 +1,7 @@
+<!-- The screen's name, not the plan's (mobile-native-feel): on a phone the app bar says "Plan" and
+     this hides; on a desktop it is the heading in every state. The plan's own name is the h2 below. -->
+<h1 class="screen-title">Mój plan</h1>
+
 @if (loading()) {
   <app-loading />
 } @else if (loadFailed()) {
@@ -10,6 +14,7 @@
   </p>
 } @else if (plan(); as row) {
   <app-plan-summary
+    headingLevel="h2"
     [name]="row.name"
     [assignedByDisplayName]="row.assignedByDisplayName"
     [createdAt]="row.createdAt"
@@ -88,7 +93,6 @@
 } @else {
   <!-- NOT an error. A member without a plan has nothing to retry, so there is no retry button and
        no alert styling — just what is true and who to ask. -->
-  <h1>Mój plan</h1>
   <div class="card">
     <app-empty>
       Nie masz jeszcze przypisanego planu treningowego. Poproś trenera, żeby Ci go ułożył.

@@ -1,7 +1,22 @@
 <a class="skip-link" href="#main">Przejdź do treści</a>
 
-<header class="shell-header">
+<header class="shell-header" [class.is-titled]="titled()">
   <img src="logo.png" alt="Po Prostu Siłka Logo" class="shell-brand" routerLink="/" />
+
+  <!-- The phone's app bar (mobile-native-feel): the screen's name, and on a child screen the way up.
+       Rendered only for a signed-in, non-brand screen, and shown only at 30rem and below — on a
+       desktop the screen's own <h1 class="screen-title"> is the heading and this stays hidden, so
+       exactly one h1 is displayed at any width. -->
+  @if (titled()) {
+    <div class="shell-bar">
+      @if (screen.level() === 'child') {
+        <button type="button" class="shell-back" aria-label="Wróć" (click)="up()">
+          <app-icon name="back" />
+        </button>
+      }
+      <h1 class="shell-title">{{ screen.title() }}</h1>
+    </div>
+  }
 
   @if (auth.isAuthenticated()) {
     <nav class="shell-nav">

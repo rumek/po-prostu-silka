@@ -2,6 +2,7 @@ import { DatePipe } from '@angular/common';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
+import { useScreenTitle } from '../../../core/layout/screen-title';
 import { MemberAdminService } from '../../../core/admin/member-admin.service';
 import {
   IssuePassRequest,
@@ -65,6 +66,11 @@ export class MemberPasses implements OnInit {
 
   protected readonly memberId = signal<string>('');
   protected readonly member = signal<MemberDetail | null>(null);
+
+  // The bar names the screen the way its h1 does (mobile-native-feel).
+  protected readonly screenTitleEffect = useScreenTitle(() =>
+    this.member() ? `Karnety — ${this.member()!.displayName}` : null,
+  );
 
   protected readonly passes = signal<MembershipPassView[]>([]);
   protected readonly state = createFormState();

@@ -5,8 +5,10 @@ import { personaOf } from './core/auth/persona';
 import { DESK_MEDIA_QUERY } from './core/layout/breakpoints';
 import { mediaQuerySignal } from './core/layout/media-query';
 import { navigationFor } from './core/layout/navigation';
+import { ScreenTitle } from './core/layout/screen-title';
 import { PushPrompt } from './features/notifications/push-prompt';
 import { BottomNav } from './shared/bottom-nav/bottom-nav';
+import { Icon } from './shared/icons/icon';
 import { ToastHost } from './shared/toast/toast-host';
 
 /**
@@ -20,9 +22,13 @@ import { ToastHost } from './shared/toast/toast-host';
  * signal lives here, not in the table, so the table stays pure data — it decides only where the
  * admin's Grafik points. Its fallback is `true`, as for the calendar's own desk check: with no
  * viewport to measure (server, jsdom), the admin's Grafik is the management calendar.
+ *
+ * THE PHONE'S APP BAR READS `ScreenTitle` (mobile-native-feel): the route table names every screen
+ * and says how deep it sits, so the bar shows the logo on a brand screen, the title on a tab, and a
+ * back arrow plus the title on a child.
  */
 @Component({
-  imports: [BottomNav, PushPrompt, RouterOutlet, RouterLink, RouterLinkActive, ToastHost],
+  imports: [BottomNav, Icon, PushPrompt, RouterOutlet, RouterLink, RouterLinkActive, ToastHost],
   selector: 'app-root',
   styleUrl: './app.scss',
   templateUrl: './app.html',
@@ -34,6 +40,17 @@ export class App {
   private readonly desk = mediaQuerySignal(DESK_MEDIA_QUERY, true);
 
   protected readonly nav = computed(() => navigationFor(personaOf(this.auth.user()), this.desk()));
+
+  protected readonly screen = inject(ScreenTitle);
+
+  /** Signed out, the header is the logo whatever the route says — there is no app to be inside yet. */
+  protected readonly titled = computed(
+    () => this.auth.isAuthenticated() && this.screen.level() !== 'brand' && !!this.screen.title(),
+  );
+
+  protected up(): void {
+    void this.router.navigateByUrl(this.screen.parent() ?? '/');
+  }
 
   protected async logout(): Promise<void> {
     await this.auth.logout();

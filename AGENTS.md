@@ -50,7 +50,7 @@ Backend, from the repo root: `dotnet build po-prostu-silka.slnx`, `dotnet run --
 Frontend, from `src/app/` (npm 11, pinned via `packageManager`): `npm start` (dev server), `npm test` (unit tests via Vitest), `npm run quality:check` / `quality:fix` (Prettier + ESLint — run `quality:check` before committing frontend changes).
 
 - **Node 22+ is required** — the Angular CLI refuses to start below it. If `npm` commands fail with a version complaint, the shell is on an older default; select a newer Node for the command rather than switching the machine's global version.
-- **The initial-bundle warning in `angular.json` is 600 kB** (error at 1 MB) — raised from 550 kB in S-23, and from 500 kB in S-12 before that. The S-12 figure was an estimate rather than a measured constraint, and the dashboard at `/` is deliberately eager — a lazy landing route would put a round trip between signing in and seeing anything, for every member, every visit. Keep routes lazy by default anyway: everything except `login`, `register`, `pending` and `/` is, and that is what has kept the eager bundle viable. The S-23 raise came before the kit's components landed in the eager screens rather than after measuring them — a deliberate call, and one that repeats the 500→550 pattern this paragraph warns about: at 86 kB of slack over the last measurement the budget warns about nothing until a large regression. **Measured at 525.25 kB after S-26**, from 513.90 kB after S-23 — the 11.35 kB is the router's `withViewTransitions`, the whole cost of the routed-screen slide. From 512.42 kB after S-19 and 509.68 kB at that slice's midpoint — the whole six-component kit cost 1.48 kB. At S-19: the toast host and `@angular/cdk/a11y`'s `LiveAnnouncer` are the first CDK code in the eager chunk and cost roughly 3 kB between them — `cdk/overlay` was declined partly for this reason. The number is recorded because it was measured, not because it became a problem.
+- **The initial-bundle warning in `angular.json` is 600 kB** (error at 1 MB) — raised from 550 kB in S-23, and from 500 kB in S-12 before that. The S-12 figure was an estimate rather than a measured constraint, and the dashboard at `/` is deliberately eager — a lazy landing route would put a round trip between signing in and seeing anything, for every member, every visit. Keep routes lazy by default anyway: everything except `login`, `register`, `pending` and `/` is, and that is what has kept the eager bundle viable. The S-23 raise came before the kit's components landed in the eager screens rather than after measuring them — a deliberate call, and one that repeats the 500→550 pattern this paragraph warns about: at 86 kB of slack over the last measurement the budget warns about nothing until a large regression. **Measured at 530.82 kB after mobile-native-feel phase 1** — the 5.57 kB is the phone app bar, the `ScreenTitle` service and title strategy, one icon, and every route's title. From 525.25 kB after S-26, and 513.90 kB after S-23 — the 11.35 kB is the router's `withViewTransitions`, the whole cost of the routed-screen slide. From 512.42 kB after S-19 and 509.68 kB at that slice's midpoint — the whole six-component kit cost 1.48 kB. At S-19: the toast host and `@angular/cdk/a11y`'s `LiveAnnouncer` are the first CDK code in the eager chunk and cost roughly 3 kB between them — `cdk/overlay` was declined partly for this reason. The number is recorded because it was measured, not because it became a problem.
 
 ## Style
 
@@ -80,6 +80,20 @@ recognised role, has no persona and sees only Moje konto and logout.
   holding Trainer or Admin is refused with `member_is_staff`; "is staff" has one Infrastructure
   definition (`StaffPredicate`). Granting Trainer to a member who already holds such data stays
   allowed — the data just becomes invisible to them.
+
+### Screen identity (mobile-native-feel)
+
+Every route in `app.routes.ts` declares a Polish `title` and `data: { level, parent? }` —
+`'brand'` (Start, signed-out screens), `'tab'` (a menu destination) or `'child'` (reached from a
+tab; `parent` is the URL "up" returns to). `ScreenTitleStrategy` publishes them to `ScreenTitle`
+(`core/layout/screen-title.ts`), which the phone's pinned app bar and `document.title` read. A screen
+whose name depends on its data calls `useScreenTitle(() => …)` with its `h1`'s expression.
+`app.routes.spec.ts` fails a route without an identity, and a menu label that differs from its
+route's title.
+
+A signed-in screen's `h1` carries `class="screen-title"` and an in-content link to its parent
+carries `up-link`: both hide on a phone, where the bar says the same thing. The dashboard greeting
+and the signed-out screens keep their `h1` everywhere.
 
 ### How a failure reaches the user (S-19)
 
@@ -112,10 +126,11 @@ table. `classifyFailure` in `core/http/failure.ts` is what tells them apart; not
 `.error.reason` by hand. A 409 is **not** a transport kind — it always carries a `reason`, so it
 is a business refusal like any other.
 
-`z-index` values for surfaces that resolve at the **document root** — the skip link, the bottom
-nav, the overlays, the toast — come from the `--z-*` scale in `src/styles.scss`; never write a
-literal for one of those. Neither `App`'s `:host` nor `.shell-main` opens a stacking context, so
-those four surfaces all stack against each other and the four numbers only work as a set.
+`z-index` values for surfaces that resolve at the **document root** — the skip link, the phone's
+pinned app bar, the bottom nav, the overlays, the toast — come from the `--z-*` scale in
+`src/styles.scss`; never write a literal for one of those. Neither `App`'s `:host` nor `.shell-main`
+opens a stacking context, so those five surfaces all stack against each other and the five numbers
+only work as a set.
 A `z-index` that is local to its own positioned ancestor is outside the scale and stays a literal
 — `schedule-calendar.scss` is the one such case, where absolutely-positioned overlays stack
 within a single calendar tile.

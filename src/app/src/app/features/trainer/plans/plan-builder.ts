@@ -15,6 +15,7 @@ import {
   Validators,
 } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
+import { useScreenTitle } from '../../../core/layout/screen-title';
 import { ExerciseService } from '../../../core/training/exercise.service';
 import { ExerciseSummary } from '../../../core/training/exercise.models';
 import { TrainingPlanService } from '../../../core/training/training-plan.service';
@@ -168,9 +169,14 @@ export class PlanBuilder implements OnInit {
    */
   protected readonly member = signal<AssignableMember | null>(null);
 
-  /** Where "back" goes — the list this mount was reached from, named by the route data. */
+  // The bar names the screen the way its h1 does (mobile-native-feel).
+  protected readonly screenTitleEffect = useScreenTitle(() =>
+    this.member() ? `Plan — ${this.member()!.displayName}` : null,
+  );
+
+  /** Where "back" goes — the list this mount was reached from: the route's screen parent. */
   protected readonly membersLink: string =
-    (this.route.snapshot.data['membersLink'] as string | undefined) ?? '/';
+    (this.route.snapshot.data['parent'] as string | undefined) ?? '/';
 
   /** The exercise library, ACTIVE ONLY — a retired exercise must not be prescribed anew. */
   protected readonly library = signal<ExerciseSummary[]>([]);

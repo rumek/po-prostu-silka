@@ -10,6 +10,8 @@
 // component stylesheet.
 // =============================================================================
 
+@use 'breakpoints' as bp;
+
 // -----------------------------------------------------------------------------
 // Fonts, self-hosted.
 //
@@ -124,6 +126,10 @@
   // bar went icon-only.
   --bottom-nav-tab-height: 52px;
 
+  // Height of the phone's pinned app bar (mobile-native-feel), below the status-bar inset. Material's
+  // top app bar height; global for the same reason as the tab height above.
+  --app-bar-height: 56px;
+
   // -----------------------------------------------------------------------------
   // The stacking scale (S-19).
   //
@@ -137,8 +143,15 @@
   // of coordination already failed once on a different number.
   // -----------------------------------------------------------------------------
 
-  --z-skip-link: 1;
+  // The phone's pinned app bar (mobile-native-feel) sits above scrolling page content — including
+  // anything a screen positions with a local literal — and below the overlays, which must cover it.
+  // It never overlaps the bottom bar, so their order between themselves is moot.
+  --z-app-bar: 4;
   --z-bottom-nav: 5;
+  // Above the app bar: the skip link surfaces at the top of the viewport, exactly where the pinned
+  // bar sits, and a skip link painted under it is one a keyboard user cannot see. It was 1 before the
+  // bar existed.
+  --z-skip-link: 6;
   --z-overlay: 10;
   // Above the overlays on purpose: an action taken INSIDE an open overlay has to be able to report
   // its own failure, and a toast behind the panel that triggered it is a toast nobody reads.
@@ -450,6 +463,30 @@ a {
 }
 
 // -----------------------------------------------------------------------------
+// The screen's own heading and "up" link, on a phone (mobile-native-feel).
+//
+// On a phone the shell's pinned app bar names the screen and carries the back arrow, so the screen's
+// in-content h1 and its "Wróć…" link would say the same thing a second time. Global rather than in
+// each screen's stylesheet for the .page-header reason: the classes are written by twenty screens.
+//
+// - `.screen-title` — every signed-in screen's h1, except the dashboard's greeting (Start keeps the
+//   logo bar, so the greeting stays its heading) and the signed-out screens (no titled bar).
+// - `.up-link` — an in-content link back to the screen's parent that the bar's arrow replaces.
+// -----------------------------------------------------------------------------
+
+@include bp.narrow {
+  .screen-title,
+  .up-link {
+    display: none;
+  }
+
+  // A header left holding only what just hid would still take its margins.
+  .page-header:not(:has(> :not(.screen-title, .up-link))) {
+    display: none;
+  }
+}
+
+// -----------------------------------------------------------------------------
 // Overlay chrome (S-19, CS-06).
 //
 // The fourth uncatalogued triplet: class-details-overlay, class-bookings-overlay and
@@ -700,21 +737,24 @@ a {
   opacity: 0;
 }
 
-// The two fixed layers sit outside the root snapshot (see bottom-nav.scss and toast-host.scss) and
+// The pinned layers sit outside the root snapshot (see app.scss, bottom-nav.scss and toast-host.scss) and
 // take no part in the transition: no fade, no slide, no snapshot geometry of their own. Only the new
 // — live — layer is shown, which is what lets the bar's own pill animation run while a screen slides
 // underneath it.
+::view-transition-group(app-bar),
 ::view-transition-group(bottom-nav),
 ::view-transition-group(toast-host) {
   animation: none;
 }
 
+::view-transition-old(app-bar),
 ::view-transition-old(bottom-nav),
 ::view-transition-old(toast-host) {
   animation: none;
   opacity: 0;
 }
 
+::view-transition-new(app-bar),
 ::view-transition-new(bottom-nav),
 ::view-transition-new(toast-host) {
   animation: none;

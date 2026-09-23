@@ -1,7 +1,7 @@
 <!-- The member-passes header shape (S-16): whose plan this is IS the title, because the member is
      fixed by the URL and there is no picker left to say it. -->
 <div class="panel">
-  <h1>Plan{{ member() ? ' — ' + member()!.displayName : '' }}</h1>
+  <h1 class="screen-title">Plan{{ member() ? ' — ' + member()!.displayName : '' }}</h1>
 
   @if (member(); as shown) {
     @if (!shown.hasAccount) {
@@ -11,7 +11,7 @@
     }
   }
 
-  <p class="builder-back">
+  <p class="builder-back up-link">
     <a class="link-button" [routerLink]="membersLink">Wróć do listy członków</a>
   </p>
 </div>
