@@ -18,12 +18,18 @@ public static class CancelClass
     /// anybody has signed up.
     ///
     /// <para>
-    /// THE CLASS SURVIVES. Status moves to <see cref="ClassStatus.Cancelled"/> and nothing else is
-    /// touched: every booking row stays <c>Active</c>, because cancellation is a state of the CLASS
-    /// and cascading it onto the bookings would record that the MEMBER cancelled, which is false and
-    /// would be the club's own attendance history rewritten. Visibility is driven by the class's
-    /// status instead — the member schedule already filters on it, and S-09 phase 2 adds the same
-    /// filter to "Moje zajęcia".
+    /// THE CLASS SURVIVES. Status moves to <see cref="ClassStatus.Cancelled"/> and every booking row
+    /// stays <c>Active</c>, because cancellation is a state of the CLASS and cascading it onto the
+    /// bookings would record that the MEMBER cancelled, which is false and would be the club's own
+    /// attendance history rewritten. Visibility is driven by the class's status instead — the member
+    /// schedule already filters on it, and S-09 phase 2 adds the same filter to "Moje zajęcia".
+    /// </para>
+    ///
+    /// <para>
+    /// WHAT CHANGES IS WHAT THE ROWS COST (S-27, Open Roadmap Question 7). Nobody attends a cancelled
+    /// class, so its bookings stop consuming karnet entries — EntryConsumption reads the class's
+    /// status. That returns entries, so every distinct pass those bookings carry has its stamp rotated
+    /// in the same save, exactly as a release does.
     /// </para>
     ///
     /// <para>
@@ -47,6 +53,7 @@ public static class CancelClass
         Guid id,
         IClassStore store,
         IBookingQuery bookings,
+        IBookingStore bookingStore,
         IClassChangeNotification notification,
         IUnitOfWork unitOfWork,
         TimeProvider timeProvider,
@@ -87,6 +94,10 @@ public static class CancelClass
         // both believe they won: a member holding a confirmed spot on a cancelled class, and a
         // message that went out before their booking existed.
         existing.ConcurrencyStamp = Guid.NewGuid().ToString();
+
+        // The entries come back (S-27): see the doc comment. A booker racing this cancel on the same
+        // karnet loses on the pass stamp and re-reads a pool that is no longer mid-change.
+        await bookingStore.RotatePassStampsForClassAsync(id, cancellationToken);
 
         await notification.NotifyCancelledAsync(
             new ClassDescription(

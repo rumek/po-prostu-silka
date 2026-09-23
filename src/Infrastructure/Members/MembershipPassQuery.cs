@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using po_prostu_silka.Application.Members;
 using po_prostu_silka.Domain.Scheduling;
 using po_prostu_silka.Infrastructure.Persistence;
+using po_prostu_silka.Infrastructure.Scheduling;
 
 namespace po_prostu_silka.Infrastructure.Members;
 
@@ -10,7 +11,8 @@ namespace po_prostu_silka.Infrastructure.Members;
 /// single-pass lookup the booking gate consults.
 ///
 /// <para>
-/// ENTRIES USED IS A CORRELATED SUBQUERY over active bookings, not a collection navigation. The same
+/// ENTRIES USED IS A CORRELATED SUBQUERY over the bookings that still consume an entry
+/// (<see cref="EntryConsumption"/>, S-27), not a collection navigation. The same
 /// technique the booking surface uses to count a class's occupied spots, and for the same reason
 /// <see cref="Domain.Scheduling.Booking"/> spells out: a collection on the aggregate invites a write
 /// path to count through it, and the subquery produces the same single SQL statement without the
@@ -47,8 +49,9 @@ public class MembershipPassQuery(AppDbContext db, TimeProvider timeProvider) : I
                 p.ValidTo,
                 p.EntryCount,
                 p.IssuedAt,
-                EntriesUsed = db.Bookings.Count(b =>
-                    b.MembershipPassId == p.Id && b.Status == BookingStatus.Active),
+                EntriesUsed = db.Bookings
+                    .Where(EntryConsumption.ConsumesAnEntry)
+                    .Count(b => b.MembershipPassId == p.Id),
             })
             .ToListAsync(cancellationToken);
 
@@ -90,8 +93,9 @@ public class MembershipPassQuery(AppDbContext db, TimeProvider timeProvider) : I
                 p.ValidTo,
                 p.EntryCount,
                 p.IssuedAt,
-                EntriesUsed = db.Bookings.Count(b =>
-                    b.MembershipPassId == p.Id && b.Status == BookingStatus.Active),
+                EntriesUsed = db.Bookings
+                    .Where(EntryConsumption.ConsumesAnEntry)
+                    .Count(b => b.MembershipPassId == p.Id),
             })
             .FirstOrDefaultAsync(cancellationToken);
 

@@ -41,11 +41,36 @@ public class BookingStore(AppDbContext db, IMembershipPassStore passes) : IBooki
         db.Bookings.CountAsync(
             b => b.ClassId == classId && b.Status == BookingStatus.Active, cancellationToken);
 
-    public Task<int> CountActiveForPassAsync(Guid passId, CancellationToken cancellationToken) =>
+    public Task<int> CountConsumingForPassAsync(Guid passId, CancellationToken cancellationToken) =>
         // Seeks IX_Bookings_MembershipPassId_Status, which exists for this query specifically - it
-        // runs inside the booking retry loop, on every attempt.
-        db.Bookings.CountAsync(
+        // runs inside the booking retry loop, on every attempt. The join to Classes that
+        // EntryConsumption adds is not covered by the index; a pass holds tens of rows, so it is not
+        // worth one.
+        db.Bookings
+            .Where(b => b.MembershipPassId == passId)
+            .CountAsync(EntryConsumption.ConsumesAnEntry, cancellationToken);
+
+    public Task<bool> AnyActiveForPassAsync(Guid passId, CancellationToken cancellationToken) =>
+        db.Bookings.AnyAsync(
             b => b.MembershipPassId == passId && b.Status == BookingStatus.Active, cancellationToken);
+
+    public async Task RotatePassStampsForClassAsync(Guid classId, CancellationToken cancellationToken)
+    {
+        // The same shape as the block cascade below: distinct pass ids, loaded through the store that
+        // owns loading passes, one rotation per pool rather than one per booking.
+        var passIds = await db.Bookings
+            .Where(b => b.ClassId == classId
+                        && b.Status == BookingStatus.Active
+                        && b.MembershipPassId != null)
+            .Select(b => b.MembershipPassId!.Value)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        foreach (var pass in await passes.FindManyAsync(passIds, cancellationToken))
+        {
+            pass.ConcurrencyStamp = Guid.NewGuid().ToString();
+        }
+    }
 
     public Task<bool> HasAnyAsync(Guid classId, CancellationToken cancellationToken) =>
         db.Bookings.AnyAsync(b => b.ClassId == classId, cancellationToken);

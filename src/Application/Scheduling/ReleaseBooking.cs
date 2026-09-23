@@ -24,6 +24,11 @@ public static class ReleaseBooking
     /// </para>
     ///
     /// <para>
+    /// BEFORE THE START ONLY (S-27). A no-show is recorded as absence on the roster, which returns the
+    /// entry and keeps the booking in the member's history.
+    /// </para>
+    ///
+    /// <para>
     /// Rotates the class stamp and retries exactly like the member's cancel, so an admin releasing a
     /// spot and a member claiming it cannot both win. 204 rather than the class, because the admin
     /// screen is a list of people and reloads that list rather than a tile.
@@ -72,8 +77,17 @@ public static class ReleaseBooking
                 return Results.NotFound();
             }
 
+            // AT OR AFTER the start, the booking path's rule and reason (S-27). Once a class has
+            // begun, "Nieobecny" is the honest record of a no-show; a release would erase the booking
+            // from the member's history instead.
+            var now = timeProvider.GetUtcNow();
+            if (entity.StartsAt <= now)
+            {
+                return BookingProtocol.Refuse("class_started");
+            }
+
             booking.Status = BookingStatus.Cancelled;
-            booking.CancelledAt = timeProvider.GetUtcNow();
+            booking.CancelledAt = now;
 
             entity.ConcurrencyStamp = Guid.NewGuid().ToString();
             await BookingProtocol.ReturnEntryAsync(booking, passes, cancellationToken);

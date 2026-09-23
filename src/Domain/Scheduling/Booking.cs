@@ -63,7 +63,9 @@ public class Booking
     ///
     /// <para>
     /// THIS IS WHAT KEEPS THE DERIVED ENTRY COUNT STABLE. Entries left on a pass is the issued count
-    /// minus the number of ACTIVE bookings carrying that pass's id — so it is attribution, recorded at
+    /// minus the number of bookings carrying that pass's id that still CONSUME an entry — active, on a
+    /// class that was not cancelled, and not marked absent (S-27, AT-03 amends MP-06; the one
+    /// definition is EntryConsumption in Infrastructure) — so it is attribution, recorded at
     /// the moment of booking, rather than a re-derivation from dates. Without it, editing a pass's
     /// validity range would silently move history between passes: a booking would stop being paid for
     /// by the pass that actually covered it and start counting against whichever pass happens to cover
@@ -99,4 +101,20 @@ public class Booking
     /// history to be readable, not merely present.
     /// </summary>
     public DateTimeOffset? CancelledAt { get; set; }
+
+    /// <summary>
+    /// Whether the member came, or null while nobody has recorded it (S-27). Only meaningful once the
+    /// class has started; the marking endpoint refuses earlier. Null counts as spent — see
+    /// <see cref="BookingAttendance"/>.
+    /// </summary>
+    public BookingAttendance? Attendance { get; set; }
+
+    /// <summary>When attendance was last recorded or corrected, or null while it never was.</summary>
+    public DateTimeOffset? AttendanceRecordedAt { get; set; }
+
+    /// <summary>
+    /// The user id of the account that last recorded attendance. NO FOREIGN KEY on purpose: staff may
+    /// have no Member row, and an audit field must survive the account it names.
+    /// </summary>
+    public string? AttendanceRecordedBy { get; set; }
 }

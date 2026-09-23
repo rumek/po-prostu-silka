@@ -130,7 +130,7 @@ public static class BookingProtocol
             // Greater-or-equal for the reason the capacity check is: if the count has somehow passed
             // the issued number the answer is still "none left". Equality would turn a broken
             // invariant into an open door.
-            var entriesUsed = await bookings.CountActiveForPassAsync(pass.Id, cancellationToken);
+            var entriesUsed = await bookings.CountConsumingForPassAsync(pass.Id, cancellationToken);
             if (entriesUsed >= pass.EntryCount)
             {
                 return Refuse("no_entries_left");

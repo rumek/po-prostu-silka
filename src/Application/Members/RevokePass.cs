@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using po_prostu_silka.Application.Persistence;
+using po_prostu_silka.Application.Scheduling;
 using po_prostu_silka.Domain;
 using po_prostu_silka.Domain.Members;
 
@@ -27,7 +28,7 @@ public static class RevokePass
         Guid passId,
         IMemberStore members,
         IMembershipPassStore passes,
-        IMembershipPassQuery query,
+        IBookingStore bookings,
         IUnitOfWork unitOfWork,
         CancellationToken cancellationToken)
     {
@@ -42,9 +43,10 @@ public static class RevokePass
             return Results.NotFound();
         }
 
-        var used = await MembershipPassProjection.EntriesUsedAsync(query, memberId, passId, cancellationToken);
-
-        if (used > 0)
+        // ANY ACTIVE BOOKING, not "entries used" (S-27). A booking marked absent, or one on a
+        // cancelled class, returns its entry but still records which karnet paid — the restrict
+        // foreign key would refuse the delete regardless of what the count says.
+        if (await bookings.AnyActiveForPassAsync(passId, cancellationToken))
         {
             return Results.Json(new MembershipPassFailure("has_active_bookings"), statusCode: 409);
         }

@@ -24,6 +24,14 @@ public class BookingConfiguration : IEntityTypeConfiguration<Booking>
             .HasConversion<int>()
             .HasDefaultValue(BookingStatus.Active);
 
+        // S-27. Nullable int, no default: null is "not recorded", which is what every row that
+        // predates the column means, so the migration needs no backfill.
+        builder.Property(x => x.Attendance).HasConversion<int?>();
+        builder.Property(x => x.AttendanceRecordedAt);
+
+        // The Identity key length. No FK - see Booking.AttendanceRecordedBy.
+        builder.Property(x => x.AttendanceRecordedBy).HasMaxLength(450);
+
         // RESTRICT on both sides, following ClassConfiguration. A cascade here would be the worst
         // failure available: deleting a class or a member would silently erase the evidence that
         // someone had signed up, and the delete of a booked class is refused outright anyway.

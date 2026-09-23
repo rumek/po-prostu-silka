@@ -53,11 +53,13 @@ public interface IBookingStore
     Task<int> CountActiveAsync(Guid classId, CancellationToken cancellationToken);
 
     /// <summary>
-    /// How many entries of this karnet are currently spent (S-16).
+    /// How many entries of this karnet are currently spent or reserved (S-16, S-27).
     ///
     /// <para>
-    /// THERE IS NO STORED COUNTER here either; entries used IS the number of active bookings carrying
-    /// this pass's id. Reading it is only half of an entry check — the other half is rotating
+    /// THERE IS NO STORED COUNTER here either; entries used IS the number of bookings carrying this
+    /// pass's id that still consume an entry — active, on a class that was not cancelled, and not
+    /// marked absent. The one definition of that is EntryConsumption in Infrastructure, shared with
+    /// both read paths so the gate and the displayed balance cannot drift. Reading it is only half of an entry check — the other half is rotating
     /// <see cref="Domain.Members.MembershipPass.ConcurrencyStamp"/> before saving, without which this
     /// number is stale by the time it is acted on. Exactly the shape
     /// <see cref="CountActiveAsync"/> has, one pool up.
@@ -68,7 +70,31 @@ public interface IBookingStore
     /// so it must be a seek.
     /// </para>
     /// </summary>
-    Task<int> CountActiveForPassAsync(Guid passId, CancellationToken cancellationToken);
+    Task<int> CountConsumingForPassAsync(Guid passId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Whether any ACTIVE booking carries this pass's id, whatever its attendance or its class's
+    /// status (S-27).
+    ///
+    /// <para>
+    /// The revoke guard, and deliberately NOT the entries-used count: a booking marked absent returns
+    /// its entry but is still history recording which karnet paid, and the restrict foreign key would
+    /// refuse the delete anyway.
+    /// </para>
+    /// </summary>
+    Task<bool> AnyActiveForPassAsync(Guid passId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Rotates the stamp of every distinct karnet an active booking on this class carries, without
+    /// saving (S-27).
+    ///
+    /// <para>
+    /// For cancelling a class: its bookings stop consuming entries, which makes a booking possible
+    /// that was refused a moment ago — the case <see cref="BookingProtocol.ReturnEntryAsync"/>
+    /// describes, once per pool.
+    /// </para>
+    /// </summary>
+    Task RotatePassStampsForClassAsync(Guid classId, CancellationToken cancellationToken);
 
     /// <summary>
     /// Whether this class has EVER been booked, cancelled bookings included.
