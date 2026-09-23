@@ -51,7 +51,7 @@ function inRange(value: number, min: number, max: number): boolean {
 export class ClassCreateOverlay implements OnInit {
   // Focus enters the panel on open and returns to whatever opened it on close — the half of
   // `role="dialog" aria-modal="true"` these three overlays declared and never did (S-19).
-  private readonly focus = useOverlayFocus();
+  private readonly focus = useOverlayFocus(() => this.close());
 
   private readonly classes = inject(ClassService);
   private readonly classTypes = inject(ClassTypeService);

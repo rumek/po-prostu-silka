@@ -8,13 +8,15 @@
              it must simply AGREE with the visible text, or a voice-control user asking for the tab by
              the word they can see is refused (WCAG 2.5.3). Both read tab.label, so they cannot drift.
              title gives the same name on a long press and on the rare pointer that reaches this bar. -->
+        <!-- A real href rather than routerLink (mobile-native-feel): a tap has to choose between a
+             push, a replace and a pop, which routerLink cannot. Middle-click and long press still
+             see the href. -->
         <a
           class="bottom-nav-tab"
-          [routerLink]="tab.route"
-          routerLinkActive="is-active"
-          [routerLinkActiveOptions]="{ exact: tab.exact }"
-          #active="routerLinkActive"
-          [attr.aria-current]="active.isActive ? 'page' : null"
+          [attr.href]="tab.route"
+          (click)="go($event, tab)"
+          [class.is-active]="isActive(tab)"
+          [attr.aria-current]="isActive(tab) ? 'page' : null"
           [attr.aria-label]="tab.label"
           [title]="tab.label"
         >

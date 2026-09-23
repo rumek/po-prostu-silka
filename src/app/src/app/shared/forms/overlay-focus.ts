@@ -1,5 +1,6 @@
 import { DOCUMENT } from '@angular/common';
 import { DestroyRef, ElementRef, afterNextRender, inject } from '@angular/core';
+import { useOverlayHistory } from './overlay-history';
 
 /**
  * Gives an overlay the focus behaviour a modal is supposed to have (S-19).
@@ -19,8 +20,17 @@ import { DestroyRef, ElementRef, afterNextRender, inject } from '@angular/core';
  *
  * Call it from the component's field initialiser or constructor — it must run early enough to read
  * the active element before the panel steals it.
+ *
+ * <h2>Back closes it</h2>
+ *
+ * Given `onBack` — the overlay's own close — the system back gesture closes the overlay instead of
+ * leaving the screen under it (mobile-native-feel). See `overlay-history.ts`.
  */
-export function useOverlayFocus(): void {
+export function useOverlayFocus(onBack?: () => void): void {
+  if (onBack) {
+    useOverlayHistory(onBack);
+  }
+
   const document = inject(DOCUMENT);
   const host = inject(ElementRef<HTMLElement>);
 

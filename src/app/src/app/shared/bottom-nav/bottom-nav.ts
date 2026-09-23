@@ -1,6 +1,10 @@
-import { Component, input } from '@angular/core';
-import { RouterLink, RouterLinkActive } from '@angular/router';
+import { Component, inject, input } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { NavigationEnd, Router } from '@angular/router';
+import { filter, map } from 'rxjs';
 import { NavLink } from '../../core/layout/navigation';
+import { ScreenTitle } from '../../core/layout/screen-title';
+import { Up } from '../../core/layout/up';
 import { Icon } from '../icons/icon';
 
 /**
@@ -21,9 +25,16 @@ import { Icon } from '../icons/icon';
  * THE ACTIVE TAB IS A PILL: icon plus label, on the accent colour; every other tab is its icon alone,
  * named by its aria-label. The label is in the DOM on every tab and only collapsed in CSS, so the pill
  * can grow into it rather than snap — see bottom-nav.scss.
+ *
+ * TABS DO NOT GROW HISTORY (mobile-native-feel), which is Android's back stack for a bottom bar:
+ * history holds at most Start plus the current tab, so back from any tab lands on Start and back
+ * from Start leaves the app.
+ * - From Start (a `brand` screen) a tab PUSHES, so Start stays underneath it.
+ * - From any other screen a tab REPLACES the current entry.
+ * - The Start tab itself goes UP to `/`: a pop when Start is below, a replace when it is not.
  */
 @Component({
-  imports: [Icon, RouterLink, RouterLinkActive],
+  imports: [Icon],
   selector: 'app-bottom-nav',
   styleUrl: './bottom-nav.scss',
   templateUrl: './bottom-nav.html',
@@ -31,4 +42,40 @@ import { Icon } from '../icons/icon';
 export class BottomNav {
   /** The persona's tabs, from `navigationFor(...).bar`. At most five — the table's spec pins it. */
   readonly links = input.required<readonly NavLink[]>();
+
+  private readonly router = inject(Router);
+  private readonly screen = inject(ScreenTitle);
+  private readonly up = inject(Up);
+
+  private readonly path = toSignal(
+    this.router.events.pipe(
+      filter((event) => event instanceof NavigationEnd),
+      map(() => this.currentPath()),
+    ),
+    { initialValue: this.currentPath() },
+  );
+
+  /** `exact` for Start alone: `/` is a prefix of every route, and would mark two tabs at once. */
+  protected isActive(tab: NavLink): boolean {
+    const path = this.path();
+    return tab.exact ? path === tab.route : path === tab.route || path.startsWith(`${tab.route}/`);
+  }
+
+  protected go(event: MouseEvent, tab: NavLink): void {
+    // A modified click is the browser's: a new tab or window from the href.
+    if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) {
+      return;
+    }
+    event.preventDefault();
+
+    if (tab.route === '/') {
+      this.up.to(tab.route);
+    } else {
+      void this.router.navigateByUrl(tab.route, { replaceUrl: this.screen.level() !== 'brand' });
+    }
+  }
+
+  private currentPath(): string {
+    return this.router.url.split(/[?#]/)[0];
+  }
 }

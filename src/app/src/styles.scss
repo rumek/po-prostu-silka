@@ -682,7 +682,8 @@ a {
 // Routed-screen transitions (S-26).
 //
 // The screen slides out the way the navigation went and the next one slides in behind it: forward
-// for a link, backward for the browser's back button. `[data-nav-direction]` is set on <html> by
+// into a child, backward up to a parent or for the browser's back button, and a plain fade between
+// tabs (mobile-native-feel). `[data-nav-direction]` is set on <html> by
 // core/layout/view-transitions.ts for the length of the transition; forward is also the default, so
 // a transition that starts before the attribute lands still moves the right way.
 //
@@ -769,6 +770,33 @@ a {
 
 ::view-transition-new(page) {
   animation: page-slide-in 260ms cubic-bezier(0, 0, 0.2, 1) both;
+}
+
+// A TAB SWITCH FADES (mobile-native-feel): between two roots there is no deeper or shallower, so a
+// slide would claim a direction that does not exist. Opacity only, and short — what Material does
+// between bottom-bar destinations. core/layout/view-transitions.ts decides the kind.
+@keyframes page-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes page-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+// Inside no-preference because these selectors out-rank the reduced-motion reset at the end of
+// this block, which would otherwise lose to them.
+@media (prefers-reduced-motion: no-preference) {
+  :root[data-nav-direction='fade']::view-transition-old(page) {
+    animation: page-fade-out 120ms linear both;
+  }
+
+  :root[data-nav-direction='fade']::view-transition-new(page) {
+    animation: page-fade-in 180ms linear both;
+  }
 }
 
 // Two screens are rarely the same height, and the default group animation would scale the snapshots

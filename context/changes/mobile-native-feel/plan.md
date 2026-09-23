@@ -413,6 +413,13 @@ History and motion now follow the identity from Phase 1:
   shell hands the bar the current level, or the bar reads `ScreenTitle.level()`.
 - The tabs stay `<a [routerLink]>`, so middle-click and long-press still see a real href.
 - The header's desktop nav is unchanged.
+- **Adapted during implementation.** The tabs are `<a [attr.href]>` with their own click handler,
+  not `routerLink`: `RouterLink` navigates on every plain click and ignores `defaultPrevented`, so it
+  cannot be told to pop. The href keeps middle-click and long press; a modified click is left to the
+  browser. The active state is computed from the router's URL instead of `routerLinkActive`.
+- **Adapted during implementation.** The Start tab goes UP to `/` (the §2 behaviour) instead of
+  navigating. A replace from a tab would leave [Start, Start], and back would then land on a second
+  Start before leaving.
 
 #### 2. The up behaviour: back arrow and "Wróć…" links
 
@@ -430,6 +437,15 @@ links.
   `parent`, tracked from router events within this session.
 - Otherwise (a deep link, a reload, a push-notification entry): navigate to `parent` with
   `replaceUrl: true`.
+- **Adapted during implementation.**
+  - `Up` pops back to the NEAREST entry below whose path is the target, with
+    `Location.historyGo(-n)`, not only the immediately previous one. That is what lets the Start tab
+    return to Start from a child screen in one step.
+  - The model is kept from router events: push appends, `replaceUrl` overwrites, popstate moves to the
+    entry whose `navigationId` the router restored. Each entry's id is read back from
+    `Location.getState()`, because a popstate navigation rewrites its entry's id.
+  - An entry it cannot place resets the model to the current screen, which only ever falls back to
+    the replace. The desktop links use an `a[appUp]` directive (`UpLink`) in the same file.
 
 #### 3. Hierarchy-aware transitions
 
@@ -470,6 +486,15 @@ overlays at once.
   guard so the resulting `popstate` does not close twice.
 - The helper needs the component's close callback. Its signature grows to take one, or a new
   helper is called beside it; `useOverlayFocus()`'s existing callers are updated.
+- **Adapted during implementation.** The helper is `shared/forms/overlay-history.ts`. It is called by
+  `useOverlayFocus(onBack)` when a close callback is passed, and the three overlays pass
+  `() => this.close()`.
+  - The pop happens on DESTROY, not in each close path. Every close (×, backdrop, Escape, a finished
+    action) ends with the parent removing the component.
+  - It is skipped while a router navigation is in progress, so a navigation from inside the overlay
+    is not undone.
+  - The same-URL popstate is skipped by the router as predicted. `back-closes-open-overlay.spec.ts`
+    passes against Angular 22.1.
 
 ### Success Criteria:
 
@@ -490,6 +515,11 @@ overlays at once.
   2. A class created through the API for today, deleted in `afterEach`.
   3. `/schedule` → open that class's bookings overlay.
   4. `page.goBack()`: the dialog is gone and the URL is still `/schedule`.
+  - **Adapted during implementation.** The class starts an hour from now when that falls within the
+    calendar's visible 06:00–23:00; otherwise it starts tomorrow at 10:00 and the spec picks that
+    day in the week strip. The spec takes the first trainer from `/api/admin/trainers`, so the
+    database needs one. The class type is deactivated in `afterEach`, because types cannot be
+    deleted.
 - Both E2E specs pass: `cd src/app && npx playwright test e2e/tab-switches-do-not-grow-history.spec.ts e2e/back-closes-open-overlay.spec.ts`
 - Lint and format pass: `cd src/app && npm run quality:check`
 - Build passes within budget: `cd src/app && npm run build`
@@ -582,13 +612,13 @@ None. There is no data or API change. The manifest `id: "/"` equals the current 
 
 #### Automated
 
-- [x] 1.1 Unit specs pass (npm test)
-- [x] 1.2 screen-title.spec.ts covers leaf title/level, document.title format, override lifetime
-- [x] 1.3 Route-table spec: every route has title + level, children have parent, tab titles equal navigationFor labels
-- [x] 1.4 app.spec.ts covers bar rendering per level (brand, tab, child)
-- [x] 1.5 quality:check passes
-- [x] 1.6 Build within budget; bundle size recorded in AGENTS.md
-- [x] 1.7 dotnet build still passes
+- [x] 1.1 Unit specs pass (npm test) — dcfdeb7
+- [x] 1.2 screen-title.spec.ts covers leaf title/level, document.title format, override lifetime — dcfdeb7
+- [x] 1.3 Route-table spec: every route has title + level, children have parent, tab titles equal navigationFor labels — dcfdeb7
+- [x] 1.4 app.spec.ts covers bar rendering per level (brand, tab, child) — dcfdeb7
+- [x] 1.5 quality:check passes — dcfdeb7
+- [x] 1.6 Build within budget; bundle size recorded in AGENTS.md — dcfdeb7
+- [x] 1.7 dotnet build still passes — dcfdeb7
 
 #### Manual
 
@@ -602,11 +632,11 @@ None. There is no data or API change. The manifest `id: "/"` equals the current 
 
 #### Automated
 
-- [ ] 2.1 Unit specs pass (bottom-nav replace rule, up behaviour, transition kinds, overlay history)
-- [ ] 2.2 E2E tab-switches-do-not-grow-history.spec.ts passes
-- [ ] 2.3 E2E back-closes-open-overlay.spec.ts passes
-- [ ] 2.4 quality:check passes
-- [ ] 2.5 Build within budget
+- [x] 2.1 Unit specs pass (bottom-nav replace rule, up behaviour, transition kinds, overlay history)
+- [x] 2.2 E2E tab-switches-do-not-grow-history.spec.ts passes
+- [x] 2.3 E2E back-closes-open-overlay.spec.ts passes
+- [x] 2.4 quality:check passes
+- [x] 2.5 Build within budget
 
 #### Manual
 

@@ -2,6 +2,9 @@ import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
 import { NavLink, navigationFor } from '../../core/layout/navigation';
+import { ScreenLevel } from '../../core/layout/screen';
+import { ScreenTitle } from '../../core/layout/screen-title';
+import { Up } from '../../core/layout/up';
 import { BottomNav } from './bottom-nav';
 
 @Component({ template: '' })
@@ -105,5 +108,58 @@ describe('BottomNav', () => {
     const element = await create('/');
 
     expect(tabs(element)[0].getAttribute('aria-current')).toBe('page');
+  });
+  /**
+   * TABS DO NOT GROW HISTORY (mobile-native-feel): from Start a tab pushes, so Start stays under it;
+   * from anywhere else it replaces; and the Start tab goes up, popping back to Start when it is below.
+   */
+  describe('history', () => {
+    async function onScreen(level: ScreenLevel) {
+      const element = await create(level === 'brand' ? '/' : '/my-plan');
+      TestBed.inject(ScreenTitle).resolve('x', level, null);
+      const router = TestBed.inject(Router);
+      const navigate = vi.spyOn(router, 'navigateByUrl').mockResolvedValue(true);
+      const up = vi.spyOn(TestBed.inject(Up), 'to').mockImplementation(() => undefined);
+      return { element, navigate, up };
+    }
+
+    function tab(element: HTMLElement, label: string): HTMLAnchorElement {
+      return tabs(element).find((a) => a.getAttribute('aria-label') === label)!;
+    }
+
+    it('pushes a tab opened from Start', async () => {
+      const { element, navigate } = await onScreen('brand');
+
+      tab(element, 'Zajęcia').click();
+
+      expect(navigate).toHaveBeenCalledWith('/my-classes', { replaceUrl: false });
+    });
+
+    it('replaces the current entry when switching from one tab to another', async () => {
+      const { element, navigate } = await onScreen('tab');
+
+      tab(element, 'Zajęcia').click();
+
+      expect(navigate).toHaveBeenCalledWith('/my-classes', { replaceUrl: true });
+    });
+
+    it('goes up to Start from the Start tab rather than stacking a second Start', async () => {
+      const { element, navigate, up } = await onScreen('tab');
+
+      tab(element, 'Start').click();
+
+      expect(up).toHaveBeenCalledWith('/');
+      expect(navigate).not.toHaveBeenCalled();
+    });
+
+    it('leaves a modified click to the browser', async () => {
+      const { element, navigate } = await onScreen('tab');
+      const click = new MouseEvent('click', { bubbles: true, cancelable: true, ctrlKey: true });
+
+      tab(element, 'Zajęcia').dispatchEvent(click);
+
+      expect(navigate).not.toHaveBeenCalled();
+      expect(click.defaultPrevented).toBe(false);
+    });
   });
 });

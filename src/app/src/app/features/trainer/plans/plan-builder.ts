@@ -16,6 +16,7 @@ import {
 } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { useScreenTitle } from '../../../core/layout/screen-title';
+import { UpLink } from '../../../core/layout/up';
 import { ExerciseService } from '../../../core/training/exercise.service';
 import { ExerciseSummary } from '../../../core/training/exercise.models';
 import { TrainingPlanService } from '../../../core/training/training-plan.service';
@@ -105,6 +106,7 @@ type ItemGroup = FormGroup<{
     CdkDropList,
     ReactiveFormsModule,
     RouterLink,
+    UpLink,
   ],
   selector: 'app-plan-builder',
   styleUrl: './plan-builder.scss',

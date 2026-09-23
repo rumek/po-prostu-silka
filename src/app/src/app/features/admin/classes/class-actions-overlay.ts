@@ -65,7 +65,7 @@ type Step = 'actions' | 'duplicate' | 'delete' | 'cancel';
   templateUrl: './class-actions-overlay.html',
 })
 export class ClassActionsOverlay {
-  private readonly focus = useOverlayFocus();
+  private readonly focus = useOverlayFocus(() => this.close());
 
   readonly row = input.required<ScheduledClass>();
 

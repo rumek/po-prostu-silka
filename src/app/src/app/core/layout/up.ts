@@ -1,0 +1,127 @@
+import { Location } from '@angular/common';
+import { Directive, Injectable, inject, input } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { NavigationEnd, NavigationStart, Router } from '@angular/router';
+
+interface Entry {
+  /** The router's `navigationId` stored in this entry's `history.state` — how popstate names it. */
+  readonly id: number;
+  readonly url: string;
+}
+
+function pathOf(url: string): string {
+  return url.split(/[?#]/)[0];
+}
+
+/**
+ * "Up", the way a native app does it (mobile-native-feel): back to a screen that is already in the
+ * history is a POP, so the screen left behind does not linger as a forward step for Android's back
+ * gesture; only when it is not there — a deep link, a reload, a push notification — is it a
+ * navigation, and then a REPLACE, so back from the parent still leaves rather than returning.
+ *
+ * The browser does not expose its history, so this keeps a model of this session's part of it from
+ * the router's events: a push appends, a replace overwrites, a popstate moves to the entry whose
+ * `navigationId` the router restored. Anything it cannot place — the entries before the app loaded,
+ * an entry from before a reload — resets the model to the current screen alone, which only ever
+ * makes `to()` fall back to the replace. It never pops to somewhere unknown.
+ *
+ * An overlay's same-URL entry (shared/forms/overlay-focus.ts) is invisible here: the router skips
+ * same-URL popstates, so it produces no events. The overlay pops its own entry when it closes.
+ */
+@Injectable({ providedIn: 'root' })
+export class Up {
+  private readonly router = inject(Router);
+  private readonly location = inject(Location);
+
+  private entries: Entry[] = [];
+  private index = -1;
+  private readonly starts = new Map<number, NavigationStart>();
+
+  constructor() {
+    this.router.events.pipe(takeUntilDestroyed()).subscribe((event) => {
+      if (event instanceof NavigationStart) {
+        this.starts.set(event.id, event);
+      } else if (event instanceof NavigationEnd) {
+        this.record(event);
+      }
+    });
+  }
+
+  /** Go up to `target`: pop back to it if it is below this screen, else replace this screen with it. */
+  to(target: string): void {
+    const steps = this.stepsBackTo(target);
+
+    if (steps > 0) {
+      this.location.historyGo(-steps);
+    } else {
+      void this.router.navigateByUrl(target, { replaceUrl: true });
+    }
+  }
+
+  /** How many entries back the nearest `target` sits in this session's history, or 0 if it is not. */
+  stepsBackTo(target: string): number {
+    const path = pathOf(target);
+
+    for (let k = this.index - 1; k >= 0; k--) {
+      if (pathOf(this.entries[k].url) === path) {
+        return this.index - k;
+      }
+    }
+    return 0;
+  }
+
+  private record(end: NavigationEnd): void {
+    const start = this.starts.get(end.id);
+    this.starts.clear();
+
+    const extras = this.router.lastSuccessfulNavigation()?.extras;
+    if (extras?.skipLocationChange) {
+      return;
+    }
+
+    // What the router actually wrote into history.state, read back rather than assumed: a popstate
+    // navigation rewrites its entry's id, and the next popstate names the entry by that.
+    const stored = (this.location.getState() as { navigationId?: number } | null)?.navigationId;
+    const entry: Entry = { id: stored ?? end.id, url: end.urlAfterRedirects };
+
+    if (start?.navigationTrigger === 'popstate') {
+      const restored = start.restoredState?.navigationId;
+      const k = this.entries.findIndex((e) => e.id === restored);
+
+      if (k >= 0) {
+        this.index = k;
+        this.entries[k] = entry;
+      } else {
+        this.entries = [entry];
+        this.index = 0;
+      }
+    } else if (extras?.replaceUrl && this.index >= 0) {
+      this.entries[this.index] = entry;
+    } else {
+      this.entries = [...this.entries.slice(0, this.index + 1), entry];
+      this.index++;
+    }
+  }
+}
+
+/**
+ * A link up to a screen's parent — the desktop "Wróć…" links. A real href, so middle-click, a new
+ * tab and a long press still work; a plain click goes through `Up.to` like the phone bar's arrow.
+ */
+@Directive({
+  selector: 'a[appUp]',
+  host: { '[attr.href]': 'appUp()', '(click)': 'onClick($event)' },
+})
+export class UpLink {
+  private readonly up = inject(Up);
+
+  readonly appUp = input.required<string>();
+
+  protected onClick(event: MouseEvent): void {
+    if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) {
+      return;
+    }
+    event.preventDefault();
+    this.up.to(this.appUp());
+  }
+}

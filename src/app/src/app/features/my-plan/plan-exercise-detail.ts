@@ -1,6 +1,7 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute } from '@angular/router';
+import { UpLink } from '../../core/layout/up';
 import { useScreenTitle } from '../../core/layout/screen-title';
 import { ExerciseSummary } from '../../core/training/exercise.models';
 import { TrainingPlanService } from '../../core/training/training-plan.service';
@@ -30,7 +31,7 @@ import { Empty } from '../../shared/forms/empty/empty';
  * test, and copying the component without copying the test is precisely how it would be lost.
  */
 @Component({
-  imports: [Empty, Loading, RouterLink],
+  imports: [Empty, Loading, UpLink],
   selector: 'app-plan-exercise-detail',
   styleUrl: './plan-exercise-detail.scss',
   templateUrl: './plan-exercise-detail.html',

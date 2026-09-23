@@ -6,6 +6,7 @@ import { DESK_MEDIA_QUERY } from './core/layout/breakpoints';
 import { mediaQuerySignal } from './core/layout/media-query';
 import { navigationFor } from './core/layout/navigation';
 import { ScreenTitle } from './core/layout/screen-title';
+import { Up } from './core/layout/up';
 import { PushPrompt } from './features/notifications/push-prompt';
 import { BottomNav } from './shared/bottom-nav/bottom-nav';
 import { Icon } from './shared/icons/icon';
@@ -48,8 +49,11 @@ export class App {
     () => this.auth.isAuthenticated() && this.screen.level() !== 'brand' && !!this.screen.title(),
   );
 
+  // Injected here, in the root component, so its history model starts with the first navigation.
+  private readonly upward = inject(Up);
+
   protected up(): void {
-    void this.router.navigateByUrl(this.screen.parent() ?? '/');
+    this.upward.to(this.screen.parent() ?? '/');
   }
 
   protected async logout(): Promise<void> {
