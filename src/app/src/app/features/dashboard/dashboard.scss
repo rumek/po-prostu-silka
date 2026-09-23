@@ -1,6 +1,17 @@
 // Layout only — .card/.notice/.alert/.empty come from src/styles.scss. True since S-23: this
 // comment named .empty for three slices before the class actually moved there.
 
+.hello-text {
+  color: var(--accent);
+  text-transform: uppercase;
+  font: var(--font-body);
+  font-size: 10px;
+  font-weight: 500;
+  padding-bottom: var(--space-1);
+  line-height: 12px;
+  letter-spacing: 1.2px;
+}
+
 .dashboard-cards {
   display: grid;
   gap: var(--space-4);

@@ -14,7 +14,8 @@ export type IconName =
   | 'repeat'
   | 'hantle'
   | 'members'
-  | 'back';
+  | 'back'
+  | 'profile';
 
 /**
  * The app's icon primitive — the first one this codebase has had.

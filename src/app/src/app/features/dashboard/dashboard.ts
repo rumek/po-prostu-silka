@@ -64,7 +64,9 @@ export class Dashboard implements OnInit {
   private readonly members = inject(MemberAdminService);
   private readonly classes = inject(ClassService);
 
-  protected readonly displayName = computed(() => this.auth.user()?.displayName ?? null);
+  protected readonly displayName = computed(
+    () => this.auth.user()?.displayName?.trim().split(/\s+/)[0] ?? null,
+  );
   protected readonly persona = computed(() => personaOf(this.auth.user()));
   protected readonly isMember = computed(() => this.persona() === 'member');
   protected readonly isStaff = computed(() => isStaff(this.persona()));
