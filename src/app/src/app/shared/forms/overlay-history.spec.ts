@@ -49,13 +49,16 @@ describe('useOverlayHistory', () => {
 
   it('pushes one same-URL entry on open, keeping the router state', async () => {
     window.history.replaceState({ navigationId: 3 }, '');
-    const length = window.history.length;
     const url = window.location.href;
+    // A spy rather than history.length: jsdom's session history is shared across spec files, and a
+    // pending pop from elsewhere shifts the length under the assertion.
+    const push = vi.spyOn(window.history, 'pushState');
 
     fixture.componentInstance.open.set(true);
     fixture.detectChanges();
 
-    expect(window.history.length).toBe(length + 1);
+    expect(push).toHaveBeenCalledTimes(1);
+    expect(push.mock.calls[0][2]).toBeUndefined();
     expect(window.location.href).toBe(url);
     expect(window.history.state).toMatchObject({ navigationId: 3, overlay: expect.any(String) });
 
