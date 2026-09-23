@@ -155,8 +155,20 @@ describe('AttendanceHistory', () => {
     expect(summary.textContent).toContain('do 30 września');
     expect(summary.querySelectorAll('.history-count').length).toBe(3);
     expect(summary.querySelectorAll('.history-dot').length).toBe(8);
-    expect(summary.querySelectorAll('.history-dot--free').length).toBe(2);
+    // 3 present + 2 unrecorded spent; the 1 absence returned its entry and takes no dot.
+    expect(summary.querySelectorAll('.history-dot--free').length).toBe(3);
     expect(summary.querySelector('.history-dots')!.getAttribute('aria-hidden')).toBe('true');
+  });
+
+  it('leaves a free dot for an entry an absence returned, matching the balance', async () => {
+    await respond(
+      page({ summary: { ...SUMMARY, entryCount: 8, present: 7, absent: 2, unrecorded: 0 } }),
+    );
+
+    const summary = element().querySelector('.history-summary')!;
+    expect(summary.querySelectorAll('.history-dot').length).toBe(8);
+    expect(summary.querySelectorAll('.history-dot--present').length).toBe(7);
+    expect(summary.querySelectorAll('.history-dot--free').length).toBe(1);
   });
 
   it('has no summary card without a covering karnet', async () => {

@@ -35,7 +35,8 @@ public record MyAttendanceSummary(
 /// </summary>
 /// <param name="Summary">Only on the first page, and only while a karnet covers today.</param>
 /// <param name="EarlierBefore">
-/// The <c>before</c> value for the next page back, or null when the member has nothing older.
+/// The <c>before</c> value for the next page back, or null when the member has nothing older. It
+/// skips months with no classes, so the next page is never empty.
 /// </param>
 public record MyAttendanceHistory(
     MyAttendanceSummary? Summary,

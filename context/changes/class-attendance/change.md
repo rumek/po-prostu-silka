@@ -1,7 +1,7 @@
 ---
 change_id: class-attendance
 title: Staff record who came to a class, and the karnet counts attendance
-status: implementing
+status: impl_reviewed
 created: 2026-09-23
 updated: 2026-09-23
 archived_at: null

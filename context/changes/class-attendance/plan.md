@@ -410,6 +410,11 @@ count. `ClubTime` gained `StartOfLocalDay(DateOnly)` for the window bounds. A `b
 first of a month is a 400 validation problem, and the tests pin it
 (`A_before_that_is_not_the_first_of_a_month_is_a_bad_request`).
 
+**Adapted after the implementation review (F3).** `EarlierBefore` is no longer simply the current
+window's first month. It is the first day of the month after the club-local month of the member's
+newest older class. Paging back across a break therefore never returns an empty page
+(`EarlierBefore_skips_the_empty_months_of_a_break`).
+
 #### 2. Tests
 
 **File**: `tests/po-prostu-silka.Tests/AttendanceHistoryTests.cs` (new), `PersonaAccessTests.cs`,
@@ -634,7 +639,8 @@ per class.
 #### Manual Verification:
 
 - On a 360 px phone, the history tab reads at a glance: the summary on top, months as sections, a
-  status visible without reading a sentence. Check light and dark mode.
+  status visible without reading a sentence. Light mode only: the app has no dark theme (see
+  "Adapted during implementation" above), so the dark half of Progress 5.5 does not apply.
 - Reloading on `?widok=historia` keeps the tab. System back from the history tab leaves
   `/my-classes` rather than flipping tabs.
 - Screen reader (NVDA or VoiceOver) announces the tabs and each row's status word.

@@ -76,9 +76,15 @@ public static class GetMyAttendanceHistory
 
         var items = await query.GetHistoryForMemberAsync(memberId.Value, from, to, now, cancellationToken);
 
-        var earlierBefore = await query.HasHistoryBeforeAsync(memberId.Value, from, cancellationToken)
-            ? firstMonth
-            : (DateOnly?)null;
+        // The next page ends just after the club-local month of the newest older class, not simply at
+        // this page's start: a member back from a break would otherwise page through empty windows,
+        // pressing "Pokaż wcześniejsze" and seeing nothing arrive.
+        DateOnly? earlierBefore = null;
+        if (await query.LatestHistoryStartBeforeAsync(memberId.Value, from, cancellationToken) is { } latest)
+        {
+            var local = ClubTime.ToClubLocal(latest);
+            earlierBefore = new DateOnly(local.Year, local.Month, 1).AddMonths(1);
+        }
 
         MyAttendanceSummary? summary = null;
         if (before is null

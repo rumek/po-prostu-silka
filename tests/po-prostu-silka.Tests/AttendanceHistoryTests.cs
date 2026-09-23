@@ -273,6 +273,32 @@ public class AttendanceHistoryTests(IntegrationTestFixture fixture)
         Assert.Null(second.Summary);
     }
 
+    /// <summary>
+    /// A member back from a break: the next page starts at their newest older class's month rather
+    /// than at an empty window just behind this one.
+    /// </summary>
+    [Fact]
+    public async Task EarlierBefore_skips_the_empty_months_of_a_break()
+    {
+        var admin = await AdminAsync();
+        var (member, memberId) = await MemberAsync(admin);
+
+        var firstMonth = FirstOfThisMonth().AddMonths(-2);
+        var breakMonth = firstMonth.AddMonths(-7);
+        var (beforeTheBreak, _) = await PastClassAsync(
+            admin, memberId, ClubTime.StartOfLocalDay(breakMonth.AddDays(10)).AddHours(18));
+
+        var first = await HistoryAsync(member);
+
+        Assert.Empty(first.Items);
+        Assert.Equal(breakMonth.AddMonths(1), first.EarlierBefore);
+
+        var second = await HistoryAsync(member, first.EarlierBefore!.Value.ToString("yyyy-MM-dd"));
+
+        Assert.Equal(beforeTheBreak, Assert.Single(second.Items).ClassId);
+        Assert.Null(second.EarlierBefore);
+    }
+
     [Fact]
     public async Task EarlierBefore_is_null_when_nothing_older_exists()
     {

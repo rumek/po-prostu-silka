@@ -75,7 +75,7 @@ export interface MonthGroup {
   counted: number;
 }
 
-type Dot = 'present' | 'absent' | 'unrecorded' | 'free';
+type Dot = 'present' | 'unrecorded' | 'free';
 
 /**
  * The member's attendance history (S-27, AT-04, AT-05).
@@ -166,6 +166,9 @@ export class AttendanceHistory implements OnInit {
   /**
    * One dot per class the karnet paid for that already happened, then one hollow dot per entry
    * still unused — a picture of the pass. Decorative: the counts beside it carry the meaning.
+   *
+   * An absence takes NO dot: it returned its entry (AT-03), so drawing it would show the pass fuller
+   * than the balance on the dashboard says it is.
    */
   protected readonly dots = computed<Dot[]>(() => {
     const summary = this.summary();
@@ -176,7 +179,6 @@ export class AttendanceHistory implements OnInit {
     const filled: Dot[] = [
       ...Array<Dot>(summary.present).fill('present'),
       ...Array<Dot>(summary.unrecorded).fill('unrecorded'),
-      ...Array<Dot>(summary.absent).fill('absent'),
     ].slice(0, summary.entryCount);
 
     return [...filled, ...Array<Dot>(summary.entryCount - filled.length).fill('free')];

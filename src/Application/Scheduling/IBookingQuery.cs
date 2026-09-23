@@ -65,10 +65,11 @@ public interface IBookingQuery
         CancellationToken cancellationToken);
 
     /// <summary>
-    /// Whether the member holds any active booking on a class that started before
-    /// <paramref name="before"/> — what decides whether the history has another page.
+    /// The start of the member's newest active booking on a class that started before
+    /// <paramref name="before"/>, or null when there is none — what decides whether the history has
+    /// another page, and where it begins.
     /// </summary>
-    Task<bool> HasHistoryBeforeAsync(
+    Task<DateTimeOffset?> LatestHistoryStartBeforeAsync(
         Guid memberId, DateTimeOffset before, CancellationToken cancellationToken);
 
     /// <summary>

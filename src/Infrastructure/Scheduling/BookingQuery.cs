@@ -107,13 +107,13 @@ public class BookingQuery(AppDbContext db) : IBookingQuery
                 : "unrecorded"))
             .ToListAsync(cancellationToken);
 
-    public Task<bool> HasHistoryBeforeAsync(
+    public Task<DateTimeOffset?> LatestHistoryStartBeforeAsync(
         Guid memberId, DateTimeOffset before, CancellationToken cancellationToken) =>
-        db.Bookings.AnyAsync(
-            b => b.MemberId == memberId
-                 && b.Status == BookingStatus.Active
-                 && b.Class.StartsAt < before,
-            cancellationToken);
+        db.Bookings
+            .Where(b => b.MemberId == memberId
+                        && b.Status == BookingStatus.Active
+                        && b.Class.StartsAt < before)
+            .MaxAsync(b => (DateTimeOffset?)b.Class.StartsAt, cancellationToken);
 
     public async Task<AttendanceCounts> CountAttendanceForPassAsync(
         Guid passId, DateTimeOffset now, CancellationToken cancellationToken)
