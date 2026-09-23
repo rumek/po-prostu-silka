@@ -83,3 +83,63 @@
     min-width: 0;
   }
 }
+
+// The attendance sheet (S-27).
+.attendance-tally {
+  margin-top: calc(-1 * var(--space-2));
+}
+
+// A segmented pair. The pressed option carries a fill AND keeps its icon and word, so the state is
+// never colour alone; the unpressed ones stay outlined, so "not recorded yet" reads as neither.
+.attendance-toggle {
+  display: inline-flex;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.attendance-option {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+
+  // 44px: a thumb on a phone at the side of a mat, which is where this gets used.
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+
+  & + & {
+    border-left: 1px solid var(--line-strong);
+  }
+
+  app-icon {
+    font-size: 0.8rem;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+
+  &:disabled {
+    cursor: progress;
+    opacity: 0.6;
+  }
+}
+
+.attendance-option--present[aria-pressed='true'] {
+  background: var(--success-bg);
+  color: var(--success);
+  font-weight: 600;
+}
+
+.attendance-option--absent[aria-pressed='true'] {
+  background: var(--danger-bg);
+  color: var(--danger);
+  font-weight: 600;
+}

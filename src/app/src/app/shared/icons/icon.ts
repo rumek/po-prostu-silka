@@ -15,7 +15,11 @@ export type IconName =
   | 'hantle'
   | 'members'
   | 'back'
-  | 'profile';
+  | 'profile'
+  | 'present'
+  | 'absent'
+  | 'unrecorded'
+  | 'cancelled';
 
 /**
  * The app's icon primitive — the first one this codebase has had.

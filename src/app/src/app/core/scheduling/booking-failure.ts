@@ -31,6 +31,9 @@ const MESSAGES: Record<BookingFailure['reason'], string> = {
   // one is "sell them a karnet", the other is "this one is used up".
   no_valid_pass: 'Ta osoba nie ma karnetu ważnego w dniu tych zajęć.',
   no_entries_left: 'Karnet tej osoby nie ma już wolnych wejść.',
+  // S-27. Only the attendance route produces it; the overlay offers no toggle before the start, so
+  // this reaches a screen only when its clock and the server's disagree.
+  class_not_started: 'Obecność można zaznaczyć dopiero po rozpoczęciu zajęć.',
   // Not a product rule: the server lost an optimistic race on every attempt. Trying again is
   // genuinely the right advice, and it is what the message says.
   conflict: 'Ktoś właśnie zmienił zapisy na te zajęcia. Spróbuj ponownie.',

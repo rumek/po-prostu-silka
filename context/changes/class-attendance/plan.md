@@ -717,7 +717,7 @@ to the next phase.
 
 #### Automated
 
-- [x] 3.1 All backend tests pass
+- [x] 3.1 All backend tests pass — b78f440
 
 #### Manual
 
@@ -727,9 +727,9 @@ to the next phase.
 
 #### Automated
 
-- [ ] 4.1 SPA unit tests pass
-- [ ] 4.2 Lint and format pass
-- [ ] 4.3 Production build stays under the budget warning
+- [x] 4.1 SPA unit tests pass
+- [x] 4.2 Lint and format pass
+- [x] 4.3 Production build stays under the budget warning
 
 #### Manual
 

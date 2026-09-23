@@ -36,6 +36,7 @@ function signup(over: Partial<ClassBooking> = {}): ClassBooking {
     displayName: over.displayName ?? 'Ala Kowalska',
     email: over.email ?? 'ala@example.test',
     bookedAt: over.bookedAt ?? new Date().toISOString(),
+    attendance: over.attendance ?? null,
   };
 }
 
@@ -477,5 +478,159 @@ describe('ClassBookingsOverlay', () => {
     await settle();
 
     expect(element().textContent).toContain('Trenerów i administratorów nie zapisuje się');
+  });
+});
+
+/**
+ * The attendance sheet (S-27). A separate block because the mode is read ONCE, on open: the host must
+ * hold a started (or cancelled) class before its first change detection, which the block above has
+ * already run.
+ */
+describe('ClassBookingsOverlay — attendance', () => {
+  let fixture: ComponentFixture<Host>;
+  let controller: HttpTestingController;
+
+  const STARTED: ScheduledClass = {
+    ...JOGA,
+    startsAt: new Date(Date.now() - 3_600_000).toISOString(),
+  };
+
+  function open(row: ScheduledClass): void {
+    TestBed.configureTestingModule({
+      imports: [Host],
+      providers: [provideHttpClient(), provideHttpClientTesting()],
+    });
+
+    controller = TestBed.inject(HttpTestingController);
+    fixture = TestBed.createComponent(Host);
+    fixture.componentInstance.row.set(row);
+    fixture.detectChanges();
+  }
+
+  afterEach(() => controller.verify());
+
+  function element(): HTMLElement {
+    return fixture.nativeElement as HTMLElement;
+  }
+
+  async function settle(): Promise<void> {
+    await fixture.whenStable();
+    await fixture.whenStable();
+    fixture.detectChanges();
+  }
+
+  async function respond(rows: ClassBooking[]): Promise<void> {
+    controller.expectOne('/api/admin/classes/c1/bookings').flush(rows);
+    await settle();
+  }
+
+  function buttonWith(text: string, scope: ParentNode = element()): HTMLButtonElement | undefined {
+    return [...scope.querySelectorAll('button')].find((button) =>
+      button.textContent?.includes(text),
+    );
+  }
+
+  function rowOf(name: string): HTMLElement {
+    return [...element().querySelectorAll<HTMLElement>('li.row')].find((row) =>
+      row.textContent?.includes(name),
+    )!;
+  }
+
+  it('keeps the booking roster before the start: release and add, no toggle', async () => {
+    open(JOGA);
+    await respond([signup()]);
+
+    expect(buttonWith('Zwolnij miejsce')).toBeDefined();
+    expect(element().querySelector('#add-member-search')).not.toBeNull();
+    expect(element().querySelector('[role="group"]')).toBeNull();
+  });
+
+  it('turns into an attendance sheet from the start: a toggle per row, no release, no add', async () => {
+    open(STARTED);
+    await respond([
+      signup(),
+      signup({ bookingId: 'b2', memberId: 'm2', displayName: 'Jan Nowak' }),
+    ]);
+
+    expect(element().querySelectorAll('[role="group"]').length).toBe(2);
+    expect(buttonWith('Zwolnij miejsce')).toBeUndefined();
+    expect(element().querySelector('#add-member-search')).toBeNull();
+  });
+
+  it('presses the recorded state and neither for an unrecorded row', async () => {
+    open(STARTED);
+    await respond([
+      signup({ attendance: 'present' }),
+      signup({ bookingId: 'b2', memberId: 'm2', displayName: 'Jan Nowak', attendance: null }),
+    ]);
+
+    const ala = rowOf('Ala Kowalska');
+    expect(buttonWith('Obecny', ala)!.getAttribute('aria-pressed')).toBe('true');
+    expect(buttonWith('Nieobecny', ala)!.getAttribute('aria-pressed')).toBe('false');
+
+    const jan = rowOf('Jan Nowak');
+    expect(buttonWith('Obecny', jan)!.getAttribute('aria-pressed')).toBe('false');
+    expect(buttonWith('Nieobecny', jan)!.getAttribute('aria-pressed')).toBe('false');
+
+    expect(element().textContent).toContain('Obecni: 1 · Nieobecni: 0 · Nieoznaczeni: 1');
+  });
+
+  it('marks a row, replaces it with the server row and updates the tally', async () => {
+    open(STARTED);
+    await respond([signup()]);
+
+    buttonWith('Nieobecny', rowOf('Ala Kowalska'))!.click();
+    await settle();
+
+    const request = controller.expectOne('/api/admin/classes/c1/bookings/b1/attendance');
+    expect(request.request.method).toBe('PUT');
+    expect(request.request.body).toEqual({ attendance: 'absent' });
+    request.flush(signup({ attendance: 'absent' }));
+    await settle();
+
+    expect(buttonWith('Nieobecny', rowOf('Ala Kowalska'))!.getAttribute('aria-pressed')).toBe(
+      'true',
+    );
+    expect(element().textContent).toContain('Obecni: 0 · Nieobecni: 1 · Nieoznaczeni: 0');
+  });
+
+  it('shows the no-entries refusal on the row and keeps the old mark', async () => {
+    open(STARTED);
+    await respond([signup({ attendance: 'absent' })]);
+
+    buttonWith('Obecny', rowOf('Ala Kowalska'))!.click();
+    await settle();
+
+    controller
+      .expectOne('/api/admin/classes/c1/bookings/b1/attendance')
+      .flush({ reason: 'no_entries_left' }, { status: 409, statusText: 'Conflict' });
+    await settle();
+
+    expect(element().querySelector('.bookings-error')!.textContent).toContain(
+      'Karnet tej osoby nie ma już wolnych wejść',
+    );
+    expect(buttonWith('Nieobecny', rowOf('Ala Kowalska'))!.getAttribute('aria-pressed')).toBe(
+      'true',
+    );
+  });
+
+  it('sends nothing when the pressed state is pressed again', async () => {
+    open(STARTED);
+    await respond([signup({ attendance: 'present' })]);
+
+    buttonWith('Obecny', rowOf('Ala Kowalska'))!.click();
+    await settle();
+
+    controller.expectNone('/api/admin/classes/c1/bookings/b1/attendance');
+  });
+
+  it('shows a cancelled class as a read-only list', async () => {
+    open({ ...STARTED, status: 'Cancelled' });
+    await respond([signup()]);
+
+    expect(element().querySelector('[role="group"]')).toBeNull();
+    expect(buttonWith('Zwolnij miejsce')).toBeUndefined();
+    expect(element().querySelector('#add-member-search')).toBeNull();
+    expect(element().textContent).toContain('Ala Kowalska');
   });
 });

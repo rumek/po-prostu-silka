@@ -19,7 +19,7 @@ import { bookingFailureMessage } from '../../core/scheduling/booking-failure';
 import { classifyFailure } from '../../core/http/failure';
 import { transportMessage } from '../../core/http/transport-messages';
 import { BookingService } from '../../core/scheduling/booking.service';
-import { ClassBooking } from '../../core/scheduling/booking.models';
+import { Attendance, ClassBooking } from '../../core/scheduling/booking.models';
 import { ScheduledClass } from '../../core/scheduling/class.models';
 import { createBusySet } from '../../shared/forms/busy-set';
 import { createLoadFence } from '../../shared/forms/load-fence';
@@ -29,6 +29,7 @@ import { Select } from '../../shared/forms/select/select';
 import { Loading } from '../../shared/forms/loading/loading';
 import { Empty } from '../../shared/forms/empty/empty';
 import { Row } from '../../shared/list/row';
+import { Icon } from '../../shared/icons/icon';
 
 /** How many matches the picker offers. Past this, it asks to narrow the phrase. */
 export const PICKER_RESULTS = CANDIDATE_RESULTS;
@@ -73,12 +74,21 @@ export const PICKER_DEBOUNCE_MS = 300;
  * booking-candidates.ts) and the overlay injects no member service of its own. It lives in a
  * neutral feature folder so neither screen imports from the other's, and under `features/` so the
  * presentational-kit lint still covers it.
+ *
+ * <h2>Two modes, chosen by the start (S-27)</h2>
+ *
+ * Before the class starts it is the booking roster above: release a spot, sign somebody up. From the
+ * start it is an attendance sheet: each row carries an Obecny / Nieobecny toggle, and release and the
+ * picker are gone — the server refuses both after the start, and a no-show is recorded as absence so
+ * the booking stays in the member's history. The mode is read ONCE, on open: a class that starts while
+ * its overlay is open switches on the next open, not under the staff member's thumb. A cancelled
+ * class is a read-only list in either mode.
  */
 @Component({
   // On the host, not on the panel: Escape has to close the overlay wherever focus is, including
   // before the admin has touched anything.
   host: { '(document:keydown.escape)': 'close()' },
-  imports: [Row, Empty, Loading, Select, Field, DatePipe, FormsModule],
+  imports: [Row, Empty, Loading, Select, Field, Icon, DatePipe, FormsModule],
   selector: 'app-class-bookings-overlay',
   styleUrl: './class-bookings-overlay.scss',
   templateUrl: './class-bookings-overlay.html',
@@ -107,6 +117,23 @@ export class ClassBookingsOverlay implements OnInit {
   readonly closed = output<void>();
 
   protected readonly rows = signal<ClassBooking[]>([]);
+
+  /** Whether the class had started when the overlay opened — see "Two modes" above. */
+  protected readonly started = signal(false);
+
+  /** A cancelled class offers no action at all: nobody attends it, and its spots are moot. */
+  protected readonly cancelled = computed(() => this.row().status === 'Cancelled');
+
+  /** The attendance sheet's header tally, over the rows as they now stand. */
+  protected readonly tally = computed(() => {
+    const rows = this.rows();
+
+    return {
+      present: rows.filter((r) => r.attendance === 'present').length,
+      absent: rows.filter((r) => r.attendance === 'absent').length,
+      unrecorded: rows.filter((r) => r.attendance === null).length,
+    };
+  });
   protected readonly loading = signal(true);
   protected readonly loadFailed = signal(false);
 
@@ -165,6 +192,7 @@ export class ClassBookingsOverlay implements OnInit {
 
   ngOnInit(): void {
     // Not the constructor: a required signal input is not readable until the binding is set.
+    this.started.set(new Date(this.row().startsAt).getTime() <= Date.now());
     void this.load();
   }
 
@@ -311,6 +339,43 @@ export class ClassBookingsOverlay implements OnInit {
 
       // Kept on the ROW rather than raised to the screen or to a toast: the refusal is about one
       // person's spot, and the admin is looking straight at it.
+      this.failedId.set(booking.bookingId);
+      this.failure.set(transportMessage(info) ?? bookingFailureMessage(info.reason));
+    } finally {
+      this.busy.setBusy(booking.bookingId, false);
+    }
+  }
+
+  /**
+   * Marks one person present or absent (S-27).
+   *
+   * The server's row REPLACES the local one rather than the local one being patched: it is the
+   * mark as recorded, and an absent → present correction can be refused `no_entries_left` when the
+   * entry the absence freed has been spent elsewhere. That refusal stays on the ROW, like a failed
+   * release — per S-19, a row action inside an overlay reports where the staff member is looking.
+   */
+  protected async mark(booking: ClassBooking, attendance: Attendance): Promise<void> {
+    if (booking.attendance === attendance || this.busy.isBusy(booking.bookingId)) {
+      return;
+    }
+
+    this.busy.setBusy(booking.bookingId, true);
+    this.failedId.set(null);
+    this.failure.set(null);
+
+    try {
+      const updated = await this.bookings.recordAttendance(
+        this.row().id,
+        booking.bookingId,
+        attendance,
+      );
+
+      this.rows.update((rows) =>
+        rows.map((candidate) => (candidate.bookingId === updated.bookingId ? updated : candidate)),
+      );
+    } catch (error) {
+      const info = classifyFailure(error);
+
       this.failedId.set(booking.bookingId);
       this.failure.set(transportMessage(info) ?? bookingFailureMessage(info.reason));
     } finally {

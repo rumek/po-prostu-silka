@@ -17,6 +17,15 @@
     {{ row().capacity - row().freeSpots }} / {{ row().capacity }} miejsc zajętych
   </p>
 
+  <!-- The attendance sheet's tally (S-27). Words, not colours: it is read at a glance and by a
+       screen reader alike. Only once the list has loaded, so it never counts an empty roster. -->
+  @if (started() && !cancelled() && !loading() && !loadFailed() && rows().length > 0) {
+    <p class="overlay-when attendance-tally">
+      Obecni: {{ tally().present }} · Nieobecni: {{ tally().absent }} · Nieoznaczeni:
+      {{ tally().unrecorded }}
+    </p>
+  }
+
   @if (loading()) {
     <app-loading />
   } @else if (loadFailed()) {
@@ -36,15 +45,50 @@
           <p class="row-meta">{{ booking.email }}</p>
           <p class="row-meta">Zapis: {{ booking.bookedAt | date: 'd MMMM, HH:mm' }}</p>
 
-          <button
-            slot="actions"
-            type="button"
-            class="link-button"
-            [disabled]="busy.isBusy(booking.bookingId)"
-            (click)="release(booking)"
-          >
-            {{ busy.isBusy(booking.bookingId) ? 'Zwalnianie…' : 'Zwolnij miejsce' }}
-          </button>
+          @if (cancelled()) {
+            <!-- A cancelled class: a read-only list. Nothing to release, nobody to mark. -->
+          } @else if (started()) {
+            <!-- Two real buttons with aria-pressed rather than a radio pair: "neither" is a legal
+                 state (not recorded yet), which a radio group cannot show without a third option.
+                 Icon AND word on each, so the state never rests on colour alone. -->
+            <div
+              slot="actions"
+              class="attendance-toggle"
+              role="group"
+              [attr.aria-label]="'Obecność: ' + booking.displayName"
+            >
+              <button
+                type="button"
+                class="attendance-option attendance-option--present"
+                [attr.aria-pressed]="booking.attendance === 'present'"
+                [disabled]="busy.isBusy(booking.bookingId)"
+                (click)="mark(booking, 'present')"
+              >
+                <app-icon name="present" />
+                Obecny
+              </button>
+              <button
+                type="button"
+                class="attendance-option attendance-option--absent"
+                [attr.aria-pressed]="booking.attendance === 'absent'"
+                [disabled]="busy.isBusy(booking.bookingId)"
+                (click)="mark(booking, 'absent')"
+              >
+                <app-icon name="absent" />
+                Nieobecny
+              </button>
+            </div>
+          } @else {
+            <button
+              slot="actions"
+              type="button"
+              class="link-button"
+              [disabled]="busy.isBusy(booking.bookingId)"
+              (click)="release(booking)"
+            >
+              {{ busy.isBusy(booking.bookingId) ? 'Zwalnianie…' : 'Zwolnij miejsce' }}
+            </button>
+          }
 
           @if (failedId() === booking.bookingId) {
             <p slot="foot" class="field-error bookings-error" role="alert">{{ failure() }}</p>
@@ -55,73 +99,79 @@
   }
 
   <!-- Sign somebody up (S-14, AM-007). Below the list rather than above it: the panel's subject is
-       who is coming, and this is an action taken after reading that. ALWAYS rendered since S-21:
+       who is coming, and this is an action taken after reading that. Gone from the start (S-27): the
+       server refuses a booking on a started class, so the sheet offers none. Before it, always
+       rendered since S-21:
        whether anyone is left to add can no longer be known without searching, so the block is a
        search box first and a select of its matches second. -->
-  <div class="bookings-add">
-    <!-- The label carried class="field" itself before S-23, so the flex column landed on the LABEL
+  @if (!started() && !cancelled()) {
+    <div class="bookings-add">
+      <!-- The label carried class="field" itself before S-23, so the flex column landed on the LABEL
          and the control it names sat outside it entirely. app-field is the block; the label is a
          label. -->
-    <app-field label="Dopisz członka" for="add-member-search">
-      <input
-        id="add-member-search"
-        type="search"
-        autocomplete="off"
-        maxlength="100"
-        [placeholder]="search().placeholder"
-        [ngModel]="addSearch()"
-        (ngModelChange)="onAddSearchInput($event)"
-        [disabled]="adding()"
-      />
-    </app-field>
+      <app-field label="Dopisz członka" for="add-member-search">
+        <input
+          id="add-member-search"
+          type="search"
+          autocomplete="off"
+          maxlength="100"
+          [placeholder]="search().placeholder"
+          [ngModel]="addSearch()"
+          (ngModelChange)="onAddSearchInput($event)"
+          [disabled]="adding()"
+        />
+      </app-field>
 
-    <!-- A phrase nobody bookable matches says so, rather than leaving an empty select and a disabled
+      <!-- A phrase nobody bookable matches says so, rather than leaving an empty select and a disabled
          button to explain themselves. Only when these are ALL the matches, though: if every one shown
          is already signed up but more exist past the first page, "nobody can be added" is not known —
          the narrow-the-phrase hint below is the true answer. -->
-    @if (searched() && bookable().length === 0 && candidatesTotal() <= candidates().length) {
-      <app-empty>Nikt pasujący nie może zostać dopisany.</app-empty>
-    } @else {
-      <div class="bookings-add-controls">
-        <app-select>
-          <select
-            id="add-member"
-            aria-label="Osoba do dopisania"
-            [ngModel]="chosen()"
-            (ngModelChange)="chosen.set($event)"
-            [disabled]="adding() || bookable().length === 0"
-          >
-            <option value="">{{ searched() ? 'Wybierz osobę…' : 'Wpisz imię lub e-mail…' }}</option>
-            @for (member of bookable(); track member.id) {
-              <option [value]="member.id">
-                {{ member.displayName }}{{ member.hasAccount ? '' : ' — bez konta' }}
+      @if (searched() && bookable().length === 0 && candidatesTotal() <= candidates().length) {
+        <app-empty>Nikt pasujący nie może zostać dopisany.</app-empty>
+      } @else {
+        <div class="bookings-add-controls">
+          <app-select>
+            <select
+              id="add-member"
+              aria-label="Osoba do dopisania"
+              [ngModel]="chosen()"
+              (ngModelChange)="chosen.set($event)"
+              [disabled]="adding() || bookable().length === 0"
+            >
+              <option value="">
+                {{ searched() ? 'Wybierz osobę…' : 'Wpisz imię lub e-mail…' }}
               </option>
-            }
-          </select>
-        </app-select>
+              @for (member of bookable(); track member.id) {
+                <option [value]="member.id">
+                  {{ member.displayName }}{{ member.hasAccount ? '' : ' — bez konta' }}
+                </option>
+              }
+            </select>
+          </app-select>
 
-        <button
-          type="button"
-          class="button button--secondary"
-          [disabled]="!chosen() || adding()"
-          (click)="add()"
-        >
-          {{ adding() ? 'Zapisuję…' : 'Zapisz' }}
-        </button>
-      </div>
+          <button
+            type="button"
+            class="button button--secondary"
+            [disabled]="!chosen() || adding()"
+            (click)="add()"
+          >
+            {{ adding() ? 'Zapisuję…' : 'Zapisz' }}
+          </button>
+        </div>
 
-      @if (candidatesTotal() > candidates().length) {
-        <p class="hint">
-          Pokazano {{ candidates().length }} z {{ candidatesTotal() }} pasujących — zawęź
-          wyszukiwanie.
-        </p>
+        @if (candidatesTotal() > candidates().length) {
+          <p class="hint">
+            Pokazano {{ candidates().length }} z {{ candidatesTotal() }} pasujących — zawęź
+            wyszukiwanie.
+          </p>
+        }
       }
-    }
 
-    @if (addFailure()) {
-      <p class="field-error" role="alert">{{ addFailure() }}</p>
-    }
-  </div>
+      @if (addFailure()) {
+        <p class="field-error" role="alert">{{ addFailure() }}</p>
+      }
+    </div>
+  }
 
   <div class="overlay-actions">
     <button type="button" class="link-button" (click)="close()">Zamknij</button>

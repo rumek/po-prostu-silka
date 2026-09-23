@@ -194,14 +194,18 @@ describe('Classes', () => {
     await settle();
   }
 
-  /** A past-week tile is a plain block: not a button, and activating it opens nothing. */
-  function expectInert(name: string): void {
-    expect(tileFor(name).tagName).not.toBe('BUTTON');
-
+  /**
+   * A past-week tile opens no actions (S-27: it opens the roster instead, to record attendance).
+   * Answers the roster request so afterEach's verify stays clean.
+   */
+  async function expectNoActions(name: string, classId = 'c1'): Promise<void> {
     tileFor(name).click();
     fixture.detectChanges();
 
     expect(actionsOverlay()).toBeNull();
+
+    controller.expectOne(`/api/admin/classes/${classId}/bookings`).flush([]);
+    await settle();
   }
 
   // --- the window drives the fetch ------------------------------------------
@@ -453,8 +457,27 @@ describe('Classes', () => {
     // Visible, but not editable — and the reason is on screen, or a tile that ignores a click reads
     // as broken.
     expect(tiles().length).toBe(1);
-    expectInert('Joga');
+    await expectNoActions('Joga');
     expect(html()).toContain('Ten tydzień już minął');
+  });
+
+  it('opens the roster of a past-week tile directly, to record attendance', async () => {
+    await createWith([JOGA]);
+    await goToPastWeekWith(JOGA);
+
+    tileFor('Joga').click();
+    await settle();
+
+    expect(actionsOverlay()).toBeNull();
+    controller.expectOne('/api/admin/classes/c1/bookings').flush([{ ...SIGNUP, attendance: null }]);
+    await settle();
+
+    const overlay = element().querySelector('app-class-bookings-overlay')!;
+    expect(overlay).not.toBeNull();
+    // Started, so it is the attendance sheet: a toggle, no release, no picker.
+    expect(overlay.querySelector('[role="group"]')).not.toBeNull();
+    expect(overlay.textContent).not.toContain('Zwolnij miejsce');
+    expect(html()).toContain('możesz tylko sprawdzić i poprawić obecność');
   });
 
   // --- FR-014: who signed up -------------------------------------------------
@@ -572,9 +595,9 @@ describe('Classes', () => {
 
     await goToPastWeekWith(JOGA);
 
-    // Zapisani lives in the same overlay as the other three, so a tile that opens nothing withholds
-    // it along with them — this pins that it stayed that way.
-    expectInert('Joga');
+    // Zapisani lives in the same overlay as the other three, so a tile that opens no actions
+    // withholds it along with them. The roster opens directly instead (S-27).
+    await expectNoActions('Joga');
   });
   // --- S-20: the actions overlay --------------------------------------------
 
@@ -851,7 +874,7 @@ describe('Classes', () => {
     await goToPastWeekWith(BOOKED);
 
     // In the same overlay as the other actions, so a past week withholds it too.
-    expectInert('Crossfit');
+    await expectNoActions('Crossfit', 'c3');
   });
 
   // --- S-20: a desk tool, and a phone is told so ------------------------------

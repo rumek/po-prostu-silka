@@ -53,7 +53,16 @@ export interface ClassBooking {
   displayName: string;
   email: string;
   bookedAt: string;
+
+  /**
+   * Whether they came (S-27): `present`, `absent`, or null while nobody recorded it. Always null
+   * before the class starts — the server refuses to mark earlier.
+   */
+  attendance: Attendance | null;
 }
+
+/** A recorded attendance mark (S-27). Unrecorded is `null` on the row, never a third value here. */
+export type Attendance = 'present' | 'absent';
 
 /**
  * Mirrors BookingFailure. Every reason the API can refuse a booking write.
@@ -69,6 +78,9 @@ export interface ClassBooking {
  * `member_is_staff` (S-25): trainers and admins are never booked as participants. The trainer's
  * picker never offers them; the admin's does, and this is the refusal it then shows.
  *
+ * `class_not_started` (S-27) comes from the attendance route only: attendance is marked from the
+ * class's start, never before.
+ *
  * `conflict` is the only one that is not a product rule: the server's retry loop lost its race on
  * every attempt, and the honest advice is to try again.
  */
@@ -82,6 +94,7 @@ export interface BookingFailure {
     | 'member_is_staff'
     | 'no_valid_pass'
     | 'no_entries_left'
+    | 'class_not_started'
     | 'conflict';
 }
 
@@ -105,5 +118,6 @@ export const BOOKING_FAILURE_REASONS = Object.keys({
   member_is_staff: true,
   no_valid_pass: true,
   no_entries_left: true,
+  class_not_started: true,
   conflict: true,
 } satisfies Record<BookingFailure['reason'], true>) as readonly BookingFailure['reason'][];

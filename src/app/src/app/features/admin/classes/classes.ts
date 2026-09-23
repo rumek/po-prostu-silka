@@ -134,7 +134,10 @@ export class Classes {
   /** The range drawn on the grid, awaiting a type and a trainer. Null when no overlay is open. */
   protected readonly drawn = signal<DrawnRange | null>(null);
 
-  /** The whole visible window is behind us. Looking is fine; changing it is not. */
+  /**
+   * The whole visible window is behind us. Looking is fine and so is attendance (S-27); changing the
+   * classes themselves is not.
+   */
   protected readonly isPast = computed(() => {
     const range = this.range();
 
@@ -307,10 +310,18 @@ export class Classes {
 
   /**
    * A tile was activated (S-20). The calendar reports only a real click or a keyboard activation —
-   * the click that ends a drag or a resize never arrives here — and never in a past week, where the
-   * tiles are not selectable at all.
+   * the click that ends a drag or a resize never arrives here.
+   *
+   * IN A PAST WEEK IT OPENS THE ROSTER DIRECTLY (S-27). Nothing in the actions overlay applies to a
+   * class that already happened, but its attendance can be recorded and corrected with no time
+   * limit — and that promise means nothing if a desk cannot reach last week's roster.
    */
   protected select(row: ScheduledClass): void {
+    if (this.isPast()) {
+      this.openBookings(row);
+      return;
+    }
+
     this.failed.set(null);
     // Every opener closes every other overlay first. Nothing traps Tab inside an overlay, so a tile
     // behind the create overlay can still be reached and activated — and two modals are one too many.

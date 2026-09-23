@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import { ClassBooking, MyBooking } from './booking.models';
+import { Attendance, ClassBooking, MyBooking } from './booking.models';
 import { ScheduledClass } from './class.models';
 
 /**
@@ -65,6 +65,24 @@ export class BookingService {
     await firstValueFrom(
       this.http.delete<void>(
         `/api/admin/classes/${encodeURIComponent(classId)}/bookings/${encodeURIComponent(bookingId)}`,
+      ),
+    );
+  }
+
+  /**
+   * Marks one booked member present or absent on a class that has started (S-27). A trainer on their
+   * own classes, or an admin. Resolves with the row as it now stands, so the overlay replaces it in
+   * place. Absent → present can be refused `no_entries_left`: it spends an entry again.
+   */
+  recordAttendance(
+    classId: string,
+    bookingId: string,
+    attendance: Attendance,
+  ): Promise<ClassBooking> {
+    return firstValueFrom(
+      this.http.put<ClassBooking>(
+        `/api/admin/classes/${encodeURIComponent(classId)}/bookings/${encodeURIComponent(bookingId)}/attendance`,
+        { attendance },
       ),
     );
   }
