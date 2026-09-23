@@ -140,7 +140,7 @@ under concurrency or it is not, and nothing else in this milestone tests that.
 | S-22 | member-centric-training-plans | (admin, trainer) set a member's plan by opening the member, not a plan list; the Plany screen is retired | S-21 | M-7 UX-07, UX-08 (retires part of v1 FR-015's surface) | done |
 | S-23 | frontend-presentational-kit | (structural) the presentational layer gets components instead of copies — one field, one select, one checkbox, one loading state, one empty state, one list row, enforced by a spec | S-19 | M-6 (folded in at close; extends CS-06) | done |
 | S-24 | test-environment-seed-data | (dev tooling) open the development environment and find it populated - 200 members (some accountless), two admins, two trainers, passes, a schedule with bookings, an exercise library and assigned plans | S-16, S-22 | none - outside any milestone (dev tooling) | done |
-| S-25 | role-based-visibility | (member, trainer, admin) each role sees its own app - a member their classes, plan and karnet without the gym schedule; a trainer a schedule of their own classes with the roster; an admin everything - and the menu reaches every page at every width | S-16, S-22 | M-8 PV-01 = v2 "Amendment: role-based visibility" (supersedes v2 FR-002, FR-018; narrows v1 FR-007, FR-024) | in-progress |
+| S-25 | role-based-visibility | (member, trainer, admin) each role sees its own app - a member their classes, plan and karnet without the gym schedule; a trainer a schedule of their own classes with the roster; an admin everything - and the menu reaches every page at every width | S-16, S-22 | M-8 PV-01 = v2 "Amendment: role-based visibility" (supersedes v2 FR-002, FR-018; narrows v1 FR-007, FR-024) | done |
 | S-27 | class-attendance | (trainer, admin, member) staff mark who attended a class from its roster; a karnet entry is spent by attending, not by booking; a member sees their attendance history as a readable view, not a wall of text | S-16, S-25 | M-8 AT-01–AT-05 (unparks v1 §Non-Goals "No attendance / check-in tracking"; amends M-4 MP-06) | proposed |
 
 ## Streams
@@ -729,7 +729,7 @@ rather than in a slice body:
   (the instructed-classes feed).
 - **Risk:** the API and the SPA change who may reach what in the same release; merged apart, a
   member's SPA would call a schedule that now refuses them. Phases 2-5 ship together.
-- **Status:** in-progress
+- **Status:** done
 
 ### S-27: Staff record who came, and the karnet counts attendance
 
@@ -805,7 +805,7 @@ rather than in a slice body:
 | S-22       | member-centric-training-plans    | Reach a member's plan through the member; retire the standalone Plany screen | no                    | Needs S-21; carries an open question about what a trainer may see |
 | S-23       | frontend-presentational-kit      | Give the presentational layer components instead of copies, with a spec that enforces them | no                    | Done — archived 2026-09-21. Folded into M-6 |
 | S-24       | test-environment-seed-data       | Config-gated seeder that fills the development environment with a realistic data set | no                    | Done — archived 2026-09-22. Outside any milestone |
-| S-25       | role-based-visibility            | Per-persona visibility (member, trainer, admin) enforced in menu, guard and API; the menu reaches every page | no                    | In progress. M-8 |
+| S-25       | role-based-visibility            | Per-persona visibility (member, trainer, admin) enforced in menu, guard and API; the menu reaches every page | no                    | Done — archived 2026-09-23. M-8 |
 | S-27       | class-attendance                 | Staff mark attendance on the class roster; karnet entries are spent by attending; member attendance history | no                    | North star of M-8. Needs S-25 archived, then `/10x-plan class-attendance` |
 
 ## Open Roadmap Questions
@@ -1075,3 +1075,4 @@ Resolved since the previous roadmap: the sender-domain question that gated F-03 
 - **S-21: user (admin) opens Członkowie with hundreds of records and finds one - the API pages, searches and filters, so the browser no longer fetches every member to hide all but four; from the shared breakpoint up the list is a table with columns, and below it one compact row per member.** — Archived 2026-09-22 → `context/archive/2026-09-21-member-list-at-scale/`. Lesson: —.
 - **S-22: user (admin) sets someone's training plan by opening Członkowie, opening that member and editing the plan there - the same path the karnet already takes - and a trainer does the same from a member list of their own; the standalone Plany screen and its entry on `/more` are gone.** — Archived 2026-09-22 → `context/archive/2026-09-21-member-centric-training-plans/`. Lesson: —.
 - **S-24: (dev tooling — no capability changes) a config-gated `TestDataSeeder`, running next to `AdminSeeder` only when `TestDataSeed:*` settings ask for it, wipes the domain data and inserts a deterministic, realistic data set: 200 members (part of them accountless with a claim code), two admins, two trainers, membership passes (valid, expired and used up), class types and a schedule for the coming weeks, bookings (some classes full), an exercise library and a few assigned training plans.** — Archived 2026-09-22 → `context/archive/2026-09-22-test-environment-seed-data/`. Lesson: —.
+- **S-25: (member, trainer, admin) every account resolves to one persona by the precedence Admin > Trainer > Member, and the menu, the route guards and the API enforce the same predicate. A member sees their own classes, plan, karnet (the dashboard card) and profile, and no schedule. A trainer sees a schedule of only the classes they instruct, opens a class's roster and books members into it, and has their member list and a dashboard of their classes. An admin sees every class and the management screens, with a dashboard of the classes they instruct. Staff hold no karnet, booking or plan - the domain refuses them with `member_is_staff`. Every top-level screen is reachable from the menu at every width, the desktop header included.** — Archived 2026-09-23 → `context/archive/2026-09-22-role-based-visibility/`. Lesson: —.
