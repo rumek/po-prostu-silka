@@ -12,7 +12,8 @@ import { Empty } from '../../shared/forms/empty/empty';
 import { List } from '../../shared/list/list';
 import { Row } from '../../shared/list/row';
 import { AttendanceHistory } from './attendance-history';
-import { CLOCK, ClassDate, groupByMonth } from './class-date';
+import { BookedClass } from '../../shared/class-date/booked-class';
+import { groupByMonth } from '../../shared/class-date/class-date';
 
 /** The query param that selects the history tab, and its one value. Absent means upcoming. */
 export const VIEW_PARAM = 'widok';
@@ -58,7 +59,7 @@ const SWIPE_RATIO = 1.5;
  * through the same `select`, so the URL and the history entry behave exactly as a tap does.
  */
 @Component({
-  imports: [List, Row, Empty, Loading, ClassDate, AttendanceHistory],
+  imports: [List, Row, Empty, Loading, BookedClass, AttendanceHistory],
   selector: 'app-my-classes',
   styleUrl: './my-classes.scss',
   templateUrl: './my-classes.html',
@@ -199,14 +200,6 @@ export class MyClasses implements OnInit {
     if (next >= 0 && next < TAB_ORDER.length) {
       this.select(TAB_ORDER[next]);
     }
-  }
-
-  /** "18:00–19:00". The end is derived, never stored — the API returns none. */
-  protected timeOf(row: MyBooking): string {
-    const start = new Date(row.startsAt);
-    const end = new Date(start.getTime() + row.durationMinutes * 60_000);
-
-    return `${CLOCK.format(start)}–${CLOCK.format(end)}`;
   }
 
   protected async load(): Promise<void> {

@@ -1,0 +1,18 @@
+// .row-name / .row-meta come from src/styles.scss.
+
+:host {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.booked-class-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.booked-class-struck {
+  color: var(--muted);
+  text-decoration: line-through;
+}

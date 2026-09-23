@@ -26,24 +26,29 @@
         </header>
 
         <app-list>
-          @for (row of group.rows; track row.entry.bookingId) {
+          @for (entry of group.entries; track entry.bookingId) {
             <li appRow class="card class-row">
-              <app-class-date slot="lead" [startsAt]="row.entry.startsAt" />
-
-              <p class="row-name" [class.history-cancelled]="row.entry.outcome === 'cancelled'">
-                {{ row.entry.name }}
-              </p>
-              <p class="row-meta">{{ row.time }} · {{ row.entry.instructor }}</p>
-
-              <!-- The glyph alone on screen; the word is its tooltip and what a screen reader says. -->
-              <span
-                slot="actions"
-                class="outcome outcome--{{ row.entry.outcome }}"
-                [title]="labels[row.entry.outcome].word"
+              <app-booked-class
+                [name]="entry.name"
+                [startsAt]="entry.startsAt"
+                [instructor]="entry.instructor"
+                [struck]="entry.outcome === 'cancelled'"
               >
-                <app-icon [name]="labels[row.entry.outcome].icon" />
-                <span class="outcome-word">{{ labels[row.entry.outcome].word }}</span>
-              </span>
+                <!-- A dot only for a yes or a no: V came, X did not. An unrecorded class gets nothing — it
+                     is neither — and a cancelled one is already crossed out, so it keeps only the word
+                     a screen reader needs. On the dot the word is its tooltip and what is read out. -->
+                @if (entry.outcome === 'present' || entry.outcome === 'absent') {
+                  <span
+                    class="outcome outcome--{{ entry.outcome }}"
+                    [title]="labels[entry.outcome].word"
+                  >
+                    <app-icon [name]="labels[entry.outcome].icon" />
+                    <span class="outcome-word">{{ labels[entry.outcome].word }}</span>
+                  </span>
+                } @else if (entry.outcome === 'cancelled') {
+                  <span class="outcome-word">{{ labels.cancelled.word }}</span>
+                }
+              </app-booked-class>
             </li>
           }
         </app-list>

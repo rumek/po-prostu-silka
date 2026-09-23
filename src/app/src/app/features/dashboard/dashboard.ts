@@ -14,14 +14,12 @@ import { ScheduledClass } from '../../core/scheduling/class.models';
 import { MembershipPassView } from '../../core/admin/member-admin.models';
 import { TrainingPlanService } from '../../core/training/training-plan.service';
 import { TrainingPlanDetail } from '../../core/training/training-plan.models';
+import { BookedClass } from '../../shared/class-date/booked-class';
 import { ClassSummary } from '../../shared/class-summary/class-summary';
 import { PlanSummary } from '../../shared/plan-summary/plan-summary';
 import { createLoadFence } from '../../shared/forms/load-fence';
 import { Loading } from '../../shared/forms/loading/loading';
 import { Empty } from '../../shared/forms/empty/empty';
-
-/** How many upcoming bookings the member's card shows before deferring to /my-classes (FR-023). */
-const NEAREST_CLASSES = 3;
 
 /** Days past today the staff "upcoming" card looks ahead. Well inside the API's 62-day cap. */
 const UPCOMING_DAYS = 7;
@@ -52,7 +50,7 @@ const UPCOMING_DAYS = 7;
  * It must not import date-fns — see `todayWindow()`.
  */
 @Component({
-  imports: [Empty, Loading, ClassSummary, DatePipe, PlanSummary, RouterLink],
+  imports: [BookedClass, Empty, Loading, ClassSummary, DatePipe, PlanSummary, RouterLink],
   selector: 'app-dashboard',
   styleUrl: './dashboard.scss',
   templateUrl: './dashboard.html',
@@ -98,12 +96,13 @@ export class Dashboard implements OnInit {
   private readonly bookingsFence = createLoadFence();
 
   /**
-   * Sliced here, not sorted here. The API already orders by the class's start
+   * The ONE next class (FR-023), drawn with the same row "Moje zajęcia" uses; the rest are a link
+   * away. Picked here, not sorted here. The API already orders by the class's start
    * (BookingQuery.GetUpcomingForMemberAsync), and re-sorting would be a second source of truth for a
    * rule the server already owns.
    */
-  protected readonly nearestBookings = computed(() => this.allBookings().slice(0, NEAREST_CLASSES));
-  protected readonly hasMoreBookings = computed(() => this.allBookings().length > NEAREST_CLASSES);
+  protected readonly nextBooking = computed(() => this.allBookings()[0] ?? null);
+  protected readonly hasMoreBookings = computed(() => this.allBookings().length > 1);
 
   // --- Member: active plan -----------------------------------------------------------------------
 

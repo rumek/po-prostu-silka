@@ -179,18 +179,39 @@ describe('Dashboard', () => {
     controller.verify();
   });
 
-  it('shows at most three bookings and links to the full list when there are more', async () => {
+  it('shows only the next booking, in the my-classes row, and links to the rest', async () => {
     configure(MEMBER);
 
     controller
       .expectOne(BOOKINGS_URL)
-      .flush([1, 2, 3, 4].map((n) => booking({ bookingId: `b${n}`, classId: `c${n}` })));
+      .flush(
+        [1, 2, 3, 4].map((n) =>
+          booking({ bookingId: `b${n}`, classId: `c${n}`, name: `Zajęcia ${n}` }),
+        ),
+      );
     controller.expectOne(PLAN_URL).flush(null, { status: 204, statusText: 'No Content' });
     flushPass();
     await settle();
 
-    expect(element().querySelectorAll('.dashboard-list li').length).toBe(3);
+    const shown = element().querySelectorAll('app-booked-class');
+    expect(shown.length).toBe(1);
+    expect(shown[0].textContent).toContain('Zajęcia 1');
+    expect(shown[0].querySelector('app-class-date')).not.toBeNull();
     expect(element().querySelector('a[href="/my-classes"]')).not.toBeNull();
+    controller.verify();
+  });
+
+  // The link only when the card is hiding something.
+  it('offers no "see all" when the one booking is all there is', async () => {
+    configure(MEMBER);
+
+    controller.expectOne(BOOKINGS_URL).flush([booking()]);
+    controller.expectOne(PLAN_URL).flush(null, { status: 204, statusText: 'No Content' });
+    flushPass();
+    await settle();
+
+    expect(element().querySelectorAll('app-booked-class').length).toBe(1);
+    expect(element().querySelector('a[href="/my-classes"]')).toBeNull();
     controller.verify();
   });
 

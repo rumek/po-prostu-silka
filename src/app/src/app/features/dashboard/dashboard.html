@@ -17,30 +17,25 @@
             Spróbuj ponownie
           </button>
         </p>
-      } @else if (nearestBookings().length === 0) {
+      } @else if (nextBooking(); as row) {
+        <!-- The same row as "Moje zajęcia", so the card reads as a preview of that screen. -->
+        <app-booked-class
+          [name]="row.name"
+          [startsAt]="row.startsAt"
+          [durationMinutes]="row.durationMinutes"
+          [instructor]="row.instructor"
+        />
+
+        <!-- Shown only when the card is actually hiding something: a "see all" that leads to the same
+           one row teaches the member the link is not worth pressing. -->
+        @if (hasMoreBookings()) {
+          <a class="dashboard-more" routerLink="/my-classes">Zobacz wszystkie zapisy</a>
+        }
+      } @else {
         <!-- No link to a schedule: a member has none (S-25). The club books them, and says so. -->
         <app-empty>
           Nie masz jeszcze żadnych zapisów. Zapisy prowadzi klub — odezwij się w recepcji.
         </app-empty>
-      } @else {
-        <ul class="dashboard-list">
-          @for (row of nearestBookings(); track row.bookingId) {
-            <li>
-              <app-class-summary
-                [name]="row.name"
-                [startsAt]="row.startsAt"
-                [durationMinutes]="row.durationMinutes"
-                [instructor]="row.instructor"
-              />
-            </li>
-          }
-        </ul>
-
-        <!-- Shown only when the card is actually hiding something: a "see all" that leads to the same
-           three rows teaches the member the link is not worth pressing. -->
-        @if (hasMoreBookings()) {
-          <a class="dashboard-more" routerLink="/my-classes">Zobacz wszystkie zapisy</a>
-        }
       }
     </article>
 

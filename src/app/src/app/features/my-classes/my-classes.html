@@ -82,10 +82,12 @@
             <app-list>
               @for (row of group.items; track row.bookingId) {
                 <li appRow class="card class-row">
-                  <app-class-date slot="lead" [startsAt]="row.startsAt" />
-
-                  <p class="row-name">{{ row.name }}</p>
-                  <p class="row-meta">{{ timeOf(row) }} · {{ row.instructor }}</p>
+                  <app-booked-class
+                    [name]="row.name"
+                    [startsAt]="row.startsAt"
+                    [durationMinutes]="row.durationMinutes"
+                    [instructor]="row.instructor"
+                  />
                 </li>
               }
             </app-list>

@@ -1,7 +1,7 @@
 import { Component, computed, input } from '@angular/core';
 
 /**
- * The club's time zone. Both tabs of "Moje zajęcia" show and group classes by the GYM's calendar —
+ * The club's time zone. A member's classes are shown and grouped by the GYM's calendar —
  * the way the server pages the history — so a class at 23:30 UTC on the last of a month sits in the
  * next month here too.
  */

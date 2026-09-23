@@ -107,7 +107,7 @@ describe('AttendanceHistory', () => {
     expect(september.querySelectorAll('li.row').length).toBe(2);
   });
 
-  it('carries a glyph per outcome, with its word for screen readers and as the tooltip', async () => {
+  it('dots only a class attended or missed, with its word for screen readers and the tooltip', async () => {
     await respond(
       page({
         items: [
@@ -119,13 +119,27 @@ describe('AttendanceHistory', () => {
       }),
     );
 
-    const dots = [...element().querySelectorAll<HTMLElement>('.class-row .outcome')];
-    const words = ['Obecny', 'Nieobecny', 'Nie odnotowano', 'Odwołane'];
+    const rows = [...element().querySelectorAll<HTMLElement>('li.row')];
+    const dots = rows.map((row) => row.querySelector<HTMLElement>('.outcome'));
 
-    expect(dots.map((d) => d.querySelector('.outcome-word')?.textContent?.trim())).toEqual(words);
-    expect(dots.map((d) => d.title)).toEqual(words);
-    expect(dots.every((d) => d.querySelector('app-icon') !== null)).toBe(true);
-    expect(element().querySelector('.history-cancelled')!.textContent).toContain('Joga');
+    expect(dots.map((d) => d?.title ?? null)).toEqual(['Obecny', 'Nieobecny', null, null]);
+    expect(dots[0]!.querySelector('app-icon')).not.toBeNull();
+    expect(dots[0]!.querySelector('.outcome-word')!.textContent?.trim()).toBe('Obecny');
+
+    // Unrecorded says nothing; cancelled is crossed out and keeps its word for a screen reader.
+    expect(rows[2].querySelector('.outcome-word')).toBeNull();
+    expect(rows[3].querySelector('.outcome-word')!.textContent?.trim()).toBe('Odwołane');
+    expect(rows[3].querySelector('.booked-class-struck')!.textContent).toContain('Joga');
+  });
+
+  it('keeps the same date column and time line as the upcoming tab', async () => {
+    await respond(
+      page({ items: [entry({ startsAt: '2026-09-10T16:00:00Z', instructor: 'Ola' })] }),
+    );
+
+    expect(element().querySelector('app-booked-class .row-meta')!.textContent).toContain(
+      '18:00 · Ola',
+    );
   });
 
   // Weekday over day over month, in the club's zone: 16:00 UTC on 10 September is a Thursday.

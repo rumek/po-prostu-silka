@@ -9,7 +9,8 @@ import { Empty } from '../../shared/forms/empty/empty';
 import { Icon, IconName } from '../../shared/icons/icon';
 import { List } from '../../shared/list/list';
 import { Row } from '../../shared/list/row';
-import { CLOCK, ClassDate, groupByMonth } from './class-date';
+import { BookedClass } from '../../shared/class-date/booked-class';
+import { groupByMonth } from '../../shared/class-date/class-date';
 
 /** The word and glyph for each outcome. The word carries the meaning; colour and glyph repeat it. */
 export const OUTCOME_LABELS: Record<AttendanceOutcome, { word: string; icon: IconName }> = {
@@ -22,7 +23,7 @@ export const OUTCOME_LABELS: Record<AttendanceOutcome, { word: string; icon: Ico
 export interface HistoryMonth {
   key: string;
   heading: string;
-  rows: { entry: MyAttendanceEntry; time: string }[];
+  entries: MyAttendanceEntry[];
 
   /** Classes the member came to. */
   attended: number;
@@ -37,12 +38,12 @@ export interface HistoryMonth {
  * <h2>Read at a glance, not read out</h2>
  *
  * AT-05's requirement is that this is NOT one sentence per class. So: one section per club-local
- * month with its own tally, and rows that are a date column, a name and a status dot. The dot is a
- * glyph on a tint with the word behind it for screen readers and as its tooltip — the glyph and the
- * tint repeat each other, so colour is never the only signal. The karnet's own summary card was
+ * month with its own tally, and rows that are a date column, a name and — for a class attended or
+ * missed only — a V or X dot, with the word behind it for screen readers and as its tooltip. An
+ * unrecorded class gets no dot: it is neither a yes nor a no. A cancelled one is crossed out. The karnet's own summary card was
  * dropped: the dashboard already carries the balance, and this tab is about the classes.
  *
- * The upcoming tab next door follows the same row and month layout (`class-date.ts`).
+ * The upcoming tab next door follows the same row (`shared/class-date/booked-class.ts`) and month layout.
  *
  * <h2>Its own load</h2>
  *
@@ -52,7 +53,7 @@ export interface HistoryMonth {
  * months already loaded remain perfectly readable (outlet 2 rather than outlet 4).
  */
 @Component({
-  imports: [ClassDate, Loading, Empty, Icon, List, Row],
+  imports: [BookedClass, Loading, Empty, Icon, List, Row],
   selector: 'app-attendance-history',
   styleUrl: './attendance-history.scss',
   templateUrl: './attendance-history.html',
@@ -78,7 +79,7 @@ export class AttendanceHistory implements OnInit {
     groupByMonth(this.items(), (entry) => entry.startsAt).map((group) => ({
       key: group.key,
       heading: group.heading,
-      rows: group.items.map((entry) => ({ entry, time: CLOCK.format(new Date(entry.startsAt)) })),
+      entries: group.items,
       counted: group.items.filter((e) => e.outcome === 'present' || e.outcome === 'absent').length,
       attended: group.items.filter((e) => e.outcome === 'present').length,
     })),

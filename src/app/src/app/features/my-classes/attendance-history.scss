@@ -9,8 +9,9 @@
 
 // --- the status dot ------------------------------------------------------------
 //
-// A glyph on a tint, pinned to the top of the row. The glyph and the tint repeat each other, and the
-// word stays in the DOM for a screen reader and as the tooltip — colour is never the only signal.
+// V or X on a tint, pinned to the top of the row — only for a class that was attended or missed.
+// The glyph and the tint repeat each other, and the word stays in the DOM for a screen reader and as
+// the tooltip — colour is never the only signal.
 
 .outcome {
   position: relative;
@@ -51,26 +52,11 @@
   color: var(--danger);
 }
 
-.outcome--unrecorded {
-  background: var(--section-cool);
-  color: var(--muted);
-}
-
-.outcome--cancelled {
-  border: 1px dashed var(--line-strong);
-  color: var(--muted);
-}
-
 .history-month-tally {
   margin: 0;
   color: var(--muted);
   font-size: 0.875rem;
   white-space: nowrap;
-}
-
-.history-cancelled {
-  color: var(--muted);
-  text-decoration: line-through;
 }
 
 .history-more {
