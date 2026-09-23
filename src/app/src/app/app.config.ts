@@ -1,7 +1,9 @@
 import {
   ApplicationConfig,
   LOCALE_ID,
+  inject,
   isDevMode,
+  provideAppInitializer,
   provideBrowserGlobalErrorListeners,
 } from '@angular/core';
 import { registerLocaleData } from '@angular/common';
@@ -12,6 +14,7 @@ import { provideClientHydration } from '@angular/platform-browser';
 import { provideHttpClient, withFetch, withInterceptors } from '@angular/common/http';
 import { routes } from './app.routes';
 import { authInterceptor } from './core/auth/auth.interceptor';
+import { InstallService } from './core/pwa/install.service';
 import { ScreenTitleStrategy } from './core/layout/screen-title';
 import { slideDirection } from './core/layout/view-transitions';
 
@@ -47,5 +50,11 @@ export const appConfig: ApplicationConfig = {
     //
     // Disabled in dev builds - a service worker caching a dev server is a debugging trap.
     provideServiceWorker('ngsw-worker.js', { enabled: !isDevMode() }),
+
+    // Created at boot, not on first use: `beforeinstallprompt` fires once, early, and a listener
+    // attached when the install banner first renders would miss it. See core/pwa/install.service.ts.
+    provideAppInitializer(() => {
+      inject(InstallService);
+    }),
   ],
 };

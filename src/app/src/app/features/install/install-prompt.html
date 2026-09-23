@@ -1,0 +1,24 @@
+@if (visible()) {
+  <aside class="install-prompt" role="region" aria-label="Instalacja aplikacji">
+    <div class="install-prompt__text">
+      <p class="install-prompt__title">Dodać Po Prostu Siłkę do ekranu głównego?</p>
+      <p class="install-prompt__body">
+        Aplikacja otworzy się jednym dotknięciem, na pełnym ekranie, bez paska przeglądarki.
+      </p>
+    </div>
+
+    <div class="install-prompt__actions">
+      <button type="button" class="button" [disabled]="working()" (click)="install()">
+        {{ working() ? 'Instalowanie…' : 'Zainstaluj' }}
+      </button>
+      <button
+        type="button"
+        class="button button--secondary"
+        [disabled]="working()"
+        (click)="dismiss()"
+      >
+        Nie teraz
+      </button>
+    </div>
+  </aside>
+}

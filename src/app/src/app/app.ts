@@ -7,6 +7,7 @@ import { mediaQuerySignal } from './core/layout/media-query';
 import { navigationFor } from './core/layout/navigation';
 import { ScreenTitle } from './core/layout/screen-title';
 import { Up } from './core/layout/up';
+import { InstallPrompt } from './features/install/install-prompt';
 import { PushPrompt } from './features/notifications/push-prompt';
 import { BottomNav } from './shared/bottom-nav/bottom-nav';
 import { Icon } from './shared/icons/icon';
@@ -29,7 +30,16 @@ import { ToastHost } from './shared/toast/toast-host';
  * back arrow plus the title on a child.
  */
 @Component({
-  imports: [BottomNav, Icon, PushPrompt, RouterOutlet, RouterLink, RouterLinkActive, ToastHost],
+  imports: [
+    BottomNav,
+    Icon,
+    InstallPrompt,
+    PushPrompt,
+    RouterOutlet,
+    RouterLink,
+    RouterLinkActive,
+    ToastHost,
+  ],
   selector: 'app-root',
   styleUrl: './app.scss',
   templateUrl: './app.html',
