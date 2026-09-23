@@ -369,4 +369,336 @@ public class AttendanceEndpointTests(IntegrationTestFixture fixture)
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(0, await EntriesLeftForAdminAsync(admin, memberId, passId));
     }
+
+    // --- the marking API (Phase 2) ---------------------------------------------
+
+    /// <summary>Mirrors ClassBooking — only what these tests read from it.</summary>
+    private sealed record RosterRow(Guid BookingId, Guid MemberId, string? Attendance);
+
+    private static string AttendanceOf(Guid classId, Guid bookingId) =>
+        $"{BookingsOf(classId)}/{bookingId}/attendance";
+
+    private static Task<HttpResponseMessage> PutMarkAsync(
+        HttpClient client, Guid classId, Guid bookingId, string attendance) =>
+        client.PutAsJsonAsync(AttendanceOf(classId, bookingId), new { attendance });
+
+    /// <summary>A trainer's signed-in client and their member id, which a class names as instructor.</summary>
+    private async Task<(HttpClient Client, Guid MemberId)> TrainerAsync(HttpClient admin)
+    {
+        var email = $"att-marker-{Guid.NewGuid():N}@test.local";
+        await fixture.CreateUserAsync(email, AccountStatus.Active, ApplicationRoles.Trainer);
+
+        var memberId = await fixture.FindMemberIdAsync(admin, email);
+        return (await fixture.CreateAuthenticatedClientAsync(email), memberId);
+    }
+
+    /// <summary>
+    /// A started class with one booked member holding a wide pass — the arrangement nearly every
+    /// marking test starts from.
+    /// </summary>
+    private async Task<(Guid ClassId, Guid BookingId, Guid MemberId)> StartedBookingAsync(
+        HttpClient admin, Guid? instructorMemberId = null, int entryCount = 10)
+    {
+        var (_, memberId) = await MemberWithAccountAsync(admin);
+        await fixture.IssuePassAsync(memberId, entryCount: entryCount);
+
+        var scheduled = await ClassAsync(admin, instructorMemberId);
+        await BookAsync(admin, scheduled.Id, memberId);
+        await StartAsync(scheduled.Id);
+
+        return (scheduled.Id, (await BookingOfAsync(scheduled.Id, memberId)).Id, memberId);
+    }
+
+    [Fact]
+    public async Task A_trainer_marks_attendance_on_a_class_they_instruct()
+    {
+        var admin = await AdminAsync();
+        var (trainer, trainerId) = await TrainerAsync(admin);
+        var (classId, bookingId, memberId) = await StartedBookingAsync(admin, trainerId);
+
+        var response = await PutMarkAsync(trainer, classId, bookingId, "present");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var row = (await response.Content.ReadFromJsonAsync<RosterRow>())!;
+        Assert.Equal(bookingId, row.BookingId);
+        Assert.Equal(memberId, row.MemberId);
+        Assert.Equal("present", row.Attendance);
+    }
+
+    /// <summary>AT-01: the instructor check, not the policy, is what stops this one.</summary>
+    [Fact]
+    public async Task A_trainer_cannot_mark_attendance_on_another_trainers_class()
+    {
+        var admin = await AdminAsync();
+        var (trainer, _) = await TrainerAsync(admin);
+        var (classId, bookingId, _) = await StartedBookingAsync(admin);
+
+        var response = await PutMarkAsync(trainer, classId, bookingId, "present");
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Null((await BookingByIdAsync(bookingId)).Attendance);
+    }
+
+    [Fact]
+    public async Task An_admin_marks_attendance_on_any_class()
+    {
+        var admin = await AdminAsync();
+        var (classId, bookingId, _) = await StartedBookingAsync(admin);
+
+        var response = await PutMarkAsync(admin, classId, bookingId, "absent");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(BookingAttendance.Absent, (await BookingByIdAsync(bookingId)).Attendance);
+    }
+
+    [Fact]
+    public async Task A_member_cannot_mark_attendance()
+    {
+        var admin = await AdminAsync();
+        var (classId, bookingId, _) = await StartedBookingAsync(admin);
+        var (member, _) = await MemberWithAccountAsync(admin);
+
+        var response = await PutMarkAsync(member, classId, bookingId, "present");
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Marking_before_the_start_is_refused()
+    {
+        var admin = await AdminAsync();
+        var (_, memberId) = await MemberWithAccountAsync(admin);
+        await fixture.IssuePassAsync(memberId);
+
+        var future = await ClassAsync(admin);
+        await BookAsync(admin, future.Id, memberId);
+        var booking = await BookingOfAsync(future.Id, memberId);
+
+        var response = await PutMarkAsync(admin, future.Id, booking.Id, "present");
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal("class_not_started", await ReasonAsync(response));
+    }
+
+    [Fact]
+    public async Task Marking_on_a_cancelled_class_is_refused()
+    {
+        var admin = await AdminAsync();
+        var (_, memberId) = await MemberWithAccountAsync(admin);
+        await fixture.IssuePassAsync(memberId);
+
+        var scheduled = await ClassAsync(admin);
+        await BookAsync(admin, scheduled.Id, memberId);
+        Assert.Equal(
+            HttpStatusCode.OK,
+            (await admin.PostAsync($"/api/admin/classes/{scheduled.Id}/cancel", content: null)).StatusCode);
+        await StartAsync(scheduled.Id);
+
+        var booking = await BookingOfAsync(scheduled.Id, memberId);
+        var response = await PutMarkAsync(admin, scheduled.Id, booking.Id, "present");
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal("class_cancelled", await ReasonAsync(response));
+    }
+
+    /// <summary>AT-02: only a standing booking can be marked; a released one holds nothing.</summary>
+    [Fact]
+    public async Task Marking_a_released_booking_is_not_found()
+    {
+        var admin = await AdminAsync();
+        var (_, memberId) = await MemberWithAccountAsync(admin);
+        await fixture.IssuePassAsync(memberId);
+
+        var scheduled = await ClassAsync(admin);
+        await BookAsync(admin, scheduled.Id, memberId);
+        var booking = await BookingOfAsync(scheduled.Id, memberId);
+        Assert.Equal(
+            HttpStatusCode.NoContent,
+            (await admin.DeleteAsync($"{BookingsOf(scheduled.Id)}/{booking.Id}")).StatusCode);
+        await StartAsync(scheduled.Id);
+
+        var response = await PutMarkAsync(admin, scheduled.Id, booking.Id, "present");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task An_unknown_attendance_value_is_a_bad_request()
+    {
+        var admin = await AdminAsync();
+        var (classId, bookingId, _) = await StartedBookingAsync(admin);
+
+        var response = await PutMarkAsync(admin, classId, bookingId, "late");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    /// <summary>The same mark twice is a 200 with no write — a double tap rotates nothing.</summary>
+    [Fact]
+    public async Task Marking_the_same_state_twice_is_idempotent()
+    {
+        var admin = await AdminAsync();
+        var (classId, bookingId, _) = await StartedBookingAsync(admin);
+
+        Assert.Equal(HttpStatusCode.OK, (await PutMarkAsync(admin, classId, bookingId, "absent")).StatusCode);
+
+        var passId = (await BookingByIdAsync(bookingId)).MembershipPassId!.Value;
+        var stampBefore = await PassStampAsync(passId);
+        var recordedBefore = (await BookingByIdAsync(bookingId)).AttendanceRecordedAt;
+
+        var again = await PutMarkAsync(admin, classId, bookingId, "absent");
+
+        Assert.Equal(HttpStatusCode.OK, again.StatusCode);
+        Assert.Equal("absent", (await again.Content.ReadFromJsonAsync<RosterRow>())!.Attendance);
+        Assert.Equal(stampBefore, await PassStampAsync(passId));
+        Assert.Equal(recordedBefore, (await BookingByIdAsync(bookingId)).AttendanceRecordedAt);
+    }
+
+    /// <summary>
+    /// THE GATE ON A CORRECTION. Eight entries; one class marked absent frees an entry; a new booking
+    /// takes it; correcting the absence back to present would now overdraw, so it is refused.
+    /// </summary>
+    [Fact]
+    public async Task Correcting_absent_to_present_is_refused_when_the_pass_is_full()
+    {
+        const int Entries = 8;
+
+        var admin = await AdminAsync();
+        var (_, memberId) = await MemberWithAccountAsync(admin);
+        var passId = await fixture.IssuePassAsync(memberId, entryCount: Entries);
+
+        var classes = new List<ClassBody>();
+        for (var i = 0; i < Entries; i++)
+        {
+            var c = await ClassAsync(admin);
+            await BookAsync(admin, c.Id, memberId);
+            classes.Add(c);
+        }
+
+        var missed = classes[0];
+        await StartAsync(missed.Id);
+        var booking = await BookingOfAsync(missed.Id, memberId);
+        Assert.Equal(HttpStatusCode.OK, (await PutMarkAsync(admin, missed.Id, booking.Id, "absent")).StatusCode);
+
+        // The freed entry is spent elsewhere.
+        await BookAsync(admin, (await ClassAsync(admin)).Id, memberId);
+        Assert.Equal(0, await EntriesLeftForAdminAsync(admin, memberId, passId));
+
+        var refused = await PutMarkAsync(admin, missed.Id, booking.Id, "present");
+
+        Assert.Equal(HttpStatusCode.Conflict, refused.StatusCode);
+        Assert.Equal("no_entries_left", await ReasonAsync(refused));
+        Assert.Equal(BookingAttendance.Absent, (await BookingByIdAsync(booking.Id)).Attendance);
+    }
+
+    [Fact]
+    public async Task Correcting_absent_to_present_spends_the_entry_again()
+    {
+        var admin = await AdminAsync();
+        var (classId, bookingId, memberId) = await StartedBookingAsync(admin, entryCount: 3);
+        var passId = (await BookingByIdAsync(bookingId)).MembershipPassId!.Value;
+
+        Assert.Equal(HttpStatusCode.OK, (await PutMarkAsync(admin, classId, bookingId, "absent")).StatusCode);
+        Assert.Equal(3, await EntriesLeftForAdminAsync(admin, memberId, passId));
+
+        Assert.Equal(HttpStatusCode.OK, (await PutMarkAsync(admin, classId, bookingId, "present")).StatusCode);
+        Assert.Equal(2, await EntriesLeftForAdminAsync(admin, memberId, passId));
+    }
+
+    /// <summary>
+    /// The race the pass stamp exists for, on the new write: one free entry, and at the same instant a
+    /// booking wants it and a correction wants it back. Asserted against the DATABASE, like every race
+    /// in this repository. Run several rounds, since one round can pass by a coincidence of scheduling.
+    /// </summary>
+    [Fact]
+    public async Task Concurrent_rebooking_and_correction_never_overdraw_the_pass()
+    {
+        for (var round = 0; round < 5; round++)
+        {
+            var admin = await AdminAsync();
+            var (classId, bookingId, memberId) = await StartedBookingAsync(admin, entryCount: 1);
+            var passId = (await BookingByIdAsync(bookingId)).MembershipPassId!.Value;
+
+            Assert.Equal(HttpStatusCode.OK, (await PutMarkAsync(admin, classId, bookingId, "absent")).StatusCode);
+
+            var next = await ClassAsync(admin);
+            var booker = await AdminAsync();
+            var corrector = await AdminAsync();
+
+            await Task.WhenAll(
+                booker.PostAsJsonAsync(BookingsOf(next.Id), new { memberId }),
+                PutMarkAsync(corrector, classId, bookingId, "present"));
+
+            Assert.True(await ConsumingForPassAsync(passId) <= 1);
+        }
+    }
+
+    [Fact]
+    public async Task The_roster_reports_each_rows_attendance()
+    {
+        var admin = await AdminAsync();
+        var (_, present) = await MemberWithAccountAsync(admin);
+        var (_, absent) = await MemberWithAccountAsync(admin);
+        var (_, unrecorded) = await MemberWithAccountAsync(admin);
+        foreach (var id in new[] { present, absent, unrecorded })
+        {
+            await fixture.IssuePassAsync(id);
+        }
+
+        var scheduled = await ClassAsync(admin);
+        foreach (var id in new[] { present, absent, unrecorded })
+        {
+            await BookAsync(admin, scheduled.Id, id);
+        }
+
+        await StartAsync(scheduled.Id);
+        await PutMarkAsync(admin, scheduled.Id, (await BookingOfAsync(scheduled.Id, present)).Id, "present");
+        await PutMarkAsync(admin, scheduled.Id, (await BookingOfAsync(scheduled.Id, absent)).Id, "absent");
+
+        var roster = (await admin.GetFromJsonAsync<List<RosterRow>>(BookingsOf(scheduled.Id)))!;
+
+        Assert.Equal("present", roster.Single(r => r.MemberId == present).Attendance);
+        Assert.Equal("absent", roster.Single(r => r.MemberId == absent).Attendance);
+        Assert.Null(roster.Single(r => r.MemberId == unrecorded).Attendance);
+    }
+
+    [Fact]
+    public async Task Marking_attendance_records_who_and_when()
+    {
+        var admin = await AdminAsync();
+        var (trainer, trainerId) = await TrainerAsync(admin);
+        var (classId, bookingId, _) = await StartedBookingAsync(admin, trainerId);
+
+        var before = DateTimeOffset.UtcNow.AddMinutes(-1);
+        Assert.Equal(HttpStatusCode.OK, (await PutMarkAsync(trainer, classId, bookingId, "present")).StatusCode);
+
+        var booking = await BookingByIdAsync(bookingId);
+        Assert.NotNull(booking.AttendanceRecordedAt);
+        Assert.True(booking.AttendanceRecordedAt > before);
+
+        await using var db = NewContext();
+        var trainerUserId = await db.Members.AsNoTracking()
+            .Where(m => m.Id == trainerId).Select(m => m.UserId).SingleAsync();
+        Assert.Equal(trainerUserId, booking.AttendanceRecordedBy);
+    }
+
+    private async Task<Booking> BookingByIdAsync(Guid bookingId)
+    {
+        await using var db = NewContext();
+
+        return await db.Bookings.AsNoTracking().SingleAsync(b => b.Id == bookingId);
+    }
+
+    /// <summary>The entry rule spelled out by hand, so the race is judged by the rule, not by the code under test.</summary>
+    private async Task<int> ConsumingForPassAsync(Guid passId)
+    {
+        await using var db = NewContext();
+
+        return await db.Bookings.AsNoTracking().CountAsync(b =>
+            b.MembershipPassId == passId
+            && b.Status == BookingStatus.Active
+            && b.Class.Status != ClassStatus.Cancelled
+            && (b.Attendance == null || b.Attendance != BookingAttendance.Absent));
+    }
 }

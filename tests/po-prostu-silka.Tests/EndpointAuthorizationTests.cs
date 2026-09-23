@@ -65,7 +65,8 @@ public class EndpointAuthorizationTests(IntegrationTestFixture fixture)
 
     /// <summary>
     /// /api/admin routes that a TRAINER may reach — every other /api/admin route is Admin only.
-    /// Staff booking: S-16 MP-02, a trainer books into and releases spots on the classes they instruct.
+    /// Staff booking: S-16 MP-02, a trainer books into and releases spots on the classes they instruct,
+    /// and since S-27 marks attendance on them.
     /// Library read: S-11, a trainer reads the exercise library to build plans (writes stay Admin).
     /// </summary>
     private static readonly (string Method, string Pattern)[] TrainerAdminRoutes =
@@ -73,6 +74,7 @@ public class EndpointAuthorizationTests(IntegrationTestFixture fixture)
         ("GET", "/api/admin/classes/{classId:guid}/bookings"),
         ("POST", "/api/admin/classes/{classId:guid}/bookings"),
         ("DELETE", "/api/admin/classes/{classId:guid}/bookings/{bookingId:guid}"),
+        ("PUT", "/api/admin/classes/{classId:guid}/bookings/{bookingId:guid}/attendance"),
         ("GET", "/api/admin/exercises"),
         ("GET", "/api/admin/exercises/{id:guid}"),
     ];

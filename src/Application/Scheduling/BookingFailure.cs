@@ -23,7 +23,9 @@ namespace po_prostu_silka.Application.Scheduling;
 /// <para>
 /// Reasons: <c>class_cancelled</c>, <c>class_started</c>, <c>already_booked</c>, <c>class_full</c>,
 /// <c>member_blocked</c>, <c>member_is_staff</c> (S-25), <c>no_valid_pass</c>, <c>no_entries_left</c>,
-/// <c>conflict</c>. Adding one
+/// <c>class_not_started</c> (S-27, attendance marked before the start), <c>conflict</c>. The
+/// attendance route's one invalid body is a 400 validation problem rather than a reason here — the SPA
+/// never sends one. Adding one
 /// means adding it to the SPA's BookingFailure union too. A missing class is a 404 and not a reason —
 /// an unknown id is not a state disagreement, and neither is a member id nobody issued.
 /// </para>

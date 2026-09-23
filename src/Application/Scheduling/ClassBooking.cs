@@ -19,6 +19,10 @@ namespace po_prostu_silka.Application.Scheduling;
 /// </para>
 /// </summary>
 /// <param name="MemberId">Who holds the spot.</param>
+/// <param name="Attendance">
+/// <c>"present"</c>, <c>"absent"</c>, or null while nobody recorded it (S-27). Always null before the
+/// class starts, because the marking route refuses until then.
+/// </param>
 /// <param name="UserId">
 /// Their account, or null when they have none (S-14).
 ///
@@ -39,4 +43,5 @@ public record ClassBooking(
     string? UserId,
     string DisplayName,
     string Email,
-    DateTimeOffset BookedAt);
+    DateTimeOffset BookedAt,
+    string? Attendance);

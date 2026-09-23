@@ -99,6 +99,10 @@ public static class BookingEndpoints
         staffBookings.MapPost("/{classId:guid}/bookings", BookForMember.HandleAsync);
         staffBookings.MapDelete("/{classId:guid}/bookings/{bookingId:guid}", ReleaseBooking.HandleAsync);
 
+        // S-27. Calls MayActOn like every route above: a trainer marks only the classes they instruct.
+        staffBookings.MapPut(
+            "/{classId:guid}/bookings/{bookingId:guid}/attendance", RecordAttendance.HandleAsync);
+
         return app;
     }
 }

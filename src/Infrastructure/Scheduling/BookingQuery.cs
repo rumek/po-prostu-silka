@@ -69,6 +69,10 @@ public class BookingQuery(AppDbContext db) : IBookingQuery
                 b.Member!.UserId,
                 b.Member!.DisplayName,
                 b.Member!.Email ?? string.Empty,
-                b.CreatedAt))
+                b.CreatedAt,
+                // Lower-case words rather than the enum's names, the same spelling the PUT accepts.
+                b.Attendance == BookingAttendance.Present ? "present"
+                : b.Attendance == BookingAttendance.Absent ? "absent"
+                : null))
             .ToListAsync(cancellationToken);
 }

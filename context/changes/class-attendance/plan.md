@@ -688,9 +688,9 @@ to the next phase.
 
 #### Automated
 
-- [x] 1.1 Build passes with no new warnings
-- [x] 1.2 Migration applies and reverts cleanly against local SQL Server
-- [x] 1.3 All backend tests pass
+- [x] 1.1 Build passes with no new warnings — 2fefc0f
+- [x] 1.2 Migration applies and reverts cleanly against local SQL Server — 2fefc0f
+- [x] 1.3 All backend tests pass — 2fefc0f
 
 #### Manual
 
@@ -701,7 +701,7 @@ to the next phase.
 
 #### Automated
 
-- [ ] 2.1 All backend tests pass
+- [x] 2.1 All backend tests pass
 
 #### Manual
 
