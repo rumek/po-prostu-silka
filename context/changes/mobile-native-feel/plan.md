@@ -632,11 +632,11 @@ None. There is no data or API change. The manifest `id: "/"` equals the current 
 
 #### Automated
 
-- [x] 2.1 Unit specs pass (bottom-nav replace rule, up behaviour, transition kinds, overlay history)
-- [x] 2.2 E2E tab-switches-do-not-grow-history.spec.ts passes
-- [x] 2.3 E2E back-closes-open-overlay.spec.ts passes
-- [x] 2.4 quality:check passes
-- [x] 2.5 Build within budget
+- [x] 2.1 Unit specs pass (bottom-nav replace rule, up behaviour, transition kinds, overlay history) — e4cfd89
+- [x] 2.2 E2E tab-switches-do-not-grow-history.spec.ts passes — e4cfd89
+- [x] 2.3 E2E back-closes-open-overlay.spec.ts passes — e4cfd89
+- [x] 2.4 quality:check passes — e4cfd89
+- [x] 2.5 Build within budget — e4cfd89
 
 #### Manual
 
