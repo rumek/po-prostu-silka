@@ -104,4 +104,23 @@ describe('Up', () => {
     expect(up.stepsBackTo('/')).toBe(1);
     expect(up.stepsBackTo('/my-plan/exercises/7')).toBe(0);
   });
+  /**
+   * The router's navigationId restarts on every page load. An entry from before a reload can carry
+   * the same id as one of this load's, and must still read as unknown — never as that entry.
+   */
+  it('does not mistake an entry from before a reload for one of this load', async () => {
+    const { up, router, location } = setup();
+    // An entry left by an earlier load of the app: same id numbering, no tag from this load.
+    location.go('/my-classes', '', { navigationId: 2 });
+    await router.navigateByUrl('/');
+    await router.navigateByUrl('/my-plan');
+    await router.navigateByUrl('/my-plan/exercises/7');
+
+    const ended = firstValueFrom(router.events.pipe(filter((e) => e instanceof NavigationEnd)));
+    location.historyGo(-3);
+    await ended;
+
+    expect(router.url).toBe('/my-classes');
+    expect(up.stepsBackTo('/')).toBe(0);
+  });
 });

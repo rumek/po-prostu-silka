@@ -1,6 +1,6 @@
 import { EffectRef, Injectable, computed, effect, inject, signal } from '@angular/core';
 import { Title } from '@angular/platform-browser';
-import { RouterStateSnapshot, TitleStrategy } from '@angular/router';
+import { ActivatedRouteSnapshot, RouterStateSnapshot, TitleStrategy } from '@angular/router';
 import { ScreenLevel, leafOf, levelOf, parentOf } from './screen';
 
 export const APP_NAME = 'Po Prostu Siłka';
@@ -29,10 +29,16 @@ export class ScreenTitle {
   readonly level = this.currentLevel.asReadonly();
   readonly parent = this.currentParent.asReadonly();
 
-  /** The strategy's entry point: a navigation resolved to this screen. */
-  resolve(title: string, level: ScreenLevel, parent: string | null): void {
+  /**
+   * The strategy's entry point: a navigation resolved to this screen. `sameScreen` — only the query
+   * changed — keeps the override: the screen is still showing the data that named it, and its
+   * `useScreenTitle` effect will not re-run to name it again.
+   */
+  resolve(title: string, level: ScreenLevel, parent: string | null, sameScreen = false): void {
     this.routeTitle.set(title);
-    this.override.set(null);
+    if (!sameScreen) {
+      this.override.set(null);
+    }
     this.currentLevel.set(level);
     this.currentParent.set(parent);
     this.writeDocumentTitle();
@@ -61,10 +67,17 @@ export class ScreenTitle {
 @Injectable({ providedIn: 'root' })
 export class ScreenTitleStrategy extends TitleStrategy {
   private readonly screen = inject(ScreenTitle);
+  private previous: ActivatedRouteSnapshot | null = null;
 
   override updateTitle(snapshot: RouterStateSnapshot): void {
     const leaf = leafOf(snapshot.root);
-    this.screen.resolve(this.buildTitle(snapshot) ?? '', levelOf(leaf), parentOf(leaf));
+    const sameScreen =
+      this.previous !== null &&
+      this.previous.routeConfig === leaf.routeConfig &&
+      JSON.stringify(this.previous.params) === JSON.stringify(leaf.params);
+    this.previous = leaf;
+
+    this.screen.resolve(this.buildTitle(snapshot) ?? '', levelOf(leaf), parentOf(leaf), sameScreen);
   }
 }
 

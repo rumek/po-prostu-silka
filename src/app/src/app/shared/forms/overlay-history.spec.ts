@@ -18,10 +18,15 @@ class TestOverlay {
     @if (open()) {
       <app-test-overlay />
     }
+    @if (second()) {
+      <app-test-overlay />
+    }
   `,
 })
 class Host {
   readonly open = signal(false);
+  /** A second overlay, opened in the same tick the first closes: the admin's actions → bookings. */
+  readonly second = signal(false);
 }
 
 function popstate(): Promise<void> {
@@ -100,5 +105,35 @@ describe('useOverlayHistory', () => {
     expect(back).toHaveBeenCalledTimes(1);
     expect(onBack).not.toHaveBeenCalled();
     expect((window.history.state as { overlay?: string } | null)?.overlay).not.toBe(token);
+  });
+  /**
+   * An overlay SWAP: the first overlay's pop is asynchronous, so it lands after the second overlay
+   * opened. It must not be read as a back gesture that closes the second one.
+   */
+  it('keeps an overlay opened in the same tick another one closed', async () => {
+    fixture.componentInstance.open.set(true);
+    fixture.detectChanges();
+
+    const popped = popstate();
+    fixture.componentInstance.open.set(false);
+    fixture.componentInstance.second.set(true);
+    fixture.detectChanges();
+    const second = overlay();
+    await popped;
+    await new Promise((resolve) => setTimeout(resolve));
+
+    expect(second.onBack).not.toHaveBeenCalled();
+    expect((window.history.state as { overlay?: string } | null)?.overlay).toEqual(
+      expect.any(String),
+    );
+
+    // And back still closes it once it is open.
+    const back = popstate();
+    window.history.go(-1);
+    await back;
+    expect(second.onBack).toHaveBeenCalledTimes(1);
+
+    fixture.componentInstance.second.set(false);
+    fixture.detectChanges();
   });
 });

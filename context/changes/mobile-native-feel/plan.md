@@ -177,6 +177,9 @@ On an installed Android PWA:
 - **A navigation from inside an overlay** (e.g. to a member) replaces nothing and pops nothing.
   The overlay entry is simply left under the new screen, as a same-URL entry that back then skips
   through. Pop the entry before navigating only if the e2e spec shows a double back.
+  - **Adapted during implementation (review F3).** `Up` cannot count such a leftover entry, so a
+    `to()` crossing it lands one entry short. Accepted: only the desk calendar's overlays navigate,
+    and the desk has no app bar arrow or bottom bar. Stated as a known limit in `up.ts`.
 - **The bar's view-transition layer.** A sticky/fixed element in the root snapshot jumps during a
   transition (commit eec631a). The bar gets `view-transition-name: app-bar` and the same
   no-animation treatment as `bottom-nav` / `toast-host` in `styles.scss`.
@@ -283,6 +286,9 @@ there.
 - **Adapted during implementation.** The skip link surfaces at the top of the viewport, exactly
   where the pinned bar sits, so the scale is reordered: `--z-app-bar: 4`, `--z-bottom-nav: 5`,
   `--z-skip-link: 6` (was 1), `--z-overlay: 10`, `--z-toast: 20`.
+- **Adapted during implementation (review F8).** On the phone, `.shell-main`'s top padding drops
+  from `--space-6` to `--space-5`: the pinned bar above it already gives the gap the old padding
+  made on its own.
 - The skip link still targets `#main`. The `<header>` landmark stays.
 - Remove the stale rationale comment at `app.scss:102-106`. Replace it with a comment explaining
   that the brand's phone home is Start, the icon and the status bar (this change, frame.md).

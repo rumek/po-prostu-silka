@@ -69,6 +69,9 @@ export function slideDirection({ transition, from, to }: ViewTransitionInfo): vo
   const root = document.documentElement;
   root.dataset['navDirection'] = kind;
 
-  // `finished` rejects if the transition is skipped mid-flight; the attribute must go either way.
-  void transition.finished.finally(() => delete root.dataset['navDirection']);
+  // `finished` rejects when the DOM update itself fails (a skipped transition resolves it). The
+  // attribute must go either way, and `then(clear, clear)` rather than `finally`: the promise
+  // `finally` returns would re-reject and surface as an unhandled rejection.
+  const clear = () => delete root.dataset['navDirection'];
+  void transition.finished.then(clear, clear);
 }

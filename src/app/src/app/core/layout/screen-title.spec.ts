@@ -83,4 +83,23 @@ describe('ScreenTitle', () => {
     expect(screen.title()).toBe('Lista');
     expect(document.title).toBe('Lista · Po Prostu Siłka');
   });
+  /** Same screen, new query (a search, a page): the data that named it is still on screen. */
+  it('keeps the override across a query-only navigation', async () => {
+    const { router, screen } = await setup('/area/list/7');
+
+    screen.set('Przysiad');
+    await router.navigateByUrl('/area/list/7?page=2');
+
+    expect(screen.title()).toBe('Przysiad');
+    expect(document.title).toBe('Przysiad · Po Prostu Siłka');
+  });
+
+  it('drops the override when only the id changes, because that is a different record', async () => {
+    const { router, screen } = await setup('/area/list/7');
+
+    screen.set('Przysiad');
+    await router.navigateByUrl('/area/list/8');
+
+    expect(screen.title()).toBe('Pozycja');
+  });
 });

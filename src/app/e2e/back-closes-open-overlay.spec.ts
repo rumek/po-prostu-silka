@@ -10,7 +10,13 @@
  */
 import { APIRequestContext, expect, test } from '@playwright/test';
 
-test.use({ viewport: { width: 390, height: 844 } });
+// The browser renders dates in the SAME timezone and locale this process computes them in, so the
+// day label the spec builds is the one the week strip shows.
+test.use({
+  viewport: { width: 390, height: 844 },
+  timezoneId: Intl.DateTimeFormat().resolvedOptions().timeZone,
+  locale: 'pl-PL',
+});
 
 let classId: string | null = null;
 let classTypeId: string | null = null;
@@ -93,11 +99,11 @@ test('back closes the open bookings overlay and stays on the schedule', async ({
       year: 'numeric',
     });
     await expect(page.getByRole('group', { name: 'Dni tygodnia' })).toBeVisible();
-    const day = page.getByRole('button', { name: label });
-    if (!(await day.isVisible())) {
+    // The strip's weeks start on Monday, so tomorrow is in the next one exactly when today is Sunday.
+    if (new Date().getDay() === 0) {
       await page.getByRole('button', { name: 'Następny tydzień' }).click();
     }
-    await day.click();
+    await page.getByRole('button', { name: label }).click();
   }
 
   await page.getByRole('button', { name: new RegExp(name) }).click();
