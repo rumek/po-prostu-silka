@@ -1,0 +1,34 @@
+:host {
+  display: flex;
+  flex: 0 0 2.75rem;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.15;
+}
+
+// Weekday on top, month underneath: the same small caps, so the day number reads as the middle of a
+// pair rather than as one of three equal things.
+.class-date-small {
+  color: var(--muted);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+}
+
+.class-date-day {
+  font-family: var(--font-body);
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+// Present for screen readers, absent visually.
+.class-date-spoken {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}

@@ -1,5 +1,5 @@
 // Layout only — .card/.alert/.button/.row-* come from src/styles.scss.
-@use 'breakpoints' as bp;
+@use 'class-rows';
 
 :host {
   display: grid;
@@ -7,140 +7,58 @@
   margin-top: var(--space-4);
 }
 
-// --- the status chip ---------------------------------------------------------
+// --- the status dot ------------------------------------------------------------
 //
-// A word with a glyph, and a tint as the third channel. The word is what a screen reader reads and
-// what a colour-blind member reads; the tint is only what makes a month scannable at arm's length.
+// A glyph on a tint, pinned to the top of the row. The glyph and the tint repeat each other, and the
+// word stays in the DOM for a screen reader and as the tooltip — colour is never the only signal.
 
-.chip {
+.outcome {
+  position: relative;
   display: inline-flex;
+  flex: 0 0 auto;
+  align-self: flex-start;
   align-items: center;
-  gap: var(--space-1);
-  padding: 0.1rem var(--space-2) 0.1rem 0.35rem;
-  border-radius: 999px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  white-space: nowrap;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  margin-left: auto;
+  border-radius: 50%;
 
   app-icon {
-    font-size: 0.75rem;
+    font-size: 0.8rem;
   }
 }
 
-.chip--present {
+.outcome-word {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.outcome--present {
   background: var(--success-bg);
   color: var(--success);
 }
 
-.chip--absent {
+.outcome--absent {
   background: var(--danger-bg);
   color: var(--danger);
 }
 
-.chip--unrecorded {
+.outcome--unrecorded {
   background: var(--section-cool);
   color: var(--muted);
 }
 
-.chip--cancelled {
+.outcome--cancelled {
   border: 1px dashed var(--line-strong);
   color: var(--muted);
-  font-weight: 500;
-}
-
-// --- the summary card ----------------------------------------------------------
-
-.history-summary {
-  display: grid;
-  gap: var(--space-3);
-  padding: var(--space-5);
-}
-
-.history-summary-title {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--space-2);
-  margin: 0;
-  font-size: 1.35rem;
-}
-
-.history-summary-until {
-  color: var(--muted);
-  font-family: var(--font-body);
-  font-size: 0.875rem;
-  font-weight: 400;
-}
-
-// One column on a phone — each count reads as its own line. Above form-columns the three sit in a row.
-.history-counts {
-  display: grid;
-  gap: var(--space-2);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-
-  @include bp.form-columns {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
-
-.history-count {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.history-count-number {
-  min-width: 2ch;
-  font-family: var(--font-display);
-  font-size: 1.75rem;
-  font-weight: 600;
-  line-height: 1;
-  text-align: right;
-}
-
-.history-dots {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-}
-
-.history-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-}
-
-.history-dot--present {
-  background: var(--success);
-}
-
-.history-dot--unrecorded {
-  background: var(--muted);
-}
-
-.history-dot--free {
-  border: 1.5px solid var(--line-strong);
-}
-
-// --- a month ---------------------------------------------------------------------
-
-.history-month {
-  display: grid;
-  gap: var(--space-3);
-}
-
-.history-month-header {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-3);
-}
-
-.history-month-title {
-  margin: 0;
-  font-size: 1.25rem;
 }
 
 .history-month-tally {
@@ -148,35 +66,6 @@
   color: var(--muted);
   font-size: 0.875rem;
   white-space: nowrap;
-}
-
-// Denser than the global row: a month holds a dozen of these, and the date column does the work
-// the padding does elsewhere.
-.history-row {
-  flex-wrap: nowrap;
-  gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
-}
-
-.history-date {
-  display: flex;
-  flex: 0 0 2.75rem;
-  flex-direction: column;
-  align-items: center;
-  margin: 0;
-  line-height: 1.15;
-}
-
-.history-day {
-  font-family: var(--font-display);
-  font-size: 1.5rem;
-  font-weight: 600;
-}
-
-.history-weekday {
-  color: var(--muted);
-  font-size: 0.75rem;
-  text-transform: uppercase;
 }
 
 .history-cancelled {

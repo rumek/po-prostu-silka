@@ -1,15 +1,43 @@
 // Layout only — .card/.button/.button--secondary/.alert/.notice/.field-error/.hint come from
 // src/styles.scss.
+@use 'class-rows';
 
-.my-classes-list {
-  display: grid;
-  gap: var(--space-3);
-  margin: var(--space-4) 0 0;
-  padding: 0;
-  list-style: none;
+.class-months {
+  margin-top: var(--space-4);
 }
 
-// The details block moved to shared/class-summary, which owns its own flex sizing on :host.
+// Room for a swipe to start below a short list, not only on the rows themselves; and vertical
+// scrolling stays the browser's, so a swipe never fights the page's own scroll.
+.tab-panels {
+  min-height: 50vh;
+  touch-action: pan-y;
+}
+
+// The tab just switched to slides in from the side it sits on. Motion only — a member who asked
+// the system for less of it gets the switch without the slide.
+@keyframes panel-from-right {
+  from {
+    opacity: 0;
+    transform: translateX(1.5rem);
+  }
+}
+
+@keyframes panel-from-left {
+  from {
+    opacity: 0;
+    transform: translateX(-1.5rem);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .panel-enter-forward {
+    animation: panel-from-right 180ms ease-out;
+  }
+
+  .panel-enter-back {
+    animation: panel-from-left 180ms ease-out;
+  }
+}
 
 .my-classes-actions {
   display: flex;

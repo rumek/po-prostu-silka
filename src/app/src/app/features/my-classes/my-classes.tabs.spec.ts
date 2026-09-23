@@ -55,6 +55,25 @@ describe('MyClasses — tabs', () => {
 
   const EMPTY_HISTORY = { summary: null, items: [], earlierBefore: null };
 
+  /** jsdom has no Touch constructor; the handlers read only the coordinates. */
+  function touch(type: string, x: number, y: number): Event {
+    const event = new Event(type, { bubbles: true });
+    const point = [{ clientX: x, clientY: y }];
+
+    return Object.assign(event, {
+      touches: type === 'touchend' ? [] : point,
+      changedTouches: point,
+    });
+  }
+
+  async function swipe(fromX: number, toX: number, fromY = 200, toY = 200): Promise<void> {
+    const panels = element().querySelector('.tab-panels')!;
+
+    panels.dispatchEvent(touch('touchstart', fromX, fromY));
+    panels.dispatchEvent(touch('touchend', toX, toY));
+    await settle();
+  }
+
   it('opens on the upcoming tab and fetches no history', async () => {
     await open('/my-classes');
 
@@ -131,6 +150,33 @@ describe('MyClasses — tabs', () => {
     await settle();
 
     expect(tab('Nadchodzące').getAttribute('aria-selected')).toBe('true');
+  });
+
+  it('flips the tabs with a sideways swipe, through the same URL as a tap', async () => {
+    await open('/my-classes');
+
+    await swipe(300, 100);
+
+    expect(tab('Historia').getAttribute('aria-selected')).toBe('true');
+    expect(TestBed.inject(Location).path()).toBe('/my-classes?widok=historia');
+    controller.expectOne('/api/bookings/history').flush(EMPTY_HISTORY);
+    await settle();
+
+    await swipe(100, 300);
+
+    expect(tab('Nadchodzące').getAttribute('aria-selected')).toBe('true');
+  });
+
+  // A scroll that drifts sideways, a short flick, and a swipe past the last tab all leave it put.
+  it('ignores a vertical scroll, a short flick and a swipe past the end', async () => {
+    await open('/my-classes');
+
+    await swipe(300, 200, 100, 400);
+    await swipe(300, 260);
+    await swipe(100, 300);
+
+    expect(tab('Nadchodzące').getAttribute('aria-selected')).toBe('true');
+    controller.expectNone('/api/bookings/history');
   });
 
   it('keeps the screen identity: h1 "Moje zajęcia", route title "Zajęcia"', async () => {

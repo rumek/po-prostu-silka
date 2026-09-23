@@ -32,58 +32,78 @@
   </button>
 </div>
 
+<!-- A horizontal swipe anywhere over the panels flips the tab, as on a phone's tabbed screen. The tabs
+     above stay the way to do it with a keyboard or a mouse; the swipe only adds a touch path. -->
 <div
-  id="panel-upcoming"
-  role="tabpanel"
-  aria-labelledby="tab-upcoming"
-  [hidden]="view() !== 'upcoming'"
+  class="tab-panels"
+  (touchstart)="onSwipeStart($event)"
+  (touchend)="onSwipeEnd($event)"
+  (touchcancel)="swipeFrom = null"
 >
-  <p class="hint">
-    Zajęcia, na które zapisał Cię klub. Jeśli nie możesz przyjść, daj znać w recepcji lub trenerowi.
-  </p>
+  <div
+    id="panel-upcoming"
+    role="tabpanel"
+    aria-labelledby="tab-upcoming"
+    [hidden]="view() !== 'upcoming'"
+    [class.panel-enter-back]="entered() === 'upcoming'"
+  >
+    <p class="hint">
+      Zajęcia, na które zapisał Cię klub. Jeśli nie możesz przyjść, daj znać w recepcji lub
+      trenerowi.
+    </p>
 
-  <!-- The loading / error / empty / content tri-state, in the order members.html established. Each
+    <!-- The loading / error / empty / content tri-state, in the order members.html established. Each
      branch is exclusive: a list that showed an empty state while still loading would tell the member
      they have no classes before it knows. -->
-  @if (loading()) {
-    <app-loading />
-  } @else if (loadFailed()) {
-    <p class="alert" role="alert">
-      Nie udało się wczytać zapisów.
-      @if (loadMessage(); as detail) {
-        {{ detail }}
-      }
-      <button type="button" class="link-button" (click)="load()">Spróbuj ponownie</button>
-    </p>
-  } @else if (rows().length === 0) {
-    <!-- An empty state that names the next step. It used to link to /schedule; since S-25 a member has
+    @if (loading()) {
+      <app-loading />
+    } @else if (loadFailed()) {
+      <p class="alert" role="alert">
+        Nie udało się wczytać zapisów.
+        @if (loadMessage(); as detail) {
+          {{ detail }}
+        }
+        <button type="button" class="link-button" (click)="load()">Spróbuj ponownie</button>
+      </p>
+    } @else if (rows().length === 0) {
+      <!-- An empty state that names the next step. It used to link to /schedule; since S-25 a member has
        no schedule, so the next step is the club itself. -->
-    <app-empty>
-      Nie masz jeszcze żadnych zapisów. Zapisy prowadzi klub — odezwij się w recepcji.
-    </app-empty>
-  } @else {
-    <ul class="my-classes-list">
-      @for (row of rows(); track row.bookingId) {
-        <li appRow class="card">
-          <app-class-summary
-            [name]="row.name"
-            [startsAt]="row.startsAt"
-            [durationMinutes]="row.durationMinutes"
-            [instructor]="row.instructor"
-          />
-        </li>
-      }
-    </ul>
-  }
-</div>
+      <app-empty>
+        Nie masz jeszcze żadnych zapisów. Zapisy prowadzi klub — odezwij się w recepcji.
+      </app-empty>
+    } @else {
+      <div class="class-months">
+        @for (group of groups(); track group.key) {
+          <section class="class-month" [attr.aria-labelledby]="'upcoming-' + group.key">
+            <header class="class-month-header">
+              <h2 [id]="'upcoming-' + group.key" class="class-month-title">{{ group.heading }}</h2>
+            </header>
 
-<div
-  id="panel-history"
-  role="tabpanel"
-  aria-labelledby="tab-history"
-  [hidden]="view() !== 'history'"
->
-  @if (renderHistory()) {
-    <app-attendance-history />
-  }
+            <app-list>
+              @for (row of group.items; track row.bookingId) {
+                <li appRow class="card class-row">
+                  <app-class-date slot="lead" [startsAt]="row.startsAt" />
+
+                  <p class="row-name">{{ row.name }}</p>
+                  <p class="row-meta">{{ timeOf(row) }} · {{ row.instructor }}</p>
+                </li>
+              }
+            </app-list>
+          </section>
+        }
+      </div>
+    }
+  </div>
+
+  <div
+    id="panel-history"
+    role="tabpanel"
+    aria-labelledby="tab-history"
+    [hidden]="view() !== 'history'"
+    [class.panel-enter-forward]="entered() === 'history'"
+  >
+    @if (renderHistory()) {
+      <app-attendance-history />
+    }
+  </div>
 </div>

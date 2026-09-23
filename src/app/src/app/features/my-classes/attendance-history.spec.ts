@@ -39,7 +39,7 @@ function page(over: Partial<MyAttendanceHistory> = {}): MyAttendanceHistory {
 }
 
 /**
- * The member's history (S-27, AT-05): a summary, month groups, a chip per row, and "Pokaż
+ * The member's history (S-27, AT-05): month groups, a status dot per row, and "Pokaż
  * wcześniejsze" to page back. The server decides WHAT is in a page; these tests pin how it reads.
  */
 describe('AttendanceHistory', () => {
@@ -75,7 +75,7 @@ describe('AttendanceHistory', () => {
   }
 
   function headings(): string[] {
-    return [...element().querySelectorAll('.history-month-title')].map(
+    return [...element().querySelectorAll('.class-month-title')].map(
       (h) => h.textContent?.trim() ?? '',
     );
   }
@@ -103,11 +103,11 @@ describe('AttendanceHistory', () => {
 
     expect(headings()).toEqual(['Wrzesień 2026', 'Sierpień 2026']);
 
-    const september = element().querySelectorAll('.history-month')[0];
+    const september = element().querySelectorAll('.class-month')[0];
     expect(september.querySelectorAll('li.row').length).toBe(2);
   });
 
-  it('carries a word and an icon per outcome, never colour alone', async () => {
+  it('carries a glyph per outcome, with its word for screen readers and as the tooltip', async () => {
     await respond(
       page({
         items: [
@@ -119,16 +119,32 @@ describe('AttendanceHistory', () => {
       }),
     );
 
-    const chips = [...element().querySelectorAll('.history-row .chip')];
+    const dots = [...element().querySelectorAll<HTMLElement>('.class-row .outcome')];
+    const words = ['Obecny', 'Nieobecny', 'Nie odnotowano', 'Odwołane'];
 
-    expect(chips.map((c) => c.textContent?.trim())).toEqual([
-      'Obecny',
-      'Nieobecny',
-      'Nie odnotowano',
-      'Odwołane',
-    ]);
-    expect(chips.every((c) => c.querySelector('app-icon') !== null)).toBe(true);
+    expect(dots.map((d) => d.querySelector('.outcome-word')?.textContent?.trim())).toEqual(words);
+    expect(dots.map((d) => d.title)).toEqual(words);
+    expect(dots.every((d) => d.querySelector('app-icon') !== null)).toBe(true);
     expect(element().querySelector('.history-cancelled')!.textContent).toContain('Joga');
+  });
+
+  // Weekday over day over month, in the club's zone: 16:00 UTC on 10 September is a Thursday.
+  it('stacks the date as weekday, day and month, and says it in full once', async () => {
+    await respond(page({ items: [entry({ startsAt: '2026-09-10T16:00:00Z' })] }));
+
+    const date = element().querySelector('app-class-date')!;
+    const small = [...date.querySelectorAll('.class-date-small')].map((e) => e.textContent?.trim());
+
+    expect(small).toEqual(['czw.', 'wrz']);
+    expect(date.querySelector('.class-date-day')!.textContent?.trim()).toBe('10');
+    expect(date.querySelector('.class-date-spoken')!.textContent).toContain('10 września');
+  });
+
+  it('shows no karnet summary card', async () => {
+    await respond(page());
+
+    expect(element().querySelector('.history-summary')).toBeNull();
+    expect(element().textContent).not.toContain('Karnet 8 wejść');
   });
 
   it('tallies each month over present and absent only', async () => {
@@ -145,36 +161,6 @@ describe('AttendanceHistory', () => {
     );
 
     expect(element().querySelector('.history-month-tally')!.textContent).toContain('2/3 obecności');
-  });
-
-  it('shows the karnet summary with its three counts and one dot per entry', async () => {
-    await respond(page());
-
-    const summary = element().querySelector('.history-summary')!;
-    expect(summary.textContent).toContain('Karnet 8 wejść');
-    expect(summary.textContent).toContain('do 30 września');
-    expect(summary.querySelectorAll('.history-count').length).toBe(3);
-    expect(summary.querySelectorAll('.history-dot').length).toBe(8);
-    // 3 present + 2 unrecorded spent; the 1 absence returned its entry and takes no dot.
-    expect(summary.querySelectorAll('.history-dot--free').length).toBe(3);
-    expect(summary.querySelector('.history-dots')!.getAttribute('aria-hidden')).toBe('true');
-  });
-
-  it('leaves a free dot for an entry an absence returned, matching the balance', async () => {
-    await respond(
-      page({ summary: { ...SUMMARY, entryCount: 8, present: 7, absent: 2, unrecorded: 0 } }),
-    );
-
-    const summary = element().querySelector('.history-summary')!;
-    expect(summary.querySelectorAll('.history-dot').length).toBe(8);
-    expect(summary.querySelectorAll('.history-dot--present').length).toBe(7);
-    expect(summary.querySelectorAll('.history-dot--free').length).toBe(1);
-  });
-
-  it('has no summary card without a covering karnet', async () => {
-    await respond(page({ summary: null }));
-
-    expect(element().querySelector('.history-summary')).toBeNull();
   });
 
   it('says so when the member has no history at all', async () => {
@@ -211,8 +197,6 @@ describe('AttendanceHistory', () => {
     await settle();
 
     expect(headings()).toEqual(['Wrzesień 2026', 'Maj 2026']);
-    // The summary from the first page stays.
-    expect(element().querySelector('.history-summary')).not.toBeNull();
     expect(buttonWith('Pokaż wcześniejsze')).toBeUndefined();
   });
 

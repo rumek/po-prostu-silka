@@ -1,0 +1,33 @@
+// The month sections and dated rows both tabs of "Moje zajęcia" share — the history set the pattern,
+// the upcoming list follows it. A partial, not a global: each component @uses it, so the rules stay
+// scoped to the component whose template carries the markup.
+
+.class-months {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.class-month {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.class-month-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.class-month-title {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+// Denser than the global row: a month holds a dozen of these, and the date column does the work
+// the padding does elsewhere.
+.class-row {
+  flex-wrap: nowrap;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+}

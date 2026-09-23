@@ -6,8 +6,9 @@ import { Component } from '@angular/core';
  * <p>
  * IT CARRIES ITS OWN <c>&lt;ul&gt;</c> and the rows project into it, rather than the caller writing
  * the list and this decorating it. Four screens — class-types, exercises, members and plans —
- * declared that <c>&lt;ul&gt;</c> rule byte-identically; the three that did not (my-classes' grid,
- * the passes list, the bookings list) keep their own and are not callers of this.
+ * declared that <c>&lt;ul&gt;</c> rule byte-identically; the two that did not (the passes list, the
+ * bookings list) keep their own and are not callers of this. my-classes joined when its upcoming tab
+ * took the history's month layout.
  * </p>
  *
  * <p>

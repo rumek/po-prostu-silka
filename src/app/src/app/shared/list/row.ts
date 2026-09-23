@@ -15,12 +15,12 @@ import { Component } from '@angular/core';
  * <p>
  * FOUR SLOTS AND NO INPUTS. Every row in the app carries something of its own — exercises a 16:9
  * thumbnail, class-types and members a badge row, members an anchored action menu, plan-builder a
- * drag handle, my-classes an entire component in place of an identity. An input per variation would
+ * drag handle, my-classes a date column in the lead slot. An input per variation would
  * have grown one every time a screen needed something; projection holds all of them without the
  * component knowing what it holds. What it cannot then do is check that a row HAS a name, or that
  * its parts are in order — and neither does the lint rule, which only forbids a hand-rolled row.
- * That is a deliberate gap, not an oversight: my-classes' row holds a whole component and no
- * `.row-name` at all, so a "must have a name" check would need an exemption on day one.
+ * That is a deliberate gap, not an oversight: a "must have a name" check would need an exemption the
+ * first time a row's identity is a whole component.
  * </p>
  *
  * <p>

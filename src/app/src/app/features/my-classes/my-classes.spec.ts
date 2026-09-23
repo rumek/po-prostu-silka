@@ -71,6 +71,25 @@ describe('MyClasses', () => {
     expect(rows()[0].textContent).toContain('Ala');
   });
 
+  // The history tab's layout: month sections, a date column, and "18:00–19:00 · instructor".
+  it('groups by club month and gives each row a date column and a time range', async () => {
+    await respond([
+      booking({ bookingId: 'b1', startsAt: '2026-09-30T16:00:00Z', durationMinutes: 60 }),
+      booking({ bookingId: 'b2', startsAt: '2026-10-02T06:30:00Z', durationMinutes: 45 }),
+    ]);
+
+    const headings = [...element().querySelectorAll('.class-month-title')].map((h) =>
+      h.textContent?.trim(),
+    );
+
+    expect(headings).toEqual(['Wrzesień 2026', 'Październik 2026']);
+    expect(rows()[0].querySelector('app-class-date .class-date-day')!.textContent?.trim()).toBe(
+      '30',
+    );
+    expect(rows()[0].querySelector('.row-meta')!.textContent).toContain('18:00–19:00 · Ola');
+    expect(rows()[1].querySelector('.row-meta')!.textContent).toContain('08:30–09:15');
+  });
+
   /** S-25: the next step is the club, not a schedule the member can no longer open. */
   it('shows an empty state that sends the member to the club, with no schedule link', async () => {
     await respond([]);

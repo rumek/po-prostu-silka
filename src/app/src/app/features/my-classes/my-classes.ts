@@ -6,12 +6,13 @@ import { BookingService } from '../../core/scheduling/booking.service';
 import { MyBooking } from '../../core/scheduling/booking.models';
 import { classifyFailure } from '../../core/http/failure';
 import { transportMessage } from '../../core/http/transport-messages';
-import { ClassSummary } from '../../shared/class-summary/class-summary';
 import { createLoadFence } from '../../shared/forms/load-fence';
 import { Loading } from '../../shared/forms/loading/loading';
 import { Empty } from '../../shared/forms/empty/empty';
+import { List } from '../../shared/list/list';
 import { Row } from '../../shared/list/row';
 import { AttendanceHistory } from './attendance-history';
+import { CLOCK, ClassDate, groupByMonth } from './class-date';
 
 /** The query param that selects the history tab, and its one value. Absent means upcoming. */
 export const VIEW_PARAM = 'widok';
@@ -19,11 +20,22 @@ export const HISTORY_VIEW = 'historia';
 
 export type MyClassesView = 'upcoming' | 'history';
 
+/** Left to right, as the tabs sit — what "next" and "previous" mean for the arrows and a swipe. */
+const TAB_ORDER: readonly MyClassesView[] = ['upcoming', 'history'];
+
+/**
+ * How far a finger must travel sideways to count as a swipe, and how much more sideways than
+ * vertical. Short of either, it was a scroll or a tap and the tab stays put.
+ */
+const SWIPE_MIN_PX = 60;
+const SWIPE_RATIO = 1.5;
+
 /**
  * The member's upcoming bookings (prd.md FR-010).
  *
  * A LIST, DELIBERATELY NOT A CALENDAR. The schedule answers "what is on"; this answers "what am I
- * committed to", which is a short chronological list and reads worse as a grid. It also must not
+ * committed to", which is a short chronological list and reads worse as a grid. Laid out like the history tab —
+ * month sections, a date column, name, time and instructor — so the two tabs read as one screen. It also must not
  * import the calendar at all: `/schedule` and `/admin/classes` are lazy specifically to keep
  * angular-calendar and date-fns out of the initial bundle, and a third screen pulling them in would
  * undo that from a route that has no use for them.
@@ -41,9 +53,12 @@ export type MyClassesView = 'upcoming' | 'history';
  * The screen's identity is untouched: its title is still "Zajęcia", its `h1` still "Moje zajęcia".
  * The history is rendered only once its tab is first selected, and fetches its own data then; after
  * that it stays mounted (hidden), so flipping back and forth does not refetch.
+ *
+ * A horizontal swipe over the panels flips the tab too — left for the next, right for the previous —
+ * through the same `select`, so the URL and the history entry behave exactly as a tap does.
  */
 @Component({
-  imports: [Row, Empty, Loading, ClassSummary, AttendanceHistory],
+  imports: [List, Row, Empty, Loading, ClassDate, AttendanceHistory],
   selector: 'app-my-classes',
   styleUrl: './my-classes.scss',
   templateUrl: './my-classes.html',
@@ -71,7 +86,18 @@ export class MyClasses implements OnInit {
     () => this.historyOpened() || this.view() === 'history',
   );
 
+  /**
+   * The tab that was just switched TO, for its slide-in. Null on first render, so the screen does not
+   * animate the tab the URL opened on.
+   */
+  protected readonly entered = signal<MyClassesView | null>(null);
+
+  /** Where the current touch started; null when no touch is in progress. */
+  protected swipeFrom: { x: number; y: number } | null = null;
+
   protected readonly rows = signal<MyBooking[]>([]);
+
+  protected readonly groups = computed(() => groupByMonth(this.rows(), (row) => row.startsAt));
   protected readonly loading = signal(true);
   protected readonly loadFailed = signal(false);
 
@@ -96,6 +122,12 @@ export class MyClasses implements OnInit {
 
   /** Selects a tab by rewriting the URL in place — no new history entry. */
   protected select(view: MyClassesView): void {
+    if (view === this.view()) {
+      return;
+    }
+
+    this.entered.set(view);
+
     if (view === 'history') {
       this.historyOpened.set(true);
     }
@@ -113,7 +145,7 @@ export class MyClasses implements OnInit {
    * to the ends, and the tab that receives focus is selected with it.
    */
   protected onTabKeydown(event: KeyboardEvent): void {
-    const order: MyClassesView[] = ['upcoming', 'history'];
+    const order = TAB_ORDER;
     const current = order.indexOf(this.view());
 
     let next: number;
@@ -137,6 +169,44 @@ export class MyClasses implements OnInit {
     event.preventDefault();
     this.select(order[next]);
     this.host.nativeElement.querySelector<HTMLElement>(`#tab-${order[next]}`)?.focus();
+  }
+
+  protected onSwipeStart(event: TouchEvent): void {
+    // A second finger is a pinch, not a swipe.
+    const touch = event.touches.length === 1 ? event.touches[0] : null;
+    this.swipeFrom = touch ? { x: touch.clientX, y: touch.clientY } : null;
+  }
+
+  protected onSwipeEnd(event: TouchEvent): void {
+    const from = this.swipeFrom;
+    const touch = event.changedTouches[0];
+    this.swipeFrom = null;
+
+    if (!from || !touch) {
+      return;
+    }
+
+    const dx = touch.clientX - from.x;
+    const dy = touch.clientY - from.y;
+
+    if (Math.abs(dx) < SWIPE_MIN_PX || Math.abs(dx) < Math.abs(dy) * SWIPE_RATIO) {
+      return;
+    }
+
+    // Finger moving left brings in the tab to the right, as a page being turned. No wrap-around: a
+    // swipe past the last tab does nothing, which is what a phone's tabbed screen does.
+    const next = TAB_ORDER.indexOf(this.view()) + (dx < 0 ? 1 : -1);
+    if (next >= 0 && next < TAB_ORDER.length) {
+      this.select(TAB_ORDER[next]);
+    }
+  }
+
+  /** "18:00–19:00". The end is derived, never stored — the API returns none. */
+  protected timeOf(row: MyBooking): string {
+    const start = new Date(row.startsAt);
+    const end = new Date(start.getTime() + row.durationMinutes * 60_000);
+
+    return `${CLOCK.format(start)}–${CLOCK.format(end)}`;
   }
 
   protected async load(): Promise<void> {

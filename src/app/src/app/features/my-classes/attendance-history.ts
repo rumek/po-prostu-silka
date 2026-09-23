@@ -1,11 +1,7 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { classifyFailure } from '../../core/http/failure';
 import { transportMessage } from '../../core/http/transport-messages';
-import {
-  AttendanceOutcome,
-  MyAttendanceEntry,
-  MyAttendanceSummary,
-} from '../../core/scheduling/booking.models';
+import { AttendanceOutcome, MyAttendanceEntry } from '../../core/scheduling/booking.models';
 import { BookingService } from '../../core/scheduling/booking.service';
 import { createLoadFence } from '../../shared/forms/load-fence';
 import { Loading } from '../../shared/forms/loading/loading';
@@ -13,40 +9,7 @@ import { Empty } from '../../shared/forms/empty/empty';
 import { Icon, IconName } from '../../shared/icons/icon';
 import { List } from '../../shared/list/list';
 import { Row } from '../../shared/list/row';
-
-/**
- * The club's time zone. History is grouped and shown by the GYM's calendar, the way the server
- * pages it, so a class at 23:30 UTC on the last of a month sits in the next month here too.
- */
-const CLUB_ZONE = 'Europe/Warsaw';
-
-const MONTH_KEY = new Intl.DateTimeFormat('en-CA', {
-  timeZone: CLUB_ZONE,
-  year: 'numeric',
-  month: '2-digit',
-});
-const MONTH_HEADING = new Intl.DateTimeFormat('pl-PL', {
-  timeZone: CLUB_ZONE,
-  month: 'long',
-  year: 'numeric',
-});
-const DAY = new Intl.DateTimeFormat('pl-PL', { timeZone: CLUB_ZONE, day: 'numeric' });
-const WEEKDAY = new Intl.DateTimeFormat('pl-PL', { timeZone: CLUB_ZONE, weekday: 'short' });
-const TIME = new Intl.DateTimeFormat('pl-PL', {
-  timeZone: CLUB_ZONE,
-  hour: '2-digit',
-  minute: '2-digit',
-});
-
-/** A date-only string (YYYY-MM-DD) is a calendar day, not an instant: formatted in UTC so it never shifts. */
-const DAY_MONTH = new Intl.DateTimeFormat('pl-PL', {
-  timeZone: 'UTC',
-  day: 'numeric',
-  month: 'long',
-});
-
-/** Past this many entries the dot strip stops being a picture and becomes noise, so it is left out. */
-const MAX_DOTS = 30;
+import { CLOCK, ClassDate, groupByMonth } from './class-date';
 
 /** The word and glyph for each outcome. The word carries the meaning; colour and glyph repeat it. */
 export const OUTCOME_LABELS: Record<AttendanceOutcome, { word: string; icon: IconName }> = {
@@ -56,17 +19,10 @@ export const OUTCOME_LABELS: Record<AttendanceOutcome, { word: string; icon: Ico
   cancelled: { word: 'Odwołane', icon: 'cancelled' },
 };
 
-export interface HistoryRow {
-  entry: MyAttendanceEntry;
-  day: string;
-  weekday: string;
-  time: string;
-}
-
-export interface MonthGroup {
+export interface HistoryMonth {
   key: string;
   heading: string;
-  rows: HistoryRow[];
+  rows: { entry: MyAttendanceEntry; time: string }[];
 
   /** Classes the member came to. */
   attended: number;
@@ -75,17 +31,18 @@ export interface MonthGroup {
   counted: number;
 }
 
-type Dot = 'present' | 'unrecorded' | 'free';
-
 /**
  * The member's attendance history (S-27, AT-04, AT-05).
  *
  * <h2>Read at a glance, not read out</h2>
  *
- * AT-05's requirement is that this is NOT one sentence per class. So: a summary card for the current
- * karnet on top, then one section per club-local month with its own tally, and rows that are a date
- * column, a name and a status chip. The chip is a word with an icon — the word carries the meaning,
- * so neither the colour nor the glyph is ever the only signal.
+ * AT-05's requirement is that this is NOT one sentence per class. So: one section per club-local
+ * month with its own tally, and rows that are a date column, a name and a status dot. The dot is a
+ * glyph on a tint with the word behind it for screen readers and as its tooltip — the glyph and the
+ * tint repeat each other, so colour is never the only signal. The karnet's own summary card was
+ * dropped: the dashboard already carries the balance, and this tab is about the classes.
+ *
+ * The upcoming tab next door follows the same row and month layout (`class-date.ts`).
  *
  * <h2>Its own load</h2>
  *
@@ -95,7 +52,7 @@ type Dot = 'present' | 'unrecorded' | 'free';
  * months already loaded remain perfectly readable (outlet 2 rather than outlet 4).
  */
 @Component({
-  imports: [Loading, Empty, Icon, List, Row],
+  imports: [ClassDate, Loading, Empty, Icon, List, Row],
   selector: 'app-attendance-history',
   styleUrl: './attendance-history.scss',
   templateUrl: './attendance-history.html',
@@ -105,7 +62,6 @@ export class AttendanceHistory implements OnInit {
 
   protected readonly labels = OUTCOME_LABELS;
 
-  protected readonly summary = signal<MyAttendanceSummary | null>(null);
   protected readonly items = signal<MyAttendanceEntry[]>([]);
   protected readonly earlierBefore = signal<string | null>(null);
 
@@ -118,71 +74,15 @@ export class AttendanceHistory implements OnInit {
 
   private readonly fence = createLoadFence();
 
-  protected readonly groups = computed<MonthGroup[]>(() => {
-    const groups: MonthGroup[] = [];
-
-    for (const entry of this.items()) {
-      const instant = new Date(entry.startsAt);
-      const key = MONTH_KEY.format(instant);
-
-      let group = groups.at(-1);
-      if (!group || group.key !== key) {
-        const heading = MONTH_HEADING.format(instant);
-        group = {
-          key,
-          heading: heading.charAt(0).toUpperCase() + heading.slice(1),
-          rows: [],
-          attended: 0,
-          counted: 0,
-        };
-        groups.push(group);
-      }
-
-      group.rows.push({
-        entry,
-        day: DAY.format(instant),
-        weekday: WEEKDAY.format(instant),
-        time: TIME.format(instant),
-      });
-
-      if (entry.outcome === 'present' || entry.outcome === 'absent') {
-        group.counted++;
-      }
-      if (entry.outcome === 'present') {
-        group.attended++;
-      }
-    }
-
-    return groups;
-  });
-
-  /** The summary's end date, "do 30 września". */
-  protected readonly validTo = computed(() => {
-    const summary = this.summary();
-
-    return summary ? DAY_MONTH.format(new Date(`${summary.validTo}T00:00:00Z`)) : '';
-  });
-
-  /**
-   * One dot per class the karnet paid for that already happened, then one hollow dot per entry
-   * still unused — a picture of the pass. Decorative: the counts beside it carry the meaning.
-   *
-   * An absence takes NO dot: it returned its entry (AT-03), so drawing it would show the pass fuller
-   * than the balance on the dashboard says it is.
-   */
-  protected readonly dots = computed<Dot[]>(() => {
-    const summary = this.summary();
-    if (!summary || summary.entryCount > MAX_DOTS) {
-      return [];
-    }
-
-    const filled: Dot[] = [
-      ...Array<Dot>(summary.present).fill('present'),
-      ...Array<Dot>(summary.unrecorded).fill('unrecorded'),
-    ].slice(0, summary.entryCount);
-
-    return [...filled, ...Array<Dot>(summary.entryCount - filled.length).fill('free')];
-  });
+  protected readonly groups = computed<HistoryMonth[]>(() =>
+    groupByMonth(this.items(), (entry) => entry.startsAt).map((group) => ({
+      key: group.key,
+      heading: group.heading,
+      rows: group.items.map((entry) => ({ entry, time: CLOCK.format(new Date(entry.startsAt)) })),
+      counted: group.items.filter((e) => e.outcome === 'present' || e.outcome === 'absent').length,
+      attended: group.items.filter((e) => e.outcome === 'present').length,
+    })),
+  );
 
   ngOnInit(): void {
     void this.load();
@@ -202,7 +102,6 @@ export class AttendanceHistory implements OnInit {
         return;
       }
 
-      this.summary.set(page.summary);
       this.items.set(page.items);
       this.earlierBefore.set(page.earlierBefore);
     } catch (failure) {
