@@ -537,6 +537,15 @@ describe('Classes', () => {
   });
 
   it('releases a spot, removing the row and raising the tile count', async () => {
+    // Before JOGA's 18:00 start, whatever the wall clock says. Past it, the overlay opens as the
+    // attendance sheet (S-27), which has no release button, so this test failed every evening. Only
+    // Date is faked: vi.waitFor and the HTTP flushes still run on real timers.
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(todayAt(10)));
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
+
     await createWith([{ ...JOGA, capacity: 20, freeSpots: 19 }]);
     await openBookings('Joga', [SIGNUP]);
 
