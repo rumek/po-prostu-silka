@@ -162,4 +162,4 @@ The member and trainer paths, the motion, and the installed Android PWA are stil
   - Staging covered the admin-persona part of 1.10, 1.11, 2.9 and 2.10.
   - Still pending: the member and trainer accounts, the motion (the browser tab was backgrounded), and the installed Android PWA.
 - **Fix**: Run the remaining manual rows on a phone after F1 is fixed, and re-check the admin desk "Zapisani" flow as part of 2.10.
-- **Decision**: PENDING
+- **Decision**: FIXED (in part) — review fixes pushed in d1c1a60; the admin desk "Zapisani" flow was re-checked on Staging (main-FMKLNRVT.js): the bookings overlay stays open, and back closes it. The phone rows (member/trainer, motion, installed Android PWA) stay with the user
