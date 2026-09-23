@@ -1016,11 +1016,11 @@ every persona can open, and note why.
 
 #### Automated
 
-- [x] 5.1 SPA unit tests pass (dashboard, schedule, class-bookings overlay, my-classes, classes)
-- [x] 5.2 Lint and format pass, including the moved overlay
-- [x] 5.3 Production build succeeds within budget
-- [x] 5.4 Backend suite still green
-- [x] 5.5 E2E passes against the local stack
+- [x] 5.1 SPA unit tests pass (dashboard, schedule, class-bookings overlay, my-classes, classes) — b8421d3
+- [x] 5.2 Lint and format pass, including the moved overlay — b8421d3
+- [x] 5.3 Production build succeeds within budget — b8421d3
+- [x] 5.4 Backend suite still green — b8421d3
+- [x] 5.5 E2E passes against the local stack — b8421d3
 
 #### Manual
 
