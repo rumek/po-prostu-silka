@@ -1,18 +1,77 @@
-// .row-name / .row-meta come from src/styles.scss.
+// .row-name comes from src/styles.scss.
 
 :host {
   display: flex;
-  align-items: center;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.booked-class-body {
+  display: flex;
+  align-items: stretch;
   gap: var(--space-3);
   min-width: 0;
+}
+
+// Start over end, right-aligned against the rule so the times line up down a list.
+.booked-class-time {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  justify-content: center;
+  margin: 0;
+  line-height: 1.25;
+  font-variant-numeric: tabular-nums;
+}
+
+.booked-class-start {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.booked-class-end {
+  color: var(--gray);
+  font-size: 0.875rem;
+  font-weight: 300;
 }
 
 .booked-class-text {
   flex: 1 1 auto;
   min-width: 0;
+  padding-left: var(--space-3);
+  border-left: 1px solid var(--line-strong);
+}
+
+.booked-class-instructor {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin: var(--space-1) 0 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+
+  app-icon {
+    font-size: 0.7rem;
+  }
 }
 
 .booked-class-struck {
   color: var(--muted);
   text-decoration: line-through;
+}
+
+// The dash between the times: said, not drawn.
+.booked-class-spoken {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
 }

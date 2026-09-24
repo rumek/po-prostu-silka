@@ -1,23 +1,14 @@
 :host {
-  display: flex;
-  flex: 0 0 2.75rem;
-  flex-direction: column;
-  align-items: center;
-  line-height: 1.15;
+  display: block;
+  line-height: 1.2;
 }
 
-// Weekday on top, month underneath: the same small caps, so the day number reads as the middle of a
-// pair rather than as one of three equal things.
-.class-date-small {
-  color: var(--muted);
+.class-date-short {
+  color: var(--gray);
   font-size: 0.75rem;
-  text-transform: uppercase;
-}
-
-.class-date-day {
-  font-family: var(--font-body);
-  font-size: 1.5rem;
   font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 // Present for screen readers, absent visually.

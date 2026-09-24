@@ -132,25 +132,23 @@ describe('AttendanceHistory', () => {
     expect(rows[3].querySelector('.booked-class-struck')!.textContent).toContain('Joga');
   });
 
-  it('keeps the same date column and time line as the upcoming tab', async () => {
+  it('keeps the same date line and time as the upcoming tab, with no end time', async () => {
     await respond(
       page({ items: [entry({ startsAt: '2026-09-10T16:00:00Z', instructor: 'Ola' })] }),
     );
 
-    expect(element().querySelector('app-booked-class .row-meta')!.textContent).toContain(
-      '18:00 · Ola',
-    );
+    const row = element().querySelector('app-booked-class')!;
+    expect(row.querySelector('.booked-class-start')!.textContent?.trim()).toBe('18:00');
+    expect(row.querySelector('.booked-class-end')).toBeNull();
+    expect(row.querySelector('.booked-class-instructor')!.textContent?.trim()).toBe('Ola');
   });
 
-  // Weekday over day over month, in the club's zone: 16:00 UTC on 10 September is a Thursday.
-  it('stacks the date as weekday, day and month, and says it in full once', async () => {
+  // Weekday, day and month on one line, in the club's zone: 16:00 UTC on 10 September is a Thursday.
+  it('shows the date as weekday, day and month, and says it in full once', async () => {
     await respond(page({ items: [entry({ startsAt: '2026-09-10T16:00:00Z' })] }));
 
     const date = element().querySelector('app-class-date')!;
-    const small = [...date.querySelectorAll('.class-date-small')].map((e) => e.textContent?.trim());
-
-    expect(small).toEqual(['czw.', 'wrz']);
-    expect(date.querySelector('.class-date-day')!.textContent?.trim()).toBe('10');
+    expect(date.querySelector('.class-date-short')!.textContent?.trim()).toBe('czw. 10 wrz');
     expect(date.querySelector('.class-date-spoken')!.textContent).toContain('10 września');
   });
 

@@ -72,7 +72,7 @@ describe('MyClasses', () => {
   });
 
   // The history tab's layout: month sections, a date column, and "18:00–19:00 · instructor".
-  it('groups by club month and gives each row a date column and a time range', async () => {
+  it('groups by club month and gives each row a date line and start and end times', async () => {
     await respond([
       booking({ bookingId: 'b1', startsAt: '2026-09-30T16:00:00Z', durationMinutes: 60 }),
       booking({ bookingId: 'b2', startsAt: '2026-10-02T06:30:00Z', durationMinutes: 45 }),
@@ -83,11 +83,15 @@ describe('MyClasses', () => {
     );
 
     expect(headings).toEqual(['Wrzesień 2026', 'Październik 2026']);
-    expect(rows()[0].querySelector('app-class-date .class-date-day')!.textContent?.trim()).toBe(
-      '30',
-    );
-    expect(rows()[0].querySelector('.row-meta')!.textContent).toContain('18:00–19:00 · Ola');
-    expect(rows()[1].querySelector('.row-meta')!.textContent).toContain('08:30–09:15');
+    const text = (row: number, selector: string) =>
+      rows()[row].querySelector(selector)!.textContent?.trim();
+
+    expect(text(0, '.class-date-short')).toBe('śr. 30 wrz');
+    expect(text(0, '.booked-class-start')).toBe('18:00');
+    expect(text(0, '.booked-class-end')).toBe('19:00');
+    expect(text(0, '.booked-class-instructor')).toBe('Ola');
+    expect(text(1, '.booked-class-start')).toBe('08:30');
+    expect(text(1, '.booked-class-end')).toBe('09:15');
   });
 
   /** S-25: the next step is the club, not a schedule the member can no longer open. */

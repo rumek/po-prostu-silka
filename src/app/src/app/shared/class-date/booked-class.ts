@@ -1,9 +1,10 @@
 import { Component, computed, input } from '@angular/core';
+import { Icon } from '../icons/icon';
 import { CLOCK, ClassDate } from './class-date';
 
 /**
- * One of the member's classes, as "Moje zajęcia" draws it: the stacked date column, the class name,
- * and "time · instructor" underneath. Both tabs there and the dashboard's "Najbliższe zajęcia" card
+ * One of the member's classes, as "Moje zajęcia" draws it: the date line on top, then the start time
+ * over the end time, a rule, and the class name over its instructor. Both tabs there and the dashboard's "Najbliższe zajęcia" card
  * render it, so the three cannot drift.
  *
  * <p>It fills a container rather than being one. On the list screens it sits inside
@@ -16,18 +17,31 @@ import { CLOCK, ClassDate } from './class-date';
  * are different records that agree on these fields.</p>
  */
 @Component({
-  imports: [ClassDate],
+  imports: [ClassDate, Icon],
   selector: 'app-booked-class',
   styleUrl: './booked-class.scss',
   template: `
     <app-class-date [startsAt]="startsAt()" />
 
-    <div class="booked-class-text">
-      <p class="row-name" [class.booked-class-struck]="struck()">{{ name() }}</p>
-      <p class="row-meta">{{ time() }} · {{ instructor() }}</p>
-    </div>
+    <div class="booked-class-body">
+      <p class="booked-class-time">
+        <span class="booked-class-start">{{ start() }}</span>
+        @if (end(); as end) {
+          <span class="booked-class-spoken">–</span>
+          <span class="booked-class-end">{{ end }}</span>
+        }
+      </p>
 
-    <ng-content />
+      <div class="booked-class-text">
+        <p class="row-name" [class.booked-class-struck]="struck()">{{ name() }}</p>
+        <p class="booked-class-instructor">
+          <app-icon name="person" />
+          <span>{{ instructor() }}</span>
+        </p>
+      </div>
+
+      <ng-content />
+    </div>
   `,
 })
 export class BookedClass {
@@ -39,7 +53,7 @@ export class BookedClass {
   readonly instructor = input.required<string>();
 
   /**
-   * With a duration the time reads as a range, "18:00–19:00" — what an upcoming class needs. The
+   * With a duration the end time shows under the start — what an upcoming class needs. The
    * history passes none: a class that has happened is placed by when it started.
    */
   readonly durationMinutes = input<number | null>(null);
@@ -47,15 +61,14 @@ export class BookedClass {
   /** A cancelled class, crossed out; the caller says why next to it. */
   readonly struck = input(false);
 
-  protected readonly time = computed(() => {
-    const start = new Date(this.startsAt());
+  protected readonly start = computed(() => CLOCK.format(new Date(this.startsAt())));
+
+  /** Derived, never stored — the API returns no end time. None without a duration. */
+  protected readonly end = computed(() => {
     const minutes = this.durationMinutes();
 
-    if (minutes === null) {
-      return CLOCK.format(start);
-    }
-
-    // Derived, never stored — the API returns no end time.
-    return `${CLOCK.format(start)}–${CLOCK.format(new Date(start.getTime() + minutes * 60_000))}`;
+    return minutes === null
+      ? null
+      : CLOCK.format(new Date(new Date(this.startsAt()).getTime() + minutes * 60_000));
   });
 }

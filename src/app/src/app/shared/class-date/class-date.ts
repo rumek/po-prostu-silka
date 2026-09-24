@@ -67,17 +67,16 @@ export function groupByMonth<T>(
 }
 
 /**
- * A row's date column: weekday, day, month, stacked. Fixed width, so the names line up down a month
- * and the eye can run the column. The three short parts are for the eye; a screen reader gets the
- * date said once, in full.
+ * A row's date line: "CZW. 10 WRZ", small and in capitals above the class. The short parts are for
+ * the eye; a screen reader gets the date said once, in full.
  */
 @Component({
   selector: 'app-class-date',
   styleUrl: './class-date.scss',
   template: `
-    <span class="class-date-small" aria-hidden="true">{{ weekday() }}</span>
-    <span class="class-date-day" aria-hidden="true">{{ day() }}</span>
-    <span class="class-date-small" aria-hidden="true">{{ month() }}</span>
+    <span class="class-date-short" aria-hidden="true"
+      >{{ weekday() }} {{ day() }} {{ month() }}</span
+    >
     <span class="class-date-spoken">{{ spoken() }}</span>
   `,
 })
