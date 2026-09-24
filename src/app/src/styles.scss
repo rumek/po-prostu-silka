@@ -10,7 +10,13 @@
 // component stylesheet.
 // =============================================================================
 
+@use '@angular/cdk' as cdk;
 @use 'breakpoints' as bp;
+
+// LiveAnnouncer (the toast host's screen-reader voice, S-19) parks its message in a body-level
+// .cdk-visually-hidden element that stays in the DOM on purpose. The CDK ships that class as a mixin,
+// not a stylesheet, so without this the last toast's words sit visibly at the bottom of every page.
+@include cdk.a11y-visually-hidden();
 
 // -----------------------------------------------------------------------------
 // Fonts, self-hosted.
