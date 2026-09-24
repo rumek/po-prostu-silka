@@ -63,8 +63,12 @@ app-plan-summary {
 .my-plan-muscle {
   margin: var(--space-1) 0 0;
   color: var(--muted);
-  font-size: 0.875rem;
+  font-size: 0.675rem;
   overflow-wrap: anywhere;
+  width: fit-content;
+  padding: 2px 4px;
+  background: var(--ground);
+  border-radius: 4px;
 }
 
 .my-plan-info {

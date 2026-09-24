@@ -49,3 +49,17 @@
 - **Applies to**: `/10x-research` and `/10x-plan` on any slice that builds on a `done` foundation,
   and to `/10x-plan-review` before flagging a prerequisite as missing.
 
+
+## Keep the UI minimalist and modern, with icons, mobile-first but responsive
+
+- **Context**: Any change that adds or restyles a screen or component in the SPA (`src/app`, both
+  `features/` and `shared/`).
+
+- **Problem**: Screens drift into text-heavy, cluttered layouts that feel dated, or are tuned for
+  one width and look broken or empty on the other.
+
+- **Rule**: Keep the UI minimalist but modern — sparse text, a clear visual hierarchy, and icons
+  from `shared/icons` to carry meaning where a word would add clutter. Design mobile-first, then
+  verify every screen at tablet and desktop widths (the `bp` mixins), so it reads well on both.
+
+- **Applies to**: `/10x-plan`, `/10x-implement`, `/10x-impl-review`
