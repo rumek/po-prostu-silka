@@ -6,6 +6,8 @@
   <h3 class="plan-summary-name">{{ name() }}</h3>
 }
 
-<p class="plan-summary-meta">
-  Plan od: {{ assignedByDisplayName() }} · {{ createdAt() | date: 'd MMMM y' }}
+<p class="hero-panel-meta">Stworzył: {{ assignedByDisplayName() }}</p>
+<p class="hero-panel-meta">
+  <app-icon name="calendar" />
+  <span>{{ createdAt() | date: 'd MMMM y' }}</span>
 </p>

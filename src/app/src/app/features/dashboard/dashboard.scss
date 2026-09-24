@@ -7,12 +7,15 @@
 // the photo holds.
 .dashboard-hero {
   justify-content: center;
+  // The greeting keeps its own rhythm, and the cards below carry their own top margin.
+  gap: 0;
+  margin-bottom: 0;
 
   > * {
     max-width: 30rem;
   }
 
-  h1 {
+  > h1 {
     margin-bottom: var(--space-2);
   }
 }

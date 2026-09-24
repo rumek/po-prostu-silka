@@ -1,7 +1,22 @@
 <!-- The hero photo's space (src/styles.scss, .screen-hero): on a phone the title hides and the
-     block keeps the photo clear of the tabs. -->
+     block keeps the photo clear of the tabs. The panel is the plan screen's summary in this screen's
+     terms: how many classes are ahead, which is next, and when. Only with something ahead — an empty
+     list already says so below, and says who to ask. -->
 <header class="screen-hero">
   <h1 class="screen-title">Moje zajęcia</h1>
+
+  @if (!loading() && !loadFailed()) {
+    @if (rows()[0]; as next) {
+      <div class="hero-panel">
+        <p class="hero-panel-title">{{ upcomingLabel() }}</p>
+        <p class="hero-panel-meta">Najbliższe: {{ next.name }}</p>
+        <p class="hero-panel-meta">
+          <app-icon name="calendar" />
+          <span>{{ when(next.startsAt) }}</span>
+        </p>
+      </div>
+    }
+  }
 </header>
 
 <!-- Two tabs (S-27). The tab is in the URL, so a reload keeps it; switching replaces the history

@@ -18,7 +18,7 @@ const MONTH_HEADING = new Intl.DateTimeFormat('pl-PL', {
   month: 'long',
   year: 'numeric',
 });
-const LONG_DATE = new Intl.DateTimeFormat('pl-PL', {
+export const LONG_DATE = new Intl.DateTimeFormat('pl-PL', {
   timeZone: CLUB_ZONE,
   weekday: 'long',
   day: 'numeric',

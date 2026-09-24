@@ -13,7 +13,8 @@ import { List } from '../../shared/list/list';
 import { Row } from '../../shared/list/row';
 import { AttendanceHistory } from './attendance-history';
 import { BookedClass } from '../../shared/class-date/booked-class';
-import { groupByMonth } from '../../shared/class-date/class-date';
+import { CLOCK, LONG_DATE, groupByMonth } from '../../shared/class-date/class-date';
+import { Icon } from '../../shared/icons/icon';
 
 /** The query param that selects the history tab, and its one value. Absent means upcoming. */
 export const VIEW_PARAM = 'widok';
@@ -59,7 +60,7 @@ const SWIPE_RATIO = 1.5;
  * through the same `select`, so the URL and the history entry behave exactly as a tap does.
  */
 @Component({
-  imports: [List, Row, Empty, Loading, BookedClass, AttendanceHistory],
+  imports: [List, Row, Empty, Loading, BookedClass, AttendanceHistory, Icon],
   selector: 'app-my-classes',
   styleUrl: './my-classes.scss',
   templateUrl: './my-classes.html',
@@ -99,6 +100,28 @@ export class MyClasses implements OnInit {
   protected readonly rows = signal<MyBooking[]>([]);
 
   protected readonly groups = computed(() => groupByMonth(this.rows(), (row) => row.startsAt));
+
+  /** The hero panel's headline: "Masz 3 zaplanowane treningi", with Polish plural forms. */
+  protected readonly upcomingLabel = computed(() => {
+    const count = this.rows().length;
+    const ones = count % 10;
+    const tens = count % 100;
+
+    if (count === 1) {
+      return 'Masz 1 zaplanowany trening';
+    }
+
+    return ones >= 2 && ones <= 4 && (tens < 12 || tens > 14)
+      ? `Masz ${count} zaplanowane treningi`
+      : `Masz ${count} zaplanowanych treningów`;
+  });
+
+  /** "czwartek, 10 września · 18:00", in the club's zone. */
+  protected when(startsAt: string): string {
+    const instant = new Date(startsAt);
+
+    return `${LONG_DATE.format(instant)} · ${CLOCK.format(instant)}`;
+  }
   protected readonly loading = signal(true);
   protected readonly loadFailed = signal(false);
 

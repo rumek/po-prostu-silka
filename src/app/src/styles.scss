@@ -262,12 +262,79 @@ body:has(.screen-hero) {
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
+  gap: var(--space-3);
   min-height: calc(50vw * var(--hero-ratio) * 0.85 - var(--above));
+  margin-bottom: var(--space-4);
+
+  // The hero's gap spaces its children; the screen title's own margin would double it.
+  > h1 {
+    margin: 0;
+  }
 
   @include bp.narrow {
     --above: calc(var(--app-bar-height) + env(safe-area-inset-top) + var(--space-5));
 
     min-height: calc(50vw * var(--hero-mobile-ratio) * 0.85 - var(--above));
+  }
+}
+
+// What a screen says about itself over its photo — the plan's name, author and date; the next class.
+// Near-opaque --page with a blur, so the text never has to be read against the photo's detail.
+.hero-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  align-self: flex-start;
+  max-width: min(100%, 30rem);
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--page) 88%, transparent);
+  box-shadow: var(--shadow-card);
+  backdrop-filter: blur(8px);
+}
+
+// The panel's first line when it is not a heading of its own (the plan's is its h2).
+.hero-panel-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 1.2rem + 1.2vw, 1.9rem);
+  font-weight: 600;
+  line-height: 1.15;
+}
+
+.hero-panel-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+
+  app-icon {
+    color: var(--accent);
+    font-size: 0.8rem;
+  }
+}
+
+// THE PHONE'S BAR OVER A HERO. Transparent at the top, so the photo starts at the screen's edge as it
+// does on Start; it turns into the solid pinned bar over the first --space-7 of scrolling, driven by
+// the scroll position in CSS alone. Here rather than in app.scss because it depends on the routed
+// screen, which the shell's stylesheet cannot see, and so are its keyframes: a component's keyframe
+// names are scoped to it. A browser without scroll-driven animations keeps the solid bar.
+@include bp.narrow {
+  @supports (animation-timeline: scroll()) {
+    body:has(.screen-hero) .shell-header:not(.is-home) {
+      animation-name: app-bar-over-hero;
+      animation-range: 0 var(--space-7);
+    }
+  }
+}
+
+@keyframes app-bar-over-hero {
+  from {
+    background-color: transparent;
+    box-shadow: 0 1px 0 transparent;
   }
 }
 

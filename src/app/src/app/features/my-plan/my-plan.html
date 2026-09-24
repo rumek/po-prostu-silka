@@ -1,7 +1,20 @@
 <!-- The screen's name, not the plan's (mobile-native-feel): on a phone the app bar says "Plan" and
-     this hides; on a desktop it is the heading in every state. The plan's own name is the h2 below. -->
+     this hides; on a desktop it is the heading in every state. The plan's own name is the h2 below,
+     on a panel over the hero photo (src/styles.scss, .screen-hero / .hero-panel). -->
 <header class="screen-hero">
   <h1 class="screen-title">Mój plan</h1>
+
+  @if (!loading() && !loadFailed()) {
+    @if (plan(); as row) {
+      <app-plan-summary
+        class="hero-panel"
+        headingLevel="h2"
+        [name]="row.name"
+        [assignedByDisplayName]="row.assignedByDisplayName"
+        [createdAt]="row.createdAt"
+      />
+    }
+  }
 </header>
 
 @if (loading()) {
@@ -15,13 +28,6 @@
     <button type="button" class="link-button" (click)="load()">Spróbuj ponownie</button>
   </p>
 } @else if (plan(); as row) {
-  <app-plan-summary
-    headingLevel="h2"
-    [name]="row.name"
-    [assignedByDisplayName]="row.assignedByDisplayName"
-    [createdAt]="row.createdAt"
-  />
-
   <!-- Ordered by the trainer, and the numbers are the point: this is the sequence to train in, not
        a set to pick from. The API already sorts; nothing here re-sorts. The card is drawn like a
        class card on "Moje zajęcia" — a small line on top, then the name over a quieter line — so the

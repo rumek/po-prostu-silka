@@ -1,5 +1,6 @@
 import { DatePipe } from '@angular/common';
 import { Component, input } from '@angular/core';
+import { Icon } from '../icons/icon';
 
 /**
  * A training plan's identity: its name, who assigned it, and when.
@@ -13,7 +14,7 @@ import { Component, input } from '@angular/core';
  * with no `h3`, which is the outline bug this input exists to prevent.
  */
 @Component({
-  imports: [DatePipe],
+  imports: [DatePipe, Icon],
   selector: 'app-plan-summary',
   styleUrl: './plan-summary.scss',
   templateUrl: './plan-summary.html',
