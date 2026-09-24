@@ -211,6 +211,27 @@ describe('App', () => {
       expect(root.querySelector('h1.shell-title')!.textContent!.trim()).toBe('Moje konto');
     });
 
+    it('links the account screen from the bar on every signed-in screen', async () => {
+      for (const [level, title] of [
+        ['brand', 'Start'],
+        ['tab', 'Zajęcia'],
+      ] as const) {
+        TestBed.resetTestingModule();
+        const root = await renderAt(level, title);
+        const profile = root.querySelector<HTMLAnchorElement>('a.shell-profile');
+
+        expect(profile).not.toBeNull();
+        expect(profile!.getAttribute('href')).toBe('/profile');
+        expect(profile!.getAttribute('aria-label')).toBe('Moje konto');
+      }
+    });
+
+    it('offers no profile link while signed out', async () => {
+      const root = await renderAt('brand', 'Logowanie', null, null);
+
+      expect(root.querySelector('.shell-profile')).toBeNull();
+    });
+
     it('shows no title while signed out, whatever the route says', async () => {
       const root = await renderAt('tab', 'Grafik', null, null);
 

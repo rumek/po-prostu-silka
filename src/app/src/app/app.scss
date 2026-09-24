@@ -45,7 +45,8 @@
 
 // The phone's app bar content (mobile-native-feel). Never shown above 30rem: there the screen's own
 // <h1 class="screen-title"> is the heading, and a second one here would duplicate it.
-.shell-bar {
+.shell-bar,
+.shell-profile {
   display: none;
 }
 
@@ -183,6 +184,24 @@
     background: none;
     color: var(--ink);
     cursor: pointer;
+  }
+
+  // The back button's twin at the other edge: the same 44px target, pulled right to the gutter.
+  .shell-profile {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    margin-right: calc(var(--space-3) * -1);
+    margin-left: auto;
+    border-radius: 50%;
+    color: var(--ink);
+
+    &.is-active {
+      display: none;
+    }
   }
 
   .shell-title {

@@ -41,6 +41,19 @@
 
       <button type="button" class="shell-logout" (click)="logout()">Wyloguj się</button>
     </nav>
+
+    <!-- The phone's way to the account screen, at the bar's right edge on every signed-in screen.
+         Gated like Moje konto above, on isAuthenticated() alone, for the same reason. Hidden on
+         /profile itself, where it would lead nowhere, and above 30rem, where the nav carries it. -->
+    <a
+      class="shell-profile"
+      routerLink="/profile"
+      routerLinkActive="is-active"
+      aria-label="Moje konto"
+      title="Moje konto"
+    >
+      <app-icon name="profile" />
+    </a>
   }
 </header>
 
