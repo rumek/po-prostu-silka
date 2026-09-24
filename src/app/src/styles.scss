@@ -839,11 +839,12 @@ a {
   }
 }
 
-// Two screens are rarely the same height, and the default group animation would scale the snapshots
-// between those heights — a zoom nobody asked for on top of the slide. Only the fade and the slide
-// above remain.
+// Two screens are rarely the same height or at the same scroll offset, and the default group
+// animation would morph the old snapshot's box into the new one's — a zoom between the heights and,
+// from a screen scrolled to its end, a vertical sweep across the whole viewport on top of the slide.
+// No group animation: each snapshot stays where it was, and only the fade and the slide above remain.
 ::view-transition-group(page) {
-  animation-duration: 260ms;
+  animation: none;
 }
 
 @media (prefers-reduced-motion: reduce) {

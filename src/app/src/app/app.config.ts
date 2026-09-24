@@ -9,7 +9,12 @@ import {
 import { registerLocaleData } from '@angular/common';
 import localePl from '@angular/common/locales/pl';
 import { provideServiceWorker } from '@angular/service-worker';
-import { TitleStrategy, provideRouter, withViewTransitions } from '@angular/router';
+import {
+  TitleStrategy,
+  provideRouter,
+  withInMemoryScrolling,
+  withViewTransitions,
+} from '@angular/router';
 import { provideClientHydration } from '@angular/platform-browser';
 import { provideHttpClient, withFetch, withInterceptors } from '@angular/common/http';
 import { routes } from './app.routes';
@@ -31,8 +36,13 @@ export const appConfig: ApplicationConfig = {
     // once in styles.scss; the router only starts it, and slideDirection only says which way. Not
     // the initial navigation: there is nothing on screen yet for the first screen to slide over.
     // A browser without the API navigates exactly as before — Angular checks for it.
+    //
+    // A new screen opens at its top and the back button returns to where the member was, as on
+    // Android. Without it the scroll position carried over from the previous screen, and the
+    // transition started from a page scrolled somewhere in its middle.
     provideRouter(
       routes,
+      withInMemoryScrolling({ scrollPositionRestoration: 'enabled' }),
       withViewTransitions({ skipInitialTransition: true, onViewTransitionCreated: slideDirection }),
     ),
     // Every route names itself (mobile-native-feel); this publishes the name and depth to the
