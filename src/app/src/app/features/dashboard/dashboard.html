@@ -85,12 +85,7 @@
               <p class="row-name">Pozostałe wejścia</p>
               <p class="dashboard-meta">
                 <app-icon name="calendar" />
-                <span>
-                  ważny do {{ karnet.validTo | date: 'd MMMM y' }}
-                  @if (daysLeft(karnet.validTo); as days) {
-                    · jeszcze {{ days }} {{ days === 1 ? 'dzień' : 'dni' }}
-                  }
-                </span>
+                <span>ważny do {{ karnet.validTo | date: 'd MMMM y' }}</span>
               </p>
             </div>
           </div>

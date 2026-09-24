@@ -128,22 +128,6 @@ export class Dashboard implements OnInit {
     return Array.from({ length: count }, (_, index) => index);
   }
 
-  /**
-   * Days the karnet still covers, today included — so on its last day it says "1 dzień". Built from
-   * the `YYYY-MM-DD` parts as a LOCAL date, never `new Date(validTo)`, which reads it as UTC midnight
-   * (see MembershipPassView). Null once it has lapsed, which the API should not send.
-   */
-  protected daysLeft(validTo: string): number | null {
-    const [year, month, day] = validTo.split('-').map(Number);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const days =
-      Math.round((new Date(year, month - 1, day).getTime() - today.getTime()) / 86_400_000) + 1;
-
-    return days > 0 ? days : null;
-  }
-
   // --- Staff: the classes I instruct, today and upcoming (S-25) ----------------------------------
 
   protected readonly todayClasses = signal<ScheduledClass[]>([]);

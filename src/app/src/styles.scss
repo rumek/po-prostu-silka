@@ -321,10 +321,17 @@ body:has(.screen-hero) {
 // does on Start; it turns into the solid pinned bar over the first --space-7 of scrolling, driven by
 // the scroll position in CSS alone. Here rather than in app.scss because it depends on the routed
 // screen, which the shell's stylesheet cannot see, and so are its keyframes: a component's keyframe
-// names are scoped to it. A browser without scroll-driven animations keeps the solid bar.
+// names are scoped to it.
+//
+// TRANSPARENT IS THE BASE STATE and the keyframes animate TO solid, not from transparent: a screen
+// too short to scroll has an INACTIVE scroll timeline, which applies no keyframes at all, and that
+// screen must still show the photo under a clear bar. A browser without scroll-driven animations
+// never enters this block and keeps the solid bar.
 @include bp.narrow {
   @supports (animation-timeline: scroll()) {
     body:has(.screen-hero) .shell-header:not(.is-home) {
+      background-color: transparent;
+      box-shadow: none;
       animation-name: app-bar-over-hero;
       animation-range: 0 var(--space-7);
     }
@@ -332,9 +339,9 @@ body:has(.screen-hero) {
 }
 
 @keyframes app-bar-over-hero {
-  from {
-    background-color: transparent;
-    box-shadow: 0 1px 0 transparent;
+  to {
+    background-color: var(--page);
+    box-shadow: 0 1px 0 var(--line);
   }
 }
 

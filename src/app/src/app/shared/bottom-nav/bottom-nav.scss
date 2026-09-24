@@ -46,8 +46,10 @@
   padding: 4px;
   border-radius: 32px;
   list-style: none;
-  background: var(--section-warm);
-  box-shadow: var(--shadow-card);
+  background: var(--ground);
+  box-shadow:
+    0 8px 30px rgba(80, 55, 45, 0.1),
+    0 2px 8px rgba(80, 55, 45, 0.06);
   // `auto` basis, so each tab's share starts from its content. The active tab's label widens that
   // content frame by frame as its max-width transitions, and the neighbours shrink by the same amount
   // — that is the whole of the "the others slide over" motion, with no second animation to keep in sync.

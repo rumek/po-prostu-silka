@@ -73,7 +73,7 @@
 .my-plan-info {
   flex-shrink: 0;
   display: inline-flex;
-  color: var(--muted);
+  color: var(--accent2);
   font-size: 0.875rem;
 }
 
@@ -102,10 +102,10 @@
   }
 }
 
-// The column's head, so a touch larger than an icon beside text; the class card's muted colour.
+// The column's head, so a touch larger than an icon beside text; accent2, like the cards' other icons.
 .my-plan-param app-icon {
   margin-bottom: 2px;
-  color: var(--muted);
+  color: var(--accent2);
   font-size: 0.875rem;
 }
 
@@ -137,7 +137,7 @@
 
   app-icon {
     flex-shrink: 0;
-    color: var(--muted);
+    color: var(--accent2);
     font-size: 0.875rem;
   }
 
