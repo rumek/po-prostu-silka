@@ -232,6 +232,15 @@ describe('App', () => {
       expect(root.querySelector('.shell-profile')).toBeNull();
     });
 
+    it('trades the bottom bar for the back arrow on a child screen', async () => {
+      const child = await renderAt('child', 'Moje konto', '/more');
+      expect(child.querySelector('.bottom-nav')).toBeNull();
+
+      TestBed.resetTestingModule();
+      const tab = await renderAt('tab', 'Zajęcia');
+      expect(tab.querySelector('.bottom-nav')).not.toBeNull();
+    });
+
     it('shows no title while signed out, whatever the route says', async () => {
       const root = await renderAt('tab', 'Grafik', null, null);
 

@@ -51,6 +51,31 @@ describe('Up', () => {
     expect(navigate).not.toHaveBeenCalled();
   });
 
+  it('goes back to the screen a child was opened from, even when that is not its parent', async () => {
+    const { up, router, location } = setup();
+    await router.navigateByUrl('/');
+    await router.navigateByUrl('/my-plan/exercises/7');
+    const go = vi.spyOn(location, 'historyGo');
+    const navigate = vi.spyOn(router, 'navigateByUrl');
+
+    up.back('/my-plan');
+
+    expect(go).toHaveBeenCalledWith(-1);
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it('falls back to replacing a deep-linked child with its parent when there is no way back', async () => {
+    const { up, router, location } = setup();
+    await router.navigateByUrl('/my-plan/exercises/7');
+    const go = vi.spyOn(location, 'historyGo');
+    const navigate = vi.spyOn(router, 'navigateByUrl');
+
+    up.back('/my-plan');
+
+    expect(go).not.toHaveBeenCalled();
+    expect(navigate).toHaveBeenCalledWith('/my-plan', { replaceUrl: true });
+  });
+
   it('replaces a deep-linked child with its parent, so back from the parent leaves', async () => {
     const { up, router, location } = setup();
     await router.navigateByUrl('/my-plan/exercises/7');

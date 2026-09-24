@@ -78,6 +78,20 @@ export class Up {
     }
   }
 
+  /**
+   * The app bar's back arrow: back to the screen this one was opened from, as Android's back does,
+   * when that screen is in this session's history — a child can be reached from more than its
+   * parent (the bar's profile icon opens Moje konto from any screen). Only with nothing to return
+   * to — a deep link, a reload — does it fall back to `to(parent)`.
+   */
+  back(parent: string): void {
+    if (this.index > 0) {
+      this.location.historyGo(-1);
+    } else {
+      this.to(parent);
+    }
+  }
+
   /** How many entries back the nearest `target` sits in this session's history, or 0 if it is not. */
   stepsBackTo(target: string): number {
     const path = pathOf(target);

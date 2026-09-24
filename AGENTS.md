@@ -105,6 +105,9 @@ and the signed-out screens keep their `h1` everywhere.
   - every form's "Anuluj", plan-builder's included.
 
   They are not precedent, and not a bug to "fix" in passing.
+- The phone bar's back arrow is `Up.back(parent)`: it pops to the screen the child was opened
+  from (the bar's profile icon opens Moje konto from any screen), and goes `to(parent)` only with
+  nothing to return to. A child screen shows the arrow **instead of** the bottom bar.
 - A new overlay passes its close to `useOverlayFocus(() => this.close())`, so system back closes
   it.
 - The route slide reads the same levels: a fade between roots, forward into a child, back up.

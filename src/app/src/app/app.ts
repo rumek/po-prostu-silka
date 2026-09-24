@@ -64,11 +64,14 @@ export class App {
     () => this.auth.isAuthenticated() && this.screen.level() === 'brand',
   );
 
+  /** A child screen has the bar's back arrow instead of the bottom bar: none of its tabs is current. */
+  protected readonly child = computed(() => this.screen.level() === 'child');
+
   // Injected here, in the root component, so its history model starts with the first navigation.
   private readonly upward = inject(Up);
 
   protected up(): void {
-    this.upward.to(this.screen.parent() ?? '/');
+    this.upward.back(this.screen.parent() ?? '/');
   }
 
   protected async logout(): Promise<void> {

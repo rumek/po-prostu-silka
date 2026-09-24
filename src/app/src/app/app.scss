@@ -105,6 +105,11 @@
     // from the shared token precisely so this cannot drift out of step again — it already did once.
     padding: var(--space-5) var(--space-4)
       calc(var(--bottom-nav-tab-height) + 1px + var(--space-5) + var(--bottom-nav-offset));
+
+    // No bottom bar on a child screen, so nothing to clear but the home indicator.
+    &.is-child {
+      padding-bottom: calc(var(--space-5) + env(safe-area-inset-bottom));
+    }
   }
 
   // The links and the logout move to the bar and to /more on a phone.

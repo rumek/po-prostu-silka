@@ -57,7 +57,7 @@
   }
 </header>
 
-<main id="main" class="shell-main">
+<main id="main" class="shell-main" [class.is-child]="child()">
   <!-- Above the routed view rather than inside one screen: the prompt is about the account, not
        about whatever the member happens to be looking at, and it renders nothing at all unless push
        is usable and undecided. Gated on isActive() to match every other member control here — an
@@ -77,9 +77,10 @@
      the routed view. -->
 <app-toast-host />
 
-<!-- The phone's navigation. Inside the same isAuthenticated() gate the header's nav uses, and for the
+<!-- The phone's navigation, left out on a child screen: none of its tabs is where the member is, and
+     the app bar's back arrow is the way out. Inside the same isAuthenticated() gate the header's nav uses, and for the
      same reason: the shell renders before any guard runs, so until sessionResolved flips every role
      signal reads false. The bar itself stays role-blind — it renders the links the shell hands it. -->
-@if (auth.isAuthenticated()) {
+@if (auth.isAuthenticated() && !child()) {
   <app-bottom-nav [links]="nav().bar" />
 }
