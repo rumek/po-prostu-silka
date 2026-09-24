@@ -128,7 +128,7 @@
     flex-wrap: nowrap;
     min-height: calc(var(--app-bar-height) + env(safe-area-inset-top));
     padding: env(safe-area-inset-top) var(--space-4) 0;
-    background: var(--ground);
+    background: var(--page);
     // A hairline under the bar, drawn only once content has scrolled beneath it — driven by the
     // scroll position in CSS alone, with no listener. A browser without scroll-driven animations
     // keeps the hairline on permanently, which is the safe half of the two states.
@@ -147,8 +147,10 @@
     // START IS THE EXCEPTION: its bar carries only the logo, and a pinned logo over the dashboard
     // is chrome that says nothing about where the member is. It scrolls away with the greeting, so
     // it needs no hairline either.
+    // Transparent, so the hero photo behind it starts at the screen's top edge.
     &.is-home {
       position: static;
+      background: transparent;
       box-shadow: none;
       animation: none;
     }
@@ -203,15 +205,15 @@
     margin-left: auto;
     border-radius: 50%;
 
-    // A filled disc inside the 44px target, no outline: the avatar shape, in the brand colour.
+    // A filled disc inside the 44px target, no outline: the avatar shape.
     app-icon {
       align-items: center;
       justify-content: center;
       width: 2.125rem;
       height: 2.125rem;
       border-radius: 50%;
-      background: var(--accent);
-      color: var(--ground);
+      background: var(--section-warm);
+      color: var(--ink);
       font-size: 0.8rem;
     }
 

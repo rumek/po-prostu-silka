@@ -3,17 +3,18 @@
 
 @use 'breakpoints' as bp;
 
-// The greeting's backdrop. The photos keep their subject at the right (web) and the bottom (phone),
-// so the text is pinned to the other side and never sits on the still life. WebP, converted from the
-// PNG sources in public/: the dashboard is the screen every member opens first.
+// The greeting. The photo behind it is the page's background (src/styles.scss, body:has(app-dashboard)):
+// 60vw wide at the top right, so 40vw tall on the web and 60vw * 1672/941 on a phone. The hero is
+// that tall minus what sits above it, so the cards start under the photo instead of covering it.
 .dashboard-hero {
+  // The header (the 140px logo, 163x89, plus --space-4 above and below: ~6.75rem) and
+  // .shell-main's --space-7 top padding. Not tokens above 30rem, so written out here.
+  --above: 9.75rem;
+
   display: flex;
   flex-direction: column;
   justify-content: center;
-  min-height: 18rem;
-  padding: var(--space-6);
-  border-radius: var(--radius);
-  background: var(--section-warm) url('/hero-web.webp') right center / cover no-repeat;
+  min-height: calc(40vw - var(--above));
 
   > * {
     max-width: 30rem;
@@ -24,17 +25,18 @@
   }
 }
 
-// The phone gets the portrait crop, bled to the screen's edges under the app bar. Its subject is at
-// the bottom, so the text rides the empty top and the hero is tall enough to show both.
+// On a phone the photo's subject is at its bottom, so the text rides the empty top, and stops short
+// of the plant at the right edge.
 @include bp.narrow {
   .dashboard-hero {
+    --above: calc(var(--app-bar-height) + env(safe-area-inset-top) + var(--space-5));
+
     justify-content: flex-start;
-    min-height: 26rem;
-    margin: calc(var(--space-5) * -1) calc(var(--space-4) * -1) 0;
-    padding: var(--space-6) var(--space-4);
-    border-radius: 0;
-    background-image: url('/hero-mobile.webp');
-    background-position: center bottom;
+    min-height: calc(60vw * 1672 / 941 - var(--above));
+
+    > * {
+      max-width: 75%;
+    }
   }
 }
 

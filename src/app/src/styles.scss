@@ -87,7 +87,8 @@
 // -----------------------------------------------------------------------------
 
 :root {
-  --ground: #f7f3ef; // page background
+  --page: #f7efe7; // page background, matched to the dashboard's hero photos
+  --ground: #f7f3ef; // surfaces on the page: toasts, calendar, chips
   --section-warm: #ece3dc; // section accent
   --section-cool: #edeae5; // section accent
   --ink: #272321; // body text, links
@@ -200,13 +201,26 @@ html {
 body {
   margin: 0;
   min-height: 100dvh;
-  background: var(--ground);
+  background: var(--page);
   color: var(--ink);
   font-family: var(--font-body);
   font-size: 1rem;
   font-weight: 400;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
+}
+
+// Start's hero photo (the dashboard). On the page rather than in the dashboard, so it begins at the
+// very top of the screen behind the header, which is transparent there; a component's stylesheet
+// cannot reach <body>. Anchored top-right at 60% of the width and never cropped: its cream left edge
+// is --page, so it blends into the rest of the page. The dashboard's .dashboard-hero keeps the cards
+// below the photo's bottom edge.
+body:has(app-dashboard) {
+  background: var(--page) url('/hero-web.webp') right top / 60vw auto no-repeat;
+
+  @include bp.narrow {
+    background-image: url('/hero-mobile.webp');
+  }
 }
 
 h1,
