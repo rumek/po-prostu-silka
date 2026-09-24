@@ -7,7 +7,6 @@ import { CurrentUser } from '../../core/auth/auth.models';
 import { MembershipPassView } from '../../core/admin/member-admin.models';
 import { MyBooking } from '../../core/scheduling/booking.models';
 import { ScheduledClass } from '../../core/scheduling/class.models';
-import { TrainingPlanDetail } from '../../core/training/training-plan.models';
 import { Dashboard } from './dashboard';
 
 const BOOKINGS_URL = '/api/bookings/mine';
@@ -31,16 +30,6 @@ const TRAINER: CurrentUser = {
   id: 't1',
   displayName: 'Marek',
   roles: ['User', 'Trainer'],
-};
-
-const PLAN: TrainingPlanDetail = {
-  id: 'p1',
-  name: 'Masa - jesień',
-  memberId: 'm1',
-  memberDisplayName: 'Ala',
-  assignedByDisplayName: 'Marek Trener',
-  createdAt: new Date('2026-09-01T10:00').toISOString(),
-  items: [],
 };
 
 const PASS: MembershipPassView = {
@@ -96,7 +85,7 @@ function atLocalHour(dayOffset: number, hour: number): string {
 /**
  * The landing screen (prd.md FR-023, FR-024).
  *
- * Two things these tests exist for. First, the PERSONA BRANCH (S-25): a member gets the three
+ * Two things these tests exist for. First, the PERSONA BRANCH (S-25): a member gets the two
  * member cards and never requests the staff feed; staff get "Twoje zajęcia" and never request
  * the `/mine` routes — each would be a guaranteed 403 you only see in the network tab. Second, the
  * LOCAL-MIDNIGHT WINDOW: a class that started earlier today belongs under "Dzisiaj", and the API's
@@ -132,8 +121,8 @@ describe('Dashboard', () => {
   }
 
   /**
-   * TWO ROUNDS, following my-plan.spec: getMine() on the plan service post-processes a 204 into null,
-   * so its promise settles a microtask after the response.
+   * TWO ROUNDS: getMyPass() post-processes a 204 into null, so its promise settles a microtask after
+   * the response.
    */
   async function settle(): Promise<void> {
     await fixture.whenStable();
@@ -169,13 +158,26 @@ describe('Dashboard', () => {
     configure(MEMBER);
 
     controller.expectOne(BOOKINGS_URL).flush([booking({ name: 'Pilates', instructor: 'Ala T.' })]);
-    controller.expectOne(PLAN_URL).flush(PLAN);
+    flushPass(PASS);
+    await settle();
+
+    expect(element().querySelector('h1')!.textContent).toContain('Cześć, Ala!');
+    expect(text()).toContain('Pilates');
+    expect(text()).toContain('Karnet 8 wejść');
+    controller.verify();
+  });
+
+  /** The plan has its own tab; the dashboard neither shows it nor asks for it. */
+  it('carries no plan card and never requests the plan', async () => {
+    configure(MEMBER);
+
+    controller.expectOne(BOOKINGS_URL).flush([booking()]);
     flushPass();
     await settle();
 
-    expect(text()).toContain('Cześć, Ala');
-    expect(text()).toContain('Pilates');
-    expect(text()).toContain('Masa - jesień');
+    expect(text()).not.toContain('Twój plan treningowy');
+    expect(element().querySelectorAll('h1').length).toBe(1);
+    controller.expectNone(PLAN_URL);
     controller.verify();
   });
 
@@ -189,7 +191,6 @@ describe('Dashboard', () => {
           booking({ bookingId: `b${n}`, classId: `c${n}`, name: `Zajęcia ${n}` }),
         ),
       );
-    controller.expectOne(PLAN_URL).flush(null, { status: 204, statusText: 'No Content' });
     flushPass();
     await settle();
 
@@ -206,7 +207,6 @@ describe('Dashboard', () => {
     configure(MEMBER);
 
     controller.expectOne(BOOKINGS_URL).flush([booking()]);
-    controller.expectOne(PLAN_URL).flush(null, { status: 204, statusText: 'No Content' });
     flushPass();
     await settle();
 
@@ -215,62 +215,10 @@ describe('Dashboard', () => {
     controller.verify();
   });
 
-  /**
-   * Heading outline. The dashboard owns the only h1; the plan block carries its title as the h2 and
-   * the plan's name one level under it — a label and its content, not two sibling topics.
-   */
-  it('titles the plan block with an h2 and the plan name with an h3, one h1 on the screen', async () => {
-    configure(MEMBER);
-
-    controller.expectOne(BOOKINGS_URL).flush([booking()]);
-    controller.expectOne(PLAN_URL).flush(PLAN);
-    flushPass();
-    await settle();
-
-    expect(element().querySelectorAll('h1').length).toBe(1);
-
-    const planBlock = [...element().querySelectorAll('.dashboard-block')].find((block) =>
-      block.textContent?.includes('Masa - jesień'),
-    )!;
-
-    expect(planBlock.querySelectorAll('h2').length).toBe(1);
-    expect(planBlock.querySelector('h2')!.textContent).toContain('Twój plan treningowy');
-    expect(planBlock.querySelector('.dashboard-card h3')!.textContent).toContain('Masa - jesień');
-    controller.verify();
-  });
-
-  /** ...but a card with no plan still needs a title, since there is no name to stand in for one. */
-  it('keeps the static card title when there is no plan to name it', async () => {
-    configure(MEMBER);
-
-    controller.expectOne(BOOKINGS_URL).flush([booking()]);
-    controller.expectOne(PLAN_URL).flush(null, { status: 204, statusText: 'No Content' });
-    flushPass();
-    await settle();
-
-    expect(text()).toContain('Twój plan treningowy');
-    controller.verify();
-  });
-
-  /** The distinction /my-plan draws, preserved here: 204 is an empty state, not a failure. */
-  it('renders "no plan" as a plain card, not an alert', async () => {
-    configure(MEMBER);
-
-    controller.expectOne(BOOKINGS_URL).flush([booking()]);
-    controller.expectOne(PLAN_URL).flush(null, { status: 204, statusText: 'No Content' });
-    flushPass();
-    await settle();
-
-    expect(text()).toContain('Nie masz jeszcze przypisanego planu');
-    expect(element().querySelector('.alert')).toBeNull();
-    controller.verify();
-  });
-
   it('never renders the staff section for a member, and fires no staff requests', async () => {
     configure(MEMBER);
 
     controller.expectOne(BOOKINGS_URL).flush([booking()]);
-    controller.expectOne(PLAN_URL).flush(PLAN);
     flushPass();
     await settle();
 
@@ -285,7 +233,6 @@ describe('Dashboard', () => {
     configure(MEMBER);
 
     controller.expectOne(BOOKINGS_URL).flush([]);
-    controller.expectOne(PLAN_URL).flush(PLAN);
     flushPass();
     await settle();
 
@@ -343,13 +290,15 @@ describe('Dashboard', () => {
     ]);
     await settle();
 
-    const cards = [...element().querySelectorAll('.dashboard-card')];
-    const today = cards.find((card) => card.textContent?.includes('Dzisiaj'))!;
-    const upcoming = cards.find((card) => card.textContent?.includes('Nadchodzące'))!;
+    const blocks = [...element().querySelectorAll('.dashboard-block')];
+    const today = blocks.find((block) => block.textContent?.includes('Dzisiaj'))!;
+    const upcoming = blocks.find((block) => block.textContent?.includes('Nadchodzące'))!;
 
     expect(today.textContent).toContain('Poranny trening');
     expect(today.textContent).not.toContain('Jutrzejsza joga');
     expect(upcoming.textContent).toContain('Jutrzejsza joga');
+    // How full each class is: capacity 10 with 5 free is five taken.
+    expect(today.querySelector('.dashboard-occupancy')!.textContent).toContain('5/10');
     controller.verify();
   });
 
@@ -361,7 +310,6 @@ describe('Dashboard', () => {
     configure(MEMBER);
 
     controller.expectOne(BOOKINGS_URL).flush([]);
-    controller.expectOne(PLAN_URL).flush(null, { status: 204, statusText: 'No Content' });
     flushPass(PASS);
     await settle();
 
@@ -372,6 +320,10 @@ describe('Dashboard', () => {
     expect(card).toBeDefined();
     expect(card.querySelector('.dashboard-count')!.textContent).toContain('5');
     expect(card.textContent).toContain('z 8');
+
+    // The punch card: one mark per entry, the five left filled.
+    expect(card.querySelectorAll('.dashboard-punches li').length).toBe(8);
+    expect(card.querySelectorAll('.dashboard-punch-left').length).toBe(5);
 
     // READ-ONLY. Nothing on this card is a control — a member neither buys nor extends a karnet here.
     expect(card.querySelectorAll('button').length).toBe(0);
@@ -387,7 +339,6 @@ describe('Dashboard', () => {
     configure(MEMBER);
 
     controller.expectOne(BOOKINGS_URL).flush([]);
-    controller.expectOne(PLAN_URL).flush(null, { status: 204, statusText: 'No Content' });
     flushPass();
     await settle();
 
@@ -407,12 +358,11 @@ describe('Dashboard', () => {
     configure(MEMBER);
 
     controller.expectOne(BOOKINGS_URL).error(new ProgressEvent('failed'));
-    controller.expectOne(PLAN_URL).flush(PLAN);
-    flushPass();
+    flushPass(PASS);
     await settle();
 
     expect(element().querySelector('[role="alert"]')).not.toBeNull();
-    expect(text()).toContain('Masa - jesień');
+    expect(text()).toContain('Karnet 8 wejść');
     controller.verify();
   });
 
@@ -420,7 +370,6 @@ describe('Dashboard', () => {
     configure(MEMBER);
 
     controller.expectOne(BOOKINGS_URL).error(new ProgressEvent('failed'));
-    controller.expectOne(PLAN_URL).flush(PLAN);
     flushPass();
     await settle();
 
@@ -431,8 +380,7 @@ describe('Dashboard', () => {
     await settle();
 
     expect(text()).toContain('Joga');
-    // Neither the plan card nor the karnet card was asked again.
-    controller.expectNone(PLAN_URL);
+    // The karnet card was not asked again.
     controller.expectNone(PASS_URL);
     controller.verify();
   });

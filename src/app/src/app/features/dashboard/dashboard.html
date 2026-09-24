@@ -1,10 +1,15 @@
 <div class="hello-text">Miło Cię widzieć👋</div>
-<h1>Cześć{{ displayName() ? ', ' + displayName() : '' }}</h1>
+<h1>Cześć{{ displayName() ? ', ' + displayName() : '' }}!</h1>
+<!-- Placeholder copy — the club may want its own words here. -->
+<p class="dashboard-lead">
+  Każdy trening to krok do przodu. Nie musisz być najlepszy — wystarczy, że przyjdziesz.
+</p>
 
-<!-- The member's half (S-25): the member persona only. Staff hold no bookings, karnet or plan, and the
-     requests behind these cards are never fired for them. -->
+<!-- The member's half (S-25): the member persona only. Staff hold no bookings or karnet, and the
+     requests behind these cards are never fired for them. The plan is not here: it has its own tab,
+     and a dashboard card that only named it was a link with extra steps. -->
 @if (isMember()) {
-  <section class="dashboard-cards" aria-label="Twoje zajęcia i plan">
+  <section class="dashboard-cards" aria-label="Twoje zajęcia i karnet">
     <!-- Each card's title sits above it, outside the card: the card holds the content, the heading
          names the block. -->
     <div class="dashboard-block">
@@ -44,8 +49,7 @@
     </div>
 
     <!-- The karnet (S-16, MP-07). READ-ONLY like everything else here: a member never buys, extends or
-       requests one in this app — they read what the club issued them. Markup kept lean deliberately,
-       since this route is eager and the initial-bundle warning budget is 550 kB. -->
+       requests one in this app — they read what the club issued them. -->
     <div class="dashboard-block">
       <h2 class="dashboard-card-title">Twój karnet</h2>
 
@@ -58,13 +62,44 @@
             <button type="button" class="link-button" (click)="loadPass()">Spróbuj ponownie</button>
           </p>
         } @else if (pass(); as karnet) {
-          <p class="dashboard-pass-name">{{ karnet.typeName }}</p>
-          <p class="dashboard-count">{{ karnet.entriesLeft }}</p>
-          <p class="dashboard-pass-meta">
-            {{ karnet.entriesLeft === 1 ? 'wejście' : 'wejść' }} z {{ karnet.entryCount }} — ważny
-            do
-            {{ karnet.validTo | date: 'd MMMM y' }}
-          </p>
+          <!-- The class card's shape: a capitals line on top, then the number over its total, a rule,
+               and what the number means over when it runs out. -->
+          <p class="dashboard-kicker">{{ karnet.typeName }}</p>
+
+          <div class="dashboard-pass-body">
+            <p class="dashboard-pass-figure">
+              <span class="dashboard-count">{{ karnet.entriesLeft }}</span>
+              <span class="dashboard-pass-total">z {{ karnet.entryCount }}</span>
+            </p>
+
+            <div class="dashboard-pass-text">
+              <p class="row-name">Pozostałe wejścia</p>
+              <p class="dashboard-meta">
+                <app-icon name="calendar" />
+                <span>
+                  ważny do {{ karnet.validTo | date: 'd MMMM y' }}
+                  @if (daysLeft(karnet.validTo); as days) {
+                    · jeszcze {{ days }} {{ days === 1 ? 'dzień' : 'dni' }}
+                  }
+                </span>
+              </p>
+            </div>
+          </div>
+
+          <!-- A punch card: one mark per entry, the ones left filled, like the number above.
+               Decorative — the numbers say the same in words. Past PUNCH_LIMIT entries the marks
+               would be slivers, so it becomes one bar. -->
+          @if (karnet.entryCount <= punchLimit) {
+            <ol class="dashboard-punches" aria-hidden="true">
+              @for (entry of entries(karnet.entryCount); track entry) {
+                <li [class.dashboard-punch-left]="entry < karnet.entriesLeft"></li>
+              }
+            </ol>
+          } @else {
+            <div class="dashboard-bar" aria-hidden="true">
+              <span [style.width.%]="(karnet.entriesLeft / karnet.entryCount) * 100"></span>
+            </div>
+          }
         } @else {
           <!-- NOT an error, and deliberately not styled as one: the API says 204. It names the
            consequence rather than only the fact, because "brak karnetu" on its own does not tell a
@@ -72,37 +107,6 @@
           <app-empty>
             Nie masz aktywnego karnetu. Bez niego klub nie zapisze Cię na zajęcia — odezwij się w
             recepcji.
-          </app-empty>
-        }
-      </article>
-    </div>
-
-    <div class="dashboard-block">
-      <h2 class="dashboard-card-title">Twój plan treningowy</h2>
-
-      <article class="card dashboard-card">
-        @if (planLoading()) {
-          <app-loading />
-        } @else if (planFailed()) {
-          <p class="alert" role="alert">
-            Nie udało się wczytać planu.
-            <button type="button" class="link-button" (click)="loadPlan()">Spróbuj ponownie</button>
-          </p>
-        } @else if (plan(); as row) {
-          <!-- h3, under the block's own h2: the plan's name is the content of "Twój plan treningowy",
-           not a second topic beside it. -->
-          <app-plan-summary
-            headingLevel="h3"
-            [name]="row.name"
-            [assignedByDisplayName]="row.assignedByDisplayName"
-            [createdAt]="row.createdAt"
-          />
-          <a class="dashboard-more" routerLink="/my-plan">Otwórz plan</a>
-        } @else {
-          <!-- NOT an error, and deliberately not styled as one: the API says 204, and a member who has not
-           been given a plan has nothing to retry. Same distinction /my-plan draws. -->
-          <app-empty>
-            Nie masz jeszcze przypisanego planu treningowego. Poproś trenera, żeby Ci go ułożył.
           </app-empty>
         }
       </article>
@@ -117,70 +121,88 @@
   <section class="dashboard-cards" aria-label="Twoje zajęcia">
     <h2 class="dashboard-section-title">Twoje zajęcia</h2>
 
-    <article class="card dashboard-card">
+    <!-- The member cards' shape: the title above the card, each class drawn as a class card, and the
+         one thing a trainer walks in wanting to know — how full it is — at the row's far end. -->
+    <div class="dashboard-block">
       <h3 class="dashboard-card-title">Dzisiaj</h3>
 
-      @if (classesLoading()) {
-        <app-loading />
-      } @else if (classesFailed()) {
-        <p class="alert" role="alert">
-          Nie udało się wczytać zajęć.
-          <button type="button" class="link-button" (click)="loadClasses()">
-            Spróbuj ponownie
-          </button>
-        </p>
-      } @else if (todayClasses().length === 0) {
-        <app-empty>Nie prowadzisz dziś zajęć.</app-empty>
-      } @else {
-        <ul class="dashboard-list">
-          @for (row of todayClasses(); track row.id) {
-            <li>
-              <app-class-summary
-                [name]="row.name"
-                [startsAt]="row.startsAt"
-                [durationMinutes]="row.durationMinutes"
-                [instructor]="row.instructor"
-              />
-            </li>
-          }
-        </ul>
-      }
-    </article>
+      <article class="card dashboard-card">
+        @if (classesLoading()) {
+          <app-loading />
+        } @else if (classesFailed()) {
+          <p class="alert" role="alert">
+            Nie udało się wczytać zajęć.
+            <button type="button" class="link-button" (click)="loadClasses()">
+              Spróbuj ponownie
+            </button>
+          </p>
+        } @else if (todayClasses().length === 0) {
+          <app-empty>Nie prowadzisz dziś zajęć.</app-empty>
+        } @else {
+          <ul class="dashboard-list">
+            @for (row of todayClasses(); track row.id) {
+              <li>
+                <ng-container
+                  [ngTemplateOutlet]="classRow"
+                  [ngTemplateOutletContext]="{ $implicit: row }"
+                />
+              </li>
+            }
+          </ul>
+        }
+      </article>
+    </div>
 
-    <article class="card dashboard-card">
+    <div class="dashboard-block">
       <h3 class="dashboard-card-title">Nadchodzące</h3>
 
-      <!-- Same load as "Dzisiaj" — one request, bucketed — so this card mirrors its states rather than
-           firing a second request for the other half of the same window. -->
-      @if (classesLoading()) {
-        <app-loading />
-      } @else if (classesFailed()) {
-        <p class="alert" role="alert">
-          Nie udało się wczytać zajęć.
-          <button type="button" class="link-button" (click)="loadClasses()">
-            Spróbuj ponownie
-          </button>
-        </p>
-      } @else if (upcomingClasses().length === 0) {
-        <app-empty>Nie prowadzisz zajęć w najbliższym tygodniu.</app-empty>
-      } @else {
-        <ul class="dashboard-list">
-          @for (row of upcomingClasses(); track row.id) {
-            <li>
-              <app-class-summary
-                [name]="row.name"
-                [startsAt]="row.startsAt"
-                [durationMinutes]="row.durationMinutes"
-                [instructor]="row.instructor"
-              />
-            </li>
-          }
-        </ul>
-      }
+      <article class="card dashboard-card">
+        <!-- Same load as "Dzisiaj" — one request, bucketed — so this card mirrors its states rather
+             than firing a second request for the other half of the same window. -->
+        @if (classesLoading()) {
+          <app-loading />
+        } @else if (classesFailed()) {
+          <p class="alert" role="alert">
+            Nie udało się wczytać zajęć.
+            <button type="button" class="link-button" (click)="loadClasses()">
+              Spróbuj ponownie
+            </button>
+          </p>
+        } @else if (upcomingClasses().length === 0) {
+          <app-empty>Nie prowadzisz zajęć w najbliższym tygodniu.</app-empty>
+        } @else {
+          <ul class="dashboard-list">
+            @for (row of upcomingClasses(); track row.id) {
+              <li>
+                <ng-container
+                  [ngTemplateOutlet]="classRow"
+                  [ngTemplateOutletContext]="{ $implicit: row }"
+                />
+              </li>
+            }
+          </ul>
+        }
 
-      <!-- Outside the state branch: the schedule is worth opening whether or not this card has rows,
-           and an admin who teaches nothing reaches the club's calendar from here. -->
-      <a class="dashboard-more" [routerLink]="scheduleLink()">Zobacz grafik</a>
-    </article>
+        <!-- Outside the state branch: the schedule is worth opening whether or not this card has
+             rows, and an admin who teaches nothing reaches the club's calendar from here. -->
+        <a class="dashboard-more" [routerLink]="scheduleLink()">Zobacz grafik</a>
+      </article>
+    </div>
   </section>
 }
+
+<!-- One class the caller instructs: the member's class card, plus how many of its spots are taken. -->
+<ng-template #classRow let-row>
+  <app-booked-class
+    [name]="row.name"
+    [startsAt]="row.startsAt"
+    [durationMinutes]="row.durationMinutes"
+    [instructor]="row.instructor"
+  >
+    <p class="dashboard-occupancy">
+      <app-icon name="members" />
+      <span class="cdk-visually-hidden">Zapisani:</span>
+      <span>{{ row.capacity - row.freeSpots }}/{{ row.capacity }}</span>
+    </p>
+  </app-booked-class>
+</ng-template>

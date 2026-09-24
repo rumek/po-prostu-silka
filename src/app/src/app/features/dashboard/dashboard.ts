@@ -1,4 +1,4 @@
-import { DatePipe } from '@angular/common';
+import { DatePipe, NgTemplateOutlet } from '@angular/common';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
@@ -12,11 +12,8 @@ import { ClassService } from '../../core/scheduling/class.service';
 import { MyBooking } from '../../core/scheduling/booking.models';
 import { ScheduledClass } from '../../core/scheduling/class.models';
 import { MembershipPassView } from '../../core/admin/member-admin.models';
-import { TrainingPlanService } from '../../core/training/training-plan.service';
-import { TrainingPlanDetail } from '../../core/training/training-plan.models';
 import { BookedClass } from '../../shared/class-date/booked-class';
-import { ClassSummary } from '../../shared/class-summary/class-summary';
-import { PlanSummary } from '../../shared/plan-summary/plan-summary';
+import { Icon } from '../../shared/icons/icon';
 import { createLoadFence } from '../../shared/forms/load-fence';
 import { Loading } from '../../shared/forms/loading/loading';
 import { Empty } from '../../shared/forms/empty/empty';
@@ -25,23 +22,30 @@ import { Empty } from '../../shared/forms/empty/empty';
 const UPCOMING_DAYS = 7;
 
 /**
+ * Most entries the karnet card draws one mark each for. Past it the marks turn into slivers on a
+ * phone, so the card draws one bar instead.
+ */
+const PUNCH_LIMIT = 20;
+
+/**
  * The landing screen for every approved account (prd.md FR-023, FR-024).
  *
  * ONE ROUTE, TWO AUDIENCES (S-25). `/` carries authGuard + activeMemberGuard, which admit every
  * persona, and every persona guard sends a rebuffed user here — so this is where everyone lands. It
  * branches on the persona, and the halves no longer overlap:
  *
- * - a MEMBER gets their nearest bookings, their karnet and their plan;
+ * - a MEMBER gets their nearest booking and their karnet. Not their plan: it has its own tab, and a
+ *   card that only named it was a link with extra steps;
  * - STAFF (trainer or admin) get "Twoje zajęcia" — the classes they instruct, today and the next
- *   week — and nothing of the member's: staff hold no bookings, karnet or plan.
+ *   week, with how full each is — and nothing of the member's: staff hold no bookings or karnet.
  *
  * NOT FIRED, NOT MERELY HIDDEN. Staff never request the `/mine` routes (MemberOnly would refuse them) and
  * a member never requests the feed (TrainerOrAdmin would refuse them); the spec pins both with
  * expectNone.
  *
- * EVERY CARD LOADS ON ITS OWN. Four independent requests with four independent states, because a
- * dashboard that blanks itself when one of them fails is worse than one that shows three cards and
- * an error. This is why there is no single `loading` flag here.
+ * EVERY CARD LOADS ON ITS OWN. Independent requests with independent states, because a dashboard
+ * that blanks itself when one of them fails is worse than one that shows the other card and an
+ * error. This is why there is no single `loading` flag here.
  *
  * READ-ONLY. Nothing is cancelled or approved from this screen; each card links to the one that owns
  * the action. Adding an action here means adding per-row busy state and failure mapping to a screen
@@ -50,7 +54,7 @@ const UPCOMING_DAYS = 7;
  * It must not import date-fns — see `todayWindow()`.
  */
 @Component({
-  imports: [BookedClass, Empty, Loading, ClassSummary, DatePipe, PlanSummary, RouterLink],
+  imports: [BookedClass, DatePipe, Empty, Icon, Loading, NgTemplateOutlet, RouterLink],
   selector: 'app-dashboard',
   styleUrl: './dashboard.scss',
   templateUrl: './dashboard.html',
@@ -58,7 +62,6 @@ const UPCOMING_DAYS = 7;
 export class Dashboard implements OnInit {
   private readonly auth = inject(AuthService);
   private readonly bookings = inject(BookingService);
-  private readonly plans = inject(TrainingPlanService);
   private readonly members = inject(MemberAdminService);
   private readonly classes = inject(ClassService);
 
@@ -104,27 +107,42 @@ export class Dashboard implements OnInit {
   protected readonly nextBooking = computed(() => this.allBookings()[0] ?? null);
   protected readonly hasMoreBookings = computed(() => this.allBookings().length > 1);
 
-  // --- Member: active plan -----------------------------------------------------------------------
-
-  /** Null means "no plan assigned" ONLY when planLoading and planFailed are both false. */
-  protected readonly plan = signal<TrainingPlanDetail | null>(null);
-  protected readonly planLoading = signal(true);
-  protected readonly planFailed = signal(false);
-  private readonly planFence = createLoadFence();
-
   // --- Member: karnet (S-16, MP-07) --------------------------------------------------------------
 
   /**
    * The karnet covering TODAY, or null when there is none.
    *
    * Null means "no valid karnet" ONLY when passLoading and passFailed are both false — the same
-   * three-signal shape the plan card uses, and for the same reason: "you hold nothing" and "we could
+   * three-signal shape every card here uses, and for the same reason: "you hold nothing" and "we could
    * not find out" are different things to put in front of a member.
    */
   protected readonly pass = signal<MembershipPassView | null>(null);
   protected readonly passLoading = signal(true);
   protected readonly passFailed = signal(false);
   private readonly passFence = createLoadFence();
+
+  protected readonly punchLimit = PUNCH_LIMIT;
+
+  /** 0..count-1, one per mark on the karnet's punch card. */
+  protected entries(count: number): number[] {
+    return Array.from({ length: count }, (_, index) => index);
+  }
+
+  /**
+   * Days the karnet still covers, today included — so on its last day it says "1 dzień". Built from
+   * the `YYYY-MM-DD` parts as a LOCAL date, never `new Date(validTo)`, which reads it as UTC midnight
+   * (see MembershipPassView). Null once it has lapsed, which the API should not send.
+   */
+  protected daysLeft(validTo: string): number | null {
+    const [year, month, day] = validTo.split('-').map(Number);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const days =
+      Math.round((new Date(year, month - 1, day).getTime() - today.getTime()) / 86_400_000) + 1;
+
+    return days > 0 ? days : null;
+  }
 
   // --- Staff: the classes I instruct, today and upcoming (S-25) ----------------------------------
 
@@ -138,9 +156,8 @@ export class Dashboard implements OnInit {
     // Each branch fires only what its persona's API policy admits — see the class comment.
     if (this.isMember()) {
       void this.loadBookings();
-      void this.loadPlan();
 
-      // In PARALLEL with the two above, not after them — this route is eager and every serialised
+      // In PARALLEL with the one above, not after it — this route is eager and every serialised
       // request here is latency every member pays on every visit.
       void this.loadPass();
     } else if (this.isStaff()) {
@@ -176,36 +193,6 @@ export class Dashboard implements OnInit {
     }
   }
 
-  protected async loadPlan(): Promise<void> {
-    const generation = this.planFence.begin();
-
-    this.planLoading.set(true);
-    this.planFailed.set(false);
-
-    try {
-      const plan = await this.plans.getMine();
-
-      if (!this.planFence.isCurrent(generation)) {
-        return;
-      }
-
-      this.plan.set(plan);
-    } catch {
-      if (!this.planFence.isCurrent(generation)) {
-        return;
-      }
-
-      // Cleared as well as flagged, following my-plan.ts: a stale plan under an error banner invites
-      // the member to act on something the app no longer believes it has.
-      this.plan.set(null);
-      this.planFailed.set(true);
-    } finally {
-      if (this.planFence.isCurrent(generation)) {
-        this.planLoading.set(false);
-      }
-    }
-  }
-
   protected async loadPass(): Promise<void> {
     const generation = this.passFence.begin();
 
@@ -225,7 +212,7 @@ export class Dashboard implements OnInit {
         return;
       }
 
-      // Cleared as well as flagged, following the plan card: a stale karnet under an error banner
+      // Cleared as well as flagged: a stale karnet under an error banner
       // tells the member they may train when the app no longer knows whether they may.
       this.pass.set(null);
       this.passFailed.set(true);
