@@ -114,15 +114,18 @@
       <circle cx="12" cy="8" r="3.5" />
       <path d="M5 20c0-3.9 3.1-6.5 7-6.5s7 2.6 7 6.5" />
     }
+    <!-- The account (the phone bar's Moje konto). No ring of its own: the bar draws a filled disc
+         behind it, which is what tells it apart from ('person') above. -->
     @case ('profile') {
-      <circle cx="12" cy="12" r="9.5" stroke="currentColor" stroke-width="1.4"></circle>
-      <circle cx="12" cy="9" r="2.35" stroke="currentColor" stroke-width="1.4"></circle>
+      <circle cx="12" cy="8.5" r="3.25" />
+      <path d="M6 19.5c.7-3.2 3-5.2 6-5.2s5.3 2 6 5.2" />
+    }
+    <!-- The karnet: a ticket with notched sides and a perforation. -->
+    @case ('ticket') {
       <path
-        d="M7.7 18.1C8.45 15.75 9.9 14.4 12 14.4C14.1 14.4 15.55 15.75 16.3 18.1"
-        stroke="currentColor"
-        stroke-width="1.4"
-        stroke-linecap="round"
-      ></path>
+        d="M3 9a3 3 0 0 0 0 6v2a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2Z"
+      />
+      <path d="M14 5v2M14 11v2M14 17v2" />
     }
     <!-- The four attendance states (S-27). Bare glyphs rather than circled ones: they sit inside a
          chip or a toggle that already draws the container, and a second ring reads as noise. -->

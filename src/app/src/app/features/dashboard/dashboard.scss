@@ -1,6 +1,43 @@
 // Layout only — .card/.notice/.alert/.empty come from src/styles.scss. True since S-23: this
 // comment named .empty for three slices before the class actually moved there.
 
+@use 'breakpoints' as bp;
+
+// The greeting's backdrop. The photos keep their subject at the right (web) and the bottom (phone),
+// so the text is pinned to the other side and never sits on the still life. WebP, converted from the
+// PNG sources in public/: the dashboard is the screen every member opens first.
+.dashboard-hero {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 18rem;
+  padding: var(--space-6);
+  border-radius: var(--radius);
+  background: var(--section-warm) url('/hero-web.webp') right center / cover no-repeat;
+
+  > * {
+    max-width: 30rem;
+  }
+
+  h1 {
+    margin-bottom: var(--space-2);
+  }
+}
+
+// The phone gets the portrait crop, bled to the screen's edges under the app bar. Its subject is at
+// the bottom, so the text rides the empty top and the hero is tall enough to show both.
+@include bp.narrow {
+  .dashboard-hero {
+    justify-content: flex-start;
+    min-height: 26rem;
+    margin: calc(var(--space-5) * -1) calc(var(--space-4) * -1) 0;
+    padding: var(--space-6) var(--space-4);
+    border-radius: 0;
+    background-image: url('/hero-mobile.webp');
+    background-position: center bottom;
+  }
+}
+
 .hello-text {
   color: var(--accent);
   text-transform: uppercase;
@@ -112,6 +149,9 @@
 // figure column, a rule, and the text beside it.
 
 .dashboard-kicker {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
   margin: 0;
   padding-bottom: var(--space-2);
   border-bottom: 1px solid var(--line);
@@ -122,6 +162,12 @@
   letter-spacing: 0.06em;
   text-transform: uppercase;
   overflow-wrap: anywhere;
+
+  // The class card's date icon, in the same place and colour.
+  app-icon {
+    color: var(--accent);
+    font-size: 0.8rem;
+  }
 }
 
 .dashboard-pass-body {

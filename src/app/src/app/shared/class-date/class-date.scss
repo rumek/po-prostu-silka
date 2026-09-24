@@ -1,9 +1,17 @@
 :host {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
   line-height: 1.2;
   color: var(--gray);
   font-size: 0.7rem;
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
+}
+
+// The one accent on the line: the date is what the member reads first.
+app-icon {
+  color: var(--accent);
+  font-size: 0.8rem;
 }

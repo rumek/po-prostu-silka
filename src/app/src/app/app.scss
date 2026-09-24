@@ -202,7 +202,18 @@
     margin-right: calc(var(--space-3) * -1);
     margin-left: auto;
     border-radius: 50%;
-    color: var(--ink);
+
+    // A filled disc inside the 44px target, no outline: the avatar shape, in the brand colour.
+    app-icon {
+      align-items: center;
+      justify-content: center;
+      width: 2.125rem;
+      height: 2.125rem;
+      border-radius: 50%;
+      background: var(--accent);
+      color: var(--ground);
+      font-size: 0.8rem;
+    }
 
     &.is-active {
       display: none;

@@ -1,9 +1,13 @@
-<div class="hello-text">Miło Cię widzieć👋</div>
-<h1>Cześć{{ displayName() ? ', ' + displayName() : '' }}!</h1>
-<!-- Placeholder copy — the club may want its own words here. -->
-<p class="dashboard-lead">
-  Każdy trening to krok do przodu. Nie musisz być najlepszy — wystarczy, że przyjdziesz.
-</p>
+<!-- The greeting over the hero photo: the text sits in the photo's empty side, the still life at
+     the other. Background only — the picture says nothing the words do not. -->
+<header class="dashboard-hero">
+  <div class="hello-text">Miło Cię widzieć👋</div>
+  <h1>Cześć{{ displayName() ? ', ' + displayName() : '' }}!</h1>
+  <!-- Placeholder copy — the club may want its own words here. -->
+  <p class="dashboard-lead">
+    Każdy trening to krok do przodu. Nie musisz być najlepszy — wystarczy, że przyjdziesz.
+  </p>
+</header>
 
 <!-- The member's half (S-25): the member persona only. Staff hold no bookings or karnet, and the
      requests behind these cards are never fired for them. The plan is not here: it has its own tab,
@@ -64,7 +68,10 @@
         } @else if (pass(); as karnet) {
           <!-- The class card's shape: a capitals line on top, then the number over its total, a rule,
                and what the number means over when it runs out. -->
-          <p class="dashboard-kicker">{{ karnet.typeName }}</p>
+          <p class="dashboard-kicker">
+            <app-icon name="ticket" />
+            <span>{{ karnet.typeName }}</span>
+          </p>
 
           <div class="dashboard-pass-body">
             <p class="dashboard-pass-figure">

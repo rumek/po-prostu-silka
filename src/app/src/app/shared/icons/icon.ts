@@ -19,6 +19,7 @@ export type IconName =
   | 'members'
   | 'back'
   | 'profile'
+  | 'ticket'
   | 'person'
   | 'present'
   | 'absent'

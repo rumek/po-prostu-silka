@@ -1,4 +1,5 @@
 import { Component, computed, input } from '@angular/core';
+import { Icon } from '../icons/icon';
 
 /**
  * The club's time zone. A member's classes are shown and grouped by the GYM's calendar —
@@ -68,9 +69,10 @@ export function groupByMonth<T>(
  * full, so one text serves the eye and a screen reader alike — the capitals are CSS only.
  */
 @Component({
+  imports: [Icon],
   selector: 'app-class-date',
   styleUrl: './class-date.scss',
-  template: `{{ date() }}`,
+  template: `<app-icon name="calendar" /><span>{{ date() }}</span>`,
 })
 export class ClassDate {
   /** ISO-8601 UTC, as the API returns it. */
