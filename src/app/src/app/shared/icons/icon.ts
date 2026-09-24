@@ -14,6 +14,7 @@ export type IconName =
   | 'repeat'
   | 'sets'
   | 'chevron-down'
+  | 'chevron-right'
   | 'drag'
   | 'hantle'
   | 'members'

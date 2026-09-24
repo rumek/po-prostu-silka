@@ -100,6 +100,43 @@
   letter-spacing: 0;
 }
 
+// The block's title row: the title on the left, an optional action pushed to the right.
+.dashboard-card-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+// Smaller than the title so "Zobacz wszystkie" stays on one line beside it; the chevron carries the
+// accent.
+.dashboard-header-action {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 2px;
+  font-size: 0.8125rem;
+  white-space: nowrap;
+
+  app-icon {
+    color: var(--accent);
+    font-size: 0.9rem;
+  }
+}
+
+// One "see all" per width: in the header on a phone, on the card's bottom edge above it.
+@include bp.above-narrow {
+  .dashboard-header-action {
+    display: none;
+  }
+}
+
+@include bp.narrow {
+  .dashboard-more--wide {
+    display: none;
+  }
+}
+
 // Classes one under another, a hairline between them — the class card's rows, several to a card.
 .dashboard-list {
   display: grid;
@@ -151,8 +188,6 @@
   align-items: center;
   gap: var(--space-1);
   margin: 0;
-  padding-bottom: var(--space-2);
-  border-bottom: 1px solid var(--line);
   line-height: 1.2;
   color: var(--gray);
   font-size: 0.7rem;

@@ -19,7 +19,18 @@
     <!-- Each card's title sits above it, outside the card: the card holds the content, the heading
          names the block. -->
     <div class="dashboard-block">
-      <h2 class="dashboard-card-title">Najbliższe zajęcia</h2>
+      <!-- The header may carry the card's action. On a phone "see all" rides here, at the right,
+           where the thumb finds it without scrolling past the card; wider screens keep it on the
+           card's bottom edge. -->
+      <div class="dashboard-card-header">
+        <h2 class="dashboard-card-title">Najbliższe zajęcia</h2>
+        @if (hasMoreBookings()) {
+          <a class="dashboard-header-action" routerLink="/my-classes">
+            Zobacz wszystkie
+            <app-icon name="chevron-right" />
+          </a>
+        }
+      </div>
 
       <article class="card dashboard-card">
         @if (bookingsLoading()) {
@@ -43,7 +54,9 @@
           <!-- Shown only when the card is actually hiding something: a "see all" that leads to the same
            one row teaches the member the link is not worth pressing. -->
           @if (hasMoreBookings()) {
-            <a class="dashboard-more" routerLink="/my-classes">Zobacz wszystkie zapisy</a>
+            <a class="dashboard-more dashboard-more--wide" routerLink="/my-classes"
+              >Zobacz wszystkie zapisy</a
+            >
           }
         } @else {
           <!-- No link to a schedule: a member has none (S-25). The club books them, and says so. -->
