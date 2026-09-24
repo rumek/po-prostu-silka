@@ -9,7 +9,7 @@ import { Component, input } from '@angular/core';
  * several under the dashboard's own `h1`, where a second `h1` would flatten the document outline for
  * anyone navigating by heading. Hard-coding either level breaks the other caller.
  *
- * Only the two levels actually needed are offered. A free `number` input would invite `h4` on a page
+ * Only the levels actually needed are offered. A free `number` input would invite `h4` on a page
  * with no `h3`, which is the outline bug this input exists to prevent.
  */
 @Component({
@@ -27,6 +27,9 @@ export class PlanSummary {
   /** ISO-8601 UTC, as the API returns it. */
   readonly createdAt = input.required<string>();
 
-  /** `h1` on the screen the plan owns, `h2` in a dashboard card. Defaults to the page-heading case. */
-  readonly headingLevel = input<'h1' | 'h2'>('h1');
+  /**
+   * `h1` on the screen the plan owns, `h3` in the dashboard's plan block (under its `h2`). Defaults to
+   * the page-heading case.
+   */
+  readonly headingLevel = input<'h1' | 'h2' | 'h3'>('h1');
 }

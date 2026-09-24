@@ -5,104 +5,108 @@
      requests behind these cards are never fired for them. -->
 @if (isMember()) {
   <section class="dashboard-cards" aria-label="Twoje zajęcia i plan">
-    <article class="card dashboard-card">
+    <!-- Each card's title sits above it, outside the card: the card holds the content, the heading
+         names the block. -->
+    <div class="dashboard-block">
       <h2 class="dashboard-card-title">Najbliższe zajęcia</h2>
 
-      @if (bookingsLoading()) {
-        <app-loading />
-      } @else if (bookingsFailed()) {
-        <p class="alert" role="alert">
-          Nie udało się wczytać zapisów.
-          <button type="button" class="link-button" (click)="loadBookings()">
-            Spróbuj ponownie
-          </button>
-        </p>
-      } @else if (nextBooking(); as row) {
-        <!-- The same row as "Moje zajęcia", so the card reads as a preview of that screen. -->
-        <app-booked-class
-          [name]="row.name"
-          [startsAt]="row.startsAt"
-          [durationMinutes]="row.durationMinutes"
-          [instructor]="row.instructor"
-        />
+      <article class="card dashboard-card">
+        @if (bookingsLoading()) {
+          <app-loading />
+        } @else if (bookingsFailed()) {
+          <p class="alert" role="alert">
+            Nie udało się wczytać zapisów.
+            <button type="button" class="link-button" (click)="loadBookings()">
+              Spróbuj ponownie
+            </button>
+          </p>
+        } @else if (nextBooking(); as row) {
+          <!-- The same row as "Moje zajęcia", so the card reads as a preview of that screen. -->
+          <app-booked-class
+            [name]="row.name"
+            [startsAt]="row.startsAt"
+            [durationMinutes]="row.durationMinutes"
+            [instructor]="row.instructor"
+          />
 
-        <!-- Shown only when the card is actually hiding something: a "see all" that leads to the same
+          <!-- Shown only when the card is actually hiding something: a "see all" that leads to the same
            one row teaches the member the link is not worth pressing. -->
-        @if (hasMoreBookings()) {
-          <a class="dashboard-more" routerLink="/my-classes">Zobacz wszystkie zapisy</a>
+          @if (hasMoreBookings()) {
+            <a class="dashboard-more" routerLink="/my-classes">Zobacz wszystkie zapisy</a>
+          }
+        } @else {
+          <!-- No link to a schedule: a member has none (S-25). The club books them, and says so. -->
+          <app-empty>
+            Nie masz jeszcze żadnych zapisów. Zapisy prowadzi klub — odezwij się w recepcji.
+          </app-empty>
         }
-      } @else {
-        <!-- No link to a schedule: a member has none (S-25). The club books them, and says so. -->
-        <app-empty>
-          Nie masz jeszcze żadnych zapisów. Zapisy prowadzi klub — odezwij się w recepcji.
-        </app-empty>
-      }
-    </article>
+      </article>
+    </div>
 
     <!-- The karnet (S-16, MP-07). READ-ONLY like everything else here: a member never buys, extends or
        requests one in this app — they read what the club issued them. Markup kept lean deliberately,
        since this route is eager and the initial-bundle warning budget is 550 kB. -->
-    <article class="card dashboard-card">
+    <div class="dashboard-block">
       <h2 class="dashboard-card-title">Twój karnet</h2>
 
-      @if (passLoading()) {
-        <app-loading />
-      } @else if (passFailed()) {
-        <p class="alert" role="alert">
-          Nie udało się wczytać karnetu.
-          <button type="button" class="link-button" (click)="loadPass()">Spróbuj ponownie</button>
-        </p>
-      } @else if (pass(); as karnet) {
-        <p class="dashboard-pass-name">{{ karnet.typeName }}</p>
-        <p class="dashboard-count">{{ karnet.entriesLeft }}</p>
-        <p class="dashboard-pass-meta">
-          {{ karnet.entriesLeft === 1 ? 'wejście' : 'wejść' }} z {{ karnet.entryCount }} — ważny do
-          {{ karnet.validTo | date: 'd MMMM y' }}
-        </p>
-      } @else {
-        <!-- NOT an error, and deliberately not styled as one: the API says 204. It names the
+      <article class="card dashboard-card">
+        @if (passLoading()) {
+          <app-loading />
+        } @else if (passFailed()) {
+          <p class="alert" role="alert">
+            Nie udało się wczytać karnetu.
+            <button type="button" class="link-button" (click)="loadPass()">Spróbuj ponownie</button>
+          </p>
+        } @else if (pass(); as karnet) {
+          <p class="dashboard-pass-name">{{ karnet.typeName }}</p>
+          <p class="dashboard-count">{{ karnet.entriesLeft }}</p>
+          <p class="dashboard-pass-meta">
+            {{ karnet.entriesLeft === 1 ? 'wejście' : 'wejść' }} z {{ karnet.entryCount }} — ważny
+            do
+            {{ karnet.validTo | date: 'd MMMM y' }}
+          </p>
+        } @else {
+          <!-- NOT an error, and deliberately not styled as one: the API says 204. It names the
            consequence rather than only the fact, because "brak karnetu" on its own does not tell a
            member why nobody is signing them up for anything. -->
-        <app-empty>
-          Nie masz aktywnego karnetu. Bez niego klub nie zapisze Cię na zajęcia — odezwij się w
-          recepcji.
-        </app-empty>
-      }
-    </article>
+          <app-empty>
+            Nie masz aktywnego karnetu. Bez niego klub nie zapisze Cię na zajęcia — odezwij się w
+            recepcji.
+          </app-empty>
+        }
+      </article>
+    </div>
 
-    <article class="card dashboard-card">
-      <!-- The static heading appears ONLY in the states that have no plan name to show. When a plan is
-         loaded, plan-summary's own h2 is the card's heading — two sibling h2s would read to a screen
-         reader as two unrelated topics rather than a label and its content. -->
-      @if (!plan() || planLoading() || planFailed()) {
-        <h2 class="dashboard-card-title">Twój plan treningowy</h2>
-      }
+    <div class="dashboard-block">
+      <h2 class="dashboard-card-title">Twój plan treningowy</h2>
 
-      @if (planLoading()) {
-        <app-loading />
-      } @else if (planFailed()) {
-        <p class="alert" role="alert">
-          Nie udało się wczytać planu.
-          <button type="button" class="link-button" (click)="loadPlan()">Spróbuj ponownie</button>
-        </p>
-      } @else if (plan(); as row) {
-        <!-- h2, not h1: this card sits under the dashboard's own heading, and a second h1 would flatten
-           the outline for anyone navigating by heading. -->
-        <app-plan-summary
-          headingLevel="h2"
-          [name]="row.name"
-          [assignedByDisplayName]="row.assignedByDisplayName"
-          [createdAt]="row.createdAt"
-        />
-        <a class="dashboard-more" routerLink="/my-plan">Otwórz plan</a>
-      } @else {
-        <!-- NOT an error, and deliberately not styled as one: the API says 204, and a member who has not
+      <article class="card dashboard-card">
+        @if (planLoading()) {
+          <app-loading />
+        } @else if (planFailed()) {
+          <p class="alert" role="alert">
+            Nie udało się wczytać planu.
+            <button type="button" class="link-button" (click)="loadPlan()">Spróbuj ponownie</button>
+          </p>
+        } @else if (plan(); as row) {
+          <!-- h3, under the block's own h2: the plan's name is the content of "Twój plan treningowy",
+           not a second topic beside it. -->
+          <app-plan-summary
+            headingLevel="h3"
+            [name]="row.name"
+            [assignedByDisplayName]="row.assignedByDisplayName"
+            [createdAt]="row.createdAt"
+          />
+          <a class="dashboard-more" routerLink="/my-plan">Otwórz plan</a>
+        } @else {
+          <!-- NOT an error, and deliberately not styled as one: the API says 204, and a member who has not
            been given a plan has nothing to retry. Same distinction /my-plan draws. -->
-        <app-empty>
-          Nie masz jeszcze przypisanego planu treningowego. Poproś trenera, żeby Ci go ułożył.
-        </app-empty>
-      }
-    </article>
+          <app-empty>
+            Nie masz jeszcze przypisanego planu treningowego. Poproś trenera, żeby Ci go ułożył.
+          </app-empty>
+        }
+      </article>
+    </div>
   </section>
 }
 

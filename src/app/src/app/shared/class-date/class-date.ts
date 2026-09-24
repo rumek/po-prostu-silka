@@ -17,9 +17,6 @@ const MONTH_HEADING = new Intl.DateTimeFormat('pl-PL', {
   month: 'long',
   year: 'numeric',
 });
-const WEEKDAY = new Intl.DateTimeFormat('pl-PL', { timeZone: CLUB_ZONE, weekday: 'short' });
-const DAY = new Intl.DateTimeFormat('pl-PL', { timeZone: CLUB_ZONE, day: 'numeric' });
-const MONTH_SHORT = new Intl.DateTimeFormat('pl-PL', { timeZone: CLUB_ZONE, month: 'short' });
 const LONG_DATE = new Intl.DateTimeFormat('pl-PL', {
   timeZone: CLUB_ZONE,
   weekday: 'long',
@@ -67,27 +64,17 @@ export function groupByMonth<T>(
 }
 
 /**
- * A row's date line: "CZW. 10 WRZ", small and in capitals above the class. The short parts are for
- * the eye; a screen reader gets the date said once, in full.
+ * A row's date line: "CZWARTEK, 10 WRZEŚNIA", small and in capitals above the class. Written out in
+ * full, so one text serves the eye and a screen reader alike — the capitals are CSS only.
  */
 @Component({
   selector: 'app-class-date',
   styleUrl: './class-date.scss',
-  template: `
-    <span class="class-date-short" aria-hidden="true"
-      >{{ weekday() }} {{ day() }} {{ month() }}</span
-    >
-    <span class="class-date-spoken">{{ spoken() }}</span>
-  `,
+  template: `{{ date() }}`,
 })
 export class ClassDate {
   /** ISO-8601 UTC, as the API returns it. */
   readonly startsAt = input.required<string>();
 
-  private readonly instant = computed(() => new Date(this.startsAt()));
-
-  protected readonly weekday = computed(() => WEEKDAY.format(this.instant()));
-  protected readonly day = computed(() => DAY.format(this.instant()));
-  protected readonly month = computed(() => MONTH_SHORT.format(this.instant()).replace('.', ''));
-  protected readonly spoken = computed(() => LONG_DATE.format(this.instant()));
+  protected readonly date = computed(() => LONG_DATE.format(new Date(this.startsAt())));
 }

@@ -144,12 +144,11 @@ describe('AttendanceHistory', () => {
   });
 
   // Weekday, day and month on one line, in the club's zone: 16:00 UTC on 10 September is a Thursday.
-  it('shows the date as weekday, day and month, and says it in full once', async () => {
+  it('writes the date out in full: weekday, day and month', async () => {
     await respond(page({ items: [entry({ startsAt: '2026-09-10T16:00:00Z' })] }));
 
     const date = element().querySelector('app-class-date')!;
-    expect(date.querySelector('.class-date-short')!.textContent?.trim()).toBe('czw. 10 wrz');
-    expect(date.querySelector('.class-date-spoken')!.textContent).toContain('10 września');
+    expect(date.textContent?.trim()).toBe('czwartek, 10 września');
   });
 
   it('shows no karnet summary card', async () => {

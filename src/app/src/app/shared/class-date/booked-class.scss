@@ -18,6 +18,7 @@
 // Start over end, right-aligned against the rule so the times line up down a list.
 .booked-class-time {
   display: flex;
+  align-items: center;
   flex: 0 0 auto;
   flex-direction: column;
   justify-content: center;

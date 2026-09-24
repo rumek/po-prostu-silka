@@ -216,11 +216,10 @@ describe('Dashboard', () => {
   });
 
   /**
-   * Heading outline. The dashboard owns the only h1; a loaded plan card contributes exactly one h2
-   * (the plan's name), not two — a static card title beside plan-summary's own heading would read to
-   * a screen reader as two unrelated topics instead of a label and its content.
+   * Heading outline. The dashboard owns the only h1; the plan block carries its title as the h2 and
+   * the plan's name one level under it — a label and its content, not two sibling topics.
    */
-  it('renders one heading per card, and only one h1 on the screen', async () => {
+  it('titles the plan block with an h2 and the plan name with an h3, one h1 on the screen', async () => {
     configure(MEMBER);
 
     controller.expectOne(BOOKINGS_URL).flush([booking()]);
@@ -230,12 +229,13 @@ describe('Dashboard', () => {
 
     expect(element().querySelectorAll('h1').length).toBe(1);
 
-    const planCard = [...element().querySelectorAll('.dashboard-card')].find((card) =>
-      card.textContent?.includes('Masa - jesień'),
+    const planBlock = [...element().querySelectorAll('.dashboard-block')].find((block) =>
+      block.textContent?.includes('Masa - jesień'),
     )!;
 
-    expect(planCard.querySelectorAll('h2').length).toBe(1);
-    expect(planCard.querySelector('h2')!.textContent).toContain('Masa - jesień');
+    expect(planBlock.querySelectorAll('h2').length).toBe(1);
+    expect(planBlock.querySelector('h2')!.textContent).toContain('Twój plan treningowy');
+    expect(planBlock.querySelector('.dashboard-card h3')!.textContent).toContain('Masa - jesień');
     controller.verify();
   });
 
@@ -391,7 +391,7 @@ describe('Dashboard', () => {
     flushPass();
     await settle();
 
-    const card = [...element().querySelectorAll('.dashboard-card')].find((c) =>
+    const card = [...element().querySelectorAll('.dashboard-block')].find((c) =>
       c.textContent?.includes('Twój karnet'),
     )!;
 

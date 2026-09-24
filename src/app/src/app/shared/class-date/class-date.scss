@@ -1,25 +1,9 @@
 :host {
   display: block;
   line-height: 1.2;
-}
-
-.class-date-short {
   color: var(--gray);
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-}
-
-// Present for screen readers, absent visually.
-.class-date-spoken {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  margin: -1px;
-  padding: 0;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-  border: 0;
 }

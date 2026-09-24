@@ -1,7 +1,9 @@
 @if (headingLevel() === 'h1') {
   <h1 class="plan-summary-name">{{ name() }}</h1>
-} @else {
+} @else if (headingLevel() === 'h2') {
   <h2 class="plan-summary-name">{{ name() }}</h2>
+} @else {
+  <h3 class="plan-summary-name">{{ name() }}</h3>
 }
 
 <p class="plan-summary-meta">

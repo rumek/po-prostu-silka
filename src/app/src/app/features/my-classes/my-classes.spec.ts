@@ -86,7 +86,7 @@ describe('MyClasses', () => {
     const text = (row: number, selector: string) =>
       rows()[row].querySelector(selector)!.textContent?.trim();
 
-    expect(text(0, '.class-date-short')).toBe('śr. 30 wrz');
+    expect(text(0, 'app-class-date')).toBe('środa, 30 września');
     expect(text(0, '.booked-class-start')).toBe('18:00');
     expect(text(0, '.booked-class-end')).toBe('19:00');
     expect(text(0, '.booked-class-instructor')).toBe('Ola');
