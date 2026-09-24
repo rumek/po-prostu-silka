@@ -30,6 +30,13 @@ public class OutboxOptions
     /// </summary>
     public TimeSpan LeaseTimeout { get; set; } = TimeSpan.FromMinutes(5);
 
+    /// <summary>
+    /// How old a push may be and still go out. Older ones are dropped, not sent: a stalled worker
+    /// or a long backoff must not end in a burst of hours-old notifications on a member's phone.
+    /// Email has no such limit — it is the channel the guarantee rests on.
+    /// </summary>
+    public TimeSpan PushMaxAge { get; set; } = TimeSpan.FromHours(1);
+
     /// <summary>Attempts before a transient failure becomes terminal.</summary>
     public int MaxAttempts { get; set; } = 5;
 

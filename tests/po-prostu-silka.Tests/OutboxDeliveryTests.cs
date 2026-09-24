@@ -309,6 +309,69 @@ public class OutboxDeliveryTests(IntegrationTestFixture fixture) : IAsyncLifetim
         Assert.Empty(_email.Sent);
     }
 
+    [Fact]
+    public async Task Push_older_than_its_max_age_is_dropped_not_sent()
+    {
+        var (messageId, subscriptionId) = await EnqueuePushAsync();
+        _clock.Advance(TimeSpan.FromHours(2));
+
+        await _worker.RunPassAsync(CancellationToken.None);
+
+        // Marked Sent so it neither retries nor counts as a failure, but the phone never sees it.
+        var message = await ReloadAsync(messageId);
+        Assert.Equal(OutboxStatus.Sent, message.Status);
+        Assert.Equal("push_expired", message.LastError);
+        Assert.Empty(_push.Sent);
+
+        // An old message is not a dead device: the subscription stays.
+        await using var db = NewContext();
+        Assert.True(await db.PushSubscriptions.AnyAsync(s => s.Id == subscriptionId));
+    }
+
+    [Fact]
+    public async Task Push_is_not_held_behind_a_full_batch_of_email()
+    {
+        // More due emails than one batch holds, all older than the push — the order a single
+        // shared queue would have sent them in.
+        for (var i = 0; i < 25; i++)
+        {
+            await EnqueueEmailAsync();
+        }
+
+        _clock.Advance(TimeSpan.FromSeconds(1));
+        var (messageId, _) = await EnqueuePushAsync();
+
+        await _worker.RunPassAsync(CancellationToken.None);
+
+        Assert.Equal(OutboxStatus.Sent, (await ReloadAsync(messageId)).Status);
+        Assert.Single(_push.Sent);
+    }
+
+    [Fact]
+    public async Task Transient_email_failure_stops_the_email_lane_and_releases_the_rest()
+    {
+        var first = await EnqueueEmailAsync();
+        _clock.Advance(TimeSpan.FromSeconds(1));
+        var second = await EnqueueEmailAsync();
+        _clock.Advance(TimeSpan.FromSeconds(1));
+        var third = await EnqueueEmailAsync();
+        _email.NextResult = DeliveryResult.Transient("acs_429");
+
+        await _worker.RunPassAsync(CancellationToken.None);
+
+        // One call to a throttled provider, not three.
+        Assert.Single(_email.Sent);
+        Assert.Equal(1, (await ReloadAsync(first)).AttemptCount);
+
+        foreach (var id in new[] { second, third })
+        {
+            var released = await ReloadAsync(id);
+            Assert.Equal(OutboxStatus.Pending, released.Status);
+            Assert.Equal(0, released.AttemptCount);
+            Assert.Null(released.ClaimedAt);
+        }
+    }
+
     private async Task<(Guid MessageId, Guid SubscriptionId)> EnqueuePushAsync()
     {
         await using var db = NewContext();

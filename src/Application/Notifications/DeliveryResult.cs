@@ -21,6 +21,13 @@ public enum DeliveryOutcome
     /// and still marks the message Sent — push is best-effort and email is the guaranteed channel.
     /// </summary>
     SubscriptionGone = 3,
+
+    /// <summary>
+    /// Deliberately not sent, and never will be: a push too old to be news, or an address on a
+    /// reserved domain that cannot exist. Mark Sent with the reason — it is neither a failure to
+    /// retry nor one for the count /health reports.
+    /// </summary>
+    Dropped = 4,
 }
 
 /// <param name="Outcome">What happened.</param>
@@ -34,4 +41,6 @@ public readonly record struct DeliveryResult(DeliveryOutcome Outcome, string? Er
     public static DeliveryResult Permanent(string error) => new(DeliveryOutcome.Permanent, error);
 
     public static DeliveryResult SubscriptionGone(string error) => new(DeliveryOutcome.SubscriptionGone, error);
+
+    public static DeliveryResult Dropped(string reason) => new(DeliveryOutcome.Dropped, reason);
 }

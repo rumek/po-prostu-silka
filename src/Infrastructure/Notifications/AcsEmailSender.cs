@@ -60,6 +60,15 @@ public class AcsEmailSender(
             return DeliveryResult.Permanent("acs_not_configured");
         }
 
+        if (IsReservedDomain(to))
+        {
+            // The test-data club's members all live on example.test. Handing ACS those addresses
+            // spent the send quota on mail that cannot arrive, until the throttle stalled delivery
+            // for everyone else.
+            logger.LogInformation("Email not sent: {Recipient} is on a reserved domain.", to);
+            return DeliveryResult.Dropped("reserved_domain");
+        }
+
         try
         {
             // WaitUntil.Started, not Completed: we only need ACS to accept the message. Blocking a
@@ -88,12 +97,54 @@ public class AcsEmailSender(
             logger.LogWarning(ex, "Email transiently failed with status {Status}.", ex.Status);
             return DeliveryResult.Transient($"acs_{ex.Status}");
         }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            // The client's network timeout, not a shutdown. Without this it escapes as a
+            // cancellation and strands the row Claimed until its lease expires.
+            logger.LogWarning("Email send timed out.");
+            return DeliveryResult.Transient("acs_timeout");
+        }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogWarning(ex, "Email failed with an unexpected error.");
             return DeliveryResult.Transient("acs_unexpected");
         }
     }
+
+    /// <summary>
+    /// The client the worker sends through. Retries are OFF: the SDK's default policy honours a
+    /// 429's Retry-After silently, which parked the single worker loop for up to an hour per pass
+    /// with nothing in the logs. The outbox already owns retrying, with backoff and an attempt cap,
+    /// so a throttle is reported to it at once instead.
+    /// </summary>
+    public static EmailClient CreateClient(string connectionString)
+    {
+        var options = new EmailClientOptions();
+        options.Retry.MaxRetries = 0;
+        options.Retry.NetworkTimeout = TimeSpan.FromSeconds(30);
+
+        return new EmailClient(connectionString, options);
+    }
+
+    /// <summary>
+    /// True for an address that cannot exist: the RFC 2606 / RFC 6761 reserved names — the
+    /// .test, .example, .invalid and .localhost top-level domains, and example.com / .net / .org.
+    /// </summary>
+    public static bool IsReservedDomain(string address)
+    {
+        var at = address.LastIndexOf('@');
+        if (at < 0)
+        {
+            return false;
+        }
+
+        var domain = address[(at + 1)..].Trim().TrimEnd('.').ToLowerInvariant();
+
+        return ReservedDomains.Any(reserved => domain == reserved || domain.EndsWith("." + reserved));
+    }
+
+    private static readonly string[] ReservedDomains =
+        ["test", "example", "invalid", "localhost", "example.com", "example.net", "example.org"];
 
     /// <summary>4xx other than throttling and timeout will not change on retry.</summary>
     private static bool IsPermanent(int status) =>

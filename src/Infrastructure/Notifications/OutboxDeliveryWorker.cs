@@ -72,22 +72,14 @@ public class OutboxDeliveryWorker(
 
         await ReclaimStaleLeasesAsync(db, now, cancellationToken);
 
-        var claimed = await ClaimBatchAsync(db, now, cancellationToken);
-        foreach (var message in claimed)
-        {
-            try
-            {
-                await DeliverAsync(db, message, emailSender, pushSender, cancellationToken);
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                // Isolate the batch. Without this, a throw on one message (a transient SQL throttle
-                // during SaveChangesAsync is the likely candidate on a 5-DTU tier) aborts the whole
-                // pass, and every message after it stays Claimed and undelivered until the lease
-                // expires minutes later - rather than being retried on the next pass seconds later.
-                logger.LogError(ex, "Outbox {Id} threw during delivery; continuing the batch.", message.Id);
-            }
-        }
+        // ONE LANE PER CHANNEL, PUSH FIRST. A single queue ordered by due time put every push behind
+        // whatever email was ahead of it, and a throttled ACS once held a pass for an hour at a time
+        // while cancellations piled up behind 114 emails. Push is the channel that is only worth
+        // anything when it is prompt, so it never waits on email.
+        var processed = await RunLaneAsync(
+            db, NotificationChannel.Push, now, emailSender, pushSender, cancellationToken);
+        processed += await RunLaneAsync(
+            db, NotificationChannel.Email, now, emailSender, pushSender, cancellationToken);
 
         // Prune and the full status aggregate share a cadence deliberately. Counting every pass
         // would scan the whole table every 15 seconds forever, and the cost grows fastest exactly
@@ -100,7 +92,77 @@ public class OutboxDeliveryWorker(
             _lastPrune = now;
         }
 
-        await HeartbeatAsync(db, claimed.Count, withCounts, cancellationToken);
+        await HeartbeatAsync(db, processed, withCounts, cancellationToken);
+    }
+
+    /// <summary>
+    /// Claims and delivers one channel's batch. Returns how many rows it claimed.
+    ///
+    /// <para>
+    /// A TRANSIENT EMAIL FAILURE ENDS THE EMAIL LANE for this pass. Email has one provider, so a
+    /// throttle or an outage on one message holds for the rest; sending them anyway only spends the
+    /// quota the throttle is protecting. The unsent remainder goes back to Pending untouched — no
+    /// attempt counted — and the next pass tries again. Push is not stopped this way: each
+    /// subscription lives on its own push service, and one endpoint's 5xx says nothing about the next.
+    /// </para>
+    /// </summary>
+    private async Task<int> RunLaneAsync(
+        AppDbContext db,
+        NotificationChannel channel,
+        DateTimeOffset now,
+        IEmailSender emailSender,
+        IPushSender pushSender,
+        CancellationToken cancellationToken)
+    {
+        var claimed = await ClaimBatchAsync(db, channel, now, cancellationToken);
+
+        for (var i = 0; i < claimed.Count; i++)
+        {
+            DeliveryOutcome outcome;
+
+            try
+            {
+                outcome = await DeliverAsync(db, claimed[i], emailSender, pushSender, cancellationToken);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                // Isolate the batch. Without this, a throw on one message (a transient SQL throttle
+                // during SaveChangesAsync is the likely candidate on a 5-DTU tier) aborts the whole
+                // pass, and every message after it stays Claimed and undelivered until the lease
+                // expires minutes later - rather than being retried on the next pass seconds later.
+                logger.LogError(ex, "Outbox {Id} threw during delivery; continuing the batch.", claimed[i].Id);
+                continue;
+            }
+
+            if (channel == NotificationChannel.Email && outcome == DeliveryOutcome.Transient)
+            {
+                await ReleaseAsync(db, claimed.Skip(i + 1).Select(m => m.Id).ToList(), cancellationToken);
+                break;
+            }
+        }
+
+        return claimed.Count;
+    }
+
+    /// <summary>Hands claimed rows back to Pending without counting an attempt against them.</summary>
+    private async Task ReleaseAsync(
+        AppDbContext db, List<Guid> ids, CancellationToken cancellationToken)
+    {
+        if (ids.Count == 0)
+        {
+            return;
+        }
+
+        await db.OutboxMessages
+            .Where(m => ids.Contains(m.Id) && m.Status == OutboxStatus.Claimed)
+            .ExecuteUpdateAsync(
+                s => s.SetProperty(m => m.Status, OutboxStatus.Pending)
+                      .SetProperty(m => m.ClaimedAt, (DateTimeOffset?)null)
+                      .SetProperty(m => m.ClaimToken, (Guid?)null),
+                cancellationToken);
+
+        logger.LogInformation(
+            "Email provider refused a send; released {Count} email(s) to the next pass.", ids.Count);
     }
 
     /// <summary>
@@ -138,14 +200,17 @@ public class OutboxDeliveryWorker(
     /// winner's batch.
     /// </summary>
     private async Task<List<OutboxMessage>> ClaimBatchAsync(
-        AppDbContext db, DateTimeOffset now, CancellationToken cancellationToken)
+        AppDbContext db,
+        NotificationChannel channel,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
     {
         // A GUID, not the timestamp: two instances polling on the same schedule can produce
         // identical timestamps, and the loser's read-back would then adopt the winner's rows.
         var claimToken = Guid.NewGuid();
 
         var eligibleIds = await db.OutboxMessages
-            .Where(m => m.Status == OutboxStatus.Pending && m.NextAttemptAt <= now)
+            .Where(m => m.Status == OutboxStatus.Pending && m.Channel == channel && m.NextAttemptAt <= now)
             .OrderBy(m => m.NextAttemptAt)
             .Take(_options.BatchSize)
             .Select(m => m.Id)
@@ -171,10 +236,13 @@ public class OutboxDeliveryWorker(
             .Where(m => eligibleIds.Contains(m.Id)
                         && m.Status == OutboxStatus.Claimed
                         && m.ClaimToken == claimToken)
+            // Due order again: a lane that stops early must have sent the oldest, not whichever
+            // row the engine happened to return first.
+            .OrderBy(m => m.NextAttemptAt)
             .ToListAsync(cancellationToken);
     }
 
-    private async Task DeliverAsync(
+    private async Task<DeliveryOutcome> DeliverAsync(
         AppDbContext db,
         OutboxMessage message,
         IEmailSender emailSender,
@@ -187,6 +255,12 @@ public class OutboxDeliveryWorker(
         {
             result = await emailSender.SendAsync(
                 message.Recipient, message.Subject, message.Body, cancellationToken);
+        }
+        else if (timeProvider.GetUtcNow() - message.CreatedAt > _options.PushMaxAge)
+        {
+            // A push this late is not news, it is noise: a phone lighting up with a string of
+            // cancellations from hours ago. Email still carries the message.
+            result = DeliveryResult.Dropped("push_expired");
         }
         else
         {
@@ -219,6 +293,7 @@ public class OutboxDeliveryWorker(
             // A dead subscription is not a delivery failure: push is best-effort, email carries the
             // guarantee. Marking Sent keeps it out of the failure count that /health reports.
             case DeliveryOutcome.SubscriptionGone:
+            case DeliveryOutcome.Dropped:
                 message.Status = OutboxStatus.Sent;
                 message.SentAt = now;
                 message.ClaimedAt = null;
@@ -259,6 +334,8 @@ public class OutboxDeliveryWorker(
         }
 
         await db.SaveChangesAsync(cancellationToken);
+
+        return result.Outcome;
     }
 
     /// <summary>Backoff for the Nth attempt, clamped to the last entry in the schedule.</summary>

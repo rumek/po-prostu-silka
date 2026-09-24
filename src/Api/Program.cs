@@ -226,7 +226,7 @@ builder.Services.TryAddSingleton(TimeProvider.System);
 builder.Services.AddSingleton(sp =>
 {
     var acs = sp.GetRequiredService<IOptions<AcsOptions>>().Value;
-    return new AcsEmailClientHolder(acs.IsConfigured ? new EmailClient(acs.ConnectionString) : null);
+    return new AcsEmailClientHolder(acs.IsConfigured ? AcsEmailSender.CreateClient(acs.ConnectionString) : null);
 });
 
 // PushServiceClient wraps an HttpClient, so it goes through IHttpClientFactory for pooling.
