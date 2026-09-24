@@ -46,7 +46,9 @@
   min-height: 2.75rem;
   border-radius: var(--radius-sm);
   color: var(--muted);
-  font-size: 1.25rem;
+  // The icon set's `drag` glyph, sized like the other icons in a row rather than the font glyph it
+  // replaced.
+  font-size: 0.875rem;
   line-height: 1;
   cursor: grab;
   touch-action: none;

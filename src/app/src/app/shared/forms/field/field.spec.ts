@@ -86,6 +86,10 @@ describe('Field', () => {
     expect(compiled().querySelector('input')?.getAttribute('aria-invalid')).toBe('true');
   });
 
+  it('puts no icon in the label unless asked to', () => {
+    expect(compiled().querySelector('label app-icon')).toBeNull();
+  });
+
   it('renders no label element at all when it was given no words', async () => {
     fixture.componentInstance.label.set(undefined);
     fixture.detectChanges();

@@ -66,7 +66,7 @@
                 <!-- Pointer-only, and knowingly so (see the component docblock). aria-hidden because
                      announcing a control no keyboard can operate is worse than announcing none. -->
                 <span class="builder-drag" cdkDragHandle aria-hidden="true" title="Przeciągnij">
-                  ⠿
+                  <app-icon name="drag" />
                 </span>
                 <span class="builder-position">{{ index + 1 }}.</span>
                 <span class="builder-item-name">{{ itemName(index) }}</span>
@@ -79,8 +79,15 @@
                 </button>
               </div>
 
+              <!-- Labels and icons from shared/plan-parameters, the table the member's plan card
+                   reads too, and in its order — so a number carries one glyph where it is typed and
+                   where it is read. -->
               <div class="builder-params">
-                <app-field label="Serie" [for]="'sets-' + index">
+                <app-field
+                  [label]="fieldLabel(param.sets)"
+                  [icon]="param.sets.icon"
+                  [for]="'sets-' + index"
+                >
                   <input
                     [id]="'sets-' + index"
                     type="number"
@@ -91,7 +98,11 @@
                   />
                 </app-field>
 
-                <app-field label="Powtórzenia" [for]="'reps-' + index">
+                <app-field
+                  [label]="fieldLabel(param.reps)"
+                  [icon]="param.reps.icon"
+                  [for]="'reps-' + index"
+                >
                   <!-- Text, not a number: "8-12", "do upadku" and "12" are all legitimate (FR-015). -->
                   <input
                     [id]="'reps-' + index"
@@ -103,7 +114,11 @@
                   />
                 </app-field>
 
-                <app-field label="Ciężar (kg)" [for]="'weight-' + index">
+                <app-field
+                  [label]="fieldLabel(param.weightKg)"
+                  [icon]="param.weightKg.icon"
+                  [for]="'weight-' + index"
+                >
                   <input
                     [id]="'weight-' + index"
                     type="number"
@@ -115,18 +130,11 @@
                   />
                 </app-field>
 
-                <app-field label="Przerwa (s)" [for]="'rest-' + index">
-                  <input
-                    [id]="'rest-' + index"
-                    type="number"
-                    inputmode="numeric"
-                    formControlName="restSeconds"
-                    [min]="minRest"
-                    [max]="maxRest"
-                  />
-                </app-field>
-
-                <app-field label="Czas (s)" [for]="'duration-' + index">
+                <app-field
+                  [label]="fieldLabel(param.durationSeconds)"
+                  [icon]="param.durationSeconds.icon"
+                  [for]="'duration-' + index"
+                >
                   <input
                     [id]="'duration-' + index"
                     type="number"
@@ -136,9 +144,25 @@
                     [max]="maxDuration"
                   />
                 </app-field>
+
+                <app-field
+                  [label]="fieldLabel(param.restSeconds)"
+                  [icon]="param.restSeconds.icon"
+                  [for]="'rest-' + index"
+                >
+                  <input
+                    [id]="'rest-' + index"
+                    type="number"
+                    inputmode="numeric"
+                    formControlName="restSeconds"
+                    [min]="minRest"
+                    [max]="maxRest"
+                  />
+                </app-field>
               </div>
 
-              <app-field label="Uwagi" [for]="'note-' + index">
+              <!-- The note's icon is the one its callout carries on the member's card. -->
+              <app-field label="Uwagi" icon="info" [for]="'note-' + index">
                 <textarea
                   [id]="'note-' + index"
                   rows="2"

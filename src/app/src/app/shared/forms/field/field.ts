@@ -1,4 +1,5 @@
 import { Component, input } from '@angular/core';
+import { Icon, IconName } from '../../icons/icon';
 
 /**
  * One labelled control, with room under it for whatever the screen needs to say about it.
@@ -32,11 +33,17 @@ import { Component, input } from '@angular/core';
  * </p>
  */
 @Component({
+  imports: [Icon],
   selector: 'app-field',
   template: `
     <div class="field">
       @if (label(); as text) {
-        <label [attr.for]="for()">{{ text }}</label>
+        <label [attr.for]="for()" [class.field-label--icon]="icon()">
+          @if (icon(); as name) {
+            <app-icon [name]="name" />
+          }
+          {{ text }}
+        </label>
       }
 
       <ng-content select="[slot=label]" />
@@ -56,4 +63,11 @@ export class Field {
    * template reads the way the hand-written markup it replaces did.
    */
   readonly for = input<string>();
+
+  /**
+   * An icon before the label's words — for a field whose value is shown with that same icon
+   * elsewhere, so the form and the screen that reads it say the same thing (the plan builder's
+   * parameters and the member's plan card). Decorative: the words still name the control.
+   */
+  readonly icon = input<IconName>();
 }

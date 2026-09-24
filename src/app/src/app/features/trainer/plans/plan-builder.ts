@@ -29,6 +29,11 @@ import { ToastService } from '../../../shared/toast/toast.service';
 import { Field } from '../../../shared/forms/field/field';
 import { Loading } from '../../../shared/forms/loading/loading';
 import { Empty } from '../../../shared/forms/empty/empty';
+import { Icon } from '../../../shared/icons/icon';
+import {
+  PLAN_PARAMETER,
+  parameterFieldLabel,
+} from '../../../shared/plan-parameters/plan-parameters';
 import {
   AssignableMember,
   TRAINING_PLAN_BOUNDS,
@@ -101,6 +106,7 @@ type ItemGroup = FormGroup<{
     Empty,
     Loading,
     Field,
+    Icon,
     CdkDrag,
     CdkDragHandle,
     CdkDropList,
@@ -132,6 +138,10 @@ export class PlanBuilder implements OnInit {
   protected readonly maxDuration = MAX_DURATION;
   protected readonly minWeight = MIN_WEIGHT;
   protected readonly maxWeight = MAX_WEIGHT;
+
+  /** Each parameter's label and icon — the same table the member's plan card reads. */
+  protected readonly param = PLAN_PARAMETER;
+  protected readonly fieldLabel = parameterFieldLabel;
 
   protected readonly form = this.fb.nonNullable.group({
     name: ['', [Validators.required, Validators.maxLength(MAX_NAME)]],

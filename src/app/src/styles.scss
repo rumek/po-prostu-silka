@@ -285,10 +285,19 @@ a {
   font-weight: 500;
 }
 
-// One box for every control. A select that does not match the inputs above and below it reads as a
-// different kind of thing, and the class form stacks all three in one column.
-.field input,
-.field select {
+// ONE BOX FOR EVERY CONTROL, wherever it sits. A text input, a select and a textarea are the same
+// kind of thing to the person filling the form, so they share one border, radius, padding and type
+// size — a select or a textarea left in the platform style reads as a foreign control. Until this
+// was global it was scoped to `.field`: every textarea carried a private copy of these rules, and a
+// search box or a select outside a field fell back to the browser's own look.
+//
+// Wrapped in :where() so it carries NO specificity. A screen that needs a different box — the
+// calendar's compact date picker — overrides it with a plain selector and no !important.
+:where(
+  input:not([type='checkbox'], [type='radio'], [type='range'], [type='file'], [type='color']),
+  select,
+  textarea
+) {
   padding: var(--space-3);
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-sm);
@@ -297,11 +306,26 @@ a {
   font-family: inherit;
   // 16px minimum, or iOS Safari zooms the viewport on focus and the member has to pinch back out.
   font-size: 1rem;
+  line-height: 1.4;
 }
 
-.field input[aria-invalid='true'],
-.field select[aria-invalid='true'] {
+// Vertical only: horizontal resize would let the control escape its column.
+:where(textarea) {
+  resize: vertical;
+}
+
+:where(input, select, textarea)[aria-invalid='true'] {
   border-color: var(--danger);
+}
+
+// A disabled control still has to look like a value the admin can read, not like a broken one: the
+// class form disables the type when editing, because the type is immutable once set. The page ground
+// rather than the white of an editable field reads as "not paper you write on" without introducing a
+// grey that is not in the palette.
+:where(input, select, textarea):disabled {
+  background: var(--ground);
+  color: var(--muted);
+  cursor: not-allowed;
 }
 
 // -----------------------------------------------------------------------------
@@ -309,18 +333,18 @@ a {
 //
 // The native arrow is drawn by the OS and cannot be styled - it ignores our colour and sits at a
 // different inset on every platform, which is what makes a select look foreign next to an input.
-// appearance: none removes it; the ::after below draws the replacement.
+// appearance: none removes it; app-select draws the replacement as the icon set's `chevron-down`,
+// so the arrow has the same stroke as every other icon in the app rather than a font's '▼'.
 //
-// THE ::after LIVES ON THE WRAPPER, NOT THE SELECT. A select is a replaced element and generates no
-// pseudo-element content of its own, so the markup pairs every select with a .select wrapper. If a
-// select is ever added without one it will have NO arrow at all - see class-form.html.
+// THE CHEVRON LIVES ON THE WRAPPER, NOT THE SELECT. A select is a replaced element and can hold
+// nothing of ours, so every select sits in <app-select> - the lint rule enforces it in features/.
 // -----------------------------------------------------------------------------
 
-.field select {
+:where(select) {
   appearance: none;
   width: 100%;
   // Room for the chevron: its inset plus its own width, so a long option label cannot run underneath.
-  padding-right: calc(var(--space-3) * 2 + 0.7rem);
+  padding-right: calc(var(--space-3) * 2 + 1rem);
 }
 
 .select {
@@ -328,31 +352,33 @@ a {
   display: block;
 }
 
-.select::after {
-  content: '▼';
+.select-chevron {
   position: absolute;
   top: 50%;
   right: var(--space-3);
   transform: translateY(-50%);
   color: var(--muted);
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   // Without this the chevron swallows the click that should open the dropdown - it sits directly
   // over the select's own hit area.
   pointer-events: none;
 }
 
-// A disabled select still has to look like a value the admin can read, not like a broken control:
-// the class form disables the type when editing, because the type is immutable once set.
-.field select:disabled {
-  // The page ground rather than the white of an editable field: it reads as "not paper you write on"
-  // without introducing a grey that is not in the palette.
-  background: var(--ground);
-  color: var(--muted);
-  cursor: not-allowed;
+.select:has(select:disabled) .select-chevron {
+  opacity: 0.5;
 }
 
-.select:has(select:disabled)::after {
-  opacity: 0.5;
+// A label that carries the icon of what it asks for (app-field's `icon`): the same glyph the value
+// is shown with elsewhere, so the plan builder's "Serie" and the member's plan card cannot drift.
+.field-label--icon {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+
+  app-icon {
+    color: var(--muted);
+    font-size: 0.75rem;
+  }
 }
 
 .field-error {

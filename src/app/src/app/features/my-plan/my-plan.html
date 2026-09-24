@@ -21,59 +21,54 @@
   />
 
   <!-- Ordered by the trainer, and the numbers are the point: this is the sequence to train in, not
-       a set to pick from. The API already sorts; nothing here re-sorts. -->
+       a set to pick from. The API already sorts; nothing here re-sorts. The card is drawn like a
+       class card on "Moje zajęcia" — a small capitals line on top, a bold figure in a column, a rule,
+       the name — so the member's two lists read as one app. -->
   <ol class="my-plan-items">
-    @for (item of row.items; track item.id) {
+    @for (item of row.items; track item.id; let index = $index, count = $count) {
       <li class="card my-plan-item">
-        <div class="my-plan-heading">
-          <p class="my-plan-name">{{ item.exerciseName }}</p>
-
-          <!-- The name is text; the NAVIGATION is this control. Icon-only, so it names itself, and
-               it names the exercise rather than saying "Opis ćwiczenia" ten times over — a screen
-               reader listing the links would otherwise read ten identical entries. -->
-          <a
-            class="my-plan-info"
-            [routerLink]="['/my-plan/exercises', item.exerciseId]"
-            [attr.aria-label]="'Opis ćwiczenia: ' + item.exerciseName"
-          >
-            <app-icon name="info" />
-          </a>
-        </div>
-
         @if (item.muscleGroup) {
+          <!-- A fact about the exercise, not part of the prescription: it sits where a class card
+               carries its date, above everything the trainer chose. -->
           <p class="my-plan-muscle">{{ item.muscleGroup }}</p>
         }
 
-        @if (hasParameters(item)) {
+        <div class="my-plan-body">
+          <!-- The <ol> already says "1 of 6" to a screen reader; this column says it to the eye. -->
+          <p class="my-plan-position" aria-hidden="true">
+            <span class="my-plan-index">{{ index + 1 }}</span>
+            <span class="my-plan-count">z {{ count }}</span>
+          </p>
+
+          <div class="my-plan-heading">
+            <p class="row-name my-plan-name">{{ item.exerciseName }}</p>
+
+            <!-- The name is text; the NAVIGATION is this control. Icon-only, so it names itself, and
+                 it names the exercise rather than saying "Opis ćwiczenia" ten times over — a screen
+                 reader listing the links would otherwise read ten identical entries. -->
+            <a
+              class="my-plan-info"
+              [routerLink]="['/my-plan/exercises', item.exerciseId]"
+              [attr.aria-label]="'Opis ćwiczenia: ' + item.exerciseName"
+            >
+              <app-icon name="info" />
+            </a>
+          </div>
+        </div>
+
+        @let parameters = prescribed(item);
+        @if (parameters.length > 0) {
+          <!-- Icons and words from the table the plan builder's fields read too
+               (shared/plan-parameters), so a number carries the same glyph where it is typed and
+               where it is read. -->
           <ul class="my-plan-params">
-            @if (item.sets !== null) {
+            @for (shown of parameters; track shown.parameter.key) {
               <li class="my-plan-param">
-                <app-icon name="repeat" />
-                {{ item.sets }} <span class="my-plan-label">Serie</span>
-              </li>
-            }
-            @if (item.reps !== null) {
-              <li class="my-plan-param">
-                <app-icon name="repeat" />
-                {{ item.reps }} <span class="my-plan-label">Powtórzenia</span>
-              </li>
-            }
-            @if (item.weightKg !== null) {
-              <li class="my-plan-param">
-                <app-icon name="hantle" />
-                {{ item.weightKg }} kg<span class="my-plan-label">Ciężar</span>
-              </li>
-            }
-            @if (item.durationSeconds !== null) {
-              <li class="my-plan-param">
-                <app-icon name="time" />
-                {{ item.durationSeconds }} s<span class="my-plan-label">Czas</span>
-              </li>
-            }
-            @if (item.restSeconds !== null) {
-              <li class="my-plan-param">
-                <app-icon name="clock" />
-                {{ item.restSeconds }} s<span class="my-plan-label">Przerwa</span>
+                <span class="my-plan-value">
+                  <app-icon [name]="shown.parameter.icon" />
+                  {{ shown.value }}
+                </span>
+                <span class="my-plan-label">{{ shown.parameter.label }}</span>
               </li>
             }
           </ul>

@@ -10,13 +10,9 @@
 }
 
 .trainer-members-search input {
+  // The box is the global control's (src/styles.scss), so a search reads as the same field as
+  // every form's; only the width is this screen's.
   width: 100%;
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-2);
-  background: none;
-  color: inherit;
-  font: inherit;
 }
 
 // Present for screen readers, absent visually — the search input's label. A copy of members.scss's,

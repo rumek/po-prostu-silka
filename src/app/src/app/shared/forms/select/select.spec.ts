@@ -40,12 +40,17 @@ describe('Select', () => {
   });
 
   /**
-   * THE REASON THIS EXISTS. The chevron is drawn by `.select::after`, and a <select> is a replaced
-   * element that generates no pseudo-element of its own — so a select outside this wrapper has its
-   * native arrow suppressed by `appearance: none` and nothing at all in its place.
+   * THE REASON THIS EXISTS. A <select> is a replaced element that can hold nothing of ours — so a
+   * select outside this wrapper has its native arrow suppressed by `appearance: none` and nothing
+   * at all in its place.
    */
   it('puts the select inside the wrapper that carries the chevron', () => {
     expect(compiled().querySelector('span.select > select')).not.toBeNull();
+  });
+
+  /** The arrow is the icon set's, not a text glyph, so it matches every other icon's stroke. */
+  it('draws the chevron from the icon set', () => {
+    expect(compiled().querySelector('span.select > app-icon.select-chevron svg')).not.toBeNull();
   });
 
   it('projects the select unmodified, options and all', () => {

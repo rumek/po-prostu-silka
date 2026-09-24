@@ -201,6 +201,13 @@ S-21) the screen is a semantic `<table>`, not `app-list`, and it collapses to on
 item below `form-columns` in CSS alone — one DOM, no second template. The rule does not cover
 `<table>` by design; that is the exception, not a hole to disable-comment around.
 
+**One control box, one icon per meaning.** Every `input`, `select` and `textarea` takes its box from
+the global `:where(...)` rule in `src/styles.scss` — never a per-screen copy (zero specificity, so a
+deliberate variant like the calendar's date picker overrides it plainly). Icons come only from
+`shared/icons` — no text glyphs (`▼`, `⠿`) — and one meaning has one glyph everywhere: the plan's
+parameters are named and drawn by `shared/plan-parameters`, read by both the plan builder's fields
+(`app-field [icon]`) and the member's plan card.
+
 **`.notice` now carries one meaning** — informational screen content — in five places, instead of
 four meanings in thirty-three. Loading is `app-loading`, empty is `app-empty`, success is a toast.
 

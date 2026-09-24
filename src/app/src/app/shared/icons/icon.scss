@@ -2,9 +2,13 @@
 // caller having to know the viewBox.
 :host {
   display: inline-flex;
+  // Never squeezed by a flex row it sits in: a shrunk icon renders narrower than it is tall and
+  // reads as a different, flattened glyph.
+  flex-shrink: 0;
 }
 
 svg {
+  flex-shrink: 0;
   width: 1.5em;
   height: 1.5em;
 }

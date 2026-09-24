@@ -1,4 +1,5 @@
 import { Component } from '@angular/core';
+import { Icon } from '../../icons/icon';
 
 /**
  * The wrapper a `<select>` needs in order to have an arrow.
@@ -6,8 +7,9 @@ import { Component } from '@angular/core';
  * <p>
  * THIS COMPONENT IS A DEFECT MADE IMPOSSIBLE. <c>styles.scss</c> sets <c>appearance: none</c> on
  * every select — the platform arrow is drawn by the OS, ignores our colour and sits at a different
- * inset on every system — and draws the replacement chevron from <c>::after</c>. A select is a
- * replaced element and generates no pseudo-element of its own, so that <c>::after</c> has to live
+ * inset on every system — and this wrapper draws the replacement: the icon set's
+ * <c>chevron-down</c>, so the arrow carries the same stroke as every other icon rather than a
+ * font's '▼'. A select is a replaced element and can hold nothing of ours, so the arrow has to live
  * on a wrapper. <c>styles.scss</c> warned about this in a comment for three slices, and five of the
  * app's seven selects still shipped with their native arrow suppressed and NOTHING in its place.
  * </p>
@@ -27,7 +29,13 @@ import { Component } from '@angular/core';
  * </p>
  */
 @Component({
+  imports: [Icon],
   selector: 'app-select',
-  template: `<span class="select"><ng-content /></span>`,
+  template: `
+    <span class="select">
+      <ng-content />
+      <app-icon class="select-chevron" name="chevron-down" />
+    </span>
+  `,
 })
 export class Select {}

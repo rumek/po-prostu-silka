@@ -1,13 +1,14 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { TrainingPlanService } from '../../core/training/training-plan.service';
-import { TrainingPlanDetail, TrainingPlanItemView } from '../../core/training/training-plan.models';
+import { TrainingPlanDetail } from '../../core/training/training-plan.models';
 import { classifyFailure } from '../../core/http/failure';
 import { transportMessage } from '../../core/http/transport-messages';
 import { PlanSummary } from '../../shared/plan-summary/plan-summary';
 import { Icon } from '../../shared/icons/icon';
 import { Empty } from '../../shared/forms/empty/empty';
 import { Loading } from '../../shared/forms/loading/loading';
+import { prescribedParameters } from '../../shared/plan-parameters/plan-parameters';
 
 /**
  * The member's own training plan (prd.md FR-017).
@@ -69,16 +70,10 @@ export class MyPlan implements OnInit {
     }
   }
 
-  /** True when this row prescribes nothing beyond the exercise itself — a legitimate entry. */
-  protected hasParameters(item: TrainingPlanItemView): boolean {
-    return (
-      item.sets !== null ||
-      item.reps !== null ||
-      item.weightKg !== null ||
-      item.restSeconds !== null ||
-      // S-15. Miss this and a plank prescribed with ONLY a duration renders a card with a name and
-      // nothing else — the exact case the column was added for, failing silently.
-      item.durationSeconds !== null
-    );
-  }
+  /**
+   * What the card shows under the name — only the parameters this item carries. Missing a duration
+   * here would render a duration-only plank (S-15) as a name and nothing else, which is why this
+   * reads the shared table rather than naming the fields.
+   */
+  protected readonly prescribed = prescribedParameters;
 }

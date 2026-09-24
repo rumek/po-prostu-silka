@@ -1,24 +1,7 @@
 @use 'breakpoints' as bp;
 
-// Layout only — .panel/.field/.field-error/.button/.alert/.notice come from src/styles.scss, and
-// the textarea rules mirror class-type-form.scss (styles.scss styles .field input, not textarea).
-
-.field textarea {
-  padding: var(--space-3);
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius-sm);
-  background: #fff;
-  color: inherit;
-  font-family: inherit;
-  // 16px minimum, or iOS Safari zooms the viewport on focus — same rule as .field input.
-  font-size: 1rem;
-  // Vertical only: horizontal resize would let the control escape the .panel column.
-  resize: vertical;
-}
-
-.field textarea[aria-invalid='true'] {
-  border-color: var(--danger);
-}
+// Layout only — .panel/.field/.field-error/.button/.alert/.notice and the control box itself
+// (input, select, textarea alike) come from src/styles.scss.
 
 .field-hint {
   margin: 0;

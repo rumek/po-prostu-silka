@@ -7,88 +7,141 @@ app-plan-summary {
   margin-bottom: var(--space-5);
 }
 
-// An <ol>, and its numbers are kept: the order is the prescription, and stripping the markers would
-// throw away the one thing that distinguishes a plan from a list of exercises.
+// An <ol>, and its order is kept: the order is the prescription. The marker moved INTO the card as
+// its position column, so the list itself draws none.
 .my-plan-items {
-  padding-left: var(--space-5);
+  list-style: none;
+  padding: 0;
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
-}
-
-.my-plan-item {
-  padding: var(--space-5);
-}
-
-// The name is TEXT now, and the navigation moved to the icon beside it (S-15). Until then the whole
-// name was the link, deliberately sized as a large target because this screen is read between sets,
-// often one-handed. That trade was reversed knowingly: the icon is a smaller target than the name
-// was, and it was chosen at its natural size rather than padded out to 44x44. If it proves awkward
-// in real one-handed use, padding on .my-plan-info is the whole fix — no markup change.
-.my-plan-heading {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
   gap: var(--space-3);
 }
 
-.my-plan-name {
+// The class card's shape (shared/class-date/booked-class): the same density, the same gap between
+// the capitals line and the body.
+.my-plan-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+}
+
+// The class card's date line: small, capitals, above the rest. CSS capitals only, so a screen
+// reader reads the group as the library writes it.
+.my-plan-muscle {
   margin: 0;
+  line-height: 1.2;
+  color: var(--gray);
+  font-size: 0.7rem;
   font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+
+.my-plan-body {
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+// Where the class card has start over end, this has the position over the count: bold ink over
+// light grey, centred against the rule.
+.my-plan-position {
+  display: flex;
+  flex: 0 0 2.75rem;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  line-height: 1.25;
+  font-variant-numeric: tabular-nums;
+}
+
+.my-plan-index {
+  color: var(--ink);
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.my-plan-count {
+  color: var(--gray);
+  font-size: 0.75rem;
+  font-weight: 300;
+}
+
+// The name is TEXT, and the navigation is the icon beside it (S-15). The icon was chosen at its
+// natural size rather than padded out to 44x44; if it proves awkward in real one-handed use,
+// padding on .my-plan-info is the whole fix — no markup change.
+.my-plan-heading {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-width: 0;
+  padding-left: var(--space-3);
+  border-left: 1px solid var(--line-strong);
+}
+
+.my-plan-name {
   overflow-wrap: anywhere;
 }
 
 .my-plan-info {
   flex-shrink: 0;
   display: inline-flex;
-  align-self: center;
   color: var(--muted);
   font-size: 0.875rem;
 }
 
-// A fact about the exercise, not part of the prescription — so it sits under the name rather than
-// among the numbers the trainer chose, and borrows the parameter labels' size and colour.
-.my-plan-muscle {
-  margin: var(--space-1) 0 0;
-  color: var(--muted);
-  font-weight: 600;
-  font-size: 0.8125rem;
-  background: var(--section-warm);
-  // A pill, so the radius is larger than any height this can take rather than a figure tuned to one.
-  border-radius: 999px;
-  padding: var(--space-1) var(--space-2);
-  width: fit-content;
-}
-
+// The prescription as a strip of tiles under a hairline: icon and number on one line, the word
+// under it. Tiles share the width, so two numbers read as two halves and five still fit a phone.
 .my-plan-params {
   list-style: none;
-  padding: 0;
-  margin: var(--space-3) 0 0;
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  align-items: center;
-}
-
-.my-plan-label {
-  display: block;
-  color: var(--muted);
-  font-size: 0.8125rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(4.5rem, 1fr));
+  margin: var(--space-1) 0 0;
+  padding: var(--space-3) 0 0;
+  border-top: 1px solid var(--line);
 }
 
 .my-plan-param {
-  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
+  gap: 2px;
+  padding: 0 var(--space-2);
+  text-align: center;
 
-  // BETWEEN the parameters and nowhere else. Only the adjacent-sibling rule draws it, so a divider
-  // never appears before the first or after the last — and a card carrying a single parameter (the
-  // duration-only plank this slice exists for) gets no stray rule at all.
+  // BETWEEN the parameters and nowhere else, so a card carrying a single parameter (the
+  // duration-only plank) gets no stray rule at all.
   & + .my-plan-param {
-    border-left: solid 1px var(--section-warm);
+    border-left: 1px solid var(--line);
   }
+}
+
+.my-plan-value {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--ink);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+
+  // The same size and colour as the instructor's icon on a class card.
+  app-icon {
+    color: var(--muted);
+    font-size: 0.7rem;
+  }
+}
+
+.my-plan-label {
+  color: var(--gray);
+  font-size: 0.75rem;
 }
 
 // A callout, so the trainer's remark stops reading as a continuation of the numbers above it. The
@@ -100,7 +153,7 @@ app-plan-summary {
   align-items: center;
   gap: var(--space-2);
   font-size: 0.8rem;
-  margin: var(--space-3) 0 0;
+  margin: var(--space-1) 0 0;
   padding: var(--space-3);
   border-radius: var(--radius-sm);
   background: var(--section-cool);
