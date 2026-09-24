@@ -4,8 +4,9 @@
 @use 'breakpoints' as bp;
 
 // The greeting. The photo behind it is the page's background (src/styles.scss, body:has(app-dashboard)):
-// 60vw wide at the top right, so 40vw tall on the web and 60vw * 1672/941 on a phone. The hero is
-// that tall minus what sits above it, so the cards start under the photo instead of covering it.
+// 50vw wide at the top right, so 33.3vw tall on the web and 50vw * 1672/941 = 88.8vw on a phone. Its
+// bottom edge fades out over its last ~15%, so the hero ends mid-fade, 85% of the way down, minus what
+// sits above it: the cards start where the photo has dissolved instead of covering it.
 .dashboard-hero {
   // The header (the 140px logo, 163x89, plus --space-4 above and below: ~6.75rem) and
   // .shell-main's --space-7 top padding. Not tokens above 30rem, so written out here.
@@ -14,7 +15,7 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
-  min-height: calc(40vw - var(--above));
+  min-height: calc(28.3vw - var(--above));
 
   > * {
     max-width: 30rem;
@@ -32,7 +33,7 @@
     --above: calc(var(--app-bar-height) + env(safe-area-inset-top) + var(--space-5));
 
     justify-content: flex-start;
-    min-height: calc(60vw * 1672 / 941 - var(--above));
+    min-height: calc(75.5vw - var(--above));
 
     > * {
       max-width: 75%;
@@ -57,6 +58,10 @@
   margin: 0;
   color: var(--muted);
   font-size: 0.9375rem;
+
+  > span {
+    display: block;
+  }
 }
 
 .dashboard-cards {

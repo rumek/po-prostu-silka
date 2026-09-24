@@ -212,11 +212,11 @@ body {
 
 // Start's hero photo (the dashboard). On the page rather than in the dashboard, so it begins at the
 // very top of the screen behind the header, which is transparent there; a component's stylesheet
-// cannot reach <body>. Anchored top-right at 60% of the width and never cropped: its cream left edge
-// is --page, so it blends into the rest of the page. The dashboard's .dashboard-hero keeps the cards
+// cannot reach <body>. Anchored top-right at half the width and never cropped. Its left and bottom
+// edges fade to transparent in the file itself (public/hero-*.webp), so it melts into --page. The dashboard's .dashboard-hero keeps the cards
 // below the photo's bottom edge.
 body:has(app-dashboard) {
-  background: var(--page) url('/hero-web.webp') right top / 60vw auto no-repeat;
+  background: var(--page) url('/hero-web.webp') right top / 50vw auto no-repeat;
 
   @include bp.narrow {
     background-image: url('/hero-mobile.webp');
