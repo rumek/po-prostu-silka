@@ -14,9 +14,10 @@ const DISMISSAL_DAYS = 30;
  * Offers "add to home screen" in the club's own words, replaying the `beforeinstallprompt` event
  * `InstallService` held back (PRD: mobile-first and installable).
  *
- * <p>IT RENDERS NOTHING without that event: Safari (iPhone installs go through the share sheet, and
- * no script can open it), Firefox, an app that is already installed, and a browser that has not yet
- * decided the site is installable. None of them has a button that would help.</p>
+ * <p>IT RENDERS NOTHING without that event — Firefox, an app that is already installed, a browser
+ * that has not yet decided the site is installable — with one exception: iOS. There installs go
+ * through the share sheet, which no script can open, so the banner says where to tap instead of
+ * offering a button.</p>
  */
 @Component({
   selector: 'app-install-prompt',
@@ -30,7 +31,14 @@ export class InstallPrompt {
 
   protected readonly working = signal(false);
 
-  protected readonly visible = computed(() => this.installer.canInstall() && !this.dismissed());
+  /** iOS: no event to replay, so the banner explains the share sheet instead of offering a button. */
+  protected readonly manual = computed(
+    () => !this.installer.canInstall() && this.installer.needsManualInstall(),
+  );
+
+  protected readonly visible = computed(
+    () => (this.installer.canInstall() || this.manual()) && !this.dismissed(),
+  );
 
   /**
    * No failure state of its own: the service drops the spent event whatever the answer, so

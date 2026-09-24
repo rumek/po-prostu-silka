@@ -10,11 +10,18 @@ const STORAGE_KEY = 'pps.install-prompt.dismissed-at';
  * that survives the next navigation.
  */
 describe('InstallPrompt', () => {
-  function configure(canInstall = signal(true), install = vi.fn().mockResolvedValue(true)) {
+  function configure(
+    canInstall = signal(true),
+    install = vi.fn().mockResolvedValue(true),
+    needsManualInstall = signal(false),
+  ) {
     TestBed.configureTestingModule({
       imports: [InstallPrompt],
       providers: [
-        { provide: InstallService, useValue: { canInstall, install } as unknown as InstallService },
+        {
+          provide: InstallService,
+          useValue: { canInstall, install, needsManualInstall } as unknown as InstallService,
+        },
       ],
     });
 
@@ -99,5 +106,31 @@ describe('InstallPrompt', () => {
     configure();
 
     expect(prompt(await render())).not.toBeNull();
+  });
+
+  // iOS never fires the event; the banner explains the share sheet, and offers no install button
+  // that could not work.
+  it('explains the share sheet on iOS instead of offering a button', async () => {
+    configure(signal(false), undefined, signal(true));
+
+    const fixture = await render();
+
+    expect(prompt(fixture)?.textContent).toContain('Do ekranu początkowego');
+    expect(
+      Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('button')).map((b) =>
+        b.textContent?.trim(),
+      ),
+    ).toEqual(['Nie teraz']);
+  });
+
+  it('honours "Nie teraz" on iOS too', async () => {
+    configure(signal(false), undefined, signal(true));
+
+    const fixture = await render();
+    click(fixture, 'Nie teraz');
+    await fixture.whenStable();
+
+    expect(prompt(fixture)).toBeNull();
+    expect(localStorage.getItem(STORAGE_KEY)).not.toBeNull();
   });
 });

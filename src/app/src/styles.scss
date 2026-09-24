@@ -127,6 +127,13 @@
   // bar went icon-only.
   --bottom-nav-tab-height: 52px;
 
+  // Gap between the floating bottom bar and the screen's bottom edge. 12px on Android, where the
+  // inset is 0. On a notched iPhone the home-indicator inset (~34px) is mostly empty space — the
+  // indicator itself is a 5px pill ~8px off the edge — so adding the full inset ON TOP of the 12px
+  // margin floated the bar ~46px up, visibly higher than on Android. The bar only has to clear the
+  // indicator, not the whole inset. Global because app.scss and toast-host.scss clear the bar too.
+  --bottom-nav-offset: max(12px, calc(env(safe-area-inset-bottom) - 12px));
+
   // Height of the phone's pinned app bar (mobile-native-feel), below the status-bar inset. Material's
   // top app bar height; global for the same reason as the tab height above.
   --app-bar-height: 56px;

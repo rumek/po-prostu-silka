@@ -17,7 +17,7 @@
   bottom: 0;
   left: 0;
   z-index: var(--z-bottom-nav);
-  margin: 12px 8px;
+  margin: 12px 8px var(--bottom-nav-offset);
   // OUT OF THE ROOT SNAPSHOT (S-26). A fixed element captured inside the root snapshot is painted
   // into an image whose coordinate space is the whole scrollable page, not the viewport, so during a
   // routed transition the bar lands in the wrong place and snaps back when the transition ends — the
@@ -26,9 +26,9 @@
   // itself is told not to animate in src/styles.scss.
   view-transition-name: bottom-nav;
 
-  // The home indicator on a notched iPhone sits over the bottom of the viewport. This resolves to 0px
-  // everywhere else — and would resolve to 0px there too without viewport-fit=cover in index.html.
-  padding-bottom: env(safe-area-inset-bottom);
+  // The home indicator on a notched iPhone is cleared by the bottom margin — see
+  // --bottom-nav-offset in src/styles.scss. It needs viewport-fit=cover in index.html to see the
+  // inset at all.
 
   // A phone-only surface: above 30rem the header carries the same links, and showing both would be
   // two navigations for one view. `above-narrow` is the exact complement of the `narrow` that hides

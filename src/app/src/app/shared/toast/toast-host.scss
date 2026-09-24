@@ -108,13 +108,11 @@
 @include bp.narrow {
   .toast-host {
     // Full width, and clearing the fixed bar the same way .shell-main does: one tab's height plus
-    // its 1px border-top, plus the home indicator. The shared token is what keeps this in step with
+    // its 1px border-top, plus its offset from the edge. The shared token is what keeps this in step with
     // bottom-nav.scss rather than drifting from it.
     right: var(--space-4);
     left: var(--space-4);
-    bottom: calc(
-      var(--bottom-nav-tab-height) + 1px + var(--space-5) + env(safe-area-inset-bottom) + 12px
-    );
+    bottom: calc(var(--bottom-nav-tab-height) + 1px + var(--space-5) + var(--bottom-nav-offset));
     max-width: none;
   }
 }

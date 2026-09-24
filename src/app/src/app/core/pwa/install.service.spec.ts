@@ -57,4 +57,47 @@ describe('InstallService', () => {
 
     expect(installer.canInstall()).toBe(false);
   });
+
+  describe('on iOS', () => {
+    // jsdom has no maxTouchPoints or standalone, so they are defined outright rather than spied on.
+    function stubNavigator(userAgent: string, maxTouchPoints: number, standalone?: boolean): void {
+      vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(userAgent);
+      Object.defineProperty(navigator, 'maxTouchPoints', {
+        value: maxTouchPoints,
+        configurable: true,
+      });
+      Object.defineProperty(navigator, 'standalone', { value: standalone, configurable: true });
+    }
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+      Reflect.deleteProperty(navigator, 'maxTouchPoints');
+      Reflect.deleteProperty(navigator, 'standalone');
+    });
+
+    it('asks for a manual install in Safari on an iPhone', () => {
+      stubNavigator('Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)', 5, false);
+
+      expect(service().needsManualInstall()).toBe(true);
+    });
+
+    // iPadOS 13+ claims to be a Mac; the touch screen is what gives it away.
+    it('recognises an iPad that reports itself as a Mac', () => {
+      stubNavigator('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)', 5, false);
+
+      expect(service().needsManualInstall()).toBe(true);
+    });
+
+    it('does not ask inside the installed app', () => {
+      stubNavigator('Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)', 5, true);
+
+      expect(service().needsManualInstall()).toBe(false);
+    });
+
+    it('does not ask on a real Mac', () => {
+      stubNavigator('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)', 0);
+
+      expect(service().needsManualInstall()).toBe(false);
+    });
+  });
 });
