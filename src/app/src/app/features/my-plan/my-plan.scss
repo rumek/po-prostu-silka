@@ -27,49 +27,17 @@ app-plan-summary {
   padding: var(--space-3) var(--space-4);
 }
 
-// The class card's date line: small, capitals, above the rest. CSS capitals only, so a screen
-// reader reads the group as the library writes it.
-.my-plan-muscle {
+// The class card's date line, carrying "1 / 5" instead: small, capitals, above the rest.
+.my-plan-position {
   margin: 0;
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--line);
   line-height: 1.2;
   color: var(--gray);
   font-size: 0.7rem;
   font-weight: 600;
   letter-spacing: 0.06em;
-  text-transform: uppercase;
-  overflow-wrap: anywhere;
-}
-
-.my-plan-body {
-  display: flex;
-  align-items: stretch;
-  gap: var(--space-3);
-  min-width: 0;
-}
-
-// Where the class card has start over end, this has the position over the count: bold ink over
-// light grey, centred against the rule.
-.my-plan-position {
-  display: flex;
-  flex: 0 0 2.75rem;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  margin: 0;
-  line-height: 1.25;
   font-variant-numeric: tabular-nums;
-}
-
-.my-plan-index {
-  color: var(--ink);
-  font-size: 1.25rem;
-  font-weight: 700;
-}
-
-.my-plan-count {
-  color: var(--gray);
-  font-size: 0.75rem;
-  font-weight: 300;
 }
 
 // The name is TEXT, and the navigation is the icon beside it (S-15). The icon was chosen at its
@@ -77,16 +45,25 @@ app-plan-summary {
 // padding on .my-plan-info is the whole fix — no markup change.
 .my-plan-heading {
   display: flex;
-  flex: 1 1 auto;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
   min-width: 0;
-  padding-left: var(--space-3);
-  border-left: 1px solid var(--line-strong);
+}
+
+.my-plan-text {
+  min-width: 0;
 }
 
 .my-plan-name {
+  overflow-wrap: anywhere;
+}
+
+// A fact about the exercise, not part of the prescription — so it sits under the name, quieter.
+.my-plan-muscle {
+  margin: var(--space-1) 0 0;
+  color: var(--muted);
+  font-size: 0.875rem;
   overflow-wrap: anywhere;
 }
 
@@ -97,8 +74,7 @@ app-plan-summary {
   font-size: 0.875rem;
 }
 
-// The prescription as a strip of tiles under a hairline: icon and number on one line, the word
-// under it. Tiles share the width, so two numbers read as two halves and five still fit a phone.
+// The prescription as a strip of columns under a hairline: icon, then the word, then the number. Tiles share the width, so two numbers read as two halves and five still fit a phone.
 .my-plan-params {
   list-style: none;
   display: grid;
@@ -123,20 +99,18 @@ app-plan-summary {
   }
 }
 
+// The column's head, so a touch larger than an icon beside text; the class card's muted colour.
+.my-plan-param app-icon {
+  margin-bottom: 2px;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
 .my-plan-value {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
   color: var(--ink);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
-
-  // The same size and colour as the instructor's icon on a class card.
-  app-icon {
-    color: var(--muted);
-    font-size: 0.7rem;
-  }
 }
 
 .my-plan-label {
