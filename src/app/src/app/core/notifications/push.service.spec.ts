@@ -1,7 +1,11 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { SwPush } from '@angular/service-worker';
+import { of } from 'rxjs';
+import { CurrentUser } from '../auth/auth.models';
+import { AuthService } from '../auth/auth.service';
 import { PushService } from './push.service';
 
 /**
@@ -11,14 +15,25 @@ import { PushService } from './push.service';
 describe('PushService', () => {
   const VAPID_KEY = 'BBAUIQCQOzJpuRcUFb9MTPBsb1kVbC8RsACWEb6ApDk';
 
+  /** The signed-in account. PushService re-attaches the browser's registration whenever it changes. */
+  const account = signal<CurrentUser | null>(null);
+
   function configure(swPush: Partial<SwPush>) {
+    account.set(null);
+
     TestBed.configureTestingModule({
       providers: [
         provideHttpClient(),
         provideHttpClientTesting(),
         { provide: SwPush, useValue: swPush },
+        { provide: AuthService, useValue: { user: account.asReadonly() } },
       ],
     });
+  }
+
+  function signIn(id: string) {
+    account.set({ id, email: `${id}@test.local`, displayName: id, status: 'Active', roles: [] });
+    TestBed.tick();
   }
 
   function fakeSubscription(endpoint: string) {
@@ -101,5 +116,62 @@ describe('PushService', () => {
 
     await expect(pending).resolves.toBe(false);
     expect(service.unavailable()).toBe('subscription_failed');
+  });
+
+  // The browser's registration outlives the server's row for it — a test-data reset deletes every
+  // row — and the row stays bound to whoever subscribed first. Reading it back without re-sending it
+  // left a device that called itself subscribed and received nothing.
+  it('re-sends an existing registration for each account that signs in', async () => {
+    configure({ isEnabled: true, subscription: of(fakeSubscription('https://push.test/abc')) });
+    const service = TestBed.inject(PushService);
+    const controller = TestBed.inject(HttpTestingController);
+
+    signIn('member-1');
+    const first = await vi.waitFor(() => controller.expectOne('/api/push/subscribe'));
+    expect(first.request.body.endpoint).toBe('https://push.test/abc');
+    first.flush(null);
+
+    await vi.waitFor(() => expect(service.isReady()).toBe(true));
+    expect(service.isSubscribed()).toBe(true);
+
+    // Signing in as someone else does not reload the app; the device must move to them.
+    signIn('member-2');
+    (await vi.waitFor(() => controller.expectOne('/api/push/subscribe'))).flush(null);
+    controller.verify();
+  });
+
+  it('sends nothing on sign-in when this browser never subscribed', async () => {
+    configure({ isEnabled: true, subscription: of(null) });
+    const service = TestBed.inject(PushService);
+    const controller = TestBed.inject(HttpTestingController);
+
+    signIn('member-1');
+
+    await vi.waitFor(() => expect(service.isReady()).toBe(true));
+    expect(service.isSubscribed()).toBe(false);
+    controller.verify();
+  });
+
+  // On sign-out the device leaves the account, server row AND browser registration, so the next
+  // person to sign in here is asked rather than handed the previous account's notifications.
+  it('removes the server row and the browser registration on unsubscribe', async () => {
+    const unsubscribe = vi.fn().mockResolvedValue(undefined);
+    configure({
+      isEnabled: true,
+      subscription: of(fakeSubscription('https://push.test/abc')),
+      unsubscribe,
+    });
+    const service = TestBed.inject(PushService);
+    const controller = TestBed.inject(HttpTestingController);
+
+    const pending = service.unsubscribe();
+
+    const post = await vi.waitFor(() => controller.expectOne('/api/push/unsubscribe'));
+    expect(post.request.body.endpoint).toBe('https://push.test/abc');
+    post.flush(null);
+
+    await pending;
+    expect(unsubscribe).toHaveBeenCalled();
+    expect(service.isSubscribed()).toBe(false);
   });
 });

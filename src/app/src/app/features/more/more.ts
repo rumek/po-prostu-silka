@@ -5,6 +5,7 @@ import { personaOf } from '../../core/auth/persona';
 import { DESK_MEDIA_QUERY } from '../../core/layout/breakpoints';
 import { mediaQuerySignal } from '../../core/layout/media-query';
 import { navigationFor } from '../../core/layout/navigation';
+import { PushService } from '../../core/notifications/push.service';
 
 /**
  * Everything that does not earn a tab in the bottom bar (S-12).
@@ -32,6 +33,7 @@ import { navigationFor } from '../../core/layout/navigation';
 export class More {
   protected readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly push = inject(PushService);
 
   private readonly desk = mediaQuerySignal(DESK_MEDIA_QUERY, true);
 
@@ -41,6 +43,8 @@ export class More {
   );
 
   protected async logout(): Promise<void> {
+    // Before the logout call: unsubscribing needs the session to say whose row to delete.
+    await this.push.unsubscribe();
     await this.auth.logout();
     await this.router.navigate(['/login']);
   }

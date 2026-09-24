@@ -83,4 +83,16 @@ public class WebPushPayloadTests
         Assert.False(root.TryGetProperty("body", out _));
         Assert.Single(root.EnumerateObject());
     }
+
+    /// <summary>
+    /// A cancellation must wake a dozing phone. At `Normal` urgency FCM holds the message for the
+    /// next maintenance window, and the member reads it minutes after the class was called off.
+    /// </summary>
+    [Fact]
+    public void The_message_is_sent_at_high_urgency()
+    {
+        var message = WebPushSender.BuildMessage("Odwołane zajęcia: Joga", "Treść");
+
+        Assert.Equal(Lib.Net.Http.WebPush.PushMessageUrgency.High, message.Urgency);
+    }
 }

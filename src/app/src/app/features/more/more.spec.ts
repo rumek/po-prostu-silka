@@ -2,6 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import { SwPush } from '@angular/service-worker';
 import { AuthService } from '../../core/auth/auth.service';
 import { CurrentUser } from '../../core/auth/auth.models';
 import { More } from './more';
@@ -39,6 +40,8 @@ describe('More', () => {
         provideHttpClient(),
         provideHttpClientTesting(),
         provideRouter([]),
+        // Logout unregisters push first; with the worker off (as in dev) that is a no-op.
+        { provide: SwPush, useValue: { isEnabled: false } as unknown as SwPush },
         {
           provide: AuthService,
           useValue: {

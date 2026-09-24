@@ -7,6 +7,7 @@ import { mediaQuerySignal } from './core/layout/media-query';
 import { navigationFor } from './core/layout/navigation';
 import { ScreenTitle } from './core/layout/screen-title';
 import { Up } from './core/layout/up';
+import { PushService } from './core/notifications/push.service';
 import { InstallPrompt } from './features/install/install-prompt';
 import { PushPrompt } from './features/notifications/push-prompt';
 import { BottomNav } from './shared/bottom-nav/bottom-nav';
@@ -47,6 +48,7 @@ import { ToastHost } from './shared/toast/toast-host';
 export class App {
   protected readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly push = inject(PushService);
 
   private readonly desk = mediaQuerySignal(DESK_MEDIA_QUERY, true);
 
@@ -75,6 +77,8 @@ export class App {
   }
 
   protected async logout(): Promise<void> {
+    // Before the logout call: unsubscribing needs the session to say whose row to delete.
+    await this.push.unsubscribe();
     await this.auth.logout();
     await this.router.navigate(['/login']);
   }

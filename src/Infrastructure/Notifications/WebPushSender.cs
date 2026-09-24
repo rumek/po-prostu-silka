@@ -59,13 +59,11 @@ public class WebPushSender(
         target.SetKey(PushEncryptionKeyName.P256DH, subscription.P256dh);
         target.SetKey(PushEncryptionKeyName.Auth, subscription.Auth);
 
-        var payload = BuildPayload(title, body);
-
         try
         {
             await client.RequestPushMessageDeliveryAsync(
                 target,
-                new PushMessage(payload) { Urgency = PushMessageUrgency.Normal },
+                BuildMessage(title, body),
                 new VapidAuthentication(_options.PublicKey, _options.PrivateKey)
                 {
                     Subject = _options.Subject,
@@ -100,6 +98,20 @@ public class WebPushSender(
             return DeliveryResult.Transient("push_unexpected");
         }
     }
+
+    /// <summary>
+    /// The message as the push service receives it: the payload, sent at HIGH urgency.
+    ///
+    /// <para>
+    /// URGENCY IS WHAT DECIDES WHEN A SLEEPING PHONE HEARS IT. Chrome on Android delivers web push
+    /// through FCM, which maps `Normal` to normal priority — and a normal-priority message to a
+    /// dozing phone waits for the system's next maintenance window, minutes later. Every message
+    /// this sender carries says a class the member holds a spot on was cancelled or moved, which is
+    /// exactly what cannot wait. `High` is the RFC 8030 value for that; FCM delivers it at once.
+    /// </para>
+    /// </summary>
+    public static PushMessage BuildMessage(string title, string body) =>
+        new(BuildPayload(title, body)) { Urgency = PushMessageUrgency.High };
 
     /// <summary>
     /// The payload shape the Angular service worker requires in order to DISPLAY a notification.
