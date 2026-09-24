@@ -210,16 +210,64 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-// Start's hero photo (the dashboard). On the page rather than in the dashboard, so it begins at the
-// very top of the screen behind the header, which is transparent there; a component's stylesheet
-// cannot reach <body>. Anchored top-right at half the width and never cropped. Its left and bottom
-// edges fade to transparent in the file itself (public/hero-*.webp), so it melts into --page. The dashboard's .dashboard-hero keeps the cards
-// below the photo's bottom edge.
+// -----------------------------------------------------------------------------
+// Screen hero photos: Start, Moje zajęcia, Mój plan.
+//
+// The photo is the PAGE's background rather than the screen's, so it begins at the very top of the
+// screen, behind the header; a component's stylesheet cannot reach <body>. Anchored top-right at half
+// the width and never cropped. Its left and bottom edges fade to transparent in the file itself
+// (public/*-web.webp, *-mobile.webp), so it melts into --page.
+//
+// A screen opts in with a `.screen-hero` block at its top, which holds the space the photo needs so
+// the content below starts where the photo has dissolved instead of covering it, and with a
+// body:has(<its selector>) entry below naming its files and their height / width ratios.
+// -----------------------------------------------------------------------------
+
 body:has(app-dashboard) {
-  background: var(--page) url('/hero-web.webp') right top / 50vw auto no-repeat;
+  --hero: url('/hero-web.webp');
+  --hero-ratio: calc(1024 / 1536);
+  --hero-mobile: url('/hero-mobile.webp');
+  --hero-mobile-ratio: calc(1672 / 941);
+}
+
+body:has(app-my-classes) {
+  --hero: url('/classes-web.webp');
+  --hero-ratio: calc(1024 / 1536);
+  --hero-mobile: url('/classes-mobile.webp');
+  --hero-mobile-ratio: calc(1024 / 768);
+}
+
+body:has(app-my-plan) {
+  --hero: url('/plan-web.webp');
+  --hero-ratio: calc(1024 / 1536);
+  --hero-mobile: url('/plan-mobile.webp');
+  --hero-mobile-ratio: calc(1024 / 768);
+}
+
+body:has(.screen-hero) {
+  background: var(--page) var(--hero) right top / 50vw auto no-repeat;
 
   @include bp.narrow {
-    background-image: url('/hero-mobile.webp');
+    background-image: var(--hero-mobile);
+  }
+}
+
+// The photo is 50vw wide, so 50vw * ratio tall. Its bottom fades out over its last ~25%, so the hero
+// ends mid-fade, 85% of the way down, minus what sits above it on the page.
+.screen-hero {
+  // The header (the 140px logo, 163x89, plus --space-4 above and below: ~6.75rem) and
+  // .shell-main's --space-7 top padding. Not tokens above 30rem, so written out here.
+  --above: 9.75rem;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-height: calc(50vw * var(--hero-ratio) * 0.85 - var(--above));
+
+  @include bp.narrow {
+    --above: calc(var(--app-bar-height) + env(safe-area-inset-top) + var(--space-5));
+
+    min-height: calc(50vw * var(--hero-mobile-ratio) * 0.85 - var(--above));
   }
 }
 
