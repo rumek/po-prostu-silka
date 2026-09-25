@@ -70,11 +70,11 @@ const DAY_END_HOUR = 20;
 
 /**
  * One 30-minute row, in pixels (the library's default is 30). Sized from the tile, not the other way
- * round: an hour's class (72px) holds the tile's four lines — time, name, trainer, spots — and a
- * 45-minute one (54px) the first three. Change it together with the tile's metrics in
+ * round: an hour's class (76px) holds the tile's four lines — time, name, trainer, spots — and a
+ * 45-minute one (57px) the first three. Change it together with the tile's metrics in
  * schedule-calendar.scss.
  */
-const SEGMENT_HEIGHT_PX = 36;
+const SEGMENT_HEIGHT_PX = 38;
 
 /**
  * How far the pointer may travel between pressing a tile and releasing it and still count as a click.
