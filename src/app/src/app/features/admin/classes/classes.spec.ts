@@ -413,12 +413,12 @@ describe('Classes', () => {
   it('moves the class on screen at once, and sends back what the gesture cannot express', async () => {
     await createWith([JOGA]);
 
-    await rescheduleJoga(21, 90);
+    await rescheduleJoga(19, 90);
 
     // OPTIMISTIC: the tile is already at the new time, before the server has answered. Snapping it
     // back for the length of a round trip is what would make the gesture feel broken.
-    expect(tileFor('Joga').textContent).toContain('21:00');
-    expect(tileFor('Joga').textContent).toContain('22:30');
+    expect(tileFor('Joga').textContent).toContain('19:00');
+    expect(tileFor('Joga').textContent).toContain('20:30');
 
     const body = updateRequest().request.body;
 
@@ -427,14 +427,14 @@ describe('Classes', () => {
     expect(body.instructorMemberId).toBe('u1');
     expect(body.capacity).toBe(20);
     expect(body.durationMinutes).toBe(90);
-    expect(new Date(body.startsAt).getHours()).toBe(21);
+    expect(new Date(body.startsAt).getHours()).toBe(19);
   });
 
   it('puts the class back where it was when the server refuses the new time', async () => {
     await createWith([JOGA, PILATES]);
 
-    await rescheduleJoga(21, 60);
-    expect(tileFor('Joga').textContent).toContain('21:00');
+    await rescheduleJoga(19, 60);
+    expect(tileFor('Joga').textContent).toContain('19:00');
 
     updateRequest().flush({ reason: 'time_conflict' }, { status: 409, statusText: 'Conflict' });
     await settle();

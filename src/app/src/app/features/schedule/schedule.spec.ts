@@ -231,7 +231,9 @@ describe('Schedule', () => {
   function tile(): ScheduledClass {
     const start = new Date();
 
-    return at(new Date(start.getFullYear(), start.getMonth(), start.getDate(), 23, 30).toString(), {
+    // The grid's last row (20:00–21:00): as late today as a class can still be drawn, so it stays in
+    // the future for as much of the day as the grid allows.
+    return at(new Date(start.getFullYear(), start.getMonth(), start.getDate(), 20, 0).toString(), {
       id: 'c1',
       freeSpots: 4,
       capacity: 12,

@@ -299,14 +299,15 @@ describe('ScheduleCalendar', () => {
     goTo(new Date(2026, 9, 25));
     schedule(10);
 
-    // The last row still ends exactly at the next local midnight, 25 hours after this day began.
-    expect(allows(new Date(2026, 9, 25, 23), new Date(2026, 9, 26))).toBe(true);
+    // The last row still ends exactly at 21:00 local, on a day that began 25 hours before midnight.
+    expect(allows(new Date(2026, 9, 25, 20), new Date(2026, 9, 25, 21))).toBe(true);
+    expect(allows(new Date(2026, 9, 25, 20, 30), new Date(2026, 9, 25, 21, 30))).toBe(false);
     expect(allows(new Date(2026, 9, 25, 5, 30), new Date(2026, 9, 25, 6))).toBe(false);
   });
 
   // --- the hour column ------------------------------------------------------
 
-  it('renders 06:00 to 24:00, in 24-hour Polish time', () => {
+  it('renders 06:00 to 21:00, in 24-hour Polish time', () => {
     create();
 
     // Hour starts only: the library renders a label on every segment and hides the half-hour ones in
@@ -315,10 +316,10 @@ describe('ScheduleCalendar', () => {
       label.textContent!.trim(),
     );
 
-    // Six to twenty-three inclusive — the 23:00 row is the one that ends at midnight.
-    expect(hours.length).toBe(18);
+    // Six to twenty inclusive — the 20:00 row is the one that ends at closing.
+    expect(hours.length).toBe(15);
     expect(hours[0]).toBe('06:00');
-    expect(hours[hours.length - 1]).toBe('23:00');
+    expect(hours[hours.length - 1]).toBe('20:00');
 
     // The library's own formatter would have written "6 AM" here whatever the locale.
     expect(hours.some((hour) => hour.includes('AM') || hour.includes('PM'))).toBe(false);
@@ -619,17 +620,15 @@ describe('ScheduleCalendar', () => {
     const on = (hour: number, minute = 0) =>
       new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour, minute);
 
-    const midnight = addDays(on(0), 1);
-
-    // Inside: the first slot the grid draws, and the last one — which ends exactly at midnight, the
+    // Inside: the first slot the grid draws, and the last one — which ends exactly at 21:00, the
     // closing edge itself.
     expect(allows(on(6), on(7))).toBe(true);
-    expect(allows(on(23), midnight)).toBe(true);
+    expect(allows(on(20), on(21))).toBe(true);
 
-    // Out: above the opening, and over midnight. Refusing during the drag is what stops the block
+    // Out: above the opening, and past closing. Refusing during the drag is what stops the block
     // travelling somewhere this view could never show it again.
     expect(allows(on(5, 30), on(6, 30))).toBe(false);
-    expect(allows(on(23, 30), new Date(midnight.getTime() + 30 * 60_000))).toBe(false);
+    expect(allows(on(20, 30), on(21, 30))).toBe(false);
 
     // And a gesture that arrives on the drop anyway writes nothing.
     finishGesture(on(5), on(6));

@@ -202,6 +202,10 @@
 // The class card's hairline rule, turned into a bar down the tile's left edge - the one mark that
 // says "a class" at any height. --accent2, the colour of every other card icon; a full class quietens
 // it to --gray, beside the words "Brak miejsc" that actually say so.
+//
+// SIZED TO THE 36px ROW (SEGMENT_HEIGHT_PX): an hour is 72px, less 8px of padding, and four lines at
+// 15px (0.75rem × 1.25) plus the 1px gaps fit it; a 45-minute class (54px) fits three. Every line is
+// ONE line — a wrapping name was what pushed the facts out — and ellipsises instead.
 .calendar-tile {
   display: flex;
   flex-direction: column;
@@ -210,7 +214,7 @@
   overflow: hidden;
   padding: var(--space-1) var(--space-2);
   font-size: 0.75rem;
-  line-height: 1.3;
+  line-height: 1.25;
   border: 0;
   border-left: 3px solid var(--accent2);
   border-radius: var(--radius-sm);
@@ -218,7 +222,11 @@
   color: var(--ink);
 
   p {
+    flex: none;
     margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }
 
@@ -253,7 +261,6 @@
 
 .calendar-tile-name {
   font-weight: 700;
-  overflow-wrap: anywhere;
 }
 
 .calendar-tile-meta,
@@ -263,9 +270,15 @@
   gap: 3px;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
-  overflow-wrap: anywhere;
+
+  span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 
   app-icon {
+    flex: none;
     color: var(--accent2);
     font-size: 0.6rem;
   }

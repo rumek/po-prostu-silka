@@ -55,18 +55,26 @@ export interface RescheduledClass {
 const SEGMENT_MINUTES = 30;
 
 /**
- * The hours the grid renders: 06:00 up to 24:00.
+ * The hours the grid renders: 06:00 up to 21:00 — the club's opening hours.
  *
  * A full 24-hour grid spent a third of its height on hours the club is shut, which on a phone is the
  * difference between seeing the evening classes and scrolling for them. `DAY_END_HOUR` is the last
- * hour DRAWN, not an exclusive bound — 23 renders the 23:00–24:00 row and stops there.
+ * hour DRAWN, not an exclusive bound — 20 renders the 20:00–21:00 row and stops there.
  *
  * Nothing outside this window is reachable, so a class scheduled at 05:00 would be invisible here.
  * That is a deliberate bet on the club's opening hours; widen these two constants if it stops
  * holding.
  */
 const DAY_START_HOUR = 6;
-const DAY_END_HOUR = 23;
+const DAY_END_HOUR = 20;
+
+/**
+ * One 30-minute row, in pixels (the library's default is 30). Sized from the tile, not the other way
+ * round: an hour's class (72px) holds the tile's four lines — time, name, trainer, spots — and a
+ * 45-minute one (54px) the first three. Change it together with the tile's metrics in
+ * schedule-calendar.scss.
+ */
+const SEGMENT_HEIGHT_PX = 36;
 
 /**
  * How far the pointer may travel between pressing a tile and releasing it and still count as a click.
@@ -319,6 +327,7 @@ export class ScheduleCalendar {
   protected readonly segmentMinutes = SEGMENT_MINUTES;
   protected readonly dayStartHour = DAY_START_HOUR;
   protected readonly dayEndHour = DAY_END_HOUR;
+  protected readonly segmentHeight = SEGMENT_HEIGHT_PX;
 
   /**
    * The range currently under the pointer, as the class it would become.
