@@ -3,7 +3,19 @@ name: Deploy to Azure App Service
 on:
   push:
     branches: [main]
+    # S-28: main is protected, so every Progress update and every runbook edit arrives as a merged
+    # PR. Without this filter each one would rebuild, migrate and restart the URL a client may be
+    # looking at. ci.yml has NO such filter, and must not get one - see its header.
+    paths-ignore:
+      - 'context/**'
+      - '**/*.md'
   workflow_dispatch: {}
+
+# One deploy or rollback at a time: rollback.yml shares this group, so a rollback never interleaves
+# with a deploy of the same app. Queued, never cancelled - a half-finished deploy is worse than a late one.
+concurrency:
+  group: deploy-po-prostu-silka
+  cancel-in-progress: false
 
 env:
   AZURE_WEBAPP_NAME: po-prostu-silka
@@ -68,6 +80,15 @@ jobs:
 
       - name: Publish API (includes wwwroot)
         run: dotnet publish src/Api/po-prostu-silka.Api.csproj -c Release -o ./publish
+
+      # S-28: the bytes a rollback redeploys. rollback.yml downloads this by run id, so a rollback
+      # ships what already ran instead of rebuilding an old commit. Same retention as migrations.sql.
+      - name: Upload publish output (rollback artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: publish-${{ github.run_id }}
+          path: ./publish
+          retention-days: 30
 
       # ----------------------------------------------------------------------
       # Migrations run BEFORE the deploy, so a failed migration aborts the run
