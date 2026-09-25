@@ -1,4 +1,6 @@
 // Layout only — .card/.notice/.alert/.field-error come from src/styles.scss.
+
+@use 'breakpoints' as bp;
 //
 // Deliberately the same structure as class-create-overlay.scss: the two overlays sit over the same
 // calendar and must not read as two different mechanisms.
@@ -11,6 +13,11 @@
   align-items: center;
   justify-content: center;
   padding: var(--space-4);
+
+  // On a phone the roster is the whole point, so the margin around the panel gives way to it.
+  @include bp.narrow {
+    padding: var(--space-2);
+  }
 }
 
 // The one real difference between the three overlays, and the reason it is not in the shared rule:
@@ -18,6 +25,10 @@
 // comes from src/styles.scss.
 .overlay-panel {
   max-width: 32rem;
+
+  @include bp.narrow {
+    padding: var(--space-4);
+  }
 }
 
 .bookings-list {
@@ -89,10 +100,30 @@
   margin-top: calc(-1 * var(--space-2));
 }
 
-// A segmented pair. The pressed option carries a fill AND keeps its icon and word, so the state is
-// never colour alone; the unpressed ones stay outlined, so "not recorded yet" reads as neither.
+// The attendance roster: one line per person — the name, the address cut to one line, and the
+// toggle beside them rather than wrapped beneath. Twice as many people fit on a phone's screen.
+.bookings-list--attendance {
+  gap: var(--space-2);
+}
+
+.bookings-row--attendance {
+  flex-wrap: nowrap;
+  padding-bottom: var(--space-2);
+
+  .row-meta {
+    margin-top: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+// A segmented pair of icons. The pressed option takes a fill and its glyph the state's colour; the
+// unpressed ones keep a muted glyph on no fill, so "not recorded yet" reads as neither. The two
+// glyphs differ in shape, so the state never rests on colour alone.
 .attendance-toggle {
   display: inline-flex;
+  flex: none;
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-sm);
   overflow: hidden;
@@ -101,16 +132,16 @@
 .attendance-option {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-1);
+  justify-content: center;
 
-  // 44px: a thumb on a phone at the side of a mat, which is where this gets used.
-  min-height: 44px;
-  padding: 0 var(--space-3);
+  // 44px square: a thumb on a phone at the side of a mat, which is where this gets used.
+  width: 44px;
+  height: 44px;
+  padding: 0;
   border: 0;
   background: transparent;
-  color: var(--ink);
+  color: var(--muted);
   font: inherit;
-  font-size: 0.9rem;
   cursor: pointer;
 
   & + & {
@@ -118,7 +149,7 @@
   }
 
   app-icon {
-    font-size: 0.8rem;
+    font-size: 1rem;
   }
 
   &:focus-visible {
@@ -135,11 +166,9 @@
 .attendance-option--present[aria-pressed='true'] {
   background: var(--success-bg);
   color: var(--success);
-  font-weight: 600;
 }
 
 .attendance-option--absent[aria-pressed='true'] {
   background: var(--danger-bg);
   color: var(--danger);
-  font-weight: 600;
 }

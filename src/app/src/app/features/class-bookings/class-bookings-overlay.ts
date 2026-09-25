@@ -124,6 +124,9 @@ export class ClassBookingsOverlay implements OnInit {
   /** A cancelled class offers no action at all: nobody attends it, and its spots are moot. */
   protected readonly cancelled = computed(() => this.row().status === 'Cancelled');
 
+  /** The attendance sheet proper: a started class that still takes marks. */
+  protected readonly marking = computed(() => this.started() && !this.cancelled());
+
   /** The attendance sheet's header tally, over the rows as they now stand. */
   protected readonly tally = computed(() => {
     const rows = this.rows();

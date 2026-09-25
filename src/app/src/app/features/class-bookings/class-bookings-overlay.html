@@ -38,19 +38,26 @@
          blank panel the admin has to interpret. -->
     <app-empty>Nikt nie jest jeszcze zapisany na te zajęcia.</app-empty>
   } @else {
-    <ul class="bookings-list">
+    <ul class="bookings-list" [class.bookings-list--attendance]="marking()">
       @for (booking of rows(); track booking.bookingId) {
-        <li appRow class="bookings-row">
+        <!-- The attendance sheet is a flat roster: one line per person, the toggle beside the name.
+             It is ticked off at the side of a mat, a phone in one hand, so the booking time — which
+             nobody needs once the class has started — goes, and the address shrinks to one line. -->
+        <li appRow class="bookings-row" [class.bookings-row--attendance]="marking()">
           <p class="row-name">{{ booking.displayName }}</p>
           <p class="row-meta">{{ booking.email }}</p>
-          <p class="row-meta">Zapis: {{ booking.bookedAt | date: 'd MMMM, HH:mm' }}</p>
+          @if (!marking()) {
+            <p class="row-meta">Zapis: {{ booking.bookedAt | date: 'd MMMM, HH:mm' }}</p>
+          }
 
           @if (cancelled()) {
             <!-- A cancelled class: a read-only list. Nothing to release, nobody to mark. -->
           } @else if (started()) {
             <!-- Two real buttons with aria-pressed rather than a radio pair: "neither" is a legal
                  state (not recorded yet), which a radio group cannot show without a third option.
-                 Icon AND word on each, so the state never rests on colour alone. -->
+                 Icon only on screen, so the pair fits beside the name on a phone; the word stays in
+                 the accessibility tree and in the tooltip, and the two glyphs differ in shape, so the
+                 state never rests on colour alone. -->
             <div
               slot="actions"
               class="attendance-toggle"
@@ -63,9 +70,10 @@
                 [attr.aria-pressed]="booking.attendance === 'present'"
                 [disabled]="busy.isBusy(booking.bookingId)"
                 (click)="mark(booking, 'present')"
+                title="Obecny"
               >
                 <app-icon name="present" />
-                Obecny
+                <span class="cdk-visually-hidden">Obecny</span>
               </button>
               <button
                 type="button"
@@ -73,9 +81,10 @@
                 [attr.aria-pressed]="booking.attendance === 'absent'"
                 [disabled]="busy.isBusy(booking.bookingId)"
                 (click)="mark(booking, 'absent')"
+                title="Nieobecny"
               >
                 <app-icon name="absent" />
-                Nieobecny
+                <span class="cdk-visually-hidden">Nieobecny</span>
               </button>
             </div>
           } @else {
