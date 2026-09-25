@@ -73,6 +73,15 @@ export interface Member {
 
   /** ISO 8601 from the API. Kept as a string; the screen formats it, nothing does arithmetic on it. */
   createdAt: string;
+
+  /**
+   * The last day of the karnet covering the club-local TODAY, as `"2026-09-30"`, or null when none
+   * does — expired, not yet started and never issued all read as "no valid karnet".
+   */
+  passValidTo: string | null;
+
+  /** Entries left on that same karnet, derived from bookings; null exactly when `passValidTo` is. */
+  passEntriesLeft: number | null;
 }
 
 /**

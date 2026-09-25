@@ -31,7 +31,9 @@ public class MemberEndpointTests(IntegrationTestFixture fixture)
         string? AccountStatus,
         string[] Roles,
         bool HasAccessCode,
-        DateTimeOffset CreatedAt);
+        DateTimeOffset CreatedAt,
+        DateOnly? PassValidTo = null,
+        int? PassEntriesLeft = null);
 
     private sealed record MemberDetailBody(
         Guid Id,
@@ -567,6 +569,38 @@ public class MemberEndpointTests(IntegrationTestFixture fixture)
         var response = await admin.GetAsync($"{Endpoint}?role=Owner");
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    /// <summary>
+    /// The list's karnet column reads the pass covering TODAY: its last day and the entries it has
+    /// left. A pass that ended, or none at all, is the same answer — null in both.
+    /// </summary>
+    [Fact]
+    public async Task The_list_carries_the_pass_covering_today()
+    {
+        var admin = await AdminAsync();
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        var current = await fixture.CreateMemberAsync($"Karnet {Guid.NewGuid():N}");
+        await fixture.IssuePassAsync(current, entryCount: 8, validFrom: today.AddDays(-3), validTo: today.AddDays(20));
+
+        var expired = await fixture.CreateMemberAsync($"Karnet {Guid.NewGuid():N}");
+        await fixture.IssuePassAsync(expired, entryCount: 8, validFrom: today.AddDays(-40), validTo: today.AddDays(-10));
+
+        var none = await fixture.CreateMemberAsync($"Karnet {Guid.NewGuid():N}");
+
+        var rows = await ListAsync(admin, "search=Karnet");
+
+        var withPass = Assert.Single(rows, r => r.Id == current);
+        Assert.Equal(today.AddDays(20), withPass.PassValidTo);
+        Assert.Equal(8, withPass.PassEntriesLeft);
+
+        Assert.All(rows.Where(r => r.Id == expired || r.Id == none), r =>
+        {
+            Assert.Null(r.PassValidTo);
+            Assert.Null(r.PassEntriesLeft);
+        });
+        Assert.Equal(2, rows.Count(r => r.Id == expired || r.Id == none));
     }
 
     private static async Task<List<MemberSummaryBody>> ListAsync(HttpClient admin, string query) =>

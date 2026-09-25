@@ -51,6 +51,8 @@ function member(over: Partial<Member> = {}): Member {
     hasAccessCode: false,
     roles: ['User'],
     createdAt: '2026-09-01T08:00:00+00:00',
+    passValidTo: null,
+    passEntriesLeft: null,
   };
 }
 

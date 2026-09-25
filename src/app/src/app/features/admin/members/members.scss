@@ -153,10 +153,21 @@
   min-width: 0;
 }
 
-.members-email {
+.members-email,
+.members-pass-meta {
   color: var(--muted);
   font-size: 0.8125rem;
   overflow-wrap: anywhere;
+}
+
+// The karnet column is the wide layout's alone (members.html).
+.members-cell-pass {
+  display: none;
+}
+
+.members-pass-meta {
+  display: block;
+  margin-top: var(--space-1);
 }
 
 .members-role-plain {
@@ -449,13 +460,5 @@
     height: 1px;
     overflow: hidden;
     clip: rect(0 0 0 0);
-  }
-
-  .member-code {
-    text-align: left;
-  }
-
-  .member-code-actions {
-    justify-content: flex-start;
   }
 }

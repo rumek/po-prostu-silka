@@ -36,10 +36,10 @@ type RoleFilter = MemberRoleFilter | null;
 const triggerId = (memberId: string): string => `member-menu-${memberId}`;
 
 /**
- * The screen's page. Fixed — there is no page-size chooser (S-21 scope). 15 rather than the API's
+ * The screen's page. Fixed — there is no page-size chooser (S-21 scope). 10 rather than the API's
  * default 25: a page an admin can take in without scrolling past the pager on a laptop.
  */
-export const MEMBERS_PAGE_SIZE = 15;
+export const MEMBERS_PAGE_SIZE = 10;
 
 /** How long typing has to pause before the phrase is searched. One request per pause, not per key. */
 export const SEARCH_DEBOUNCE_MS = 300;
@@ -522,6 +522,23 @@ export class Members {
     const first = words[0]?.[0] ?? '';
     const last = words.length > 1 ? (words.at(-1)?.[0] ?? '') : '';
     return (first + last).toUpperCase();
+  }
+
+  /**
+   * What the karnet column says. Staff hold no karnet (S-25), so their cell stays empty rather than
+   * reading "Brak" — which would look like something to fix. A karnet whose entries are spent covers
+   * the day but gates nothing, and says so.
+   */
+  protected passKind(member: Member): 'staff' | 'none' | 'spent' | 'valid' {
+    if (this.isAdmin(member) || this.isTrainer(member)) {
+      return 'staff';
+    }
+
+    if (member.passValidTo === null) {
+      return 'none';
+    }
+
+    return (member.passEntriesLeft ?? 0) > 0 ? 'valid' : 'spent';
   }
 
   protected roleLabel(role: string): string {

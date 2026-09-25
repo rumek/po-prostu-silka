@@ -3,7 +3,9 @@ using po_prostu_silka.Application.Members;
 using po_prostu_silka.Application.Paging;
 using po_prostu_silka.Domain;
 using po_prostu_silka.Domain.Members;
+using po_prostu_silka.Domain.Scheduling;
 using po_prostu_silka.Infrastructure.Persistence;
+using po_prostu_silka.Infrastructure.Scheduling;
 
 namespace po_prostu_silka.Infrastructure.Members;
 
@@ -28,7 +30,7 @@ namespace po_prostu_silka.Infrastructure.Members;
 /// MemberAdminEndpoints.BlockAsync, which refuses the block itself.
 /// </para>
 /// </summary>
-public class MemberQuery(AppDbContext db) : IMemberQuery
+public class MemberQuery(AppDbContext db, TimeProvider timeProvider) : IMemberQuery
 {
     // Compared on NormalizedName, as StaffPredicate does — Name is the display form.
     private static readonly string NormalizedAdmin = ApplicationRoles.Admin.ToUpperInvariant();
@@ -60,6 +62,10 @@ public class MemberQuery(AppDbContext db) : IMemberQuery
     {
         var members = Searched(WithRole(Filtered(db.Members.AsNoTracking(), filter), role), search);
 
+        // Club-local, as MembershipPassQuery reads it: "valid today" is a question about the gym's
+        // calendar, not the UTC date.
+        var today = DateOnly.FromDateTime(ClubTime.ToClubLocal(timeProvider.GetUtcNow()).DateTime);
+
         var total = await members.CountAsync(cancellationToken);
 
         var rows = await members
@@ -85,6 +91,22 @@ public class MemberQuery(AppDbContext db) : IMemberQuery
 
                 HasAccessCode = m.AccessCode != null,
                 m.CreatedAt,
+
+                // The pass covering today — at most one while passes may not overlap; ordered anyway
+                // so a hand-edited database still answers deterministically. Two scalar subqueries
+                // rather than one row, so "none" is a plain null in each.
+                PassValidTo = db.MembershipPasses
+                    .Where(p => p.MemberId == m.Id && p.ValidFrom <= today && today <= p.ValidTo)
+                    .OrderBy(p => p.ValidFrom)
+                    .Select(p => (DateOnly?)p.ValidTo)
+                    .FirstOrDefault(),
+                PassEntriesLeft = db.MembershipPasses
+                    .Where(p => p.MemberId == m.Id && p.ValidFrom <= today && today <= p.ValidTo)
+                    .OrderBy(p => p.ValidFrom)
+                    .Select(p => (int?)(p.EntryCount - db.Bookings
+                        .Where(EntryConsumption.ConsumesAnEntry)
+                        .Count(b => b.MembershipPassId == p.Id)))
+                    .FirstOrDefault(),
 
                 // Roles come back as a correlated collection projection. What this buys is ONE
                 // round-trip: under EF's default SingleQuery behaviour the whole thing is a single
@@ -113,7 +135,9 @@ public class MemberQuery(AppDbContext db) : IMemberQuery
                 r.AccountStatus?.ToString(),
                 r.Roles.Where(name => name is not null).Select(name => name!).ToList(),
                 r.HasAccessCode,
-                r.CreatedAt))
+                r.CreatedAt,
+                r.PassValidTo,
+                r.PassEntriesLeft))
             .ToList();
 
         return new PagedResult<MemberSummary>(items, total, page, pageSize);

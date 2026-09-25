@@ -10,6 +10,8 @@ const FULL_MEMBER: Member = {
   email: 'nowy@test.local',
   displayName: 'Nowy Członek',
   createdAt: '2026-09-01T08:00:00+00:00',
+  passValidTo: null,
+  passEntriesLeft: null,
   membershipStatus: 'Active',
   accountStatus: 'Active',
   roles: ['User'],

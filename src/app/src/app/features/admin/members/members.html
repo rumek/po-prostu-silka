@@ -106,6 +106,7 @@
         <th scope="col" role="columnheader">Członek</th>
         <th scope="col" role="columnheader">Status</th>
         <th scope="col" role="columnheader">Rola</th>
+        <th scope="col" role="columnheader" class="members-cell-pass">Karnet</th>
         <th scope="col" role="columnheader">W klubie od</th>
         <th scope="col" role="columnheader"><span class="cdk-visually-hidden">Akcje</span></th>
       </tr>
@@ -137,6 +138,26 @@
               <span class="badge badge-role">{{ roleLabel(role) }}</span>
             } @empty {
               <span class="members-role-plain">Członek</span>
+            }
+          </td>
+          <!-- Wide screens only: on a phone the row is for finding the person, and the karnet is one tap
+               away in Karnety. Validity is the club-local today's (MemberSummary). -->
+          <td class="members-cell-pass" role="cell">
+            @switch (passKind(member)) {
+              @case ('valid') {
+                <span class="badge badge-active">Ważny</span>
+                <span class="members-pass-meta"
+                  >do {{ member.passValidTo | date: 'd MMM y' }} ·
+                  {{ member.passEntriesLeft }} wejść</span
+                >
+              }
+              @case ('spent') {
+                <span class="badge badge-no-account">Wykorzystany</span>
+                <span class="members-pass-meta">do {{ member.passValidTo | date: 'd MMM y' }}</span>
+              }
+              @case ('none') {
+                <span class="members-role-plain">Brak ważnego</span>
+              }
             }
           </td>
           <td class="members-cell-since" role="cell">{{ member.createdAt | date: 'd MMM y' }}</td>

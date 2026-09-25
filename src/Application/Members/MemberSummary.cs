@@ -28,6 +28,13 @@ namespace po_prostu_silka.Application.Members;
 /// <see cref="Roles"/> follows the same rule and is empty for a member with no account, because roles
 /// live in Identity and a record without a login holds none.
 /// </para>
+///
+/// <para>
+/// THE KARNET IS TODAY'S, NOT THE LATEST. <see cref="PassValidTo"/> and <see cref="PassEntriesLeft"/>
+/// describe the pass covering the club-local today, and are both null when none does — an expired
+/// pass and a pass that starts next week answer the same question the column asks: "may they train
+/// today". Entries left is derived from bookings, exactly as on the pass screen.
+/// </para>
 /// </summary>
 public record MemberSummary(
     Guid Id,
@@ -38,4 +45,6 @@ public record MemberSummary(
     string? AccountStatus,
     IReadOnlyList<string> Roles,
     bool HasAccessCode,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    DateOnly? PassValidTo,
+    int? PassEntriesLeft);
