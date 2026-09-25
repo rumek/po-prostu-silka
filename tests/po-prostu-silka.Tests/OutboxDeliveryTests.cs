@@ -456,11 +456,34 @@ public class OutboxDeliveryTests(IntegrationTestFixture fixture) : IAsyncLifetim
 
     // --- health ---------------------------------------------------------------
 
-    private async Task<HealthCheckResult> CheckHealthAsync()
+    private async Task<HealthCheckResult> CheckHealthAsync(OutboxWorkerHeartbeat? heartbeat = null)
     {
         await using var db = NewContext();
-        var check = new OutboxHealthCheck(db, _options, _heartbeat, _clock);
+        var check = new OutboxHealthCheck(db, _options, heartbeat ?? _heartbeat, _clock);
         return await check.CheckHealthAsync(new HealthCheckContext());
+    }
+
+    /// <summary>
+    /// An undelivered row written straight to the table, aged by <paramref name="age"/>. The health
+    /// check reads only Status, Channel, CreatedAt and LastError, so no worker pass is needed to set
+    /// up a state - and none runs, so nothing sends or re-throttles the row behind the test's back.
+    /// </summary>
+    private async Task AddUndeliveredAsync(NotificationChannel channel, TimeSpan age, string? lastError = null)
+    {
+        await using var db = NewContext();
+        db.OutboxMessages.Add(new OutboxMessage
+        {
+            Id = Guid.NewGuid(),
+            Channel = channel,
+            Recipient = channel == NotificationChannel.Email ? "member@test.local" : Guid.NewGuid().ToString(),
+            Subject = "S",
+            Body = "B",
+            Status = OutboxStatus.Pending,
+            CreatedAt = _clock.GetUtcNow() - age,
+            NextAttemptAt = _clock.GetUtcNow().AddMinutes(30),
+            LastError = lastError,
+        });
+        await db.SaveChangesAsync();
     }
 
     [Fact]
@@ -472,20 +495,85 @@ public class OutboxDeliveryTests(IntegrationTestFixture fixture) : IAsyncLifetim
         Assert.Equal(HealthStatus.Healthy, (await CheckHealthAsync()).Status);
     }
 
-    [Fact]
-    public async Task Health_is_Degraded_when_a_message_has_waited_too_long()
-    {
-        // The stall the failed count never showed: nothing Failed, everything waiting.
-        await EnqueueEmailAsync();
-        _email.NextResult = DeliveryResult.Throttled("acs_429", TimeSpan.FromHours(1));
-        await _worker.RunPassAsync(CancellationToken.None);
+    // --- health: the email throttle (S-28) ------------------------------------
 
-        _clock.Advance(TimeSpan.FromMinutes(31));
-        _heartbeat.Beat(_clock.GetUtcNow());
+    [Fact]
+    public async Task Health_is_Healthy_when_email_waits_45_min_and_one_pending_email_is_throttled()
+    {
+        await AddUndeliveredAsync(NotificationChannel.Email, TimeSpan.FromMinutes(45));
+        await AddUndeliveredAsync(NotificationChannel.Email, TimeSpan.FromMinutes(10), AcsEmailSender.ThrottledReason);
 
         var result = await CheckHealthAsync();
+
+        Assert.Equal(HealthStatus.Healthy, result.Status);
+        Assert.Equal(true, result.Data["emailThrottled"]);
+    }
+
+    [Fact]
+    public async Task Health_is_Healthy_while_a_long_Retry_After_outlasts_the_ordinary_allowance()
+    {
+        // Enqueued at t=0, throttled at t=5 with an hour's Retry-After, read at t=45: the wait is
+        // still running and nothing has re-throttled since, which is what the table signal survives.
+        await EnqueueEmailAsync();
+        _clock.Advance(TimeSpan.FromMinutes(5));
+        _email.NextResult = DeliveryResult.Throttled(AcsEmailSender.ThrottledReason, TimeSpan.FromHours(1));
+        await _worker.RunPassAsync(CancellationToken.None);
+
+        _clock.Advance(TimeSpan.FromMinutes(40));
+        _heartbeat.Beat(_clock.GetUtcNow());
+
+        Assert.Equal(HealthStatus.Healthy, (await CheckHealthAsync()).Status);
+    }
+
+    [Fact]
+    public async Task Health_stays_Healthy_for_a_throttled_lane_after_a_recycle()
+    {
+        await EnqueueEmailAsync();
+        _clock.Advance(TimeSpan.FromMinutes(5));
+        _email.NextResult = DeliveryResult.Throttled(AcsEmailSender.ThrottledReason, TimeSpan.FromHours(1));
+        await _worker.RunPassAsync(CancellationToken.None);
+
+        _clock.Advance(TimeSpan.FromMinutes(40));
+
+        // A recycle: the new process has a fresh heartbeat and remembers nothing about the throttle.
+        var afterRecycle = new OutboxWorkerHeartbeat(_clock);
+
+        Assert.Equal(HealthStatus.Healthy, (await CheckHealthAsync(afterRecycle)).Status);
+    }
+
+    [Fact]
+    public async Task Health_is_Degraded_when_email_waits_45_min_and_nothing_is_throttled()
+    {
+        // The stall the failed count never showed: nothing Failed, everything waiting, no cap to blame.
+        await AddUndeliveredAsync(NotificationChannel.Email, TimeSpan.FromMinutes(45), "acs_503");
+
+        var result = await CheckHealthAsync();
+
         Assert.Equal(HealthStatus.Degraded, result.Status);
-        Assert.Contains("oldest undelivered", result.Description);
+        Assert.Contains("oldest undelivered email", result.Description);
+    }
+
+    [Fact]
+    public async Task Health_is_Degraded_when_a_throttled_email_waits_past_the_longer_allowance()
+    {
+        await AddUndeliveredAsync(NotificationChannel.Email, TimeSpan.FromHours(4), AcsEmailSender.ThrottledReason);
+
+        var result = await CheckHealthAsync();
+
+        Assert.Equal(HealthStatus.Degraded, result.Status);
+        Assert.Contains("the email lane is throttled", result.Description);
+    }
+
+    [Fact]
+    public async Task Health_is_Degraded_when_push_waits_45_min_even_while_email_is_throttled()
+    {
+        await AddUndeliveredAsync(NotificationChannel.Email, TimeSpan.FromMinutes(10), AcsEmailSender.ThrottledReason);
+        await AddUndeliveredAsync(NotificationChannel.Push, TimeSpan.FromMinutes(45));
+
+        var result = await CheckHealthAsync();
+
+        Assert.Equal(HealthStatus.Degraded, result.Status);
+        Assert.Contains("oldest undelivered push", result.Description);
     }
 
     [Fact]

@@ -28,14 +28,34 @@ public static class TestDataSeeder
     /// <summary>Fixed, so a reseed on the same club-local day produces the same people and ids.</summary>
     public const int Seed = 20260922;
 
+    /// <summary>
+    /// Whether the next startup's <see cref="SeedAsync"/> would wipe the database (S-28): every gate
+    /// it checks before it touches anything - Enabled, Development or Staging, a password - plus
+    /// Reset. THE one definition: SeedAsync's wipe is gated on it, and so is
+    /// <see cref="TestDataResetHealthCheck"/>, so the alarm cannot drift from the wipe.
+    ///
+    /// <para>
+    /// The password policy is left to SeedAsync alone. A password that fails it refuses the seed, and
+    /// this then over-reports - the safe direction for an alarm.
+    /// </para>
+    /// </summary>
+    public static bool WouldWipe(TestDataSeedOptions options, IHostEnvironment environment) =>
+        options.Enabled
+        && (environment.IsDevelopment() || environment.IsStaging())
+        && !string.IsNullOrWhiteSpace(options.Password)
+        && options.Reset;
+
+    public static TestDataSeedOptions ReadOptions(IConfiguration configuration) =>
+        configuration.GetSection(TestDataSeedOptions.SectionName).Get<TestDataSeedOptions>()
+            ?? new TestDataSeedOptions();
+
     public static async Task SeedAsync(
         IServiceProvider services,
         IConfiguration configuration,
         IHostEnvironment environment,
         ILogger logger)
     {
-        var options = configuration.GetSection(TestDataSeedOptions.SectionName).Get<TestDataSeedOptions>()
-            ?? new TestDataSeedOptions();
+        var options = ReadOptions(configuration);
 
         if (!options.Enabled)
         {
@@ -81,7 +101,7 @@ public static class TestDataSeeder
         var db = services.GetRequiredService<AppDbContext>();
         var normalizer = services.GetRequiredService<ILookupNormalizer>();
 
-        if (options.Reset && !await WipeAsync(db, normalizer, configuration[AdminSeeder.EmailKey], logger))
+        if (WouldWipe(options, environment) && !await WipeAsync(db, normalizer, configuration[AdminSeeder.EmailKey], logger))
         {
             return;
         }

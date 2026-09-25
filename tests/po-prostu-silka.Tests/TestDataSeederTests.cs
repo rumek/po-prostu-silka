@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -259,6 +260,38 @@ public class TestDataSeederTests(IntegrationTestFixture fixture)
             "/api/auth/login", new { email = $"trener1{SeededDomain}", password = TestUsers.Password });
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    // --- the reset alarm (S-28) ---------------------------------------------
+    //
+    // The check is constructed directly with a stub environment and never runs the seeder: booting a
+    // host as Staging with Reset on would run the wipe against this collection's database.
+
+    [Theory]
+    [InlineData("Staging", true, true, HealthStatus.Degraded)]
+    [InlineData("Production", true, true, HealthStatus.Healthy)]
+    [InlineData("Staging", false, true, HealthStatus.Healthy)]
+    [InlineData("Staging", true, false, HealthStatus.Healthy)]
+    public async Task Reset_alarm_matches_whether_the_next_startup_would_wipe(
+        string environment, bool enabled, bool reset, HealthStatus expected)
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["TestDataSeed:Enabled"] = enabled ? "true" : "false",
+                ["TestDataSeed:Reset"] = reset ? "true" : "false",
+                ["TestDataSeed:Password"] = TestUsers.Password,
+            })
+            .Build();
+
+        var check = new TestDataResetHealthCheck(configuration, new StubEnvironment(environment));
+        var result = await check.CheckHealthAsync(new HealthCheckContext());
+
+        Assert.Equal(expected, result.Status);
+        if (expected == HealthStatus.Degraded)
+        {
+            Assert.Equal(TestDataResetHealthCheck.ArmedMessage, result.Description);
+        }
     }
 
     private async Task SeedAsync(

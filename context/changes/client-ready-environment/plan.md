@@ -347,6 +347,13 @@ and the alarm would then over-report, which is the safe direction.
   **never** boot the fixture as Staging with Reset on, because that would run the wipe against the
   test database.
 
+**Adapted during implementation.** The cases went into `OutboxDeliveryTests.cs` and
+`TestDataSeederTests.cs`. The existing `Health_is_Degraded_when_a_message_has_waited_too_long`
+(a 31-minute wait behind a throttle) asserted exactly the old semantics, so it was replaced by the
+"45 min, nothing throttled → Degraded" case rather than kept. The reset theory has a fourth row
+(`Reset=false` under Staging → `Healthy`). `TestDataSeeder` also gained `ReadOptions`, so the check
+and the seeder bind the section the same way.
+
 ### Success Criteria:
 
 #### Automated Verification:
@@ -690,11 +697,11 @@ No schema change. No EF migration. Configuration added to the App Service:
 
 #### Automated
 
-- [x] 1.1 Backend builds warning-free
-- [x] 1.2 All backend tests pass, including the new SecurityHeadersTests
-- [x] 1.3 SPA lint and format pass
-- [x] 1.4 SPA specs pass
-- [x] 1.5 The production build's index.html has no inline onload handler and no style block
+- [x] 1.1 Backend builds warning-free — 9943603
+- [x] 1.2 All backend tests pass, including the new SecurityHeadersTests — 9943603
+- [x] 1.3 SPA lint and format pass — 9943603
+- [x] 1.4 SPA specs pass — 9943603
+- [x] 1.5 The production build's index.html has no inline onload handler and no style block — 9943603
 
 #### Manual
 
@@ -706,8 +713,8 @@ No schema change. No EF migration. Configuration added to the App Service:
 
 #### Automated
 
-- [ ] 2.1 Backend builds warning-free
-- [ ] 2.2 All backend tests pass, including the named health cases
+- [x] 2.1 Backend builds warning-free
+- [x] 2.2 All backend tests pass, including the named health cases
 
 #### Manual
 

@@ -71,7 +71,9 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddHealthChecks()
     .AddDbContextCheck<AppDbContext>()
     // Degraded (not Unhealthy) when dead-lettered messages pile up - see OutboxHealthCheck.
-    .AddCheck<OutboxHealthCheck>("outbox");
+    .AddCheck<OutboxHealthCheck>("outbox")
+    // S-28: Degraded while TestDataSeed:Reset would wipe the database on the next restart.
+    .AddCheck<TestDataResetHealthCheck>("test-data-reset");
 
 // ---------------------------------------------------------------------------
 // Authentication: Identity cookies.

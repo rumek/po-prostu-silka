@@ -74,6 +74,15 @@ public class OutboxOptions
     public TimeSpan MaxUndeliveredAge { get; set; } = TimeSpan.FromMinutes(30);
 
     /// <summary>
+    /// <see cref="MaxUndeliveredAge"/>'s allowance for EMAIL while the lane is throttled (S-28). The
+    /// Azure-managed sender domain is capped at 10 emails an hour and the cap cannot be raised, so a
+    /// cancelled class of 15 is still delivering its last emails an hour and a half later - a known
+    /// limit, not a fault, and it must not page the owner the way a dead worker does. Push is never
+    /// judged against this. Reconsider it once a custom sender domain lifts the cap.
+    /// </summary>
+    public TimeSpan ThrottledMaxUndeliveredAge { get; set; } = TimeSpan.FromHours(3);
+
+    /// <summary>
     /// Time since the worker last finished a pass at which /health reports Degraded. Many poll
     /// intervals, so one slow pass — a push service taking its time — is not an alarm.
     /// </summary>

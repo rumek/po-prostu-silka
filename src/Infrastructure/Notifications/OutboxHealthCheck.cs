@@ -15,12 +15,24 @@ namespace po_prostu_silka.Infrastructure.Notifications;
 /// THREE SIGNALS, because each one misses what the others catch:
 /// <list type="bullet">
 /// <item>dead-lettered rows past <see cref="OutboxOptions.FailedThreshold"/> — messages given up on;</item>
-/// <item>the oldest undelivered row past <see cref="OutboxOptions.MaxUndeliveredAge"/> — messages
-/// stuck, whatever the reason: a throttle, a backoff, a worker that is running but not getting
-/// through. This is the one a failed count alone never shows;</item>
+/// <item>the oldest undelivered row past its allowance, judged PER CHANNEL — messages stuck, whatever
+/// the reason: a backoff, a worker that is running but not getting through. This is the one a
+/// failed count alone never shows. Push is always judged against
+/// <see cref="OutboxOptions.MaxUndeliveredAge"/>. Email is too, except while the lane is
+/// THROTTLED, when it gets <see cref="OutboxOptions.ThrottledMaxUndeliveredAge"/> instead: the
+/// managed sender domain's hard 10-per-hour cap is a known limit, not a fault, and must not page the
+/// owner the way a dead worker does (S-28);</item>
 /// <item>no finished pass for <see cref="OutboxOptions.WorkerStallAfter"/> — the worker itself hung
 /// or throwing, which an empty outbox would otherwise hide until the next cancellation.</item>
 /// </list>
+/// </para>
+///
+/// <para>
+/// "THROTTLED" IS READ FROM THE TABLE, not from the heartbeat: the lane counts as throttled while any
+/// undelivered email carries <see cref="AcsEmailSender.ThrottledReason"/>. A throttled row keeps that
+/// <c>LastError</c> until it is sent, which survives a recycle and lasts as long as the provider's
+/// <c>Retry-After</c> wait (up to an hour). An in-memory "throttled at" stamp would not: nothing
+/// re-throttles during that wait to refresh it, and a recycle forgets it.
 /// </para>
 ///
 /// <para>
@@ -46,17 +58,30 @@ public class OutboxHealthCheck(
         var failed = await db.OutboxMessages
             .CountAsync(m => m.Status == OutboxStatus.Failed, cancellationToken);
 
-        var oldestUndelivered = await db.OutboxMessages
-            .Where(m => m.Status == OutboxStatus.Pending || m.Status == OutboxStatus.Claimed)
-            .MinAsync(m => (DateTimeOffset?)m.CreatedAt, cancellationToken);
+        var undelivered = db.OutboxMessages
+            .Where(m => m.Status == OutboxStatus.Pending || m.Status == OutboxStatus.Claimed);
 
-        var undeliveredAge = oldestUndelivered is null ? TimeSpan.Zero : now - oldestUndelivered.Value;
+        var oldestByChannel = await undelivered
+            .GroupBy(m => m.Channel)
+            .Select(g => new { Channel = g.Key, Oldest = g.Min(m => m.CreatedAt) })
+            .ToDictionaryAsync(x => x.Channel, x => x.Oldest, cancellationToken);
+
+        var emailThrottled = await undelivered
+            .AnyAsync(
+                m => m.Channel == NotificationChannel.Email && m.LastError == AcsEmailSender.ThrottledReason,
+                cancellationToken);
+
+        var pushAge = AgeOf(NotificationChannel.Push);
+        var emailAge = AgeOf(NotificationChannel.Email);
+        var emailAllowance = emailThrottled ? _options.ThrottledMaxUndeliveredAge : _options.MaxUndeliveredAge;
         var sinceLastPass = now - heartbeat.LastPassAt;
 
         var data = new Dictionary<string, object>
         {
             ["failed"] = failed,
-            ["oldestUndeliveredMinutes"] = Math.Round(undeliveredAge.TotalMinutes, 1),
+            ["oldestUndeliveredPushMinutes"] = Math.Round(pushAge.TotalMinutes, 1),
+            ["oldestUndeliveredEmailMinutes"] = Math.Round(emailAge.TotalMinutes, 1),
+            ["emailThrottled"] = emailThrottled,
             ["secondsSinceLastPass"] = Math.Round(sinceLastPass.TotalSeconds),
         };
 
@@ -68,11 +93,19 @@ public class OutboxHealthCheck(
                 $"{failed} outbox message(s) failed delivery (threshold {_options.FailedThreshold}).");
         }
 
-        if (undeliveredAge > _options.MaxUndeliveredAge)
+        if (pushAge > _options.MaxUndeliveredAge)
         {
             problems.Add(
-                $"The oldest undelivered outbox message is {undeliveredAge.TotalMinutes:F0} min old " +
+                $"The oldest undelivered push is {pushAge.TotalMinutes:F0} min old " +
                 $"(threshold {_options.MaxUndeliveredAge.TotalMinutes:F0} min).");
+        }
+
+        if (emailAge > emailAllowance)
+        {
+            problems.Add(
+                $"The oldest undelivered email is {emailAge.TotalMinutes:F0} min old " +
+                $"(threshold {emailAllowance.TotalMinutes:F0} min" +
+                (emailThrottled ? ", the email lane is throttled)." : ")."));
         }
 
         if (sinceLastPass > _options.WorkerStallAfter)
@@ -84,6 +117,11 @@ public class OutboxHealthCheck(
 
         return problems.Count > 0
             ? HealthCheckResult.Degraded(string.Join(" ", problems), data: data)
-            : HealthCheckResult.Healthy($"{failed} failed outbox message(s).", data);
+            : HealthCheckResult.Healthy(
+                $"{failed} failed outbox message(s)" + (emailThrottled ? "; the email lane is throttled." : "."),
+                data);
+
+        TimeSpan AgeOf(NotificationChannel channel) =>
+            oldestByChannel.TryGetValue(channel, out var oldest) ? now - oldest : TimeSpan.Zero;
     }
 }

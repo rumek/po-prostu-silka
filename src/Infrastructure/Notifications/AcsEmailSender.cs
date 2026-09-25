@@ -48,6 +48,13 @@ public class AcsEmailSender(
     IOptions<AppOptions> appOptions,
     ILogger<AcsEmailSender> logger) : IEmailSender
 {
+    /// <summary>
+    /// The <c>LastError</c> a throttled email carries until it is sent. <see cref="OutboxHealthCheck"/>
+    /// reads it as "the email lane is waiting on the provider's cap", so the two must agree - hence one
+    /// constant.
+    /// </summary>
+    public const string ThrottledReason = "acs_429";
+
     private readonly AcsOptions _options = options.Value;
     private readonly AppOptions _app = appOptions.Value;
     private readonly EmailClient? client = holder.Client;
@@ -92,7 +99,7 @@ public class AcsEmailSender(
                 DateTimeOffset.UtcNow);
 
             logger.LogWarning("Email throttled by ACS; retrying after {RetryAfter}.", retryAfter);
-            return DeliveryResult.Throttled("acs_429", retryAfter);
+            return DeliveryResult.Throttled(ThrottledReason, retryAfter);
         }
         catch (RequestFailedException ex) when (IsPermanent(ex.Status))
         {
