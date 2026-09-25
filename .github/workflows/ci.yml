@@ -1,0 +1,81 @@
+name: CI
+
+# The same checks deploy.yml runs before it publishes, on every pull request to main (S-28, GL-04).
+# main is protected and requires the job below by NAME, so do not rename it without updating the
+# branch protection rule in the same change - a required check that never reports leaves every PR
+# unmergeable.
+#
+# NO path filter, deliberately: a required check that is skipped never reports, and a PR that only
+# touches context/ or *.md could then never merge. deploy.yml is the workflow that ignores paths.
+#
+# NO secrets and no Azure login: a pull request from a fork must not reach them, and nothing here
+# needs them.
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: src/app/package-lock.json
+
+      - name: Install SPA dependencies
+        working-directory: src/app
+        run: npm ci
+
+      - name: Check SPA lint and formatting
+        working-directory: src/app
+        run: npm run quality:check
+
+      - name: Build Angular (static)
+        working-directory: src/app
+        run: npm run build
+
+      - name: Run SPA specs
+        working-directory: src/app
+        run: npm test
+
+      # BEFORE the backend tests: SecurityHeadersTests asserts a 200 text/html shell and a real static
+      # file, and src/Api/wwwroot is git-ignored - only this step fills it.
+      - name: Stage Angular output into wwwroot
+        run: |
+          mkdir -p src/Api/wwwroot
+          cp -r src/app/dist/app/browser/. src/Api/wwwroot/
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Run tests (starts a SQL Server container, ~30-60s)
+        run: dotnet test po-prostu-silka.slnx -c Release
+
+      # A build check only: the script is what deploy.yml applies, so a migration that cannot be
+      # scripted should fail here rather than on main.
+      - name: Install EF Core CLI
+        run: dotnet tool install --global dotnet-ef --version 10.0.11
+
+      - name: Generate idempotent migration script
+        run: |
+          dotnet ef migrations script --idempotent \
+            --project src/Infrastructure/po-prostu-silka.Infrastructure.csproj \
+            --startup-project src/Api/po-prostu-silka.Api.csproj \
+            --output migrations.sql
+          echo "--- migration script ($(wc -l < migrations.sql) lines) ---"

@@ -1,0 +1,64 @@
+name: Rollback App Service to an earlier deploy
+
+# Redeploys the publish output of an EARLIER deploy.yml run (S-28, GL-04). The bytes are the ones
+# that already ran; nothing is rebuilt.
+#
+# RUNS NO MIGRATION. Schema stays ahead of code, which the reversible-migration policy makes safe:
+# a destructive change lags one release behind the code that stops needing it (AGENTS.md). To take
+# the schema back as well, that is a separate, deliberate `dotnet ef database update <migration>`.
+#
+# The artifact lives 30 days (deploy.yml's retention), so only runs from that window can be named.
+# Runbook: context/deployment/deploy-plan.md, "Client-ready environment (S-28)".
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: 'Run id of the deploy.yml run whose artifact to redeploy (the number in its URL)'
+        required: true
+        type: string
+
+env:
+  AZURE_WEBAPP_NAME: po-prostu-silka
+
+# Shared with deploy.yml, so a rollback never interleaves with a deploy.
+concurrency:
+  group: deploy-po-prostu-silka
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  rollback:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download publish-${{ inputs.run_id }}
+        uses: actions/download-artifact@v4
+        with:
+          name: publish-${{ inputs.run_id }}
+          path: ./publish
+          run-id: ${{ inputs.run_id }}
+          github-token: ${{ github.token }}
+
+      - name: Deploy to Azure App Service
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: ./publish
+
+      - name: Summary
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ inputs.run_id }}
+        run: |
+          SHA=$(gh api "repos/${{ github.repository }}/actions/runs/$RUN_ID" --jq .head_sha)
+          {
+            echo "### Rolled back ${{ env.AZURE_WEBAPP_NAME }}"
+            echo ""
+            echo "- Deployed the artifact of run [$RUN_ID](${{ github.server_url }}/${{ github.repository }}/actions/runs/$RUN_ID)"
+            echo "- Commit: \`$SHA\`"
+            echo "- No migration was run; the schema is unchanged."
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -527,3 +527,35 @@ request-parented dependencies, and none of the worker's polling.
 answered "There are no valid receivers in the request" for `pps-owner`. Use the portal's **Test
 action group** instead.
 
+
+### PR gate and rollback (phase 4)
+
+- `.github/workflows/ci.yml` runs on every pull request to `main`: lint, SPA build and specs, the
+  wwwroot staging step, `dotnet test`, and the idempotent migration script. It has one job, named
+  **`checks`**. Branch protection requires that name, so renaming the job is a protection change too.
+  It has no path filter and uses no secrets.
+- `deploy.yml` ignores pushes that touch only `context/**` or `*.md` (`workflow_dispatch` still
+  deploys on demand). It uploads `./publish` as `publish-<run id>`, kept 30 days.
+- `rollback.yml`: **Actions → Rollback App Service to an earlier deploy → Run workflow**, with the
+  `run_id` of the `deploy.yml` run to go back to (the number in that run's URL). It redeploys that
+  artifact with the publish profile and **runs no migration**. `deploy.yml` and `rollback.yml`
+  share the concurrency group `deploy-po-prostu-silka`, so they queue instead of interleaving.
+
+Branch protection, as applied (needs `gh auth login` first):
+
+```bash
+gh api -X PUT repos/rumek/po-prostu-silka/branches/main/protection --input - <<'JSON'
+{
+  "required_status_checks": { "strict": true, "contexts": ["checks"] },
+  "enforce_admins": true,
+  "required_pull_request_reviews": { "required_approving_review_count": 0 },
+  "restrictions": null,
+  "allow_force_pushes": false,
+  "allow_deletions": false
+}
+JSON
+gh api repos/rumek/po-prostu-silka/branches/main/protection --jq '{checks: .required_status_checks.contexts, strict: .required_status_checks.strict, admins: .enforce_admins.enabled}'
+```
+
+From here on, "push to staging" means **merging a PR into `main`**. A direct `git push origin main`
+is rejected.
