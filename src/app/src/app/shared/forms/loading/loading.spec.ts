@@ -21,7 +21,7 @@ describe('Loading', () => {
 
   /** A pause in the reading, not an interruption of it. */
   it('announces itself as a status', () => {
-    expect(compiled().querySelector('p.notice')?.getAttribute('role')).toBe('status');
+    expect(compiled().querySelector('[role="status"]')?.textContent?.trim()).toBe('Wczytywanie…');
   });
 
   /**

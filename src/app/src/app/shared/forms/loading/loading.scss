@@ -1,0 +1,58 @@
+// The ring in the palette: a --section-warm track (the karnet's punch marks) with an --accent arc.
+
+:host {
+  display: block;
+}
+
+.loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-5) 0;
+  // After a beat: a load that answers at once never flashes a spinner.
+  animation: loading-appear 200ms ease-out 250ms both;
+}
+
+.loading-ring {
+  width: 1.75rem;
+  height: 1.75rem;
+  border: 2.5px solid var(--section-warm);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: loading-spin 800ms linear infinite;
+}
+
+.loading-word {
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+@keyframes loading-appear {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+// Less motion asked for: the ring breathes slowly instead of spinning, and nothing fades in.
+@media (prefers-reduced-motion: reduce) {
+  .loading {
+    animation: none;
+  }
+
+  .loading-ring {
+    animation: loading-breathe 1.6s ease-in-out infinite alternate;
+  }
+}
+
+@keyframes loading-breathe {
+  to {
+    opacity: 0.4;
+  }
+}
