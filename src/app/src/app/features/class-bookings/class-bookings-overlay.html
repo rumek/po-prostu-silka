@@ -20,10 +20,26 @@
   <!-- The attendance sheet's tally (S-27). Words, not colours: it is read at a glance and by a
        screen reader alike. Only once the list has loaded, so it never counts an empty roster. -->
   @if (started() && !cancelled() && !loading() && !loadFailed() && rows().length > 0) {
-    <p class="overlay-when attendance-tally">
-      Obecni: {{ tally().present }} · Nieobecni: {{ tally().absent }} · Nieoznaczeni:
-      {{ tally().unrecorded }}
-    </p>
+    <div class="attendance-head">
+      <p class="overlay-when attendance-tally">
+        Obecni: {{ tally().present }} · Nieobecni: {{ tally().absent }} · Nieoznaczeni:
+        {{ tally().unrecorded }}
+      </p>
+
+      <!-- Marks every row present, absences included; whoever did not come is flipped back by hand.
+           Hidden rather than disabled once everyone is present — there is nothing left for it to do. -->
+      @if (tally().present < rows().length) {
+        <button
+          type="button"
+          class="button button--secondary attendance-all"
+          [disabled]="markingAll()"
+          (click)="markAllPresent()"
+        >
+          <app-icon name="present" />
+          {{ markingAll() ? 'Zapisuję…' : 'Wszyscy obecni' }}
+        </button>
+      }
+    </div>
   }
 
   @if (loading()) {

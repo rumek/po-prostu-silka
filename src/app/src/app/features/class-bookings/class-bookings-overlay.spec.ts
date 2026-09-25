@@ -626,6 +626,41 @@ describe('ClassBookingsOverlay — attendance', () => {
     controller.expectNone('/api/admin/classes/c1/bookings/b1/attendance');
   });
 
+  it('marks every row present at once, absences included', async () => {
+    open(STARTED);
+    await respond([
+      signup({ attendance: 'absent' }),
+      signup({ bookingId: 'b2', memberId: 'm2', displayName: 'Jan Nowak' }),
+      signup({ bookingId: 'b3', memberId: 'm3', displayName: 'Ewa Lis' }),
+    ]);
+
+    buttonWith('Wszyscy obecni')!.click();
+    await settle();
+
+    for (const [bookingId, memberId, displayName] of [
+      ['b1', 'm1', 'Ala Kowalska'],
+      ['b2', 'm2', 'Jan Nowak'],
+      ['b3', 'm3', 'Ewa Lis'],
+    ]) {
+      const request = controller.expectOne(
+        `/api/admin/classes/c1/bookings/${bookingId}/attendance`,
+      );
+      expect(request.request.body).toEqual({ attendance: 'present' });
+      request.flush(signup({ bookingId, memberId, displayName, attendance: 'present' }));
+    }
+    await settle();
+
+    expect(element().textContent).toContain('Obecni: 3 · Nieobecni: 0 · Nieoznaczeni: 0');
+    expect(buttonWith('Wszyscy obecni')).toBeUndefined();
+  });
+
+  it('offers no bulk mark when everyone is already present', async () => {
+    open(STARTED);
+    await respond([signup({ attendance: 'present' })]);
+
+    expect(buttonWith('Wszyscy obecni')).toBeUndefined();
+  });
+
   it('shows a cancelled class as a read-only list', async () => {
     open({ ...STARTED, status: 'Cancelled' });
     await respond([signup()]);

@@ -362,9 +362,42 @@ export class ClassBookingsOverlay implements OnInit {
       return;
     }
 
-    this.busy.setBusy(booking.bookingId, true);
     this.failedId.set(null);
     this.failure.set(null);
+    await this.record(booking, attendance);
+  }
+
+  /** A bulk mark is running — the button stays disabled until every row has answered. */
+  protected readonly markingAll = signal(false);
+
+  /**
+   * Marks everybody present — absences included: the common case is a full room, and whoever did
+   * not come is then flipped back one row at a time. An absent → present flip can be refused
+   * `no_entries_left` like a single tap; the rows go out together, each through the same path as a
+   * single tap, so a refusal still lands on its own row.
+   */
+  protected async markAllPresent(): Promise<void> {
+    const pending = this.rows().filter(
+      (booking) => booking.attendance !== 'present' && !this.busy.isBusy(booking.bookingId),
+    );
+    if (pending.length === 0 || this.markingAll()) {
+      return;
+    }
+
+    this.markingAll.set(true);
+    this.failedId.set(null);
+    this.failure.set(null);
+
+    try {
+      await Promise.all(pending.map((booking) => this.record(booking, 'present')));
+    } finally {
+      this.markingAll.set(false);
+    }
+  }
+
+  /** One mark on the server; a refusal is left on the row. Clearing the last refusal is the caller's. */
+  private async record(booking: ClassBooking, attendance: Attendance): Promise<void> {
+    this.busy.setBusy(booking.bookingId, true);
 
     try {
       const updated = await this.bookings.recordAttendance(
