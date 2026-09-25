@@ -59,9 +59,11 @@ public class EndpointAuthorizationTests(IntegrationTestFixture fixture)
     /// <summary>
     /// The only endpoints outside /api that carry no authorization: the health probe (a probe that
     /// needs credentials cannot answer "is the app reachable") and the SPA fallback, which serves the
-    /// shell and never data.
+    /// shell and never data. Plus S-28's <c>/test/throw</c>, which is mapped only under
+    /// <c>Testing</c> (Program.cs) and exists so SecurityHeadersTests can pin the generic 500: it
+    /// carries no data, and a probe for an ANONYMOUS failure has to be reachable anonymously.
     /// </summary>
-    private static readonly string[] AnonymousNonApiPatterns = ["/health", "/{*path:nonfile}"];
+    private static readonly string[] AnonymousNonApiPatterns = ["/health", "/{*path:nonfile}", "/test/throw"];
 
     /// <summary>
     /// /api/admin routes that a TRAINER may reach — every other /api/admin route is Admin only.

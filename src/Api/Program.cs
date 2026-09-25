@@ -27,10 +27,21 @@ using po_prostu_silka.Api.Endpoints.Members;
 using po_prostu_silka.Api.Endpoints.Notifications;
 using po_prostu_silka.Api.Endpoints.Scheduling;
 using po_prostu_silka.Api.Endpoints.Training;
+using po_prostu_silka.Api.Http;
 using po_prostu_silka.Infrastructure.Auth;
 using po_prostu_silka.Infrastructure.TestData;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// No "Server: Kestrel" on any response (S-28, GL-05): it tells a caller nothing they need and an
+// attacker which stack to aim at.
+builder.WebHost.ConfigureKestrel(options => options.AddServerHeader = false);
+
+// What an unhandled exception answers outside Development (S-28): a generic RFC 7807 body with a
+// fixed title and no detail, exception or stack. Before S-28 the empty 500 leaked nothing either,
+// but only by accident of the environment - this makes it the contract. The handlers that return a
+// clean 409 are unaffected; this catches only what nothing else does.
+builder.Services.AddProblemDetails();
 
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
@@ -374,6 +385,16 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
     app.UseHttpsRedirection();
 }
+else
+{
+    // Outermost, so it catches whatever throws below it. Development keeps the developer
+    // exception page, which WebApplication adds on its own there.
+    app.UseExceptionHandler();
+}
+
+// BEFORE UseDefaultFiles/UseStaticFiles, or a static file short-circuits the pipeline without the
+// headers. See SecurityHeaders for why they are written from OnStarting.
+app.UseSecurityHeaders(app.Environment);
 // In production, Azure App Service terminates TLS at the edge and forwards plain HTTP
 // internally — HTTPS is enforced there via the "HTTPS Only" site setting instead, so a
 // redirect here would fight the reverse proxy.
@@ -429,6 +450,11 @@ if (app.Environment.IsEnvironment("Testing"))
 
     app.MapGet("/test/admin-only", () => Results.Ok("admin-only"))
         .RequireAuthorization(AuthorizationPolicies.Admin);
+
+    // S-28: a route that throws on demand, so SecurityHeadersTests can pin the generic 500 body and
+    // prove it still carries the security headers. No production route throws on request, which is
+    // exactly why this has to exist - and why, like the two above, it cannot exist outside Testing.
+    app.MapGet("/test/throw", IResult () => throw new InvalidOperationException("S-28 probe: secret-detail"));
 }
 
 // Must stay last: the SPA fallback claims every route no earlier endpoint matched.
