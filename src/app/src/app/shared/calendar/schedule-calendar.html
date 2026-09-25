@@ -1,22 +1,25 @@
 <header class="calendar-toolbar">
   <div class="calendar-when">
-    <!-- The heading names the visible range, not "today": after navigating away, "today" would be a
-         lie about what is on screen. -->
-    <h2 class="calendar-title">
-      @if (weekView()) {
-        {{ range().from | date: 'd MMMM' }} – {{ range().to | date: 'd MMMM y' }}
-      } @else {
-        {{ range().from | date: 'EEEE, d MMMM y' }}
-      }
-    </h2>
+    <!-- The title and the date picker share a row: the picker is a second way to the same answer. -->
+    <div class="calendar-heading">
+      <!-- The heading names the visible range, not "today": after navigating away, "today" would be a
+           lie about what is on screen. -->
+      <h2 class="calendar-title">
+        @if (weekView()) {
+          {{ range().from | date: 'd MMMM' }} – {{ range().to | date: 'd MMMM y' }}
+        } @else {
+          {{ range().from | date: 'EEEE, d MMMM y' }}
+        }
+      </h2>
 
-    <label class="calendar-jump">
-      <input
-        type="date"
-        [value]="anchorInputValue()"
-        (change)="jumpTo($any($event.target).value)"
-      />
-    </label>
+      <label class="calendar-jump">
+        <input
+          type="date"
+          [value]="anchorInputValue()"
+          (change)="jumpTo($any($event.target).value)"
+        />
+      </label>
+    </div>
 
     <!-- The day view's whole navigation — day arrows and "Dziś" are withheld below, because two
          navigations for one view is how a toolbar stops being read at all. -->
@@ -25,16 +28,17 @@
     }
   </div>
 
-  <!-- Only the week view has a toolbar left: below the breakpoint the strip above is all of it. -->
+  <!-- Only the week view has a toolbar left: below the breakpoint the strip above is all of it. The
+       strip's pill, so the two navigations look like one control at two widths. -->
   @if (weekView()) {
-    <div class="calendar-nav">
+    <div class="calendar-nav" role="group" aria-label="Tydzień">
       <button
         type="button"
         class="calendar-step"
         (click)="stepWeeks(-1)"
         aria-label="Poprzedni tydzień"
       >
-        &laquo;
+        <app-icon name="chevron-left" />
       </button>
 
       <button type="button" class="calendar-today" (click)="goToToday()">Dziś</button>
@@ -45,7 +49,7 @@
         (click)="stepWeeks(1)"
         aria-label="Następny tydzień"
       >
-        &raquo;
+        <app-icon name="chevron-right" />
       </button>
     </div>
   }
@@ -153,6 +157,7 @@
     <button
       type="button"
       class="calendar-tile calendar-tile-button"
+      [class.calendar-tile--full]="weekEvent.event.meta.freeSpots <= 0"
       (pointerdown)="notePress($event)"
       (click)="activate(weekEvent.event.meta, $event)"
     >
@@ -162,7 +167,7 @@
       />
     </button>
   } @else {
-    <div class="calendar-tile">
+    <div class="calendar-tile" [class.calendar-tile--full]="weekEvent.event.meta.freeSpots <= 0">
       <ng-container
         [ngTemplateOutlet]="tileBody"
         [ngTemplateOutletContext]="{ weekEvent: weekEvent }"
@@ -171,15 +176,24 @@
   }
 </ng-template>
 
+<!-- The class card's reading order (shared/class-date/booked-class) squeezed into a tile: the time,
+     the name, then who leads it and how full it is, each fact behind the glyph it has on the
+     dashboard. A short class clips from the bottom, which is why the facts come last. -->
 <ng-template #tileBody let-weekEvent="weekEvent">
   <p class="calendar-tile-time">
     {{ weekEvent.event.start | date: 'HH:mm' }}–{{ weekEvent.event.end | date: 'HH:mm' }}
   </p>
   <p class="calendar-tile-name">{{ weekEvent.event.meta.name }}</p>
-  <p class="calendar-tile-meta">{{ weekEvent.event.meta.instructor }}</p>
+  <p class="calendar-tile-meta">
+    <app-icon name="person" />
+    <span>{{ weekEvent.event.meta.instructor }}</span>
+  </p>
   <p class="calendar-tile-spots">
+    <app-icon name="members" />
     @if (weekEvent.event.meta.freeSpots > 0) {
-      {{ weekEvent.event.meta.freeSpots }} / {{ weekEvent.event.meta.capacity }} wolnych
+      <span
+        >{{ weekEvent.event.meta.freeSpots }} / {{ weekEvent.event.meta.capacity }} wolnych</span
+      >
     } @else {
       <span class="calendar-tile-full">Brak miejsc</span>
     }

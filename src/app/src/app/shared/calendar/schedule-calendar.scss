@@ -1,13 +1,12 @@
-// Layout, plus the overrides that bend angular-calendar onto this app's tokens.
+// Layout: the toolbar, the surface, the tile, the drag preview. The overrides that bend
+// angular-calendar's own markup onto this app's tokens are in schedule-calendar-library.scss — a
+// second file because they are a second job, and together the two outgrew angular.json's 6 kB
+// per-stylesheet budget.
 //
 // The library arrives with its own visual language; this app has a deliberate one (S-01 decision D7 —
 // Material and Tailwind were both rejected). Everything below either positions something or swaps a
 // library colour/metric for a token. No new colour literals: if a value is not in styles.scss, it
 // does not belong here.
-//
-// ::ng-deep is unavoidable for the library's internals — its markup is rendered by its own
-// components, so this component's emulated encapsulation would otherwise never reach it. Every
-// ::ng-deep below is anchored under .calendar-surface so it cannot leak past this component.
 
 .calendar-toolbar {
   display: flex;
@@ -19,72 +18,108 @@
 
 .calendar-when {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--space-3);
+  min-width: 0;
 }
 
+// The title and the date picker on one row, the picker pushed to the far end.
+.calendar-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+}
+
+// The dashboard's block title (.dashboard-card-title): the body face, a label for the grid under it.
+// On a phone the app bar carries the screen's name and this is the first heading in the content.
 .calendar-title {
   margin: 0;
-  font-family: var(--font-display);
-  font-size: 1.25rem;
+  font-family: var(--font-body);
+  font-size: 1.125rem;
   // The formatted range starts with a lowercase weekday in Polish; the heading wants a capital.
   &::first-letter {
     text-transform: uppercase;
   }
 }
 
-.calendar-jump {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  font-size: 0.875rem;
-  color: var(--muted);
-
-  input {
-    padding: var(--space-1) var(--space-2);
-    border: 1px solid var(--line-strong);
-    border-radius: var(--radius-sm);
-    background: var(--ground);
-    color: var(--ink);
-    font: inherit;
-  }
+// The one deliberate variant of the global control box (src/styles.scss): the pills' height, so it
+// sits level with them. The font stays at 1rem - below that iOS Safari zooms the page on focus.
+.calendar-jump input {
+  height: 40px;
+  padding: 0 var(--space-3);
+  color: var(--ink);
+  font-size: 1rem;
 }
 
+// The day strip's pill (calendar-week-strip.scss) at week width: a --ground track, round arrows, and
+// "Dziś" as the one worded cell - so the two navigations read as one control at two widths.
 .calendar-nav {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: 2px;
+  padding: 4px;
+  border-radius: 32px;
+  background: var(--ground);
+  box-shadow: var(--shadow-card);
 }
 
 .calendar-step,
 .calendar-today {
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius-sm);
-  background: var(--ground);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+  border: 0;
+  border-radius: 32px;
+  background: transparent;
   color: var(--ink);
   font: inherit;
   line-height: 1;
   cursor: pointer;
 
   &:hover {
-    border-color: var(--ink);
-    color: var(--accent);
+    background: var(--section-warm);
   }
+}
+
+// The accent of every other forward/back chevron in the app.
+.calendar-step {
+  width: 40px;
+  padding: 0;
+  color: var(--accent);
+  font-size: 0.8rem;
+}
+
+.calendar-today {
+  padding: 0 var(--space-4);
+  font-size: 0.875rem;
+  font-weight: 600;
 }
 
 .calendar-header-actions {
   margin-left: auto;
   display: flex;
   gap: var(--space-2);
+
+  // Empty on the schedule; a flex item with nothing in it would still take a gap.
+  &:empty {
+    display: none;
+  }
 }
 
+// The grid is a card: the paper, the radius and the shadow every other screen's content sits on.
 .calendar-surface {
   // The positioning context for the empty-state overlay.
   position: relative;
   // A week of seven columns has a floor below which it stops being readable; below the breakpoint the
   // view is a single day, so this only ever bites on a narrow tablet.
   overflow-x: auto;
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
 }
 
 // The empty state sits OVER the grid and must not swallow the pointer — Phase 4's drag-to-create
@@ -102,7 +137,7 @@
   color: var(--muted);
   text-align: center;
   // Enough to read the message over the grid lines, not enough to hide which day is which.
-  background: color-mix(in srgb, var(--ground) 82%, transparent);
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
 }
 
 // The refusal to a press in the past. Bottom-anchored rather than centred so it never covers the
@@ -122,7 +157,7 @@
   padding: var(--space-2) var(--space-3);
   border: 1px solid var(--danger);
   border-radius: var(--radius-sm);
-  background: var(--ground);
+  background: var(--danger-bg);
   color: var(--danger);
   text-align: center;
 }
@@ -164,153 +199,79 @@
 
 // --- the event tile ---------------------------------------------------------
 
+// The class card's hairline rule, turned into a bar down the tile's left edge - the one mark that
+// says "a class" at any height. --accent2, the colour of every other card icon; a full class quietens
+// it to --gray, beside the words "Brak miejsc" that actually say so.
 .calendar-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
   height: 100%;
   overflow: hidden;
-  padding: var(--space-2);
-  font-size: 0.8125rem;
-  line-height: 1.25;
-  border: solid 2px var(--accent);
+  padding: var(--space-1) var(--space-2);
+  font-size: 0.75rem;
+  line-height: 1.3;
+  border: 0;
+  border-left: 3px solid var(--accent2);
+  border-radius: var(--radius-sm);
   background: var(--section-warm);
+  color: var(--ink);
 
   p {
     margin: 0;
   }
 }
 
-// The selectable variant is a <button>, so it needs the button reset the tile never had — width,
+.calendar-tile--full {
+  border-left-color: var(--gray);
+  background: var(--section-cool);
+}
+
+// The selectable variant is a <button>, so it needs the button reset the tile never had - width,
 // text alignment and the UA font all come back wrong otherwise. Everything visual stays on
 // .calendar-tile, which both shapes carry.
 .calendar-tile-button {
-  display: block;
   width: 100%;
   text-align: left;
   font: inherit;
-  color: inherit;
+  font-size: 0.75rem;
+
   cursor: pointer;
 
   &:hover {
-    background: var(--section-cool);
+    background: color-mix(in srgb, var(--accent2) 18%, var(--section-warm));
   }
 }
 
 .calendar-tile-time {
-  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+  font-size: 0.6875rem;
   font-weight: 600;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
 }
 
 .calendar-tile-name {
-  font-weight: 600;
+  font-weight: 700;
   overflow-wrap: anywhere;
 }
 
 .calendar-tile-meta,
 .calendar-tile-spots {
+  display: flex;
+  align-items: center;
+  gap: 3px;
   color: var(--muted);
+  font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
+
+  app-icon {
+    color: var(--accent2);
+    font-size: 0.6rem;
+  }
 }
 
 .calendar-tile-full {
   color: var(--danger);
-}
-
-// --- library overrides ------------------------------------------------------
-
-.calendar-surface ::ng-deep {
-  .cal-week-view {
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    background: var(--ground);
-    font-family: var(--font-body);
-  }
-
-  .cal-day-headers,
-  .cal-time-events,
-  .cal-day-column,
-  .cal-hour:not(:last-child) .cal-hour-segment,
-  .cal-hour-segment,
-  .cal-time-label-column {
-    border-color: var(--line);
-  }
-
-  .cal-day-headers .cal-header {
-    padding: var(--space-2) 0;
-    color: var(--ink);
-
-    &:hover,
-    &.cal-drag-over {
-      background: var(--section-warm);
-    }
-  }
-
-  .cal-day-headers:has(> :only-child) {
-    padding-left: 0;
-  }
-
-  .cal-day-headers .cal-today {
-    background: var(--section-warm);
-  }
-
-  .cal-time {
-    color: var(--muted);
-    font-variant-numeric: tabular-nums;
-    font-weight: 400;
-  }
-
-  // The library colours events from event.color, which this app does not set: one club, one visual
-  // language, and a per-class palette would be decoration carrying no information.
-  .cal-event {
-    border: 1px solid var(--line-strong);
-    border-radius: var(--radius-sm);
-    background: var(--section-warm);
-    color: var(--ink);
-  }
-
-  .cal-current-time-marker {
-    background: var(--accent);
-  }
-
-  // The preview is positioned against its own segment, so the segment has to be the containing block.
-  .cal-hour-segment {
-    position: relative;
-  }
-
-  // Only where a gesture is actually on offer — the member's schedule leaves the default cursor, and
-  // so does a coarse pointer, which is never offered drawing (S-20, UX-02).
-  .calendar-segment-drawable {
-    cursor: cell;
-    // Keeps a pen from panning the page mid-draw. Bound only for a FINE pointer now: on a finger it
-    // made the whole column refuse to scroll, so drawing is withheld from coarse pointers instead —
-    // and phones never render the admin grid at all (S-20).
-    touch-action: none;
-  }
-
-  // Says "not here" before the press does. The press still answers, in words.
-  .calendar-segment-past {
-    cursor: not-allowed;
-    background: color-mix(in srgb, var(--line) 22%, transparent);
-  }
-
-  // --- move and resize ---
-  // The library adds .cal-draggable and renders the handles only for events marked draggable and
-  // resizable, which a read-only calendar marks none of — so nothing below can reach the member's
-  // schedule or a past week.
-
-  .cal-draggable {
-    cursor: move;
-  }
-
-  .cal-drag-active {
-    opacity: 0.7;
-  }
-
-  // The handles ship as 4px invisible strips. Invisible is right at rest — a grid full of grab bars
-  // is noise — but the edge has to answer the pointer, or the affordance is undiscoverable.
-  .cal-time-events .cal-resize-handle {
-    z-index: 2;
-
-    &:hover {
-      background: var(--accent);
-    }
-  }
+  font-weight: 600;
 }

@@ -14,6 +14,7 @@ import { ScheduledClass } from '../../core/scheduling/class.models';
 import { TrainingPlanService } from '../../core/training/training-plan.service';
 import { CalendarRange, ScheduleCalendar } from '../../shared/calendar/schedule-calendar';
 import { createLoadFence } from '../../shared/forms/load-fence';
+import { Icon } from '../../shared/icons/icon';
 import { ClassBookingsOverlay } from '../class-bookings/class-bookings-overlay';
 
 /**
@@ -38,7 +39,7 @@ import { ClassBookingsOverlay } from '../class-bookings/class-bookings-overlay';
  * (name-only, members only) for a trainer.
  */
 @Component({
-  imports: [ClassBookingsOverlay, ScheduleCalendar],
+  imports: [ClassBookingsOverlay, Icon, ScheduleCalendar],
   selector: 'app-schedule',
   styleUrl: './schedule.scss',
   templateUrl: './schedule.html',

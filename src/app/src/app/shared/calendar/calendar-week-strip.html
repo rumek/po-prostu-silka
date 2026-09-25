@@ -1,8 +1,9 @@
 <!-- Nine identical cells. The arrows are not a different kind of control from the days — they all
-     move the same view — so they are not a different kind of button either. -->
+     move the same view — so they are not a different kind of button either. Each day carries its
+     weekday over its date, so the strip also says WHICH week this is without a trip to the title. -->
 <div class="strip" role="group" aria-label="Dni tygodnia">
   <button type="button" class="strip-button" (click)="stepWeeks(-1)" aria-label="Poprzedni tydzień">
-    &laquo;
+    <app-icon name="chevron-left" />
   </button>
 
   @for (day of days(); track day.date.getTime()) {
@@ -15,11 +16,12 @@
       [attr.aria-label]="day.date | date: 'EEEE, d MMMM y'"
       (click)="select(day.date)"
     >
-      {{ day.label }}
+      <span class="strip-weekday">{{ day.label }}</span>
+      <span class="strip-date">{{ day.date | date: 'd' }}</span>
     </button>
   }
 
   <button type="button" class="strip-button" (click)="stepWeeks(1)" aria-label="Następny tydzień">
-    &raquo;
+    <app-icon name="chevron-right" />
   </button>
 </div>

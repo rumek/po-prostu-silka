@@ -84,6 +84,10 @@
     @case ('chevron-right') {
       <path d="m9 6 6 6-6 6" />
     }
+    <!-- chevron-right's mirror: "the previous one" — the calendar's week before. -->
+    @case ('chevron-left') {
+      <path d="m15 6-6 6 6 6" />
+    }
     <!-- The plan builder's reorder handle: six dots, the platform shape for "drag me". -->
     @case ('drag') {
       <circle cx="9" cy="6" r="1.25" fill="currentColor" stroke="none" />

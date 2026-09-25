@@ -1,10 +1,17 @@
 <h1 class="screen-title">Grafik zajęć</h1>
-@if (persona() === 'trainer') {
-  <!-- The server narrows a trainer to their own classes (S-25); the screen says so, so an empty week
-       is not read as "the club has nothing on". -->
-  <p class="hint">Grafik pokazuje tylko zajęcia, które prowadzisz.</p>
-}
-<p class="hint">Wybierz zajęcia, aby zobaczyć listę zapisanych i zapisać członka.</p>
+
+<!-- What the screen is for, quiet and above the grid (the exercise library's .exercises-hint). -->
+<div class="schedule-intro">
+  @if (persona() === 'trainer') {
+    <!-- The server narrows a trainer to their own classes (S-25); the screen says so, so an empty
+         week is not read as "the club has nothing on". -->
+    <p class="hint schedule-scope">
+      <app-icon name="person" />
+      <span>Grafik pokazuje tylko zajęcia, które prowadzisz.</span>
+    </p>
+  }
+  <p class="hint">Wybierz zajęcia, aby zobaczyć listę zapisanych i zapisać członka.</p>
+</div>
 
 <!-- Loading, failure and the empty state all live inside the calendar: it keeps the grid mounted
      through all three, so navigating between weeks never makes the page jump.

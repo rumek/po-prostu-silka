@@ -56,6 +56,7 @@ Frontend, from `src/app/` (npm 11, pinned via `packageManager`): `npm start` (de
 
 - C#: nullable reference types and implicit usings are enabled — keep new code warning-free under `<Nullable>enable</Nullable>`.
 - Angular: formatting/linting is enforced by Prettier and angular-eslint (@src/app/eslint.config.js), not by hand.
+- **Visual language:** read `context/foundation/ui-style-guide.md` before styling or restyling a screen — the tokens and what each is for, the type roles, the class-card reading order, the recurring patterns (pill track, parameter strip, hairline rows), icon colour roles, and a checklist. The dashboard, Mój plan, the exercise screens, Więcej and Moje konto are its reference screens.
 
 ### Personas (S-25)
 

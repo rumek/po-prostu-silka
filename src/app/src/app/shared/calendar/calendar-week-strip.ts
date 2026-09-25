@@ -1,6 +1,7 @@
 import { DatePipe } from '@angular/common';
 import { Component, computed, input, output } from '@angular/core';
 import { addDays, startOfDay, startOfWeek } from 'date-fns';
+import { Icon } from '../icons/icon';
 
 /**
  * The strip's labels, Monday first.
@@ -28,7 +29,7 @@ const WEEKDAY_LABELS = ['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'So', 'Nd'];
  * and says which day was asked for.
  */
 @Component({
-  imports: [DatePipe],
+  imports: [DatePipe, Icon],
   selector: 'app-calendar-week-strip',
   styleUrl: './calendar-week-strip.scss',
   templateUrl: './calendar-week-strip.html',

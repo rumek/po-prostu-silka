@@ -95,6 +95,8 @@
   --accent: #654b45; // accent text, link hover
   --accent2: #917773;
   --gray: #9d9b9a;
+  // The paper cards and controls are drawn on, one step lighter than --ground.
+  --surface: #fff;
 
   // Derived, not new colours: borders and muted text are the palette at lower contrast, so the
   // page never picks up a grey that is not part of the identity.
@@ -401,7 +403,7 @@ a {
 .card {
   padding: var(--space-6);
   border-radius: var(--radius);
-  background: #fff;
+  background: var(--surface);
   box-shadow: var(--shadow-card);
 }
 
@@ -440,7 +442,7 @@ a {
   padding: var(--space-3);
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-sm);
-  background: #fff;
+  background: var(--surface);
   color: inherit;
   font-family: inherit;
   // 16px minimum, or iOS Safari zooms the viewport on focus and the member has to pinch back out.

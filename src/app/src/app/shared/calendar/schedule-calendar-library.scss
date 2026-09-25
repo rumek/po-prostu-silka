@@ -1,0 +1,166 @@
+// The overrides that bend angular-calendar onto this app's tokens (the component's second stylesheet;
+// the layout is in schedule-calendar.scss). No new colour literals: if a value is not in styles.scss,
+// it does not belong here.
+//
+// ::ng-deep is unavoidable for the library's internals — its markup is rendered by its own
+// components, so this component's emulated encapsulation would otherwise never reach it. Every
+// ::ng-deep below is anchored under .calendar-surface so it cannot leak past this component.
+
+.calendar-surface ::ng-deep {
+  // The frame is the surface's (the card above); the library's own outer borders would draw a second
+  // box inside it.
+  .cal-week-view {
+    border: 0;
+    background: transparent;
+    font-family: var(--font-body);
+  }
+
+  .cal-day-headers,
+  .cal-time-events {
+    border: 0;
+  }
+
+  .cal-day-headers {
+    border-bottom: 1px solid var(--line);
+  }
+
+  .cal-day-column,
+  .cal-day-headers .cal-header,
+  .cal-time-label-column {
+    border-color: var(--line);
+  }
+
+  // The class card's capitals line over the date: the weekday is a label, the date is what is read.
+  .cal-day-headers .cal-header {
+    padding: var(--space-3) var(--space-1);
+    color: var(--ink);
+    line-height: 1.3;
+
+    b {
+      color: var(--gray);
+      font-size: 0.6875rem;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    span {
+      font-size: 0.9375rem;
+      font-weight: 600;
+      opacity: 1;
+    }
+
+    &:hover,
+    &.cal-drag-over {
+      background: color-mix(in srgb, var(--section-warm) 50%, transparent);
+    }
+  }
+
+  // Today in the accent, underlined like the selected tab - a fact about the calendar, so marked on
+  // its header rather than by tinting a whole column.
+  .cal-day-headers .cal-header.cal-today {
+    background: transparent;
+    box-shadow: inset 0 -2px 0 var(--accent);
+
+    b,
+    span {
+      color: var(--accent);
+    }
+  }
+
+  // The library paints weekend dates dark red. A Saturday is not an error.
+  .cal-day-headers .cal-header.cal-weekend span {
+    color: inherit;
+  }
+
+  .cal-day-headers:has(> :only-child) {
+    padding-left: 0;
+  }
+
+  // The library's zebra (#fafafa) and hover grey (#ededed) are not this palette's.
+  .cal-hour-odd {
+    background: transparent;
+  }
+
+  .cal-time-events .cal-day-columns:not(.cal-resize-active) .cal-hour-segment:hover,
+  .cal-drag-over .cal-hour-segment {
+    background: color-mix(in srgb, var(--section-warm) 45%, transparent);
+  }
+
+  // A solid hairline on the hour and a fainter dashed one on the half hour, so the eye counts hours
+  // rather than segments.
+  .cal-hour:not(:last-child) .cal-hour-segment,
+  .cal-hour:last-child :not(:last-child) .cal-hour-segment {
+    border-bottom: 1px dashed color-mix(in srgb, var(--line) 60%, transparent);
+  }
+
+  .cal-hour:not(:last-child) .cal-hour-segment.cal-after-hour-start {
+    border-bottom-style: solid;
+    border-bottom-color: var(--line);
+  }
+
+  .cal-time {
+    color: var(--gray);
+    font-size: 0.75rem;
+    font-variant-numeric: tabular-nums;
+    font-weight: 500;
+  }
+
+  // The library colours events from event.color, which this app does not set: one club, one visual
+  // language, and a per-class palette would be decoration carrying no information. The tile inside
+  // draws everything; the event box only positions and clips it.
+  .cal-time-events .cal-event {
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+  }
+
+  .cal-current-time-marker {
+    background: var(--accent);
+  }
+
+  // The preview is positioned against its own segment, so the segment has to be the containing block.
+  .cal-hour-segment {
+    position: relative;
+  }
+
+  // Only where a gesture is actually on offer — the member's schedule leaves the default cursor, and
+  // so does a coarse pointer, which is never offered drawing (S-20, UX-02).
+  .calendar-segment-drawable {
+    cursor: cell;
+    // Keeps a pen from panning the page mid-draw. Bound only for a FINE pointer now: on a finger it
+    // made the whole column refuse to scroll, so drawing is withheld from coarse pointers instead —
+    // and phones never render the admin grid at all (S-20).
+    touch-action: none;
+  }
+
+  // Says "not here" before the press does. The press still answers, in words.
+  .calendar-segment-past {
+    cursor: not-allowed;
+    background: color-mix(in srgb, var(--line) 22%, transparent);
+  }
+
+  // --- move and resize ---
+  // The library adds .cal-draggable and renders the handles only for events marked draggable and
+  // resizable, which a read-only calendar marks none of — so nothing below can reach the member's
+  // schedule or a past week.
+
+  .cal-draggable {
+    cursor: move;
+  }
+
+  .cal-drag-active {
+    opacity: 0.7;
+  }
+
+  // The handles ship as 4px invisible strips. Invisible is right at rest — a grid full of grab bars
+  // is noise — but the edge has to answer the pointer, or the affordance is undiscoverable.
+  .cal-time-events .cal-resize-handle {
+    z-index: 2;
+
+    &:hover {
+      background: var(--accent);
+    }
+  }
+}

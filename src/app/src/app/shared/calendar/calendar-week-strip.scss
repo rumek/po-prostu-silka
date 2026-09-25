@@ -1,42 +1,83 @@
-// Nine fixed cells: 9 x 32px + 8 x 4px of gap = 320px, which is the narrowest phone worth designing
-// for. It scrolls rather than shrinks below that — a tap target that shrinks stops being one.
+// The menu's pill (shared/bottom-nav, the Zajęcia tabs): a --ground track, the selected cell filled
+// with the accent. Fill plus weight — never colour alone.
+//
+// Nine cells share the width, so the strip spans a phone whatever its size. They never shrink below
+// 28px — 9 x 28px + the gaps and the track's padding is the narrowest phone worth designing for — and
+// the strip scrolls rather than shrinks past that: a tap target that shrinks stops being one.
 .strip {
-  display: grid;
-  grid-template-columns: repeat(9, 32px);
-  gap: var(--space-1);
+  display: flex;
+  gap: 2px;
+  padding: 4px;
   overflow-x: auto;
+  border-radius: 32px;
+  background: var(--ground);
+  box-shadow: var(--shadow-card);
 }
 
 .strip-button {
   display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 40px;
+  gap: 2px;
+  min-width: 28px;
+  height: 48px;
   padding: 0;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  background: var(--ground);
+  border: 0;
+  border-radius: 24px;
+  background: transparent;
   color: var(--ink);
   font: inherit;
-  font-size: 0.8125rem;
   line-height: 1;
   cursor: pointer;
+  transition:
+    background-color 200ms ease,
+    color 200ms ease;
 
-  &:hover {
-    border-color: var(--ink);
+  // The arrows: the accent of every other forward/back chevron in the app.
+  > app-icon {
+    color: var(--accent);
+    font-size: 0.8rem;
+  }
+
+  &:hover:not(.is-selected) {
+    background: var(--section-warm);
   }
 
   // Today is a fact about the calendar; the selected day is a fact about what you are reading. Marked
   // differently because they are usually not the same day — and both can land on one button.
-  &.is-today {
+  &.is-today .strip-date {
     color: var(--accent);
-    font-weight: 600;
+    text-decoration: underline 2px;
+    text-underline-offset: 3px;
   }
 
   &.is-selected {
-    border-color: var(--accent);
-    background: var(--section-warm);
-    font-weight: 600;
+    background: var(--accent);
+    color: var(--ground);
+
+    .strip-weekday,
+    .strip-date {
+      color: inherit;
+    }
   }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+}
+
+// The class card's capitals line in miniature: the label is quiet, the number is what is read.
+.strip-weekday {
+  color: var(--gray);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.strip-date {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }

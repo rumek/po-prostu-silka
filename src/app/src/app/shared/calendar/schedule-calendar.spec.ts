@@ -1,7 +1,7 @@
 import { Component, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
-import { addDays } from 'date-fns';
+import { addDays, startOfWeek } from 'date-fns';
 import { CalendarEventTimesChangedEventType, CalendarWeekViewComponent } from 'angular-calendar';
 import { FINE_POINTER_MEDIA_QUERY } from '../../core/layout/breakpoints';
 import { ScheduledClass } from '../../core/scheduling/class.models';
@@ -447,8 +447,17 @@ describe('ScheduleCalendar', () => {
   it('navigates the day view by the week it is in', () => {
     create();
 
-    const labels = stripDays().map((day) => day.textContent!.trim());
+    const labels = stripDays().map((day) =>
+      day.querySelector('.strip-weekday')!.textContent!.trim(),
+    );
     expect(labels).toEqual(['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'So', 'Nd']);
+
+    // Each weekday carries its date, so the strip also says which week it is.
+    const dates = stripDays().map((day) => day.querySelector('.strip-date')!.textContent!.trim());
+    const monday = startOfWeek(lastRange().from, { weekStartsOn: 1 });
+    expect(dates).toEqual(
+      Array.from({ length: 7 }, (_, index) => String(addDays(monday, index).getDate())),
+    );
 
     // The day being read is marked, and it is the one the range starts on.
     const selected = stripDays().findIndex((day) => day.classList.contains('is-selected'));

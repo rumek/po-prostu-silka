@@ -2,6 +2,27 @@
 // is the page heading, which is why this file is nearly empty: the day-grouped list this screen used
 // to style went away with S-07.
 
-.hint {
+.schedule-intro {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  max-width: 44rem;
   margin-bottom: var(--space-5);
+
+  // The intro's gap spaces them; their own bottom margin would double it.
+  > p {
+    margin: 0;
+  }
+}
+
+// Who the grid is narrowed to, behind the glyph the tiles give an instructor.
+.schedule-scope {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+
+  app-icon {
+    color: var(--accent2);
+    font-size: 0.8rem;
+  }
 }
