@@ -5,10 +5,10 @@ import { Component, input } from '@angular/core';
  *
  * <p>
  * TEXT, NOT A DISABLED INPUT, and that is the whole point. A disabled field still reads as something
- * that might become editable — it has a box, a border, a cursor — and both callers show values that
- * never will be. /profile shows the two the gym owns (FR-006 as rewritten: no endpoint in this app
- * changes a display name or a login address); /register shows the invitation code, which arrives in
- * the link and is only there to be confirmed at a glance.
+ * that might become editable — it has a box, a border, a cursor. /register shows the invitation code
+ * with it, which arrives in the link and is only there to be confirmed at a glance. /profile used it
+ * for the two values the gym owns until its redesign drew them as an identity card instead — the same
+ * rule, text and never an input, in that card's shape.
  * </p>
  *
  * <p>
@@ -34,7 +34,7 @@ export class ReadonlyField {
   readonly label = input.required<string>();
 
   /**
-   * Rendered as-is. Nullable because /profile reads it from a session that may still be loading, and
+   * Rendered as-is. Nullable because a caller may read it from a session that is still loading, and
    * an empty line is a better answer there than a component that refuses to render.
    */
   readonly value = input.required<string | null | undefined>();

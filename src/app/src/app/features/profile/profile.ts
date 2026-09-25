@@ -6,7 +6,7 @@ import { changePasswordFailureMessage } from '../../core/auth/change-password-fa
 import { profileFailureMessage } from '../../core/auth/contact-failure';
 import { classifyFailure } from '../../core/http/failure';
 import { transportMessage } from '../../core/http/transport-messages';
-import { ReadonlyField } from '../../shared/readonly-field/readonly-field';
+import { Icon } from '../../shared/icons/icon';
 import { createFormState } from '../../shared/forms/form-state';
 import { ToastService } from '../../shared/toast/toast.service';
 import { Field } from '../../shared/forms/field/field';
@@ -25,7 +25,7 @@ import {
  * those two values and nothing in this app changes them.
  */
 @Component({
-  imports: [Field, ReactiveFormsModule, ReadonlyField],
+  imports: [Field, Icon, ReactiveFormsModule],
   selector: 'app-profile',
   styleUrl: './profile.scss',
   templateUrl: './profile.html',

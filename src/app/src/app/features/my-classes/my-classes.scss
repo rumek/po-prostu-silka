@@ -1,5 +1,6 @@
 // Layout only — .card/.button/.button--secondary/.alert/.notice/.field-error/.hint come from
 // src/styles.scss.
+@use 'breakpoints' as bp;
 @use 'class-rows';
 
 .class-months {
@@ -46,33 +47,59 @@
   gap: var(--space-2);
 }
 
-// The two tabs (S-27). An underline on the selected one plus its weight — never colour alone.
+// The two tabs (S-27), as the menu's pill (shared/bottom-nav, the desktop header): a --ground track,
+// the selected tab filled with the accent. Fill plus weight — never colour alone. Full width on a
+// phone, where each half is a thumb's target; its own width above.
+
 .tabs {
   display: flex;
-  gap: var(--space-1);
+  width: fit-content;
+  gap: 2px;
   margin-top: var(--space-3);
-  border-bottom: 1px solid var(--line);
+  padding: 4px;
+  border-radius: 32px;
+  background: var(--ground);
+  box-shadow:
+    0 8px 30px rgba(80, 55, 45, 0.1),
+    0 2px 8px rgba(80, 55, 45, 0.06);
+
+  @include bp.narrow {
+    width: 100%;
+  }
 }
 
 .tab {
-  min-height: 44px;
-  padding: 0 var(--space-4);
+  flex: 1 1 0;
+  min-height: 40px;
+  padding: 0 var(--space-5);
   border: 0;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
+  border-radius: 32px;
   background: transparent;
-  color: var(--muted);
+  color: var(--ink);
   font: inherit;
+  font-size: 0.875rem;
+  white-space: nowrap;
   cursor: pointer;
+  transition:
+    background-color 200ms ease,
+    color 200ms ease;
+
+  &:hover:not([aria-selected='true']) {
+    background: var(--section-warm);
+  }
 
   &[aria-selected='true'] {
-    border-bottom-color: var(--ink);
-    color: var(--ink);
+    background: var(--accent);
+    color: white;
     font-weight: 600;
   }
 
   &:focus-visible {
     outline: 2px solid var(--accent);
-    outline-offset: -2px;
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
   }
 }

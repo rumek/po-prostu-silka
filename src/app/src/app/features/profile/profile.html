@@ -1,30 +1,38 @@
-<div class="panel">
-  <h1 class="screen-title">Moje konto</h1>
+<h1 class="screen-title">Moje konto</h1>
 
-  <div class="card">
-    @if (incomplete()) {
-      <p class="notice" role="status">
-        Uzupełnij swoje dane kontaktowe — potrzebujemy ich, żeby móc się z Tobą skontaktować.
-      </p>
-    }
+<!-- The Więcej screen's shape: each block's title above its card. First who is signed in — the avatar
+     disc the phone bar and Więcej use for this screen — as text, not disabled inputs, and
+     deliberately: a disabled field still reads as something that might become editable. The gym
+     owns these two values (FR-006 as rewritten) and no endpoint in this app changes either. -->
+<section class="card profile-identity" aria-label="Twoje dane">
+  <div class="profile-who">
+    <span class="profile-avatar" aria-hidden="true"><app-icon name="profile" /></span>
+    <dl class="profile-who-text">
+      <dt class="cdk-visually-hidden">Imię i nazwisko</dt>
+      <dd class="row-name">{{ user()?.displayName }}</dd>
+      <dt class="cdk-visually-hidden">Adres e-mail</dt>
+      <dd class="profile-meta">{{ user()?.email }}</dd>
+    </dl>
+  </div>
 
+  <p class="hint profile-hint">
+    Imię, nazwisko i adres e-mail prowadzi obsługa siłowni. Jeśli coś się nie zgadza, daj nam znać.
+  </p>
+</section>
+
+<section class="profile-block" aria-labelledby="profile-contact">
+  <h2 id="profile-contact" class="profile-title">Dane kontaktowe</h2>
+
+  @if (incomplete()) {
+    <p class="notice" role="status">
+      Uzupełnij swoje dane kontaktowe — potrzebujemy ich, żeby móc się z Tobą skontaktować.
+    </p>
+  }
+
+  <div class="card profile-card">
     @if (state.error()) {
       <p class="alert" role="alert">{{ state.error() }}</p>
     }
-
-    <!-- Text, not disabled inputs, and deliberately: a disabled field still reads as something that
-         might become editable. The gym owns these two values (FR-006 as rewritten) and no endpoint
-         in this app changes either. The markup moved into app-readonly-field so /register renders
-         the invitation code the same way. -->
-    <app-readonly-field label="Imię i nazwisko" [value]="user()?.displayName" />
-    <app-readonly-field label="Adres e-mail" [value]="user()?.email" />
-
-    <p class="hint">
-      Imię, nazwisko i adres e-mail prowadzi obsługa siłowni. Jeśli coś się nie zgadza, daj nam
-      znać.
-    </p>
-
-    <h2 class="section-title">Dane kontaktowe</h2>
 
     <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
       <app-field label="Numer telefonu" for="phoneNumber">
@@ -78,48 +86,57 @@
         }
       </app-field>
 
-      <app-field label="Kod pocztowy" for="postalCode">
-        <input
-          id="postalCode"
-          type="text"
-          inputmode="numeric"
-          autocomplete="postal-code"
-          formControlName="postalCode"
-          [attr.aria-invalid]="form.controls.postalCode.touched && form.controls.postalCode.invalid"
-        />
-        @if (form.controls.postalCode.touched && form.controls.postalCode.invalid) {
-          <p class="field-error">
-            {{
-              form.controls.postalCode.getError('server') ?? contactMessage('invalid_postal_code')
-            }}
-          </p>
-        }
-      </app-field>
+      <!-- Short beside long, as on an envelope; stacked on a phone. -->
+      <div class="profile-pair">
+        <app-field label="Kod pocztowy" for="postalCode">
+          <input
+            id="postalCode"
+            type="text"
+            inputmode="numeric"
+            autocomplete="postal-code"
+            formControlName="postalCode"
+            [attr.aria-invalid]="
+              form.controls.postalCode.touched && form.controls.postalCode.invalid
+            "
+          />
+          @if (form.controls.postalCode.touched && form.controls.postalCode.invalid) {
+            <p class="field-error">
+              {{
+                form.controls.postalCode.getError('server') ?? contactMessage('invalid_postal_code')
+              }}
+            </p>
+          }
+        </app-field>
 
-      <app-field label="Miejscowość" for="city">
-        <input
-          id="city"
-          type="text"
-          autocomplete="address-level2"
-          formControlName="city"
-          [attr.aria-invalid]="form.controls.city.touched && form.controls.city.invalid"
-        />
-        @if (form.controls.city.touched && form.controls.city.invalid) {
-          <p class="field-error">
-            {{ form.controls.city.getError('server') ?? contactMessage('invalid_city') }}
-          </p>
-        }
-      </app-field>
+        <app-field label="Miejscowość" for="city">
+          <input
+            id="city"
+            type="text"
+            autocomplete="address-level2"
+            formControlName="city"
+            [attr.aria-invalid]="form.controls.city.touched && form.controls.city.invalid"
+          />
+          @if (form.controls.city.touched && form.controls.city.invalid) {
+            <p class="field-error">
+              {{ form.controls.city.getError('server') ?? contactMessage('invalid_city') }}
+            </p>
+          }
+        </app-field>
+      </div>
 
       <button type="submit" class="button button--block" [disabled]="state.submitting()">
         {{ state.submitting() ? 'Zapisywanie…' : 'Zapisz zmiany' }}
       </button>
     </form>
+  </div>
+</section>
 
-    <!-- A SEPARATE form, not a section of the one above. The two fail independently: a rejected
-         postal code must not disable the password button, and vice versa. -->
-    <h2 class="section-title">Zmiana hasła</h2>
+<!-- A SEPARATE form, not a section of the one above. The two fail independently: a rejected
+     postal code must not disable the password button, and vice versa. -->
+<section class="profile-block" aria-labelledby="profile-password">
+  <h2 id="profile-password" class="profile-title">Zmiana hasła</h2>
 
+  <div class="card profile-card">
     @if (passwordState.error()) {
       <p class="alert" role="alert">{{ passwordState.error() }}</p>
     }
@@ -200,4 +217,4 @@
       </button>
     </form>
   </div>
-</div>
+</section>

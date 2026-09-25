@@ -1,2 +1,98 @@
-// Layout only — the .panel/.card/.field/.notice/.section-title/.button classes come from
-// src/styles.scss.
+@use 'breakpoints' as bp;
+
+// Layout only — .card/.notice/.alert/.hint/.row-name/.button come from src/styles.scss. Drawn like
+// Więcej (features/more): a block title above each card, the avatar disc for who is signed in.
+
+:host {
+  display: grid;
+  gap: var(--space-5);
+  max-width: 36rem;
+}
+
+// The screen title's own margin would double the grid's gap.
+.screen-title {
+  margin: 0;
+}
+
+.profile-identity {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+}
+
+.profile-who {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+// Więcej's account disc (.more-avatar), the same size.
+.profile-avatar {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  background: var(--section-warm);
+  color: var(--ink);
+  font-size: 1.1rem;
+}
+
+.profile-who-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  margin: 0;
+
+  dd {
+    margin: 0;
+  }
+}
+
+.profile-meta {
+  color: var(--muted);
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+
+// Under a hairline, like the plan card's note under its numbers: it is about the values above.
+.profile-hint {
+  margin: 0;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--line);
+}
+
+.profile-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+
+  // The block's gap spaces them; their own bottom margin would double it.
+  > .notice {
+    margin: 0;
+  }
+}
+
+// The dashboard's block title (.dashboard-card-title): the body face, a label for the card under it.
+.profile-title {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 1.125rem;
+  letter-spacing: 0;
+}
+
+.profile-card {
+  padding: var(--space-5);
+}
+
+// Postal code beside the town once there is room: short beside long, as on an envelope.
+@include bp.form-columns {
+  .profile-pair {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+    gap: var(--space-4);
+  }
+}
