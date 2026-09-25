@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using po_prostu_silka.Application.Notifications;
@@ -25,6 +26,8 @@ public class OutboxDeliveryTests(IntegrationTestFixture fixture) : IAsyncLifetim
     private readonly FakeEmailSender _email = new();
     private readonly FakePushSender _push = new();
     private readonly TestTimeProvider _clock = new(Start);
+    private OutboxWorkerHeartbeat _heartbeat = null!;
+    private IOptions<OutboxOptions> _options = null!;
     private ServiceProvider _services = null!;
     private OutboxDeliveryWorker _worker = null!;
 
@@ -55,11 +58,14 @@ public class OutboxDeliveryTests(IntegrationTestFixture fixture) : IAsyncLifetim
         collection.AddSingleton(options);
         collection.AddSingleton<TimeProvider>(_clock);
         _services = collection.BuildServiceProvider();
+        _options = options;
+        _heartbeat = new OutboxWorkerHeartbeat(_clock);
 
         _worker = new OutboxDeliveryWorker(
             _services.GetRequiredService<IServiceScopeFactory>(),
             options,
             _clock,
+            _heartbeat,
             _services.GetRequiredService<ILogger<OutboxDeliveryWorker>>());
 
         // These tests share a database with the auth tests, so start from a known-empty outbox.
@@ -372,6 +378,49 @@ public class OutboxDeliveryTests(IntegrationTestFixture fixture) : IAsyncLifetim
         }
     }
 
+    [Fact]
+    public async Task Throttled_email_waits_the_providers_time_without_spending_an_attempt()
+    {
+        var first = await EnqueueEmailAsync();
+        _clock.Advance(TimeSpan.FromSeconds(1));
+        var second = await EnqueueEmailAsync();
+        _email.NextResult = DeliveryResult.Throttled("acs_429", TimeSpan.FromMinutes(10));
+
+        await _worker.RunPassAsync(CancellationToken.None);
+
+        var throttled = await ReloadAsync(first);
+        Assert.Equal(OutboxStatus.Pending, throttled.Status);
+        Assert.Equal(0, throttled.AttemptCount);
+        Assert.Equal(_clock.GetUtcNow().AddMinutes(10), throttled.NextAttemptAt);
+
+        // The rest of the batch waits out the same window instead of asking again every pass.
+        var held = await ReloadAsync(second);
+        Assert.Equal(OutboxStatus.Pending, held.Status);
+        Assert.Equal(0, held.AttemptCount);
+        Assert.Equal(_clock.GetUtcNow().AddMinutes(10), held.NextAttemptAt);
+
+        _clock.Advance(TimeSpan.FromMinutes(5));
+        await _worker.RunPassAsync(CancellationToken.None);
+        Assert.Single(_email.Sent);
+    }
+
+    [Fact]
+    public async Task Repeated_throttling_never_dead_letters_an_email()
+    {
+        var id = await EnqueueEmailAsync();
+        _email.NextResult = DeliveryResult.Throttled("acs_429", TimeSpan.FromMinutes(1));
+
+        for (var i = 0; i < 10; i++)
+        {
+            await _worker.RunPassAsync(CancellationToken.None);
+            _clock.Advance(TimeSpan.FromMinutes(1));
+        }
+
+        var message = await ReloadAsync(id);
+        Assert.Equal(OutboxStatus.Pending, message.Status);
+        Assert.Equal(0, message.AttemptCount);
+    }
+
     private async Task<(Guid MessageId, Guid SubscriptionId)> EnqueuePushAsync()
     {
         await using var db = NewContext();
@@ -403,6 +452,52 @@ public class OutboxDeliveryTests(IntegrationTestFixture fixture) : IAsyncLifetim
 
         await db.SaveChangesAsync();
         return (message.Id, subscription.Id);
+    }
+
+    // --- health ---------------------------------------------------------------
+
+    private async Task<HealthCheckResult> CheckHealthAsync()
+    {
+        await using var db = NewContext();
+        var check = new OutboxHealthCheck(db, _options, _heartbeat, _clock);
+        return await check.CheckHealthAsync(new HealthCheckContext());
+    }
+
+    [Fact]
+    public async Task Health_is_Healthy_with_a_fresh_worker_and_nothing_waiting()
+    {
+        await EnqueueEmailAsync();
+        await _worker.RunPassAsync(CancellationToken.None);
+
+        Assert.Equal(HealthStatus.Healthy, (await CheckHealthAsync()).Status);
+    }
+
+    [Fact]
+    public async Task Health_is_Degraded_when_a_message_has_waited_too_long()
+    {
+        // The stall the failed count never showed: nothing Failed, everything waiting.
+        await EnqueueEmailAsync();
+        _email.NextResult = DeliveryResult.Throttled("acs_429", TimeSpan.FromHours(1));
+        await _worker.RunPassAsync(CancellationToken.None);
+
+        _clock.Advance(TimeSpan.FromMinutes(31));
+        _heartbeat.Beat(_clock.GetUtcNow());
+
+        var result = await CheckHealthAsync();
+        Assert.Equal(HealthStatus.Degraded, result.Status);
+        Assert.Contains("oldest undelivered", result.Description);
+    }
+
+    [Fact]
+    public async Task Health_is_Degraded_when_the_worker_stops_finishing_passes()
+    {
+        await _worker.RunPassAsync(CancellationToken.None);
+
+        _clock.Advance(TimeSpan.FromMinutes(6));
+
+        var result = await CheckHealthAsync();
+        Assert.Equal(HealthStatus.Degraded, result.Status);
+        Assert.Contains("has not finished a pass", result.Description);
     }
 
     // --- retention -----------------------------------------------------------

@@ -65,4 +65,17 @@ public class OutboxOptions
 
     /// <summary>Failed-row count at which /health reports Degraded.</summary>
     public int FailedThreshold { get; set; } = 10;
+
+    /// <summary>
+    /// Age of the oldest undelivered message at which /health reports Degraded. The check that was
+    /// missing when a throttled ACS held 114 messages for hours while the failed count stayed at
+    /// zero. Generous enough to sit out a few ordinary backoff steps.
+    /// </summary>
+    public TimeSpan MaxUndeliveredAge { get; set; } = TimeSpan.FromMinutes(30);
+
+    /// <summary>
+    /// Time since the worker last finished a pass at which /health reports Degraded. Many poll
+    /// intervals, so one slow pass — a push service taking its time — is not an alarm.
+    /// </summary>
+    public TimeSpan WorkerStallAfter { get; set; } = TimeSpan.FromMinutes(5);
 }

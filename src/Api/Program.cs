@@ -325,6 +325,8 @@ builder.Services.AddScoped<IExerciseStore, ExerciseStore>();
 builder.Services.AddScoped<ITrainingPlanQuery, TrainingPlanQuery>();
 builder.Services.AddScoped<ITrainingPlanStore, TrainingPlanStore>();
 
+// Shared by the worker, which beats it after each pass, and OutboxHealthCheck, which reads it.
+builder.Services.AddSingleton<OutboxWorkerHeartbeat>();
 builder.Services.AddHostedService<OutboxDeliveryWorker>();
 
 var app = builder.Build();

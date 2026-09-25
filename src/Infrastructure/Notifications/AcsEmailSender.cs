@@ -1,3 +1,4 @@
+using System.Globalization;
 using Azure;
 using Azure.Communication.Email;
 using Microsoft.Extensions.Options;
@@ -84,6 +85,17 @@ public class AcsEmailSender(
 
             return DeliveryResult.Success();
         }
+        catch (RequestFailedException ex) when (ex.Status == 429)
+        {
+            // Over quota. Not a failure of this message: wait as long as ACS asks, and do not spend
+            // an attempt on it (see DeliveryOutcome.Throttled).
+            var retryAfter = ParseRetryAfter(
+                ex.GetRawResponse()?.Headers.TryGetValue("Retry-After", out var header) == true ? header : null,
+                DateTimeOffset.UtcNow);
+
+            logger.LogWarning("Email throttled by ACS; retrying after {RetryAfter}.", retryAfter);
+            return DeliveryResult.Throttled("acs_429", retryAfter);
+        }
         catch (RequestFailedException ex) when (IsPermanent(ex.Status))
         {
             // A rejected or malformed recipient will be rejected identically forever; retrying only
@@ -125,6 +137,38 @@ public class AcsEmailSender(
 
         return new EmailClient(connectionString, options);
     }
+
+    /// <summary>
+    /// A Retry-After header — delay-seconds or an HTTP date, RFC 9110 — as a wait. One minute when
+    /// absent or unreadable, and clamped to [15 s, 1 h]: a zero would retry on the very next pass,
+    /// and a provider asking for a day should not silence mail for a day without /health noticing.
+    /// </summary>
+    public static TimeSpan ParseRetryAfter(string? header, DateTimeOffset now)
+    {
+        TimeSpan? wait = null;
+
+        if (int.TryParse(header, out var seconds))
+        {
+            wait = TimeSpan.FromSeconds(seconds);
+        }
+        else if (DateTimeOffset.TryParse(
+            header,
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.AssumeUniversal,
+            out var at))
+        {
+            wait = at - now;
+        }
+
+        var value = wait ?? TimeSpan.FromMinutes(1);
+
+        return value < MinRetryAfter ? MinRetryAfter
+            : value > MaxRetryAfter ? MaxRetryAfter
+            : value;
+    }
+
+    private static readonly TimeSpan MinRetryAfter = TimeSpan.FromSeconds(15);
+    private static readonly TimeSpan MaxRetryAfter = TimeSpan.FromHours(1);
 
     /// <summary>
     /// True for an address that cannot exist: the RFC 2606 / RFC 6761 reserved names — the

@@ -1156,6 +1156,7 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
             services.GetRequiredService<IServiceScopeFactory>(),
             options,
             TimeProvider.System,
+            new OutboxWorkerHeartbeat(TimeProvider.System),
             services.GetRequiredService<ILogger<OutboxDeliveryWorker>>());
 
         await worker.RunPassAsync(CancellationToken.None);

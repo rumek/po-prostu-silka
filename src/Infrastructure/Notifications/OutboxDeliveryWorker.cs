@@ -19,6 +19,7 @@ public class OutboxDeliveryWorker(
     IServiceScopeFactory scopeFactory,
     IOptions<OutboxOptions> options,
     TimeProvider timeProvider,
+    OutboxWorkerHeartbeat heartbeat,
     ILogger<OutboxDeliveryWorker> logger) : BackgroundService
 {
     private readonly OutboxOptions _options = options.Value;
@@ -93,16 +94,22 @@ public class OutboxDeliveryWorker(
         }
 
         await HeartbeatAsync(db, processed, withCounts, cancellationToken);
+
+        // Only a pass that got this far counts as alive. One that throws every time is as stalled
+        // as one that never returns, and /health should say so in both cases.
+        heartbeat.Beat(timeProvider.GetUtcNow());
     }
 
     /// <summary>
     /// Claims and delivers one channel's batch. Returns how many rows it claimed.
     ///
     /// <para>
-    /// A TRANSIENT EMAIL FAILURE ENDS THE EMAIL LANE for this pass. Email has one provider, so a
-    /// throttle or an outage on one message holds for the rest; sending them anyway only spends the
-    /// quota the throttle is protecting. The unsent remainder goes back to Pending untouched — no
-    /// attempt counted — and the next pass tries again. Push is not stopped this way: each
+    /// A TRANSIENT OR THROTTLED EMAIL ENDS THE EMAIL LANE for this pass. Email has one provider, so
+    /// a throttle or an outage on one message holds for the rest; sending them anyway only spends
+    /// the quota the throttle is protecting. The unsent remainder goes back to Pending with no
+    /// attempt counted — due on the next pass after a transient failure, and not before the
+    /// provider's Retry-After after a throttle, so a throttled ACS is asked once per window rather
+    /// than once per pass. Push is not stopped this way: each
     /// subscription lives on its own push service, and one endpoint's 5xx says nothing about the next.
     /// </para>
     /// </summary>
@@ -118,11 +125,11 @@ public class OutboxDeliveryWorker(
 
         for (var i = 0; i < claimed.Count; i++)
         {
-            DeliveryOutcome outcome;
+            DeliveryResult result;
 
             try
             {
-                outcome = await DeliverAsync(db, claimed[i], emailSender, pushSender, cancellationToken);
+                result = await DeliverAsync(db, claimed[i], emailSender, pushSender, cancellationToken);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
@@ -134,9 +141,15 @@ public class OutboxDeliveryWorker(
                 continue;
             }
 
-            if (channel == NotificationChannel.Email && outcome == DeliveryOutcome.Transient)
+            if (channel == NotificationChannel.Email
+                && result.Outcome is DeliveryOutcome.Transient or DeliveryOutcome.Throttled)
             {
-                await ReleaseAsync(db, claimed.Skip(i + 1).Select(m => m.Id).ToList(), cancellationToken);
+                DateTimeOffset? notBefore = result.Outcome == DeliveryOutcome.Throttled
+                    ? claimed[i].NextAttemptAt
+                    : null;
+
+                await ReleaseAsync(
+                    db, claimed.Skip(i + 1).Select(m => m.Id).ToList(), notBefore, cancellationToken);
                 break;
             }
         }
@@ -144,9 +157,12 @@ public class OutboxDeliveryWorker(
         return claimed.Count;
     }
 
-    /// <summary>Hands claimed rows back to Pending without counting an attempt against them.</summary>
+    /// <summary>
+    /// Hands claimed rows back to Pending without counting an attempt against them, due no earlier
+    /// than <paramref name="notBefore"/> when one is given.
+    /// </summary>
     private async Task ReleaseAsync(
-        AppDbContext db, List<Guid> ids, CancellationToken cancellationToken)
+        AppDbContext db, List<Guid> ids, DateTimeOffset? notBefore, CancellationToken cancellationToken)
     {
         if (ids.Count == 0)
         {
@@ -158,7 +174,8 @@ public class OutboxDeliveryWorker(
             .ExecuteUpdateAsync(
                 s => s.SetProperty(m => m.Status, OutboxStatus.Pending)
                       .SetProperty(m => m.ClaimedAt, (DateTimeOffset?)null)
-                      .SetProperty(m => m.ClaimToken, (Guid?)null),
+                      .SetProperty(m => m.ClaimToken, (Guid?)null)
+                      .SetProperty(m => m.NextAttemptAt, m => notBefore ?? m.NextAttemptAt),
                 cancellationToken);
 
         logger.LogInformation(
@@ -242,7 +259,7 @@ public class OutboxDeliveryWorker(
             .ToListAsync(cancellationToken);
     }
 
-    private async Task<DeliveryOutcome> DeliverAsync(
+    private async Task<DeliveryResult> DeliverAsync(
         AppDbContext db,
         OutboxMessage message,
         IEmailSender emailSender,
@@ -301,6 +318,18 @@ public class OutboxDeliveryWorker(
                 message.LastError = result.Error;
                 break;
 
+            case DeliveryOutcome.Throttled:
+                // Not an attempt: see DeliveryOutcome.Throttled. The provider's wait, not ours.
+                message.Status = OutboxStatus.Pending;
+                message.ClaimedAt = null;
+                message.ClaimToken = null;
+                message.LastError = result.Error;
+                message.NextAttemptAt = now + (result.RetryAfter ?? TimeSpan.FromMinutes(1));
+                logger.LogWarning(
+                    "Outbox {Id} throttled ({Error}); next attempt at {NextAttemptAt:o}.",
+                    message.Id, result.Error, message.NextAttemptAt);
+                break;
+
             case DeliveryOutcome.Permanent:
                 message.Status = OutboxStatus.Failed;
                 message.ClaimedAt = null;
@@ -335,7 +364,7 @@ public class OutboxDeliveryWorker(
 
         await db.SaveChangesAsync(cancellationToken);
 
-        return result.Outcome;
+        return result;
     }
 
     /// <summary>Backoff for the Nth attempt, clamped to the last entry in the schedule.</summary>

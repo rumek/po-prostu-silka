@@ -361,3 +361,82 @@ bookings overlay: it holds a spot a real member could take. Shorten or revoke a 
 route that ends a plan, so an active plan held by staff stays in place. That is harmless, because
 `/api/plans/mine` refuses its holder. The Staging seed never gives staff any of the three, so the
 query returns nothing there after a reseed.
+
+## Notification delivery hardening — 2026-09-25
+
+### What happened
+
+On 2026-09-24 push notifications stopped arriving on Staging, and email with them. The logs showed
+the outbox worker taking **about an hour per pass** from 16:00 UTC (heartbeats at 17:04, 18:06,
+19:12), with 114 messages pending. Nothing was ever marked `Failed`, so `/health` answered `Healthy`
+the whole time. It was found only because someone was waiting for a push.
+
+The cause was a chain of three things:
+
+1. Every cancellation emailed the test-data club, whose members all live on `example.test`
+   (S-24), which spent the managed domain's send quota on mail that could not arrive.
+2. When ACS answered 429, its SDK **retried on its own and honoured `Retry-After`**, silently,
+   inside a single send call. That parked the worker's only loop.
+3. Push and email shared one queue ordered by due time, so every push waited behind the emails.
+
+### Code changes (commits `9ed906f` and the one after it)
+
+| Change | Effect |
+| --- | --- |
+| One lane per channel, push first | A slow or throttled email can no longer delay a push |
+| `Outbox:PushMaxAge` = 1 h | An older push is dropped (`push_expired`), never sent late in a burst |
+| ACS client: retries off, 30 s network timeout | A 429 reaches the outbox at once instead of blocking the pass |
+| New outcome `Throttled` | A 429 waits out `Retry-After` (clamped to 15 s–1 h) **without spending an attempt**, and the rest of the email batch waits with it |
+| A transient or throttled email ends the email lane for that pass | ACS is asked once per window, not once per message |
+| Reserved domains are never sent to | `.test`, `.example`, `.invalid`, `.localhost` and `example.com/net/org` are dropped (`reserved_domain`) |
+| `/health` checks two more things | `Degraded` when the oldest undelivered message is older than `Outbox:MaxUndeliveredAge` (30 min), or the worker has not finished a pass for `Outbox:WorkerStallAfter` (5 min) |
+
+`/health` stays `Degraded` rather than `Unhealthy`, and **`Degraded` still answers 200.** Any alert
+must match the body text `Healthy`, not the status code. The same applies to App Service's built-in
+Health check: it only reacts to non-2xx, so it will never see a delivery problem.
+
+### Before production: alert on `/health` (required)
+
+Without this, the new checks only help whoever happens to open `/health`.
+
+1. Create an Application Insights resource in `pps-rg` (workspace-based), if there is none yet.
+2. Application Insights → **Availability** → **Add Standard test**:
+   - URL `https://<app>.azurewebsites.net/health`, test frequency 5 minutes, 3 or more locations.
+   - **Content match**: `Healthy`, "content must contain". This is what catches `Degraded`.
+   - Keep the default alert (it fires when 2 or more locations fail).
+3. Open the test's alert rule and attach an **action group** that emails the people who can act.
+4. Verify the path end to end once. On Staging, temporarily set `Outbox__WorkerStallAfter` to
+   `00:00:01`. A pass runs every 15 s, so `/health` is then `Degraded` almost all the time. Wait for
+   the alert email, then remove the setting (both changes restart the app).
+
+### Before production: ACS sender domain and quota (required)
+
+The Azure Managed Domain (`*.azurecomm.net`, see "The managed-domain decision" above) has low
+default send limits. In production, one cancellation sends one email per booked member. A few
+cancellations close together can exceed the limit. The outbox now survives that without losing mail
+(throttling costs no attempts), but mail arrives late and `/health` goes `Degraded`.
+
+1. Pick the sending domain (e.g. a subdomain such as `mail.<club-domain>`), with DNS access to it.
+2. Email Communication Service → **Provision domains** → **Add domain** → Custom domain.
+3. Add the TXT (ownership) record it shows, wait for **Verified**, then add the SPF and both DKIM
+   CNAME records and wait for all three to verify.
+4. **Connect** the domain to the Communication Service, and create a sender username (e.g.
+   `powiadomienia`).
+5. Set `Acs__SenderAddress` to `powiadomienia@mail.<club-domain>`. No code change is needed.
+6. Check the current limits for a custom domain in the ACS documentation (they change, so none
+   are recorded here). If they are below the club's worst case (largest class × cancellations per
+   hour), request a quota increase through an Azure support request for Communication Services.
+
+### Before production: a separate environment (strongly recommended)
+
+Today there is one environment, and `main` deploys straight to it. A stall like this one would
+have reached members directly.
+
+- A second App Service and Azure SQL database for production, and the current one stays as Staging.
+- Production settings: `ASPNETCORE_ENVIRONMENT=Production`, and **no** `TestDataSeed__*` settings
+  (the seeder refuses outside Development/Staging anyway). Use its own `AdminSeed__*`, its own
+  VAPID keypair (rotating keys later invalidates every subscription), and the custom-domain
+  `Acs__SenderAddress`.
+- CI: keep `main` → Staging. Promote the same artifact to production through a GitHub
+  **environment** with required reviewers, after the Staging deploy is healthy.
+- Point the availability test above at **both** environments.

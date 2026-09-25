@@ -28,11 +28,21 @@ public enum DeliveryOutcome
     /// retry nor one for the count /health reports.
     /// </summary>
     Dropped = 4,
+
+    /// <summary>
+    /// The provider said "not now" (429) and named when. Wait that long and try again WITHOUT
+    /// counting an attempt: a throttle says nothing about the message, and counting it would
+    /// dead-letter real mail after a few hours of an over-quota sender. A backlog this leaves is
+    /// what /health's undelivered-age check reports.
+    /// </summary>
+    Throttled = 5,
 }
 
 /// <param name="Outcome">What happened.</param>
 /// <param name="Error">Provider detail for diagnostics. Never contains a secret.</param>
-public readonly record struct DeliveryResult(DeliveryOutcome Outcome, string? Error = null)
+/// <param name="RetryAfter">Only for <see cref="DeliveryOutcome.Throttled"/>: how long to wait.</param>
+public readonly record struct DeliveryResult(
+    DeliveryOutcome Outcome, string? Error = null, TimeSpan? RetryAfter = null)
 {
     public static DeliveryResult Success() => new(DeliveryOutcome.Success);
 
@@ -43,4 +53,7 @@ public readonly record struct DeliveryResult(DeliveryOutcome Outcome, string? Er
     public static DeliveryResult SubscriptionGone(string error) => new(DeliveryOutcome.SubscriptionGone, error);
 
     public static DeliveryResult Dropped(string reason) => new(DeliveryOutcome.Dropped, reason);
+
+    public static DeliveryResult Throttled(string error, TimeSpan retryAfter) =>
+        new(DeliveryOutcome.Throttled, error, retryAfter);
 }
