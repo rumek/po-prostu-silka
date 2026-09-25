@@ -1,29 +1,41 @@
 <h1 class="screen-title">Więcej</h1>
 
-<nav class="more-section" aria-label="Konto">
-  <h2 class="more-heading">Konto</h2>
+<!-- The dashboard's shape: each block's title above its card, the card holding the content. -->
+<nav class="more-block" aria-label="Konto">
+  <h2 class="more-title">Konto</h2>
 
-  <ul class="more-list">
-    <!-- isAuthenticated() only, never isActive(): this is the one screen a Pending member must reach,
-         because it is where they supply the contact details S-13 made mandatory. -->
-    <li>
-      <a class="more-link" routerLink="/profile" routerLinkActive="is-active">Moje konto</a>
-    </li>
-  </ul>
+  <!-- isAuthenticated() only, never isActive(): this is the one screen a Pending member must reach,
+       because it is where they supply the contact details S-13 made mandatory. The card is the link:
+       the avatar disc the phone bar uses for the same destination, then who is signed in. -->
+  <a class="card more-account" routerLink="/profile" routerLinkActive="is-active">
+    <span class="more-avatar" aria-hidden="true"><app-icon name="profile" /></span>
+    <span class="more-account-text">
+      <span class="row-name">Moje konto</span>
+      @if (auth.user(); as current) {
+        <span class="more-account-meta">{{ current.displayName }}</span>
+        <span class="more-account-meta">{{ current.email }}</span>
+      }
+    </span>
+    <app-icon class="more-chevron" name="chevron-right" />
+  </a>
 </nav>
 
 <!-- The persona's overflow (S-25) — whatever navigationFor() puts in `more`. Rendered only when there
      is something in it: a member's and a trainer's whole menu fits the bar. -->
 @if (panel().length > 0) {
-  <nav class="more-section" aria-label="Panel">
-    <h2 class="more-heading">Panel</h2>
+  <nav class="more-block" aria-label="Panel">
+    <h2 class="more-title">Panel</h2>
 
-    <ul class="more-list">
+    <!-- Rows under hairlines, several to a card — the dashboard's staff list. Each carries the icon
+         its destination has everywhere else in the app. -->
+    <ul class="card more-list">
       @for (link of panel(); track link.route) {
         <li>
-          <a class="more-link" [routerLink]="link.route" routerLinkActive="is-active">{{
-            link.label
-          }}</a>
+          <a class="more-link" [routerLink]="link.route" routerLinkActive="is-active">
+            <app-icon class="more-link-icon" [name]="link.icon" />
+            <span class="more-link-label">{{ link.label }}</span>
+            <app-icon class="more-chevron" name="chevron-right" />
+          </a>
         </li>
       }
     </ul>
@@ -31,7 +43,11 @@
 }
 
 <!-- A button, not a link: logging out changes server state, so it must not be something a browser can
-     prefetch or a member can middle-click into a new tab. -->
-<button type="button" class="button button--secondary more-logout" (click)="logout()">
-  Wyloguj się
-</button>
+     prefetch or a member can middle-click into a new tab. Drawn as a row in its own card, apart from
+     the destinations above: it is the one entry here that goes nowhere. -->
+<div class="card more-list more-block">
+  <button type="button" class="more-link more-logout" (click)="logout()">
+    <app-icon class="more-link-icon" name="logout" />
+    <span class="more-link-label">Wyloguj się</span>
+  </button>
+</div>

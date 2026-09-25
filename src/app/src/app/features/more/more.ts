@@ -6,6 +6,7 @@ import { DESK_MEDIA_QUERY } from '../../core/layout/breakpoints';
 import { mediaQuerySignal } from '../../core/layout/media-query';
 import { navigationFor } from '../../core/layout/navigation';
 import { PushService } from '../../core/notifications/push.service';
+import { Icon } from '../../shared/icons/icon';
 
 /**
  * Everything that does not earn a tab in the bottom bar (S-12).
@@ -25,7 +26,7 @@ import { PushService } from '../../core/notifications/push.service';
  * and its route makes the same choice for the same reason.
  */
 @Component({
-  imports: [RouterLink, RouterLinkActive],
+  imports: [Icon, RouterLink, RouterLinkActive],
   selector: 'app-more',
   styleUrl: './more.scss',
   templateUrl: './more.html',

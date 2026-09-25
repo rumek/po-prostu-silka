@@ -58,16 +58,10 @@
   overflow-wrap: anywhere;
 }
 
-// A fact about the exercise, not part of the prescription — so it sits under the name, quieter.
+// A fact about the exercise, not part of the prescription — so it sits under the name, as a .chip
+// (src/styles.scss).
 .my-plan-muscle {
   margin: var(--space-1) 0 0;
-  color: var(--muted);
-  font-size: 0.675rem;
-  overflow-wrap: anywhere;
-  width: fit-content;
-  padding: 2px 4px;
-  background: var(--ground);
-  border-radius: 4px;
 }
 
 .my-plan-info {

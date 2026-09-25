@@ -25,7 +25,12 @@ export type IconName =
   | 'present'
   | 'absent'
   | 'unrecorded'
-  | 'cancelled';
+  | 'cancelled'
+  | 'play'
+  | 'logout'
+  | 'target'
+  | 'level'
+  | 'kettlebell';
 
 /**
  * The app's icon primitive — the first one this codebase has had.

@@ -211,7 +211,7 @@ body {
 }
 
 // -----------------------------------------------------------------------------
-// Screen hero photos: Start, Moje zajęcia, Mój plan.
+// Screen hero photos: Start, Moje zajęcia, Mój plan, Ćwiczenia.
 //
 // The photo is the PAGE's background rather than the screen's, so it begins at the very top of the
 // screen, behind the header; a component's stylesheet cannot reach <body>. Anchored top-right at half
@@ -237,7 +237,10 @@ body:has(app-my-classes) {
   --hero-mobile-ratio: calc(1024 / 768);
 }
 
-body:has(app-my-plan) {
+// The admin's exercise library shares the plan's photo: it is where plans are made from, and staff
+// never see Mój plan, so no one meets the same picture on two screens.
+body:has(app-my-plan),
+body:has(app-exercises) {
   --hero: url('/plan-web.webp');
   --hero-ratio: calc(1024 / 1536);
   --hero-mobile: url('/plan-mobile.webp');
@@ -544,6 +547,19 @@ a {
   white-space: nowrap;
 }
 
+// A quiet tag carrying a fact about a thing — an exercise's muscle group — rather than a state (that
+// is .badge). One look wherever the fact appears: the member's plan card and the admin's exercise list.
+.chip {
+  display: block;
+  width: fit-content;
+  padding: 2px 4px;
+  border-radius: 4px;
+  background: var(--ground);
+  color: var(--muted);
+  font-size: 0.675rem;
+  overflow-wrap: anywhere;
+}
+
 .button {
   padding: var(--space-3) var(--space-5);
   border: 1px solid transparent;
@@ -652,7 +668,10 @@ a {
 
 @include bp.narrow {
   .screen-title,
-  .up-link {
+  .up-link,
+  // The detail header's h1 is a flex row (.page-header--detail h1 above), and that selector outranks
+  // a bare .screen-title — so the name showed twice on a phone, in the bar and under it.
+  .page-header--detail h1.screen-title {
     display: none;
   }
 
@@ -852,6 +871,25 @@ a {
   flex-wrap: wrap;
   gap: var(--space-2);
   margin-left: auto;
+}
+
+// Tiles rather than rows (the exercise library): as many columns as fit, like the dashboard's cards,
+// and each row stacked — lead on top, the identity, the actions at the foot. A modifier on the HOST,
+// because the <ul> is app-list's own template and a caller's scoped styles cannot reach it.
+app-list.list--tiles > .list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr));
+
+  > .row {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: stretch;
+  }
+
+  // Its 16rem basis is a WIDTH in a row; in a column it would become a height.
+  .row-identity {
+    flex: 0 1 auto;
+  }
 }
 
 // -----------------------------------------------------------------------------

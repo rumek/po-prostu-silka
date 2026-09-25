@@ -1,33 +1,107 @@
-// Layout only — .button/.button--secondary come from src/styles.scss.
+// Layout only — .card/.row-name come from src/styles.scss. Drawn like the dashboard: a block title
+// above each card, rows under hairlines inside it, icons in accent2.
 
-.more-section {
-  margin-top: var(--space-6);
-}
-
-.more-heading {
-  margin: 0 0 var(--space-3);
-  font-size: 1.125rem;
-}
-
-.more-list {
+:host {
   display: grid;
+  gap: var(--space-5);
+  max-width: 36rem;
+}
+
+// The screen title's own margin would double the grid's gap.
+.screen-title {
+  margin: 0;
+}
+
+.more-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+// The dashboard's block title (.dashboard-card-title): the body face, a label for the card under it.
+.more-title {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 1.125rem;
+  letter-spacing: 0;
+}
+
+// The account card is one link: disc, who is signed in, chevron.
+.more-account {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  text-decoration: none;
+
+  &.is-active .row-name {
+    color: var(--accent);
+  }
+}
+
+// The phone bar's profile disc (.shell-profile in app.scss), at card size.
+.more-avatar {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  background: var(--section-warm);
+  color: var(--ink);
+  font-size: 1.1rem;
+}
+
+.more-account-text {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.more-account-meta {
+  color: var(--muted);
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+
+.more-chevron {
+  margin-left: auto;
+  color: var(--accent);
+  font-size: 0.9rem;
+}
+
+// The card carries the rows edge to edge; each row pads itself, so the whole width is the target.
+.more-list {
   margin: 0;
   padding: 0;
   list-style: none;
-  border-top: 1px solid var(--line);
+  overflow: hidden;
+
+  > li + li {
+    border-top: 1px solid var(--line);
+  }
 }
 
-// Full-width rows rather than inline links: this screen is reached on a phone, where a row is a far
-// easier target than a word. 44px matches the tap-target floor .button sets in styles.scss.
+// 44px, the tap-target floor .button sets in styles.scss: this screen is reached on a phone.
 .more-link {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
   min-height: 44px;
-  padding: var(--space-3) var(--space-1);
-  border-bottom: 1px solid var(--line);
+  padding: var(--space-4) var(--space-5);
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
   text-decoration: none;
+  cursor: pointer;
 
   &:hover {
-    color: var(--accent);
+    background: var(--ground);
   }
 
   &.is-active {
@@ -35,6 +109,16 @@
   }
 }
 
-.more-logout {
-  margin-top: var(--space-6);
+.more-link-icon {
+  color: var(--accent2);
+  font-size: 0.875rem;
+}
+
+.more-link-label {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.more-logout:hover {
+  color: var(--accent);
 }

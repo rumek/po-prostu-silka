@@ -24,79 +24,11 @@
     </div>
   </div>
 
-  @if (row.muscleGroup || row.difficulty || row.equipment) {
-    <ul class="exercise-detail-facts">
-      @if (row.muscleGroup) {
-        <li><span class="exercise-detail-label">Grupa mięśniowa</span>{{ row.muscleGroup }}</li>
-      }
-      @if (row.difficulty) {
-        <li><span class="exercise-detail-label">Trudność</span>{{ row.difficulty }}</li>
-      }
-      @if (row.equipment) {
-        <li><span class="exercise-detail-label">Sprzęt</span>{{ row.equipment }}</li>
-      }
-    </ul>
-  }
-
-  <!-- No video renders nothing at all — not an empty frame, which would read as a failure. The 16:9
-       box matches the list's thumbnail so the two screens agree on the shape of a video. -->
-  @if (playerUrl(); as src) {
-    <div class="exercise-detail-video">
-      <iframe
-        [src]="src"
-        [title]="'Film instruktażowy: ' + row.name"
-        loading="lazy"
-        referrerpolicy="strict-origin-when-cross-origin"
-        allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-        allowfullscreen
-      ></iframe>
-    </div>
-  }
-
-  @if (row.description) {
-    <section class="exercise-detail-section">
-      <h2>Opis</h2>
-      <p>{{ row.description }}</p>
-    </section>
-  }
-
-  @if (row.preparation) {
-    <section class="exercise-detail-section">
-      <h2>Przygotowanie</h2>
-      <p>{{ row.preparation }}</p>
-    </section>
-  }
-
-  @if (row.startingPosition) {
-    <section class="exercise-detail-section">
-      <h2>Pozycja startowa</h2>
-      <p>{{ row.startingPosition }}</p>
-    </section>
-  }
-
-  @if (row.execution) {
-    <section class="exercise-detail-section">
-      <h2>Wykonanie</h2>
-      <p>{{ row.execution }}</p>
-    </section>
-  }
-
-  <!-- The one case where saying "nothing here" beats saying nothing: a bare entry looks identical
-       to a broken screen otherwise. -->
-  @if (
-    !row.description &&
-    !row.preparation &&
-    !row.startingPosition &&
-    !row.execution &&
-    !row.muscleGroup &&
-    !row.difficulty &&
-    !row.equipment &&
-    !row.videoId
-  ) {
-    <div class="card">
-      <app-empty>
-        To ćwiczenie ma na razie tylko nazwę. Użyj „Edytuj”, żeby dodać instrukcje i film.
-      </app-empty>
-    </div>
-  }
+  <!-- The body is shared with the member's plan-exercise screen (shared/exercise-view); only the
+       header and the empty state's words are this screen's. -->
+  <app-exercise-view [exercise]="row">
+    <app-empty>
+      To ćwiczenie ma na razie tylko nazwę. Użyj „Edytuj”, żeby dodać instrukcje i film.
+    </app-empty>
+  </app-exercise-view>
 }

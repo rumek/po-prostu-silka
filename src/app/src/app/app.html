@@ -24,22 +24,52 @@
            bar and /more also read. Each link's persona is its route guard's, by construction, so no
            condition here can disagree with a guard (the S-01 F5 bug class). An account with no
            persona — a blocked one — gets an empty list and keeps only Moje konto and logout below. -->
-      @for (link of nav().header; track link.route) {
-        <a
-          [routerLink]="link.route"
-          routerLinkActive="is-active"
-          [routerLinkActiveOptions]="{ exact: link.exact }"
-          >{{ link.label }}</a
-        >
+      <!-- The phone bar's pill (shared/bottom-nav), at the top: the same icons, the same accent on the
+           tab the member is on. Below desk width it also behaves like the bar, labelling the active
+           tab only, so an admin's five destinations still fit one row beside the logo. -->
+      @if (nav().header.length > 0) {
+        <div class="shell-tabs">
+          @for (link of nav().header; track link.route) {
+            <a
+              class="shell-tab"
+              [routerLink]="link.route"
+              routerLinkActive="is-active"
+              ariaCurrentWhenActive="page"
+              [routerLinkActiveOptions]="{ exact: link.exact }"
+              [attr.aria-label]="link.label"
+              [title]="link.label"
+            >
+              <app-icon [name]="link.icon" />
+              <span class="shell-tab-label">{{ link.label }}</span>
+            </a>
+          }
+        </div>
       }
 
       <!-- Gated on isAuthenticated() by the enclosing block alone, unlike every link above it: the
            profile screen is where a Pending member completes the contact details S-13 added, so
            narrowing this to isActive() would hide the one screen an unapproved account needs. Its
-           route and its API group make the same choice. -->
-      <a routerLink="/profile" routerLinkActive="is-active">Moje konto</a>
+           route and its API group make the same choice. The phone bar's avatar disc, at this edge
+           too. -->
+      <a
+        class="shell-account"
+        routerLink="/profile"
+        routerLinkActive="is-active"
+        aria-label="Moje konto"
+        title="Moje konto"
+      >
+        <app-icon name="profile" />
+      </a>
 
-      <button type="button" class="shell-logout" (click)="logout()">Wyloguj się</button>
+      <button
+        type="button"
+        class="shell-logout"
+        aria-label="Wyloguj się"
+        title="Wyloguj się"
+        (click)="logout()"
+      >
+        <app-icon name="logout" />
+      </button>
     </nav>
 
     <!-- The phone's way to the account screen, at the bar's right edge on every signed-in screen.

@@ -16,79 +16,12 @@
     <a class="link-button up-link" appUp="/my-plan">Wróć do planu</a>
   </div>
 
-  @if (row.muscleGroup || row.difficulty || row.equipment) {
-    <ul class="plan-exercise-facts">
-      @if (row.muscleGroup) {
-        <li><span class="plan-exercise-label">Grupa mięśniowa</span>{{ row.muscleGroup }}</li>
-      }
-      @if (row.difficulty) {
-        <li><span class="plan-exercise-label">Trudność</span>{{ row.difficulty }}</li>
-      }
-      @if (row.equipment) {
-        <li><span class="plan-exercise-label">Sprzęt</span>{{ row.equipment }}</li>
-      }
-    </ul>
-  }
-
-  <!-- No video renders nothing at all — not an empty frame, which would read as a failure. -->
-  @if (playerUrl(); as src) {
-    <div class="plan-exercise-video">
-      <iframe
-        [src]="src"
-        [title]="'Film instruktażowy: ' + row.name"
-        loading="lazy"
-        referrerpolicy="strict-origin-when-cross-origin"
-        allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-        allowfullscreen
-      ></iframe>
-    </div>
-  }
-
-  @if (row.description) {
-    <section class="plan-exercise-section">
-      <h2>Opis</h2>
-      <p>{{ row.description }}</p>
-    </section>
-  }
-
-  @if (row.preparation) {
-    <section class="plan-exercise-section">
-      <h2>Przygotowanie</h2>
-      <p>{{ row.preparation }}</p>
-    </section>
-  }
-
-  @if (row.startingPosition) {
-    <section class="plan-exercise-section">
-      <h2>Pozycja startowa</h2>
-      <p>{{ row.startingPosition }}</p>
-    </section>
-  }
-
-  @if (row.execution) {
-    <section class="plan-exercise-section">
-      <h2>Wykonanie</h2>
-      <p>{{ row.execution }}</p>
-    </section>
-  }
-
-  <!-- Saying "nothing here" beats saying nothing: a bare entry looks identical to a broken screen
-       otherwise. Unlike the admin's version this offers no way to fix it — a member does not
-       maintain the library, so it names who does. -->
-  @if (
-    !row.description &&
-    !row.preparation &&
-    !row.startingPosition &&
-    !row.execution &&
-    !row.muscleGroup &&
-    !row.difficulty &&
-    !row.equipment &&
-    !row.videoId
-  ) {
-    <div class="card">
-      <app-empty>
-        Do tego ćwiczenia nie dodano jeszcze opisu ani filmu. Zapytaj trenera, jak je wykonać.
-      </app-empty>
-    </div>
-  }
+  <!-- The body is shared with the admin's detail screen (shared/exercise-view). Its empty state
+       offers no way to fix a bare entry — a member does not maintain the library, so it names who
+       does. -->
+  <app-exercise-view [exercise]="row">
+    <app-empty>
+      Do tego ćwiczenia nie dodano jeszcze opisu ani filmu. Zapytaj trenera, jak je wykonać.
+    </app-empty>
+  </app-exercise-view>
 }

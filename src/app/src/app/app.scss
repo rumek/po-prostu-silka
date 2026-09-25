@@ -50,33 +50,116 @@
   display: none;
 }
 
+// THE MENU ABOVE 30rem: the phone's bottom bar (shared/bottom-nav) moved to the top — the same pill
+// on --ground, the same accent fill on the tab the member is on — then the account disc and logout.
 .shell-nav {
   display: flex;
   align-items: center;
-  gap: var(--space-4);
-  font-size: 0.9375rem;
+  gap: var(--space-2);
+}
 
-  .is-active {
-    text-decoration-color: currentcolor;
+.shell-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 32px;
+  background: var(--ground);
+  box-shadow:
+    0 8px 30px rgba(80, 55, 45, 0.1),
+    0 2px 8px rgba(80, 55, 45, 0.06);
+}
+
+.shell-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 32px;
+  color: var(--ink);
+  font-size: 0.875rem;
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    background-color 200ms ease,
+    color 200ms ease;
+
+  app-icon {
+    font-size: 0.8rem;
+  }
+
+  &:hover {
+    background: var(--section-warm);
+    color: var(--ink);
+  }
+
+  &.is-active {
+    background: var(--accent);
+    color: white;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+}
+
+// Between the phone and the desk the bar's own rule: only the active tab spells its name, so an
+// admin's five destinations fit one row beside the logo. The name stays in aria-label and title.
+@include bp.below-desk {
+  .shell-tab:not(.is-active) .shell-tab-label {
+    display: none;
+  }
+}
+
+// The phone bar's avatar disc (.shell-profile below) and its logout twin: round, 44px, quiet until
+// hovered. The disc fills with the accent on Moje konto, as an active tab does.
+.shell-account,
+.shell-logout {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  color: var(--ink);
+  font-size: 0.8rem;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background-color 200ms ease,
+    color 200ms ease;
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+}
+
+.shell-account {
+  margin-left: var(--space-2);
+  background: var(--section-warm);
+
+  &:hover {
+    color: var(--accent);
+  }
+
+  &.is-active {
+    background: var(--accent);
+    color: white;
   }
 }
 
 // A button, not a link: logging out changes server state, so it must not be something a browser
 // can prefetch or a member can middle-click into a new tab.
 .shell-logout {
-  padding: 0;
-  border: 0;
   background: none;
-  color: inherit;
-  font: inherit;
-  text-decoration: underline;
-  text-decoration-color: var(--line-strong);
-  text-underline-offset: 0.2em;
-  cursor: pointer;
+  color: var(--muted);
 
   &:hover {
+    background: var(--section-warm);
     color: var(--accent);
-    text-decoration-color: currentcolor;
   }
 }
 

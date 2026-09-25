@@ -1,65 +1,12 @@
 @use 'breakpoints' as bp;
 
-// Layout only — .card/.button/.alert/.notice/.badge/.hint and .page-header come from
-// src/styles.scss.
+// Layout only — .button/.alert/.badge and .page-header come from src/styles.scss; the body below the
+// header is shared/exercise-view.
 .exercise-detail-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-4);
-}
-
-// The one-line facts, as a definition-ish row rather than a table: three optional values that read
-// as labels, not as data to compare across rows.
-.exercise-detail-facts {
-  list-style: none;
-  padding: 0;
-  margin: var(--space-4) 0 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2) var(--space-6);
-}
-
-.exercise-detail-label {
-  display: block;
-  color: var(--muted);
-  font-size: 0.8125rem;
-}
-
-// Same 16:9 box as the list's thumbnail, so a video occupies the shape the admin already learned.
-// Capped so the player does not dominate a wide screen — the instructions are what is read here.
-.exercise-detail-video {
-  margin-top: var(--space-5);
-  max-width: 40rem;
-  aspect-ratio: 16 / 9;
-  overflow: hidden;
-  border-radius: var(--radius-sm);
-  background: #000;
-}
-
-.exercise-detail-video iframe {
-  width: 100%;
-  height: 100%;
-  border: 0;
-  display: block;
-}
-
-.exercise-detail-section {
-  margin-top: var(--space-5);
-  max-width: 44rem;
-}
-
-.exercise-detail-section h2 {
-  margin: 0 0 var(--space-2);
-  font-size: 1rem;
-}
-
-.exercise-detail-section p {
-  margin: 0;
-  // Preserves the line breaks the admin typed: instructions are steps, and collapsing them into one
-  // paragraph is exactly what makes them unreadable between sets.
-  white-space: pre-line;
-  overflow-wrap: anywhere;
 }
 
 .badge-inactive {

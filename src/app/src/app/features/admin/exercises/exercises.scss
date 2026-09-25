@@ -1,41 +1,68 @@
-@use 'breakpoints' as bp;
+// Layout only — .card/.chip/.hint/.badge/.link-button, the hero and the tile grid
+// (app-list.list--tiles) come from src/styles.scss.
 
-.exercises-controls {
+.exercises-hint {
+  max-width: 44rem;
+  margin: 0 0 var(--space-4);
+}
+
+// The filter on the left, the one way to add on the right — one row above the tiles they act on.
+.exercises-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
   margin-bottom: var(--space-4);
 }
 
-// The app's first image. The box is sized and given its aspect ratio here, NOT by the image: a
-// thumbnail that arrives late (or never) must occupy exactly the same space as one that loaded, or
-// the list jumps under the cursor as YouTube's CDN responds row by row.
+// The plan card's density (.my-plan-item), stacked: thumbnail, text, then the actions on a hairline.
+.exercises-row {
+  gap: var(--space-3);
+  padding: var(--space-3);
+}
+
+// Retired, not broken: the tile stays readable, only quieter.
+.exercises-row--inactive .exercises-thumbnail {
+  opacity: 0.55;
+}
+
+// The box is sized and given its aspect ratio here, NOT by the image: a thumbnail that arrives late
+// (or never) must occupy exactly the same space as one that loaded, or the grid jumps under the
+// cursor as YouTube's CDN responds tile by tile.
 .exercises-thumbnail {
-  flex: 0 0 auto;
-  width: 8rem;
-  aspect-ratio: 16 / 9;
   display: flex;
   align-items: center;
   justify-content: center;
+  aspect-ratio: 16 / 9;
   overflow: hidden;
   border-radius: var(--radius-sm);
-  background: var(--surface-muted, #f1f5f9);
+  background: var(--section-warm);
 }
 
 .exercises-thumbnail img {
+  display: block;
   width: 100%;
   height: 100%;
   // The thumbnail is 16:9 already; cover guards against YouTube ever changing that.
   object-fit: cover;
-  display: block;
 }
 
 // Stands in for a missing or broken thumbnail, so "no video" reads as a deliberate state rather
-// than as a failed image.
+// than as a failed image. The accent2 of every other card icon.
 .exercises-thumbnail-empty {
-  color: var(--muted);
-  font-size: 1.5rem;
+  display: inline-flex;
+  color: var(--accent2);
+  font-size: 1.25rem;
+}
+
+.exercises-muscle {
+  margin: var(--space-1) 0 0;
 }
 
 .exercises-description {
-  margin: var(--space-1) 0 0;
+  margin: var(--space-2) 0 0;
+  color: var(--muted);
   font-size: 0.875rem;
   overflow-wrap: anywhere;
   // Two lines is enough to tell entries apart; the detail screen is where prose is read.
@@ -46,31 +73,37 @@
   overflow: hidden;
 }
 
-// Retired, not broken — muted like the class-types badge. A deactivated exercise is a deliberate
-// state, not a problem to fix. The .badge base rule this sits on is global (src/styles.scss).
+// The card's foot, under a hairline like the plan card's parameters: the quiet toggle on the left,
+// the way in on the right, where the dashboard puts its "see all".
+.exercises-actions {
+  align-items: center;
+  justify-content: space-between;
+  margin: auto 0 0;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--line);
+}
+
+.exercises-toggle {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.exercises-open {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+
+  app-icon {
+    color: var(--accent);
+    font-size: 0.9rem;
+  }
+}
+
+// Retired, not broken — muted like the class-types badge. The .badge base rule is global.
 .badge-inactive {
   color: var(--muted);
   font-weight: 400;
-}
-
-@include bp.narrow {
-  .row {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  // Full width at phone size: a 8rem box beside nothing looks like a mistake, and the thumbnail is
-  // the fastest way to recognise an exercise.
-  .exercises-thumbnail {
-    width: 100%;
-  }
-
-  .row-actions {
-    margin-left: 0;
-  }
-
-  .row-actions .button {
-    flex: 1 1 auto;
-    text-align: center;
-  }
 }

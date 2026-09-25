@@ -1,13 +1,12 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
-import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { useScreenTitle } from '../../../core/layout/screen-title';
 import { ExerciseService } from '../../../core/training/exercise.service';
 import { ExerciseSummary } from '../../../core/training/exercise.models';
-import { embedUrl, isVideoId } from '../../../core/training/youtube';
 import { classifyFailure } from '../../../core/http/failure';
 import { Loading } from '../../../shared/forms/loading/loading';
 import { Empty } from '../../../shared/forms/empty/empty';
+import { ExerciseView } from '../../../shared/exercise-view/exercise-view';
 
 /**
  * One exercise, laid out for reading (prd.md FR-018, FR-019).
@@ -21,7 +20,7 @@ import { Empty } from '../../../shared/forms/empty/empty';
  * headings would make it look broken.
  */
 @Component({
-  imports: [Empty, Loading, RouterLink],
+  imports: [Empty, ExerciseView, Loading, RouterLink],
   selector: 'app-exercise-detail',
   styleUrl: './exercise-detail.scss',
   templateUrl: './exercise-detail.html',
@@ -29,7 +28,6 @@ import { Empty } from '../../../shared/forms/empty/empty';
 export class ExerciseDetail implements OnInit {
   private readonly exercises = inject(ExerciseService);
   private readonly route = inject(ActivatedRoute);
-  private readonly sanitizer = inject(DomSanitizer);
 
   protected readonly exercise = signal<ExerciseSummary | null>(null);
 
@@ -43,22 +41,6 @@ export class ExerciseDetail implements OnInit {
   protected readonly notFound = signal(false);
 
   private id = '';
-
-  /**
-   * The player URL, trusted once per video id.
-   *
-   * THIS IS THE ONLY bypassSecurityTrust* CALL IN THE APP, and the isVideoId guard is why it is safe:
-   * the id is re-checked against the same 11-character pattern the server enforces immediately
-   * before it is trusted. Computed rather than written as a template getter on purpose — a getter
-   * would re-trust the value on every change detection cycle.
-   */
-  protected readonly playerUrl = computed<SafeResourceUrl | null>(() => {
-    const videoId = this.exercise()?.videoId;
-
-    return isVideoId(videoId)
-      ? this.sanitizer.bypassSecurityTrustResourceUrl(embedUrl(videoId))
-      : null;
-  });
 
   async ngOnInit(): Promise<void> {
     this.id = this.route.snapshot.paramMap.get('id') ?? '';

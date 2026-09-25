@@ -1,0 +1,51 @@
+<!-- Two columns at desk width — what to watch on the left, what to read on the right — and one column
+     below it, in the same order. -->
+<div class="exercise-view" [class.exercise-view--split]="guide().length > 0">
+  @if (playerUrl() || facts().length > 0) {
+    <div class="exercise-view-media">
+      @if (playerUrl(); as src) {
+        <div class="exercise-view-video">
+          <iframe
+            [src]="src"
+            [title]="'Film instruktażowy: ' + exercise().name"
+            loading="lazy"
+            referrerpolicy="strict-origin-when-cross-origin"
+            allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowfullscreen
+          ></iframe>
+        </div>
+      }
+
+      @if (facts().length > 0) {
+        <!-- The plan card's parameter strip, carrying the exercise's facts: icon, word, value. -->
+        <ul class="card exercise-view-facts">
+          @for (fact of facts(); track fact.label) {
+            <li class="exercise-view-fact">
+              <app-icon [name]="fact.icon" />
+              <span class="exercise-view-label">{{ fact.label }}</span>
+              <span class="exercise-view-value">{{ fact.value }}</span>
+            </li>
+          }
+        </ul>
+      }
+    </div>
+  }
+
+  @if (guide().length > 0) {
+    <!-- One card, one section per instruction, a hairline between them: steps read in order. -->
+    <div class="card exercise-view-guide">
+      @for (section of guide(); track section.heading) {
+        <section class="exercise-view-section">
+          <h2 class="exercise-view-heading">{{ section.heading }}</h2>
+          <p class="exercise-view-text">{{ section.text }}</p>
+        </section>
+      }
+    </div>
+  }
+
+  @if (bare()) {
+    <div class="card exercise-view-empty">
+      <ng-content />
+    </div>
+  }
+</div>

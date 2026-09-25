@@ -1,17 +1,34 @@
-<div class="page-header">
+<!-- The hero photo's space (src/styles.scss, .screen-hero), as on Mój plan: on a phone the title
+     hides and the block keeps the photo clear of the list. The panel says what the library holds —
+     only once it has loaded and holds something; an empty library says so below. -->
+<header class="screen-hero">
   <h1 class="screen-title">Ćwiczenia</h1>
-  <a class="button" routerLink="/admin/exercises/new">Dodaj ćwiczenie</a>
-</div>
-<p class="hint">
+
+  @if (!loading() && !loadFailed() && rows().length > 0) {
+    <div class="hero-panel">
+      <p class="hero-panel-title">{{ libraryLabel() }}</p>
+      <p class="hero-panel-meta">
+        <app-icon name="play" />
+        <span>Z filmem: {{ withVideo() }}</span>
+      </p>
+      @if (inactive() > 0) {
+        <p class="hero-panel-meta">Nieaktywne: {{ inactive() }}</p>
+      }
+    </div>
+  }
+</header>
+
+<p class="hint exercises-hint">
   Biblioteka ćwiczeń, z której będą składane plany treningowe. Wystarczy sama nazwa — opis,
   instrukcje i film możesz uzupełnić później. Ćwiczeń się nie usuwa: dezaktywacja zwalnia nazwę i
   znika z listy, a wszystko, co się do ćwiczenia odwołuje, zostaje nietknięte.
 </p>
 
-<div class="exercises-controls">
+<div class="exercises-toolbar">
   <app-checkbox [checked]="showInactive()" (checkedChange)="toggleInactive()">
     Pokaż nieaktywne
   </app-checkbox>
+  <a class="button" routerLink="/admin/exercises/new">Dodaj ćwiczenie</a>
 </div>
 
 @if (loading()) {
@@ -32,16 +49,22 @@
     </app-empty>
   </div>
 } @else {
-  <app-list>
+  <!-- Tiles rather than long rows (app-list.list--tiles, src/styles.scss): an exercise is recognised
+       by its video first, so the thumbnail leads each card at full width, as many to a row as fit —
+       the dashboard's card grid. The card itself is the plan card's: the name over its muscle-group
+       chip, then a hairline and the card's actions. -->
+  <app-list class="list--tiles">
     @for (row of visible(); track row.id) {
-      <li appRow class="card">
+      <li appRow class="card exercises-row" [class.exercises-row--inactive]="!row.isActive">
         <!-- Fixed 16:9 box whether or not an image lands in it: a thumbnail that arrives late must
              not reflow the whole list under the admin's cursor. -->
         <div slot="lead" class="exercises-thumbnail">
           @if (thumbnail(row); as src) {
             <img [src]="src" alt="" loading="lazy" (error)="onThumbnailError(row)" />
           } @else {
-            <span class="exercises-thumbnail-empty" aria-hidden="true">▶</span>
+            <span class="exercises-thumbnail-empty" aria-hidden="true">
+              <app-icon name="play" />
+            </span>
           }
         </div>
 
@@ -52,21 +75,17 @@
           }
         </p>
         @if (row.muscleGroup) {
-          <p class="row-meta">{{ row.muscleGroup }}</p>
+          <p class="chip exercises-muscle">{{ row.muscleGroup }}</p>
         }
         @if (row.description) {
           <p class="exercises-description">{{ row.description }}</p>
         }
 
-        <div slot="actions" class="row-actions">
-          <a class="button button--secondary" [routerLink]="['/admin/exercises', row.id]">
-            Otwórz
-          </a>
-
+        <div slot="actions" class="row-actions exercises-actions">
           @if (row.isActive) {
             <button
               type="button"
-              class="button button--secondary"
+              class="link-button exercises-toggle"
               [disabled]="busy.isBusy(row.id)"
               (click)="deactivate(row)"
             >
@@ -75,13 +94,24 @@
           } @else {
             <button
               type="button"
-              class="button button--secondary"
+              class="link-button exercises-toggle"
               [disabled]="busy.isBusy(row.id)"
               (click)="activate(row)"
             >
               {{ busy.isBusy(row.id) ? 'Aktywowanie…' : 'Aktywuj' }}
             </button>
           }
+
+          <!-- Named for the exercise: a screen reader listing the links would otherwise read the
+               same "Otwórz" twenty times over. -->
+          <a
+            class="exercises-open"
+            [routerLink]="['/admin/exercises', row.id]"
+            [attr.aria-label]="'Otwórz: ' + row.name"
+          >
+            Otwórz
+            <app-icon name="chevron-right" />
+          </a>
         </div>
 
         @if (failedId() === row.id) {

@@ -142,6 +142,30 @@
     @case ('unrecorded') {
       <path d="M7 12h10" />
     }
+    <!-- A video that has not loaded, or does not exist: the exercise list's empty thumbnail. -->
+    @case ('play') {
+      <circle cx="12" cy="12" r="9" />
+      <path d="M10 8.5v7l5.5-3.5Z" />
+    }
+    <!-- Leaving the session: a door with the arrow walking out of it. -->
+    @case ('logout') {
+      <path d="M14 4H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h7" />
+      <path d="M11 12h10M17.5 8.5 21 12l-3.5 3.5" />
+    }
+    <!-- An exercise's facts (the detail screens): the muscle group it targets, how hard it is, and
+         what it needs. Three meanings, so three glyphs, none shared with the plan's parameters. -->
+    @case ('target') {
+      <circle cx="12" cy="12" r="8.5" />
+      <circle cx="12" cy="12" r="4.5" />
+      <circle cx="12" cy="12" r="0.9" fill="currentColor" stroke="none" />
+    }
+    @case ('level') {
+      <path d="M5 19v-4M12 19V10M19 19V5" />
+    }
+    @case ('kettlebell') {
+      <path d="M7.6 12.2 7 8.5a5 4.5 0 0 1 10 0l-.6 3.7" />
+      <path d="M6.8 20.5a6.2 6.2 0 1 1 10.4 0Z" />
+    }
     @case ('cancelled') {
       <circle cx="12" cy="12" r="8" />
       <path d="M6.5 17.5l11-11" />

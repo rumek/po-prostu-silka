@@ -14,6 +14,7 @@ import { Loading } from '../../../shared/forms/loading/loading';
 import { Empty } from '../../../shared/forms/empty/empty';
 import { List } from '../../../shared/list/list';
 import { Row } from '../../../shared/list/row';
+import { Icon } from '../../../shared/icons/icon';
 
 /**
  * The admin's exercise library (prd.md FR-018, FR-019).
@@ -30,7 +31,7 @@ import { Row } from '../../../shared/list/row';
  * filter — flicking it costs no round trip, and the admin can reactivate something they can see.
  */
 @Component({
-  imports: [Row, List, Empty, Loading, Checkbox, RouterLink],
+  imports: [Row, List, Empty, Loading, Checkbox, Icon, RouterLink],
   selector: 'app-exercises',
   styleUrl: './exercises.scss',
   templateUrl: './exercises.html',
@@ -50,6 +51,28 @@ export class Exercises implements OnInit {
   protected readonly visible = computed(() =>
     this.showInactive() ? this.rows() : this.rows().filter((e) => e.isActive),
   );
+
+  /** The hero panel's headline: how big the library is, retired entries included. */
+  protected readonly libraryLabel = computed(() => {
+    const count = this.rows().length;
+    const ones = count % 10;
+    const tens = count % 100;
+
+    if (count === 1) {
+      return '1 ćwiczenie w bibliotece';
+    }
+
+    return ones >= 2 && ones <= 4 && (tens < 12 || tens > 14)
+      ? `${count} ćwiczenia w bibliotece`
+      : `${count} ćwiczeń w bibliotece`;
+  });
+
+  /** How many entries carry a usable video — the thing a member most often asks for. */
+  protected readonly withVideo = computed(
+    () => this.rows().filter((row) => isVideoId(row.videoId)).length,
+  );
+
+  protected readonly inactive = computed(() => this.rows().filter((row) => !row.isActive).length);
 
   /** True when exercises exist but the filter hides every one — a different message from "none yet". */
   protected readonly hiddenByFilter = computed(
