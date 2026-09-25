@@ -95,11 +95,11 @@ const GRAZYNA: Member = {
 };
 
 /** The first page, unfiltered and unsearched — what the screen asks for on a plain visit. */
-const LIST = '/api/admin/members?pageSize=25';
+const LIST = '/api/admin/members?pageSize=15';
 
 /** `rows` wrapped in the page envelope the API answers with (S-21). */
 function page(items: Member[], total = items.length, pageNumber = 1): MemberPage {
-  return { items, total, page: pageNumber, pageSize: 25 };
+  return { items, total, page: pageNumber, pageSize: 15 };
 }
 
 /** `count` distinct active members — a full page, for the pager tests. */
@@ -158,10 +158,24 @@ describe('Members', () => {
     input.dispatchEvent(new Event('input'));
   }
 
-  function chip(label: string): HTMLButtonElement {
-    return Array.from(
-      (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('.chip'),
-    ).find((b) => (b.textContent ?? '').includes(label))!;
+  function statusSelect(): HTMLSelectElement {
+    return (fixture.nativeElement as HTMLElement).querySelector('#members-status')!;
+  }
+
+  function roleSelect(): HTMLSelectElement {
+    return (fixture.nativeElement as HTMLElement).querySelector('#members-role')!;
+  }
+
+  /** Chooses the option showing `label` — what the admin picks — and fires the change. */
+  function pick(select: HTMLSelectElement, label: string): void {
+    const option = Array.from(select.options).find((o) => (o.textContent ?? '').trim() === label)!;
+    select.value = option.value;
+    select.dispatchEvent(new Event('change'));
+  }
+
+  /** The option the select shows as chosen. */
+  function picked(select: HTMLSelectElement): string {
+    return (select.selectedOptions[0]?.textContent ?? '').trim();
   }
 
   function pager(): HTMLElement | null {
@@ -259,10 +273,10 @@ describe('Members', () => {
 
     expect(table.querySelector('caption')!.textContent).toContain('Członkowie klubu');
     expect(headers.map((th) => (th.textContent ?? '').trim())).toEqual([
-      'Imię i nazwisko',
+      'Członek',
       'Status',
-      'E-mail',
-      'Od',
+      'Rola',
+      'W klubie od',
       'Akcje',
     ]);
     expect(headers.every((th) => th.getAttribute('scope') === 'col')).toBe(true);
@@ -331,7 +345,7 @@ describe('Members', () => {
    * list, which starts at the top.
    */
   it('searches on the server once typing pauses, one request per pause', async () => {
-    await createWith([ANNA, BARTEK], '/?page=2', '/api/admin/members?page=2&pageSize=25');
+    await createWith([ANNA, BARTEK], '/?page=2', '/api/admin/members?page=2&pageSize=15');
 
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
     try {
@@ -351,7 +365,7 @@ describe('Members', () => {
     }
 
     (
-      await vi.waitFor(() => controller.expectOne('/api/admin/members?search=kow&pageSize=25'))
+      await vi.waitFor(() => controller.expectOne('/api/admin/members?search=kow&pageSize=15'))
     ).flush(page([ANNA]));
     await settle();
 
@@ -367,7 +381,7 @@ describe('Members', () => {
    * the admin's typing vanished. A pending phrase is a new list, so it wins over the page.
    */
   it('searches the pending phrase instead of discarding it when the pager is clicked', async () => {
-    await createWith(page(many(25), 75));
+    await createWith(page(many(15), 75));
 
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
     try {
@@ -379,7 +393,7 @@ describe('Members', () => {
     }
 
     (
-      await vi.waitFor(() => controller.expectOne('/api/admin/members?search=kow&pageSize=25'))
+      await vi.waitFor(() => controller.expectOne('/api/admin/members?search=kow&pageSize=15'))
     ).flush(page([ANNA]));
     await settle();
 
@@ -392,7 +406,7 @@ describe('Members', () => {
    * per pause — while a chip or a page is a place Back should return to, so those push.
    */
   it('replaces the history entry for a search, and pushes one for a filter or a page', async () => {
-    await createWith(page(many(25), 75));
+    await createWith(page(many(15), 75));
     const navigate = vi.spyOn(router, 'navigate');
 
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
@@ -403,22 +417,22 @@ describe('Members', () => {
       vi.useRealTimers();
     }
     (
-      await vi.waitFor(() => controller.expectOne('/api/admin/members?search=kow&pageSize=25'))
-    ).flush(page(many(25), 75));
+      await vi.waitFor(() => controller.expectOne('/api/admin/members?search=kow&pageSize=15'))
+    ).flush(page(many(15), 75));
     await settle();
 
     pagerButton('Następna').click();
     (
       await vi.waitFor(() =>
-        controller.expectOne('/api/admin/members?search=kow&page=2&pageSize=25'),
+        controller.expectOne('/api/admin/members?search=kow&page=2&pageSize=15'),
       )
-    ).flush(page(many(25, 25), 75, 2));
+    ).flush(page(many(15, 15), 75, 2));
     await settle();
 
-    chip('Aktywni').click();
+    pick(statusSelect(), 'Aktywni');
     (
       await vi.waitFor(() =>
-        controller.expectOne('/api/admin/members?filter=Active&search=kow&pageSize=25'),
+        controller.expectOne('/api/admin/members?filter=Active&search=kow&pageSize=15'),
       )
     ).flush(page([ANNA]));
     await settle();
@@ -439,7 +453,7 @@ describe('Members', () => {
 
     await router.navigateByUrl('/?q=nowak');
     (
-      await vi.waitFor(() => controller.expectOne('/api/admin/members?search=nowak&pageSize=25'))
+      await vi.waitFor(() => controller.expectOne('/api/admin/members?search=nowak&pageSize=15'))
     ).flush(page([BARTEK]));
     await settle();
 
@@ -453,7 +467,7 @@ describe('Members', () => {
   });
 
   it('says the search found nobody, rather than that the view is empty', async () => {
-    await createWith([], '/?q=zzz', '/api/admin/members?search=zzz&pageSize=25');
+    await createWith([], '/?q=zzz', '/api/admin/members?search=zzz&pageSize=15');
 
     expect(html()).toContain('Brak członków pasujących do wyszukiwania.');
     // The box shows the phrase the URL carries — a reload keeps what the admin typed.
@@ -476,12 +490,12 @@ describe('Members', () => {
     await createWith(
       page([ANNA], 30, 2),
       '/?q=kow&filter=Active&page=2',
-      '/api/admin/members?filter=Active&search=kow&page=2&pageSize=25',
+      '/api/admin/members?filter=Active&search=kow&page=2&pageSize=15',
     );
 
     expect(searchBox().value).toBe('kow');
-    expect(chip('Aktywni').classList).toContain('chip-active');
-    expect(html()).toContain('26–26 z 30');
+    expect(picked(statusSelect())).toBe('Aktywni');
+    expect(html()).toContain('16–16 z 30');
   });
 
   it('hides the pager when everything fits on one page', async () => {
@@ -491,23 +505,23 @@ describe('Members', () => {
   });
 
   it('pages forward and back through the server', async () => {
-    await createWith(page(many(25), 30));
+    await createWith(page(many(15), 20));
 
-    expect(html()).toContain('1–25 z 30');
+    expect(html()).toContain('1–15 z 20');
     expect(pagerButton('Poprzednia').disabled).toBe(true);
 
     pagerButton('Następna').click();
-    (await vi.waitFor(() => controller.expectOne('/api/admin/members?page=2&pageSize=25'))).flush(
-      page(many(5, 25), 30, 2),
+    (await vi.waitFor(() => controller.expectOne('/api/admin/members?page=2&pageSize=15'))).flush(
+      page(many(5, 15), 20, 2),
     );
     await settle();
 
     expect(router.url).toBe('/?page=2');
-    expect(html()).toContain('26–30 z 30');
+    expect(html()).toContain('16–20 z 20');
     expect(pagerButton('Następna').disabled).toBe(true);
 
     pagerButton('Poprzednia').click();
-    (await vi.waitFor(() => controller.expectOne(LIST))).flush(page(many(25), 30));
+    (await vi.waitFor(() => controller.expectOne(LIST))).flush(page(many(15), 20));
     await settle();
 
     expect(router.url).toBe('/');
@@ -519,7 +533,7 @@ describe('Members', () => {
    * already filled in, which a screen reader does not announce.
    */
   it('keeps the pager, its range and the focus in place while the next page loads', async () => {
-    await createWith(page(many(25), 75));
+    await createWith(page(many(15), 75));
 
     const nav = pager()!;
     const status = nav.querySelector('[role="status"]')!;
@@ -528,24 +542,24 @@ describe('Members', () => {
     next.click();
 
     const request = await vi.waitFor(() =>
-      controller.expectOne('/api/admin/members?page=2&pageSize=25'),
+      controller.expectOne('/api/admin/members?page=2&pageSize=15'),
     );
     await settle();
 
     // In flight: the old rows stay up, dimmed and inert, and the range still describes THEM.
     const table = (fixture.nativeElement as HTMLElement).querySelector('table')!;
     expect(table.getAttribute('aria-busy')).toBe('true');
-    expect(rows().length).toBe(25);
+    expect(rows().length).toBe(15);
     expect(menuTrigger(rows()[0]).disabled).toBe(true);
-    expect(status.textContent).toContain('1–25 z 75');
+    expect(status.textContent).toContain('1–15 z 75');
 
-    request.flush(page(many(25, 25), 75, 2));
+    request.flush(page(many(15, 15), 75, 2));
     await settle();
 
     // The same elements, updated in place.
     expect(pager()).toBe(nav);
     expect(nav.querySelector('[role="status"]')).toBe(status);
-    expect(status.textContent).toContain('26–50 z 75');
+    expect(status.textContent).toContain('16–30 z 75');
     expect(document.activeElement).toBe(next);
     expect(table.getAttribute('aria-busy')).toBe('false');
   });
@@ -557,11 +571,11 @@ describe('Members', () => {
   it('lands on the last page when the requested one is past the end', async () => {
     await arrive('/?page=3');
 
-    (await vi.waitFor(() => controller.expectOne('/api/admin/members?page=3&pageSize=25'))).flush(
-      page([], 30, 3),
+    (await vi.waitFor(() => controller.expectOne('/api/admin/members?page=3&pageSize=15'))).flush(
+      page([], 20, 3),
     );
-    (await vi.waitFor(() => controller.expectOne('/api/admin/members?page=2&pageSize=25'))).flush(
-      page(many(5, 25), 30, 2),
+    (await vi.waitFor(() => controller.expectOne('/api/admin/members?page=2&pageSize=15'))).flush(
+      page(many(5, 15), 20, 2),
     );
     await settle();
 
@@ -576,11 +590,11 @@ describe('Members', () => {
 
     (
       await vi.waitFor(() =>
-        controller.expectOne('/api/admin/members?filter=Blocked&page=3&pageSize=25'),
+        controller.expectOne('/api/admin/members?filter=Blocked&page=3&pageSize=15'),
       )
     ).flush(page([], 0, 3));
     (
-      await vi.waitFor(() => controller.expectOne('/api/admin/members?filter=Blocked&pageSize=25'))
+      await vi.waitFor(() => controller.expectOne('/api/admin/members?filter=Blocked&pageSize=15'))
     ).flush(page([], 0));
     await settle();
 
@@ -596,14 +610,14 @@ describe('Members', () => {
     await createWith(
       page([ANNA], 30, 2),
       '/?q=kow&page=2',
-      '/api/admin/members?search=kow&page=2&pageSize=25',
+      '/api/admin/members?search=kow&page=2&pageSize=15',
     );
 
-    chip('Zablokowani').click();
+    pick(statusSelect(), 'Zablokowani');
 
     (
       await vi.waitFor(() =>
-        controller.expectOne('/api/admin/members?filter=Blocked&search=kow&pageSize=25'),
+        controller.expectOne('/api/admin/members?filter=Blocked&search=kow&pageSize=15'),
       )
     ).flush(page([BARTEK]));
     await settle();
@@ -614,6 +628,62 @@ describe('Members', () => {
   });
 
   /**
+   * The role filter (persona, S-25) navigates exactly as the status one does: it keeps the phrase and
+   * the other filter, and drops the page.
+   */
+  it('refetches with the role, keeping the phrase and the status', async () => {
+    await createWith(
+      page([ANNA], 30, 2),
+      '/?q=kow&filter=Active&page=2',
+      '/api/admin/members?filter=Active&search=kow&page=2&pageSize=15',
+    );
+
+    pick(roleSelect(), 'Trenerzy');
+
+    (
+      await vi.waitFor(() =>
+        controller.expectOne(
+          '/api/admin/members?filter=Active&role=Trainer&search=kow&pageSize=15',
+        ),
+      )
+    ).flush(page([ANNA]));
+    await settle();
+
+    expect(router.url).toBe('/?q=kow&filter=Active&role=Trainer');
+    expect(picked(roleSelect())).toBe('Trenerzy');
+  });
+
+  it('restores the role from the URL and drops an unknown one', async () => {
+    await createWith([ANNA], '/?role=Admin', '/api/admin/members?role=Admin&pageSize=15');
+    expect(picked(roleSelect())).toBe('Administratorzy');
+
+    TestBed.resetTestingModule();
+    await createWith([ANNA], '/?role=Owner');
+    expect(router.url).toBe('/');
+    expect(picked(roleSelect())).toBe('Wszystkie');
+  });
+
+  it('clears every filter at once', async () => {
+    await createWith(
+      [ANNA],
+      '/?q=kow&filter=Blocked&role=Member',
+      '/api/admin/members?filter=Blocked&role=Member&search=kow&pageSize=15',
+    );
+
+    const clear = Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('button'),
+    ).find((b) => (b.textContent ?? '').includes('Wyczyść filtry'))!;
+    clear.click();
+
+    (await vi.waitFor(() => controller.expectOne(LIST))).flush(page([ANNA, BARTEK]));
+    await settle();
+
+    expect(router.url).toBe('/');
+    expect(searchBox().value).toBe('');
+    expect(html()).toContain('2 osoby');
+  });
+
+  /**
    * Nothing cancels an in-flight request, so without a generation guard the last RESPONSE would
    * win rather than the last request — leaving the rows disagreeing with the highlighted chip.
    */
@@ -621,13 +691,13 @@ describe('Members', () => {
     await createWith([ANNA, BARTEK]);
 
     // One at a time, so both navigations complete and both loads are really in flight together.
-    chip('Aktywni').click();
+    pick(statusSelect(), 'Aktywni');
     const active = await vi.waitFor(() =>
-      controller.expectOne('/api/admin/members?filter=Active&pageSize=25'),
+      controller.expectOne('/api/admin/members?filter=Active&pageSize=15'),
     );
-    chip('Zablokowani').click();
+    pick(statusSelect(), 'Zablokowani');
     const blocked = await vi.waitFor(() =>
-      controller.expectOne('/api/admin/members?filter=Blocked&pageSize=25'),
+      controller.expectOne('/api/admin/members?filter=Blocked&pageSize=15'),
     );
 
     // The NEWER request answers first, the older one second — the out-of-order case.
@@ -653,9 +723,9 @@ describe('Members', () => {
     const block = await vi.waitFor(() => controller.expectOne('/api/admin/members/m1/block'));
 
     // The admin switches filter before the block comes back.
-    chip('Zablokowani').click();
+    pick(statusSelect(), 'Zablokowani');
     (
-      await vi.waitFor(() => controller.expectOne('/api/admin/members?filter=Blocked&pageSize=25'))
+      await vi.waitFor(() => controller.expectOne('/api/admin/members?filter=Blocked&pageSize=15'))
     ).flush(page([]));
     await settle();
 
@@ -664,7 +734,7 @@ describe('Members', () => {
 
     // A refetch, not a silent no-op against a list this mutation never saw.
     (
-      await vi.waitFor(() => controller.expectOne('/api/admin/members?filter=Blocked&pageSize=25'))
+      await vi.waitFor(() => controller.expectOne('/api/admin/members?filter=Blocked&pageSize=15'))
     ).flush(page([{ ...ANNA, membershipStatus: 'Blocked', accountStatus: 'Blocked' }]));
     await settle();
 
@@ -787,7 +857,7 @@ describe('Members', () => {
 
   /** The refetch after a refusal reloads the page the admin is ON, not page 1. */
   it('reloads the current page when a block is refused', async () => {
-    await createWith(page([ANNA], 30, 2), '/?page=2', '/api/admin/members?page=2&pageSize=25');
+    await createWith(page([ANNA], 30, 2), '/?page=2', '/api/admin/members?page=2&pageSize=15');
 
     menuItemIn(rows()[0], 'Zablokuj').click();
 
@@ -797,7 +867,7 @@ describe('Members', () => {
     );
     await settle();
 
-    (await vi.waitFor(() => controller.expectOne('/api/admin/members?page=2&pageSize=25'))).flush(
+    (await vi.waitFor(() => controller.expectOne('/api/admin/members?page=2&pageSize=15'))).flush(
       page([ANNA], 30, 2),
     );
     await settle();

@@ -1,56 +1,54 @@
 @use 'breakpoints' as bp;
 
-// Layout only — .card/.button/.alert/.notice/.field-error/.hint/.badge come from src/styles.scss.
+// Layout only — .card/.button/.alert/.field-error/.hint/.badge/.row-name come from src/styles.scss.
+// Drawn in the dashboard and Więcej language (context/foundation/ui-style-guide.md): white cards on
+// the page, hairline rows, the avatar disc, icons coloured by role, the pill track for paging.
+
+// --- the controls ---------------------------------------------------------------
+//
+// One card: search, Status, Rola. Stacked on a phone, one line from form-columns up. No bottom
+// padding: each app-field carries the global .field's bottom margin, which a component stylesheet
+// cannot reach under Emulated encapsulation — so that margin IS the card's bottom padding.
 
 .members-controls {
+  display: grid;
+  gap: 0 var(--space-4);
+  margin: var(--space-5) 0 var(--space-4);
+  padding: var(--space-4) var(--space-5) 0;
+
+  @include bp.form-columns {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
+.members-summary {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-4);
-  margin-bottom: var(--space-5);
-}
-
-.members-filters {
-  display: flex;
-  flex-wrap: wrap;
   gap: var(--space-2);
+  margin-bottom: var(--space-3);
 }
 
-// A filter position. Reads as a toggle, not as a call to action — the primary buttons on this
-// screen are the row actions, and the filter must not compete with them.
-.chip {
-  padding: var(--space-2) var(--space-4);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: none;
-  color: inherit;
-  font: inherit;
-  cursor: pointer;
-}
+.members-count {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.875rem;
 
-.chip-active {
-  border-color: currentcolor;
-  font-weight: 600;
-}
-
-.members-search {
-  flex: 1 1 14rem;
-  min-width: 0;
-}
-
-.members-search input {
-  // The box is the global control's (src/styles.scss), so a search reads as the same field as
-  // every form's; only the width is this screen's.
-  width: 100%;
+  app-icon {
+    color: var(--accent2);
+    font-size: 0.8rem;
+  }
 }
 
 // --- the table (S-21, UX-06) ---------------------------------------------------
 //
-// MOBILE FIRST: the rules outside the media block are the compact rows a phone gets, and
+// MOBILE FIRST: the rules outside the media block are the compact cards a phone gets, and
 // `bp.form-columns` turns the same elements back into a table. One DOM, two layouts — the markup
-// never branches on width. Writing it the other way round would need a max-width query, and the
-// breakpoint partial deliberately offers `form-columns` only as a minimum.
+// never branches on width.
 
 .members-table {
   display: block;
@@ -63,8 +61,7 @@
   opacity: 0.6;
 }
 
-// Visually hidden rather than display:none: once the cells are blocks the header row has nothing to
-// sit above, but it stays in the accessibility tree. The same technique as .visually-hidden below.
+// Visually hidden rather than display:none, so it stays in the accessibility tree.
 .members-table thead {
   position: absolute;
   width: 1px;
@@ -80,67 +77,103 @@
   gap: var(--space-3);
 }
 
-// One member, one compact card: name, badges and Akcje on one line where they fit, wrapping where
-// they do not. The card look is .card's, restated because a class on a <tr> would also style the
-// desktop row.
+// One member, one card: who and the menu on the first line, the facts under the name on the second.
 .members-entry {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: var(--space-2) var(--space-3);
-  padding: var(--space-4);
-  border: 1px solid var(--line);
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
   border-radius: var(--radius);
-  background: #fff;
+  background: var(--surface);
   box-shadow: var(--shadow-card);
 }
 
 .members-entry > * {
   display: block;
   padding: 0;
+  font-weight: inherit;
+  text-align: left;
 }
 
 .members-cell-name {
-  flex: 1 1 8rem;
+  grid-column: 1 / 4;
   min-width: 0;
-  font-weight: 600;
-  text-align: left;
-  overflow-wrap: anywhere;
-}
-
-.members-cell-status {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
 }
 
 .members-cell-actions {
-  margin-left: auto;
+  grid-column: 4;
+  grid-row: 1;
 }
 
-// On a phone the row is for finding the person and acting on them; the address and the date are
-// one tap away in Edytuj dane.
-.members-cell-email,
+// Under the name, not under the disc: 2.5rem is the avatar, --space-3 its gap.
+.members-cell-status {
+  margin-left: calc(2.5rem + var(--space-3));
+}
+
+.members-cell-role {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
 .members-cell-since {
-  display: none;
+  grid-column: 3 / 5;
+  justify-self: end;
   color: var(--muted);
-  font-size: 0.875rem;
-  // Long addresses must not push the action column off the table.
+  font-size: 0.8125rem;
+  white-space: nowrap;
+}
+
+.members-person {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+// The avatar disc (.more-avatar), at row size, carrying the person's initials.
+.members-avatar {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  background: var(--section-warm);
+  color: var(--accent);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.members-person-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.members-email {
+  color: var(--muted);
+  font-size: 0.8125rem;
   overflow-wrap: anywhere;
 }
 
+.members-role-plain {
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
 @include bp.form-columns {
-  // THE TABLE. `form-columns` (40rem) because five columns stay legible there — no new threshold.
-  // A card of its own rather than per row: the rows are lines in one table now, not separate cards.
-  // Deliberately NO overflow:hidden on it, rounded corners notwithstanding: the row menu is an
-  // absolutely positioned child of a cell, and clipping the table would cut the menu off.
+  // THE TABLE. A card of its own rather than per row: the rows are lines in one table now. NO
+  // overflow:hidden on it, rounded corners notwithstanding: the row menu is an absolutely positioned
+  // child of a cell, and clipping the table would cut the menu off.
   .members-table {
     display: table;
-    border: 1px solid var(--line);
     border-radius: var(--radius);
     border-spacing: 0;
     border-collapse: separate;
-    background: #fff;
+    background: var(--surface);
     box-shadow: var(--shadow-card);
   }
 
@@ -161,80 +194,86 @@
   .members-entry {
     display: table-row;
     padding: 0;
-    border: 0;
     border-radius: 0;
     background: none;
     box-shadow: none;
+
+    &:hover {
+      background: var(--ground);
+    }
   }
 
   .members-table th,
   .members-table td,
   .members-entry > * {
     display: table-cell;
+    margin: 0;
     padding: var(--space-3) var(--space-4);
     border-bottom: 1px solid var(--line);
-    text-align: left;
     vertical-align: middle;
   }
 
+  // The kicker recipe: small capitals in --gray, so the header labels the columns without competing
+  // with the names under it.
   .members-table thead th {
-    color: var(--muted);
-    font-size: 0.875rem;
-    font-weight: 500;
+    padding-block: var(--space-4) var(--space-3);
+    color: var(--gray);
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
   }
 
   .members-entry:last-child > * {
     border-bottom: 0;
   }
 
-  .members-cell-status {
-    display: table-cell;
-  }
-
-  // The badges wrap inside their cell rather than widening the column.
-  .members-cell-status .badge {
-    display: inline-block;
-    margin: 0 var(--space-1) var(--space-1) 0;
-  }
-
   .members-cell-since {
-    white-space: nowrap;
+    font-size: 0.875rem;
+    font-variant-numeric: tabular-nums;
   }
 
   .members-cell-actions {
-    margin-left: 0;
+    width: 1%;
+    text-align: right;
   }
 }
 
-// The .badge base rule lives in src/styles.scss — it is shared with the class-types screen, and a
-// component stylesheet cannot reach another component under Emulated encapsulation. Only the
-// per-state modifiers belong here, where their meaning is owned.
-.badge-pending {
-  color: var(--muted);
+@media (prefers-reduced-motion: reduce) {
+  .members-menu-trigger,
+  .members-pager-step {
+    transition: none;
+  }
 }
 
+// Per-state badge modifiers — the .badge base lives in src/styles.scss. The word always carries the
+// state; colour and fill are the second channel.
 .badge-active {
-  color: inherit;
+  color: var(--ink);
+  border-color: var(--line-strong);
 }
 
 .badge-blocked {
-  color: var(--danger, #b3261e);
+  color: var(--danger);
+  background: var(--danger-bg);
 }
 
 // A member the club keeps records for who has never registered (S-14). Quiet on purpose: it is a
-// statement about their LOGIN, not a problem with their membership — they train here like anyone
-// else, they simply cannot sign in.
+// statement about their LOGIN, not a problem with their membership.
 .badge-no-account {
   color: var(--muted);
   border-style: dashed;
 }
 
-// Roles read as a second, quieter channel than status: an account's status is what gates access, a
-// role is what it may do once inside. Dashed so the two are distinguishable without relying on hue.
+// A role is what an account may do once inside — filled, not outlined, so it never reads as a state.
 .badge-role {
-  border-style: dashed;
-  color: var(--muted);
+  border-color: transparent;
+  background: var(--section-warm);
+  color: var(--accent);
+  font-weight: 600;
 }
+
+// --- the row menu ------------------------------------------------------------------
 
 .members-action {
   display: flex;
@@ -243,10 +282,34 @@
   gap: var(--space-2);
 }
 
-// The first menu in the app. Anchored to its trigger rather than portalled: the list is short and
-// the row is never inside a scrolling or clipping container — which is why the table above must
-// never gain overflow:hidden. `right: 0` opens it leftwards from the Akcje button, which sits at the
-// row's right edge at both widths, so it stays on screen on a phone too.
+.members-menu-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--accent);
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background-color 200ms ease;
+
+  &:hover:not(:disabled),
+  &[aria-expanded='true'] {
+    background: var(--section-warm);
+  }
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.4;
+  }
+}
+
+// Anchored to its trigger rather than portalled: the row is never inside a scrolling or clipping
+// container — which is why the table above must never gain overflow:hidden. `right: 0` opens it
+// leftwards from the trigger, which sits at the row's right edge at both widths.
 .row-menu {
   position: relative;
 }
@@ -260,23 +323,24 @@
   min-width: 14rem;
   margin-top: var(--space-1);
   padding: var(--space-1);
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: var(--ground);
+  background: var(--surface);
   box-shadow: var(--shadow-card);
 }
 
-// Shared by the buttons and by the one entry that is a real link (Edit). The anchor needs
-// display/text-decoration resets the buttons do not, so that the two are indistinguishable in the
-// menu — a link that looked different would read as a different kind of action.
+// Shared by the buttons and by the entries that are real links, so the two are indistinguishable in
+// the menu — a link that looked different would read as a different kind of action.
 .row-menu-item {
   display: block;
+  min-height: 40px;
   padding: var(--space-2) var(--space-3);
   border: 0;
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
   background: none;
-  color: inherit;
+  color: var(--ink);
   font: inherit;
+  font-size: 0.875rem;
   text-align: left;
   text-decoration: none;
   white-space: nowrap;
@@ -284,38 +348,24 @@
 
   &:hover,
   &:focus-visible {
-    background: var(--section-warm);
+    background: var(--ground);
   }
 }
 
-// Present for screen readers, absent visually — the search input's label.
-.visually-hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  margin: -1px;
-  padding: 0;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-  border: 0;
+.row-menu-item--danger {
+  color: var(--danger);
 }
 
-// The revealed member code (S-14). It sits inside the row rather than in a dialog: the admin is
-// reading it out or copying it while looking at the person's name, and a modal would hide exactly
-// the row that gives the code its meaning.
+// The revealed member code (S-14) — the callout recipe. It sits inside the row rather than in a
+// dialog: the admin reads it out while looking at the person's name.
 .member-code {
-  margin-top: var(--space-3);
   padding: var(--space-3);
-  border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   background: var(--section-cool);
   text-align: right;
 }
 
-// Monospace and spaced out, because this string is transcribed by hand at the counter — the
-// alphabet already avoids look-alike characters, and letter-spacing is what stops the eye losing
-// its place across eight of them.
+// Monospace and spaced out, because this string is transcribed by hand at the counter.
 .member-code-value {
   margin: 0;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -337,11 +387,70 @@
   margin-top: var(--space-2);
 }
 
-@include bp.narrow {
-  // The stacked row and its full-width Akcje button are gone with S-21's compact row: the button
-  // stays at the row's right edge, so the menu keeps its default right-anchored position.
+// --- the pager (S-21) ----------------------------------------------------------------
+//
+// The pill track (the calendar's week nav): chevrons at the ends, the range between. On a phone the
+// step words are hidden visually but stay the buttons' accessible names.
 
-  // Full width at phone size, and left-aligned with the rest of the row once the card stacks.
+.members-pager {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  width: fit-content;
+  margin: var(--space-5) auto 0;
+  padding: 4px;
+  border-radius: 32px;
+  background: var(--ground);
+  box-shadow: var(--shadow-card);
+}
+
+.members-pager-step {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 40px;
+  padding: 0 var(--space-4);
+  border: 0;
+  border-radius: 32px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: background-color 200ms ease;
+
+  app-icon {
+    color: var(--accent);
+    font-size: 0.8rem;
+  }
+
+  &:hover:not(:disabled) {
+    background: var(--section-warm);
+  }
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.4;
+  }
+}
+
+.members-pager-range {
+  margin: 0;
+  padding: 0 var(--space-3);
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+@include bp.narrow {
+  .members-pager-word {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+
   .member-code {
     text-align: left;
   }
@@ -349,21 +458,4 @@
   .member-code-actions {
     justify-content: flex-start;
   }
-}
-
-// The pager (S-21): Poprzednia · range · Następna on one line at every width — three short items
-// that fit a 360px phone, which is why there is no numbered-page strip to collapse.
-.members-pager {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  margin-top: var(--space-5);
-}
-
-.members-pager-range {
-  margin: 0;
-  color: var(--muted);
-  font-size: 0.875rem;
-  font-variant-numeric: tabular-nums;
 }

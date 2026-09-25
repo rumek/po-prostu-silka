@@ -27,6 +27,7 @@ public interface IMemberQuery
     /// Ordered by display name, then id, so a page boundary never splits a tie differently twice.
     /// </summary>
     /// <param name="filter">Narrow to one filter position, or null for everyone.</param>
+    /// <param name="role">Narrow to one persona (Admin &gt; Trainer &gt; Member), or null for everyone.</param>
     /// <param name="search">
     /// A substring of the display name or e-mail, already trimmed; null for no search. Matched
     /// case- and accent-insensitively, <c>ł</c> included.
@@ -35,6 +36,7 @@ public interface IMemberQuery
     /// <param name="pageSize">Validated by the caller.</param>
     Task<PagedResult<MemberSummary>> GetMembersAsync(
         MemberListFilter? filter,
+        MemberRoleFilter? role,
         string? search,
         int page,
         int pageSize,

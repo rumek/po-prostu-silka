@@ -30,6 +30,10 @@ namespace po_prostu_silka.Infrastructure.Members;
 /// </summary>
 public class MemberQuery(AppDbContext db) : IMemberQuery
 {
+    // Compared on NormalizedName, as StaffPredicate does — Name is the display form.
+    private static readonly string NormalizedAdmin = ApplicationRoles.Admin.ToUpperInvariant();
+    private static readonly string NormalizedTrainer = ApplicationRoles.Trainer.ToUpperInvariant();
+
     /// <summary>
     /// Filter, then search, then count, then order and page — and only then project, so the Roles
     /// correlation runs for the page's rows rather than for every match.
@@ -48,12 +52,13 @@ public class MemberQuery(AppDbContext db) : IMemberQuery
     /// </summary>
     public async Task<PagedResult<MemberSummary>> GetMembersAsync(
         MemberListFilter? filter,
+        MemberRoleFilter? role,
         string? search,
         int page,
         int pageSize,
         CancellationToken cancellationToken)
     {
-        var members = Searched(Filtered(db.Members.AsNoTracking(), filter), search);
+        var members = Searched(WithRole(Filtered(db.Members.AsNoTracking(), filter), role), search);
 
         var total = await members.CountAsync(cancellationToken);
 
@@ -220,6 +225,26 @@ public class MemberQuery(AppDbContext db) : IMemberQuery
             MemberListFilter.WithoutAccount =>
                 members.Where(m => m.UserId == null),
 
+            _ => members,
+        };
+
+    /// <summary>
+    /// Turns a persona position into a predicate, with the SPA's precedence (S-25): Admin wins over
+    /// Trainer, and "member" is neither. Member is <see cref="StaffPredicate.IsNotStaff"/> itself, so
+    /// the list and the member_is_staff refusal cannot disagree about who is staff.
+    /// </summary>
+    private IQueryable<Member> WithRole(IQueryable<Member> members, MemberRoleFilter? role) =>
+        role switch
+        {
+            MemberRoleFilter.Member => members.Where(StaffPredicate.IsNotStaff(db)),
+            MemberRoleFilter.Trainer => members.Where(m =>
+                db.UserRoles.Any(ur => ur.UserId == m.UserId
+                                       && db.Roles.Any(r => r.Id == ur.RoleId && r.NormalizedName == NormalizedTrainer))
+                && !db.UserRoles.Any(ur => ur.UserId == m.UserId
+                                           && db.Roles.Any(r => r.Id == ur.RoleId && r.NormalizedName == NormalizedAdmin))),
+            MemberRoleFilter.Admin => members.Where(m =>
+                db.UserRoles.Any(ur => ur.UserId == m.UserId
+                                       && db.Roles.Any(r => r.Id == ur.RoleId && r.NormalizedName == NormalizedAdmin))),
             _ => members,
         };
 

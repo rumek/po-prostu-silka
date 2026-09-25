@@ -41,6 +41,7 @@ public static class GetMembers
     /// </summary>
     public static async Task<IResult> HandleAsync(
         MemberListFilter? filter,
+        MemberRoleFilter? role,
         string? search,
         int? page,
         int? pageSize,
@@ -54,6 +55,6 @@ public static class GetMembers
         }
 
         return Results.Ok(await query.GetMembersAsync(
-            filter, request.Term, request.Page, request.PageSize, cancellationToken));
+            filter, role, request.Term, request.Page, request.PageSize, cancellationToken));
     }
 }

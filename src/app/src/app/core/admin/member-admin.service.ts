@@ -52,6 +52,10 @@ export class MemberAdminService {
       params = params.set('filter', query.filter);
     }
 
+    if (query.role) {
+      params = params.set('role', query.role);
+    }
+
     const search = query.search?.trim();
     if (search) {
       params = params.set('search', search);

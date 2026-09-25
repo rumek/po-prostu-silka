@@ -525,6 +525,50 @@ public class MemberEndpointTests(IntegrationTestFixture fixture)
     }
 
     /// <summary>The page's rows for a query string. Page size at the maximum, so a marker search is never cut short.</summary>
+    /// <summary>
+    /// The role filter reads the PERSONA (S-25), so the positions partition the list: an
+    /// Admin+Trainer account is an admin and only an admin, and a record with no login is a member.
+    /// </summary>
+    [Theory]
+    [InlineData("Member", TestUsers.ActiveMemberEmail, true)]
+    [InlineData("Member", TestUsers.ActiveTrainerEmail, false)]
+    [InlineData("Member", TestUsers.ActiveAdminEmail, false)]
+    [InlineData("Trainer", TestUsers.ActiveTrainerEmail, true)]
+    [InlineData("Trainer", TestUsers.ActiveMemberEmail, false)]
+    [InlineData("Trainer", TestUsers.ActiveAdminTrainerEmail, false)]
+    [InlineData("Admin", TestUsers.ActiveAdminEmail, true)]
+    [InlineData("Admin", TestUsers.ActiveAdminTrainerEmail, true)]
+    [InlineData("Admin", TestUsers.ActiveTrainerEmail, false)]
+    public async Task The_role_filter_selects_by_persona(string role, string email, bool listed)
+    {
+        var admin = await AdminAsync();
+
+        var rows = await ListAsync(admin, $"role={role}&search={Uri.EscapeDataString(email)}");
+
+        Assert.Equal(listed, rows.Any(r => r.Email == email));
+    }
+
+    [Fact]
+    public async Task The_member_role_filter_includes_a_record_without_an_account()
+    {
+        var admin = await AdminAsync();
+        var name = $"Rola {Guid.NewGuid():N}";
+        var id = await CreateAsync(admin, Request(displayName: name));
+
+        Assert.Contains(await ListAsync(admin, $"role=Member&search={Uri.EscapeDataString(name)}"), r => r.Id == id);
+        Assert.Empty(await ListAsync(admin, $"role=Trainer&search={Uri.EscapeDataString(name)}"));
+    }
+
+    [Fact]
+    public async Task An_unknown_role_filter_is_refused()
+    {
+        var admin = await AdminAsync();
+
+        var response = await admin.GetAsync($"{Endpoint}?role=Owner");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
     private static async Task<List<MemberSummaryBody>> ListAsync(HttpClient admin, string query) =>
         (await admin.GetFromJsonAsync<MemberPageBody<MemberSummaryBody>>($"{Endpoint}?{query}&pageSize=100"))!.Items;
 

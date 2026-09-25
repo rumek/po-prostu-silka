@@ -12,20 +12,34 @@ import { ROLES } from '../../../core/auth/roles';
 import { classifyFailure } from '../../../core/http/failure';
 import { transportMessage } from '../../../core/http/transport-messages';
 import { ToastService } from '../../../shared/toast/toast.service';
-import { AccessCodeView, Member, MemberFilter } from '../../../core/admin/member-admin.models';
+import {
+  AccessCodeView,
+  Member,
+  MemberFilter,
+  MemberRoleFilter,
+} from '../../../core/admin/member-admin.models';
 import { createBusySet } from '../../../shared/forms/busy-set';
 import { createLoadFence } from '../../../shared/forms/load-fence';
 import { Loading } from '../../../shared/forms/loading/loading';
 import { Empty } from '../../../shared/forms/empty/empty';
+import { Field } from '../../../shared/forms/field/field';
+import { Select } from '../../../shared/forms/select/select';
+import { Icon } from '../../../shared/icons/icon';
 
 /** The filter positions, including "everyone". `null` means no filter parameter is sent. */
 type StatusFilter = MemberFilter | null;
 
+/** The role filter's positions, including "everyone". `null` means no role parameter is sent. */
+type RoleFilter = MemberRoleFilter | null;
+
 /** Stable DOM id for a row's menu trigger, so Escape can return focus to it. */
 const triggerId = (memberId: string): string => `member-menu-${memberId}`;
 
-/** The screen's page. Fixed — there is no page-size chooser (S-21 scope). */
-export const MEMBERS_PAGE_SIZE = 25;
+/**
+ * The screen's page. Fixed — there is no page-size chooser (S-21 scope). 15 rather than the API's
+ * default 25: a page an admin can take in without scrolling past the pager on a laptop.
+ */
+export const MEMBERS_PAGE_SIZE = 15;
 
 /** How long typing has to pause before the phrase is searched. One request per pause, not per key. */
 export const SEARCH_DEBOUNCE_MS = 300;
@@ -35,10 +49,13 @@ const MAX_SEARCH_LENGTH = 100;
 
 const FILTERS: readonly MemberFilter[] = ['Active', 'Blocked', 'WithoutAccount'];
 
+const ROLE_FILTERS: readonly MemberRoleFilter[] = ['Member', 'Trainer', 'Admin'];
+
 /** The list's state as the URL carries it. `page` is 1-based; `q` is already trimmed. */
 interface ListState {
   q: string;
   filter: StatusFilter;
+  role: RoleFilter;
   page: number;
 }
 
@@ -50,23 +67,27 @@ interface ListState {
 function readState(params: ParamMap): { state: ListState; canonical: boolean } {
   const rawQ = params.get('q');
   const rawFilter = params.get('filter');
+  const rawRole = params.get('role');
   const rawPage = params.get('page');
 
   const q = (rawQ ?? '').trim().slice(0, MAX_SEARCH_LENGTH);
   const filter = FILTERS.find((f) => f === rawFilter) ?? null;
+  const role = ROLE_FILTERS.find((r) => r === rawRole) ?? null;
   const page = rawPage !== null && /^[1-9]\d{0,5}$/.test(rawPage) ? Number(rawPage) : 1;
 
   const canonical =
     (rawQ === null || (q !== '' && rawQ === q)) &&
     (rawFilter === null || rawFilter === filter) &&
+    (rawRole === null || rawRole === role) &&
     (rawPage === null || (page > 1 && rawPage === String(page)));
 
-  return { state: { q, filter, page }, canonical };
+  return { state: { q, filter, role, page }, canonical };
 }
 
 /**
  * The admin's member list (FR-004, FR-005): everyone, filterable by status, searchable by name or
- * email, one page at a time, with block and unblock per row.
+ * email, one page at a time, with block and unblock per row. A second filter narrows by persona
+ * (S-25) — Członkowie, Trenerzy, Administratorzy — independently of the status.
  *
  * <h2>The server pages and searches (S-21)</h2>
  *
@@ -89,7 +110,7 @@ function readState(params: ParamMap): { state: ListState; canonical: boolean } {
  * the admin somewhere else to do the obvious thing.
  */
 @Component({
-  imports: [Empty, Loading, DatePipe, FormsModule, RouterLink],
+  imports: [Empty, Field, Icon, Loading, Select, DatePipe, FormsModule, RouterLink],
   selector: 'app-members',
   styleUrl: './members.scss',
   templateUrl: './members.html',
@@ -108,6 +129,7 @@ export class Members {
 
   /** The state the rows on screen were ASKED for — mirrored from the URL, never set directly. */
   protected readonly filter = signal<StatusFilter>(null);
+  protected readonly role = signal<RoleFilter>(null);
   protected readonly query = signal('');
   protected readonly page = signal(1);
 
@@ -208,6 +230,7 @@ export class Members {
     }
 
     this.filter.set(state.filter);
+    this.role.set(state.role);
     this.query.set(state.q);
     this.page.set(state.page);
 
@@ -232,6 +255,7 @@ export class Members {
       const page = this.page();
       const result = await this.members.getMembers({
         filter: this.filter() ?? undefined,
+        role: this.role() ?? undefined,
         search: this.query() || undefined,
 
         // Page 1 is the API's default, so it is left off — the request for the first page looks the
@@ -257,7 +281,7 @@ export class Members {
         // "last" landing on this very page would be a navigation the router ignores, leaving the old
         // rows up — showing this page's (empty) answer is the honest fallback.
         if (last < page) {
-          await this.navigate({ q: this.query(), filter: this.filter(), page: last }, true);
+          await this.navigate({ ...this.current(), page: last }, true);
           return;
         }
       }
@@ -291,10 +315,54 @@ export class Members {
    * chip does not race the search box's own navigation.
    */
   protected async setFilter(next: StatusFilter): Promise<void> {
-    if (this.filter() === next) {
-      return;
+    if (this.filter() !== next) {
+      await this.refilter({ filter: next });
+    }
+  }
+
+  /** The role select, exactly as the status one: navigates, keeps the phrase, drops the page. */
+  protected async setRole(next: RoleFilter): Promise<void> {
+    if (this.role() !== next) {
+      await this.refilter({ role: next });
+    }
+  }
+
+  /** A `<select>`'s value as a filter position; the "everyone" option carries the empty string. */
+  protected onStatusChange(event: Event): Promise<void> {
+    const value = (event.target as HTMLSelectElement).value;
+    return this.setFilter(FILTERS.find((f) => f === value) ?? null);
+  }
+
+  protected onRoleChange(event: Event): Promise<void> {
+    const value = (event.target as HTMLSelectElement).value;
+    return this.setRole(ROLE_FILTERS.find((r) => r === value) ?? null);
+  }
+
+  /** Whether anything narrows the list — what offers "Wyczyść filtry". */
+  protected readonly narrowed = computed(
+    () => this.filter() !== null || this.role() !== null || this.query() !== '',
+  );
+
+  /** "1 osoba", "3 osoby", "12 osób" — the count's noun in the Polish plural it takes. */
+  protected readonly countNoun = computed(() => {
+    const n = this.total();
+    const tens = n % 100;
+    const units = n % 10;
+
+    if (n === 1) {
+      return 'osoba';
     }
 
+    return units >= 2 && units <= 4 && (tens < 12 || tens > 14) ? 'osoby' : 'osób';
+  });
+
+  /** Back to the whole club: no phrase, no filter, page 1. */
+  protected async clearFilters(): Promise<void> {
+    this.searchInput.set('');
+    await this.refilter({ q: '', filter: null, role: null });
+  }
+
+  private async refilter(change: Partial<ListState>): Promise<void> {
     this.failedId.set(null);
 
     // The panel belongs to a row that may not survive the new filter, and a code left floating over
@@ -302,9 +370,19 @@ export class Members {
     this.closeCode();
     this.cancelSearch();
     await this.navigate(
-      { q: this.searchInput().trim().slice(0, MAX_SEARCH_LENGTH), filter: next, page: 1 },
+      {
+        ...this.current(),
+        q: this.searchInput().trim().slice(0, MAX_SEARCH_LENGTH),
+        ...change,
+        page: 1,
+      },
       false,
     );
+  }
+
+  /** The state the URL carries now. */
+  private current(): ListState {
+    return { q: this.query(), filter: this.filter(), role: this.role(), page: this.page() };
   }
 
   /** The search box's every keystroke. Searches only once typing pauses. */
@@ -328,7 +406,7 @@ export class Members {
       return;
     }
 
-    await this.navigate({ q, filter: this.filter(), page: 1 }, true);
+    await this.navigate({ ...this.current(), q, page: 1 }, true);
   }
 
   private cancelSearch(): void {
@@ -366,7 +444,7 @@ export class Members {
     }
 
     this.cancelSearch();
-    await this.navigate({ q: this.query(), filter: this.filter(), page }, false);
+    await this.navigate({ ...this.current(), page }, false);
   }
 
   /** Writes the state to the URL. Defaults are left off, so the plain list is plain `/admin/members`. */
@@ -376,6 +454,7 @@ export class Members {
       queryParams: {
         q: state.q || null,
         filter: state.filter,
+        role: state.role,
         page: state.page > 1 ? state.page : null,
       },
       replaceUrl,
@@ -432,6 +511,17 @@ export class Members {
    */
   protected notableRoles(member: Member): string[] {
     return member.roles.filter((role) => role !== ROLES.member);
+  }
+
+  /**
+   * The avatar disc's letters: the first of the first and last word, "AK" for Anna Kowalska. A
+   * picture the admin can find a row by without reading it — nothing else carries meaning in it.
+   */
+  protected initials(member: Member): string {
+    const words = member.displayName.trim().split(/\s+/).filter(Boolean);
+    const first = words[0]?.[0] ?? '';
+    const last = words.length > 1 ? (words.at(-1)?.[0] ?? '') : '';
+    return (first + last).toUpperCase();
   }
 
   protected roleLabel(role: string): string {

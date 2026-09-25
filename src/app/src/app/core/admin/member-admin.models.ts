@@ -30,6 +30,13 @@ export type MembershipStatus = 'Active' | 'Blocked';
 export type MemberFilter = 'Active' | 'Blocked' | 'WithoutAccount';
 
 /**
+ * The positions of the members screen's role filter — a PERSONA (S-25), not a held role, so they
+ * partition the list with the precedence Admin > Trainer > Member: an Admin+Trainer account is found
+ * under `Admin` only, and a record with no login is a `Member`. Mirrors MemberRoleFilter.cs.
+ */
+export type MemberRoleFilter = 'Member' | 'Trainer' | 'Admin';
+
+/**
  * Mirrors the API's MemberSummary record (src/Application/Members/MemberSummary.cs).
  * Keep the two in step — this is a contract, not a convenience type.
  *
@@ -88,6 +95,7 @@ export interface MemberPage {
  */
 export interface MemberQuery {
   filter?: MemberFilter;
+  role?: MemberRoleFilter;
   search?: string;
   page?: number;
   pageSize?: number;
