@@ -121,7 +121,8 @@ public class WebPushSender(
     /// whose top level is a `notification` object; anything else is pushed onto the
     /// `SwPush.messages` stream, where nothing in this SPA is listening — so it is delivered,
     /// marked Sent, and never seen. Only `title` is required by that contract (Angular's SwPush
-    /// docs); `body` and the click target are what make the notification worth receiving.
+    /// docs); `body` and the click target are what make the notification worth receiving, and
+    /// `icon` / `badge` are what make it recognisably this app's.
     /// </para>
     ///
     /// <para>
@@ -145,6 +146,8 @@ public class WebPushSender(
             {
                 title,
                 body,
+                icon = Icon,
+                badge = Badge,
                 data = new
                 {
                     url = ClickTarget,
@@ -159,6 +162,19 @@ public class WebPushSender(
                 },
             },
         });
+
+    /// <summary>
+    /// The app's own icon beside the text, instead of the browser's. Root-relative on purpose: the
+    /// service worker resolves it against its own origin, so it needs no App:BaseUrl. The PWA's
+    /// 192 px icon, the one the manifest already lists.
+    /// </summary>
+    private const string Icon = "/icons/icon-192.png";
+
+    /// <summary>
+    /// Android's status-bar glyph. Android draws only its alpha channel, in white, so it is a
+    /// separate white-on-transparent monogram — the full-colour icon would render as a grey square.
+    /// </summary>
+    private const string Badge = "/icons/badge-96.png";
 
     /// <summary>The member's bookings screen — the SPA route, matching app.routes.ts.</summary>
     private const string ClickTarget = "/my-classes";

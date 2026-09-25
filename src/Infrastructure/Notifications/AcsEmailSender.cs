@@ -45,9 +45,11 @@ public sealed class AcsEmailClientHolder(EmailClient? client)
 public class AcsEmailSender(
     AcsEmailClientHolder holder,
     IOptions<AcsOptions> options,
+    IOptions<AppOptions> appOptions,
     ILogger<AcsEmailSender> logger) : IEmailSender
 {
     private readonly AcsOptions _options = options.Value;
+    private readonly AppOptions _app = appOptions.Value;
     private readonly EmailClient? client = holder.Client;
 
     public async Task<DeliveryResult> SendAsync(
@@ -76,12 +78,8 @@ public class AcsEmailSender(
             // worker pass on provider-side delivery would stall the whole batch.
             await client.SendAsync(
                 WaitUntil.Started,
-                _options.SenderAddress,
-                to,
-                subject,
-                htmlContent: null,
-                plainTextContent: body,
-                cancellationToken: cancellationToken);
+                BuildMessage(_options.SenderAddress, to, subject, body, _app.BaseUrl),
+                cancellationToken);
 
             return DeliveryResult.Success();
         }
@@ -121,6 +119,29 @@ public class AcsEmailSender(
             logger.LogWarning(ex, "Email failed with an unexpected error.");
             return DeliveryResult.Transient("acs_unexpected");
         }
+    }
+
+    /// <summary>
+    /// The message as ACS receives it: the body in the branded frame (<see cref="EmailLayout"/>),
+    /// with the same text and footer as the plain-text alternative, and the logo attached inline.
+    /// </summary>
+    public static EmailMessage BuildMessage(
+        string sender, string to, string subject, string body, string? appUrl)
+    {
+        var content = new EmailContent(subject)
+        {
+            Html = EmailLayout.Html(subject, body, appUrl),
+            PlainText = EmailLayout.PlainText(body, appUrl),
+        };
+
+        var message = new EmailMessage(sender, to, content);
+        message.Attachments.Add(new EmailAttachment(
+            "po-prostu-silka.png", EmailLayout.LogoContentType, EmailLayout.Logo)
+        {
+            ContentId = EmailLayout.LogoContentId,
+        });
+
+        return message;
     }
 
     /// <summary>

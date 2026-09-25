@@ -46,6 +46,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- The wordmark every email carries inline (EmailLayout). Embedded, so sending needs no path. -->
+    <EmbeddedResource Include="Notifications\email-logo.png" LogicalName="email-logo.png" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- Replaces Web SDK global usings this project's files relied on; counts from the pre-split
          survey. EF Core itself is imported per file, not globally - the imports are the evidence
          that this is the layer that owns persistence. -->

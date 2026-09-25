@@ -71,6 +71,20 @@ public class WebPushPayloadTests
     }
 
     /// <summary>
+    /// The notification carries the app's own icon and the status-bar monogram, both root-relative
+    /// so the service worker resolves them against the app's origin. Without them Android shows the
+    /// browser's icon, and a grey square in the status bar.
+    /// </summary>
+    [Fact]
+    public void The_notification_carries_the_apps_icon_and_badge()
+    {
+        var notification = Payload().GetProperty("notification");
+
+        Assert.Equal("/icons/icon-192.png", notification.GetProperty("icon").GetString());
+        Assert.Equal("/icons/badge-96.png", notification.GetProperty("badge").GetString());
+    }
+
+    /// <summary>
     /// The old shape, named so the regression it guards against is legible: nothing that matters may
     /// sit at the top level, because the service worker never looks there.
     /// </summary>

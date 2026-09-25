@@ -173,6 +173,7 @@ its PATH is refreshed.
 | Email domain | `AzureManagedDomain` under `pps-email` — `domainManagement: AzureManaged`, verification `Verified` (SPF verified too) |
 | Sender domain | `a47eab51-bc3d-4b51-92c5-43d2a40802b8.azurecomm.net` |
 | Sender address | `DoNotReply@a47eab51-bc3d-4b51-92c5-43d2a40802b8.azurecomm.net` |
+| Sender display name | `Po Prostu Siłka` (set 2026-09-25; the `donotreply` sender username's `displayName`, default `DoNotReply`) |
 | Communication Service | `pps-acs` (`pps-rg`, location `Global`, data location `Europe`), linked to the managed domain |
 
 ### App Service settings added (names only — values are secrets)
@@ -199,6 +200,12 @@ to required.** Switching later changes only `Acs__SenderAddress`, not applicatio
   `C:/Program Files/Git/subscriptions/...` and rejected with `LinkedInvalidPropertyId`. Prefix such
   commands with `MSYS_NO_PATHCONV=1`. The same applies to `docker exec` paths.
 - `az communication email` is still marked **preview** on extension 1.14.0 — it warns on every call.
+- **The sender's display name is an Azure setting, not app configuration.** The managed domain
+  allows no other username, but its one sender's display name can be changed:
+  `az communication email domain sender-username update --email-service-name pps-email
+  --domain-name AzureManagedDomain -g pps-rg --sender-username donotreply --display-name "Po Prostu Siłka"`.
+  The Windows console prints the `ł` as `�`; the stored value is correct (read back through ARM).
+  A custom domain's new sender needs the same setting again.
 - VAPID keys are a P-256 keypair, base64url-encoded raw (87-char public point, 43-char private
   scalar). Generated with `openssl ecparam -genkey -name prime256v1`; the local Python had no
   `cryptography` module.
