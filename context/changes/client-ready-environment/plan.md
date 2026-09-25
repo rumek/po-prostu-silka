@@ -419,6 +419,14 @@ parent request (the worker's polling) are dropped. The package goes through
 shape against the Azure Monitor OpenTelemetry docs when implementing (Context7
 `/microsoftdocs/azure-monitor-docs`). Sampling option names differ between the distro and SDK 3.x.
 
+**Adapted during implementation.** `Azure.Monitor.OpenTelemetry.AspNetCore` 1.6.0, registered in
+`src/Api/Telemetry/Telemetry.cs`. `TracesPerSecond = 1`. Also `EnableTraceBasedLogsSampler = false`,
+which the plan did not name: the distro drops by default any log whose request was sampled out, and
+that would have dropped exactly the exceptions this phase exists to keep. Logs are cut to Warning, so
+keeping all of them is cheap. "Parentless SQL span" means a span tagged `db.system` /
+`db.system.name` with no parent, and a processor registered before `UseAzureMonitor` clears its
+`Recorded` flag. Verified locally that the host boots with a dummy connection string set.
+
 #### 3. Proof of the alert path
 
 **Intent**: Prove, once, that a `Degraded` body reaches the owner's inbox.
@@ -713,8 +721,8 @@ No schema change. No EF migration. Configuration added to the App Service:
 
 #### Automated
 
-- [x] 2.1 Backend builds warning-free
-- [x] 2.2 All backend tests pass, including the named health cases
+- [x] 2.1 Backend builds warning-free — 1d71681
+- [x] 2.2 All backend tests pass, including the named health cases — 1d71681
 
 #### Manual
 
@@ -724,8 +732,8 @@ No schema change. No EF migration. Configuration added to the App Service:
 
 #### Automated
 
-- [ ] 3.1 Backend builds warning-free and tests pass with no connection string set
-- [ ] 3.2 No new vulnerable package
+- [x] 3.1 Backend builds warning-free and tests pass with no connection string set
+- [x] 3.2 No new vulnerable package
 - [ ] 3.3 The resources exist in pps-rg
 - [ ] 3.4 The budget exists
 

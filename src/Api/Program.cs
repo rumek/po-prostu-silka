@@ -28,6 +28,7 @@ using po_prostu_silka.Api.Endpoints.Notifications;
 using po_prostu_silka.Api.Endpoints.Scheduling;
 using po_prostu_silka.Api.Endpoints.Training;
 using po_prostu_silka.Api.Http;
+using po_prostu_silka.Api.Telemetry;
 using po_prostu_silka.Infrastructure.Auth;
 using po_prostu_silka.Infrastructure.TestData;
 
@@ -42,6 +43,9 @@ builder.WebHost.ConfigureKestrel(options => options.AddServerHeader = false);
 // but only by accident of the environment - this makes it the contract. The handlers that return a
 // clean 409 are unaffected; this catches only what nothing else does.
 builder.Services.AddProblemDetails();
+
+// Application Insights (S-28), only where APPLICATIONINSIGHTS_CONNECTION_STRING is set - see Telemetry.
+builder.AddAzureMonitorTelemetry();
 
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
