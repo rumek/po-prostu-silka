@@ -523,9 +523,23 @@ App setting added: `APPLICATIONINSIGHTS_CONNECTION_STRING`. The host registers t
 when it is set (`src/Api/Telemetry/Telemetry.cs`). Right after, `requests` held only
 request-parented dependencies, and none of the worker's polling.
 
-**Gotcha:** `az monitor action-group test-notifications create` (and the REST `createNotifications`)
-answered "There are no valid receivers in the request" for `pps-owner`. Use the portal's **Test
-action group** instead.
+**Gotcha: an e-mail receiver sends nothing until its owner confirms the subscription** in the
+"added to action group" e-mail. Until then, `az monitor action-group test-notifications create`
+answers "There are no valid receivers in the request", and a firing alert reaches no inbox, even
+though `az monitor action-group show` reports the receiver as `Enabled`. **Confirm the mail before
+you rely on the group.** The first forced-`Degraded` alert fired unconfirmed and was never delivered.
+
+Alert path proof (2026-09-25, all times UTC):
+- `Outbox__WorkerStallAfter=00:00:01` set at 13:32. `/health` went `Degraded` 75 s later (the
+  restart). All five locations failed "required text 'Healthy' did not appear", and
+  `pps-health-availability` **fired at 13:40**. The setting was removed at 13:46, `/health` was
+  `Healthy` 75 s later, and the alert **resolved at 13:56**.
+- The owner confirmed the subscription at 13:50. A test notification at 14:08
+  (`az monitor action-group test-notifications create -g pps-rg --action-group pps-owner
+  --alert-type metricstaticthreshold -a email owner <owner> usecommonalertschema`) **arrived**.
+  That is also the delivery half of `pps-server-errors`' proof.
+- `pps-server-errors`' query, run by hand against the last 7 days, parses and returns 0 (no errors).
+  Widened to every request, it returns 26.
 
 
 ### PR gate and rollback (phase 4)

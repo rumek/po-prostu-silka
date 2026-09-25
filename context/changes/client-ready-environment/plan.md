@@ -439,6 +439,12 @@ through the portal's **Test action group**, which must deliver the e-mail. Secon
 own query once by hand against the `exceptions` and `requests` tables, and confirm it parses and
 returns rows when widened to a period that has any. Record both results.
 
+**Adapted during implementation.** The CLI test notification replaced the portal's Test action group,
+once it worked. An e-mail receiver delivers nothing until its owner confirms the subscription mail:
+the first forced-`Degraded` alert fired (13:40 UTC) and resolved (13:56) before that confirmation, so
+it reached no inbox. Delivery was then proven with a test notification after the confirmation, which
+the owner received. Details are in `deploy-plan.md`.
+
 ### Success Criteria:
 
 #### Automated Verification:
@@ -498,6 +504,12 @@ matching `migrations.sql`). `rollback.yml` is `workflow_dispatch` with input `ru
 that run's `publish-*` artifact and deploys it with the same publish-profile step and the same
 `env:` app name. **It runs no migration**: schema stays ahead of code, which the reversible-migration
 policy guarantees is safe. Its summary names the run and commit it deployed.
+
+**Adapted during implementation.** `ci.yml` is one job named `checks`, because the backend tests need
+the SPA build staged into wwwroot. `deploy.yml` and `rollback.yml` also share a concurrency group,
+`deploy-po-prostu-silka`, queued and never cancelled, so a rollback cannot interleave with a deploy.
+The plan did not name that group. PR #1 was merged with a merge commit, not a squash, so the phase SHAs
+in Progress stay reachable.
 
 #### 3. Branch protection
 
@@ -740,15 +752,15 @@ No schema change. No EF migration. Configuration added to the App Service:
 #### Manual
 
 - [ ] 3.5 Requests appear in App Insights within minutes of the deploy
-- [ ] 3.6 The forced Degraded produces an alert e-mail, and the alert resolves after the setting is removed
+- [x] 3.6 The forced Degraded produces an alert e-mail, and the alert resolves after the setting is removed
 - [ ] 3.7 After 24 h, daily ingestion is well under the cap
 
 ### Phase 4: PR gate & rollback pipeline
 
 #### Automated
 
-- [ ] 4.1 The first PR's ci.yml run is green
-- [ ] 4.2 A direct push to main is rejected
+- [x] 4.1 The first PR's ci.yml run is green — bbcbd24
+- [x] 4.2 A direct push to main is rejected — bbcbd24
 
 #### Manual
 
