@@ -734,8 +734,8 @@ No schema change. No EF migration. Configuration added to the App Service:
 
 - [x] 3.1 Backend builds warning-free and tests pass with no connection string set — 25b137c
 - [x] 3.2 No new vulnerable package — 25b137c
-- [ ] 3.3 The resources exist in pps-rg
-- [ ] 3.4 The budget exists
+- [x] 3.3 The resources exist in pps-rg
+- [x] 3.4 The budget exists
 
 #### Manual
 

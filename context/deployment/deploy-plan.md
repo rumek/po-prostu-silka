@@ -404,6 +404,8 @@ Health check: it only reacts to non-2xx, so it will never see a delivery problem
 
 ### Before production: alert on `/health` (required)
 
+**Done in S-28 (2026-09-25)**, see "Client-ready environment (S-28)" below for the commands as run.
+
 Without this, the new checks only help whoever happens to open `/health`.
 
 1. Create an Application Insights resource in `pps-rg` (workspace-based), if there is none yet.
@@ -447,3 +449,81 @@ have reached members directly.
 - CI: keep `main` → Staging. Promote the same artifact to production through a GitHub
   **environment** with required reviewers, after the Staging deploy is healthy.
 - Point the availability test above at **both** environments.
+
+## Client-ready environment (S-28) — 2026-09-25
+
+Plan: `context/changes/client-ready-environment/plan.md`. Every command below is written with its
+names spelled out, so a second environment is a re-run with other names (M-9 GL-01).
+
+### Response hygiene (phase 1)
+
+Live since commit `fba72cd`. `curl -sI https://po-prostu-silka.azurewebsites.net/` shows HSTS
+(`max-age=31536000`), the enforced CSP, `X-Content-Type-Options`, `X-Frame-Options: DENY`,
+`Referrer-Policy`, `Permissions-Policy`, and no `Server` header. The same set appears on static
+files. **A new external origin in the SPA is a CSP change** (`src/Api/Http/SecurityHeaders.cs`),
+and critical-CSS inlining must stay off in `angular.json`, because its `onload` is an inline script.
+
+### `/health` semantics (phase 2)
+
+- E-mail stuck past 30 min → `Degraded`, **unless** the lane is throttled: some undelivered e-mail
+  carries `LastError = acs_429`. Then the threshold is `Outbox:ThrottledMaxUndeliveredAge` (3 h).
+  Push is always judged against 30 min.
+- `TestDataSeed__Reset=true` (with Enabled and a password, under Staging) → `Degraded` with
+  "TestDataSeed:Reset is on: the next restart wipes the database". Turning Reset off clears it.
+
+### Observability resources (phase 3)
+
+Git Bash rewrites `/subscriptions/...` arguments into Windows paths. Export `MSYS_NO_PATHCONV=1`
+before any command that passes a resource id.
+
+```bash
+export MSYS_NO_PATHCONV=1
+SUB=1b1298d8-ca6a-4a57-a189-192ff31fbd3a; RG=pps-rg; APP=po-prostu-silka; OWNER=karol.rumianowski@gmail.com
+RGID=/subscriptions/$SUB/resourceGroups/$RG
+
+# Workspace with a 0.1 GB/day cap and 30-day retention (registers Microsoft.OperationalInsights on first use)
+az monitor log-analytics workspace create -g $RG -n pps-logs -l polandcentral --retention-time 30 --quota 0.1
+
+# Workspace-based Application Insights
+az config set extension.use_dynamic_install=yes_without_prompt
+az monitor app-insights component create --app pps-ai -g $RG -l polandcentral --kind web   --application-type web --workspace pps-logs
+
+# Action group: e-mail to the owner
+az monitor action-group create -g $RG -n pps-owner --short-name ppsowner   --action email owner $OWNER usecommonalertschema
+
+# Standard availability test on /health. The content match is CASE-SENSITIVE on purpose:
+# "Unhealthy" contains "healthy". Pass --locations once PER location, because a space-separated
+# list silently keeps only the first. Do not pass --kind (it accepts only ping/multistep).
+AI=$RGID/providers/microsoft.insights/components/pps-ai
+az monitor app-insights web-test create -n pps-health -g $RG -l polandcentral   --defined-web-test-name pps-health --synthetic-monitor-id pps-health --web-test-kind standard   --enabled true --frequency 300 --timeout 30 --retry-enabled true   --locations Id=emea-nl-ams-azr --locations Id=emea-gb-db3-azr --locations Id=emea-fr-pra-edge   --locations Id=emea-se-sto-edge --locations Id=emea-ch-zrh-edge   --request-url https://$APP.azurewebsites.net/health --http-verb GET --expected-status-code 200   --content-validation content-match=Healthy ignore-case=false pass-if-text-found=true   --ssl-check true --tags "hidden-link:$AI=Resource"
+
+# Its alert: 2+ locations failing -> pps-owner. The CLI has no flag for this criterion, so ARM:
+# PUT $RGID/providers/Microsoft.Insights/metricAlerts/pps-health-availability?api-version=2018-03-01
+# with criteria {"odata.type":"Microsoft.Azure.Monitor.WebtestLocationAvailabilityCriteria",
+# "webTestId":<pps-health id>,"componentId":<pps-ai id>,"failedLocationCount":2}, scopes [test, ai],
+# evaluationFrequency PT1M, windowSize PT5M, severity 1, autoMitigate true, actions [pps-owner].
+# Body kept as run: az rest --method put --url ... --body @avail-alert.json
+
+# Server errors: any exception or 5xx request in 5 minutes
+az monitor scheduled-query create -n pps-server-errors -g $RG --scopes "$AI" --location polandcentral   --severity 1 --evaluation-frequency 5m --window-size 5m --auto-mitigate true   --condition "count 'ServerErrors' > 0"   --condition-query ServerErrors="union (exceptions | project timestamp), (requests | where toint(resultCode) >= 500 | project timestamp)"   --action-groups "$RGID/providers/microsoft.insights/actionGroups/pps-owner"
+
+# Budget $25/month on the resource group, 80% actual + 100% forecast -> owner.
+# `az consumption budget create-with-rg --notifications` rejects thresholdType, so ARM:
+az rest --method put --url "https://management.azure.com$RGID/providers/Microsoft.Consumption/budgets/pps-monthly?api-version=2023-11-01"   --body '{"properties":{"category":"Cost","amount":25,"timeGrain":"Monthly",
+    "timePeriod":{"startDate":"2026-09-01T00:00:00Z","endDate":"2028-09-30T00:00:00Z"},
+    "notifications":{
+      "actual80":{"enabled":true,"operator":"GreaterThanOrEqualTo","threshold":80,"thresholdType":"Actual","contactEmails":["'$OWNER'"],"locale":"pl-pl"},
+      "forecast100":{"enabled":true,"operator":"GreaterThanOrEqualTo","threshold":100,"thresholdType":"Forecasted","contactEmails":["'$OWNER'"],"locale":"pl-pl"}}}}'
+
+# Turn on the exporter (restarts the app)
+az webapp config appsettings set -g $RG -n $APP --settings   "APPLICATIONINSIGHTS_CONNECTION_STRING=$(az monitor app-insights component show --app pps-ai -g $RG --query connectionString -o tsv)"
+```
+
+App setting added: `APPLICATIONINSIGHTS_CONNECTION_STRING`. The host registers the exporter only
+when it is set (`src/Api/Telemetry/Telemetry.cs`). Right after, `requests` held only
+request-parented dependencies, and none of the worker's polling.
+
+**Gotcha:** `az monitor action-group test-notifications create` (and the REST `createNotifications`)
+answered "There are no valid receivers in the request" for `pps-owner`. Use the portal's **Test
+action group** instead.
+
