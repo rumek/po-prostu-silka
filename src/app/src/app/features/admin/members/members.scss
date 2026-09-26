@@ -106,14 +106,12 @@
   grid-row: 1;
 }
 
-// The table's individual columns turn into one compact, ordered fact strip on a phone. The old
-// layout placed status, role and "w klubie od" on different grid tracks, so the pass could not fit
-// without looking accidental.
-// Hidden by specificity alone: the wide layout's `.members-table td` outranks these and brings the
-// columns back, exactly as it does for .members-cell-pass below.
-.members-cell-status,
-.members-cell-role,
-.members-cell-since {
+// The table's individual columns turn into one compact, ordered fact strip on a phone
+// (.members-cell-compact): status, role and the karnet are said there once, and "w klubie od" not at
+// all. `.members-entry >` because a bare class loses to `.members-entry > *` above and the columns
+// render a second time under the stack; the wide block below outranks this to bring them back.
+// Every data cell but the stack and the menu: status, role, karnet and "w klubie od".
+.members-entry > td:not(.members-cell-compact, .members-cell-actions) {
   display: none;
 }
 
@@ -159,11 +157,6 @@
   color: var(--muted);
   font-size: 0.8125rem;
   overflow-wrap: anywhere;
-}
-
-// The karnet column is the wide layout's alone (members.html).
-.members-cell-pass {
-  display: none;
 }
 
 .members-pass-meta {
@@ -215,9 +208,11 @@
     }
   }
 
+  // `.members-table .members-entry > *` outranks the phone's `.members-entry > .members-cell-*`
+  // hides, which is what brings the columns back without re-listing them.
   .members-table th,
   .members-table td,
-  .members-entry > * {
+  .members-table .members-entry > * {
     display: table-cell;
     margin: 0;
     padding: var(--space-3) var(--space-4);
@@ -240,7 +235,7 @@
     border-bottom: 0;
   }
 
-  .members-entry > .members-cell-compact {
+  .members-table .members-entry > .members-cell-compact {
     display: none;
   }
 

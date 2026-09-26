@@ -33,7 +33,11 @@ export type IconName =
   | 'level'
   | 'kettlebell'
   | 'role'
-  | 'account-status';
+  | 'account-status'
+  | 'mail'
+  | 'lock'
+  | 'eye'
+  | 'eye-off';
 
 /**
  * The app's icon primitive — the first one this codebase has had.

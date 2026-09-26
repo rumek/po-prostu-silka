@@ -6,13 +6,14 @@ import { classifyFailure } from '../../../core/http/failure';
 import { transportMessage } from '../../../core/http/transport-messages';
 import { loginFailureMessage } from '../../../core/auth/login-failure';
 import { Field } from '../../../shared/forms/field/field';
+import { Icon } from '../../../shared/icons/icon';
 
 /**
  * Sign-in. Reactive forms (S-01 D8) — this decides the idiom for the project: server-returned field
  * errors map onto controls, and validation is testable without a DOM.
  */
 @Component({
-  imports: [Field, ReactiveFormsModule, RouterLink],
+  imports: [Field, Icon, ReactiveFormsModule, RouterLink],
   selector: 'app-login',
   styleUrl: './login.scss',
   templateUrl: './login.html',
@@ -28,6 +29,9 @@ export class Login {
 
   protected readonly error = signal<string | null>(null);
   protected readonly submitting = signal(false);
+
+  /** The eye toggle: a password typed on a phone is easier to get right when it can be read back. */
+  protected readonly showPassword = signal(false);
 
   /** Read once from the snapshot: this route is not reused, so there is nothing to observe. */
   private readonly route = inject(ActivatedRoute);

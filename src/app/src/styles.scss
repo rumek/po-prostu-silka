@@ -414,56 +414,108 @@ a {
   margin: 0 auto;
 }
 
-// The signed-out screens are a small, intentional welcome area rather than a form floating on the
-// page. `panel` remains the neutral layout primitive used by older forms; this companion gives the
-// authentication journey its shared identity without making login, recovery and reset drift apart.
+// The signed-out screens (login, forgot and reset password): the display-face heading and a quiet
+// line under it on the page, the form on one paper card, one link under the card. `panel` stays the
+// neutral frame; this companion is what keeps the three screens from drifting apart.
 .auth-panel {
   max-width: 28rem;
-}
-
-.auth-kicker {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  margin: 0 0 var(--space-2);
-  color: var(--accent);
-  font-size: 0.7rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-
-  &::before {
-    width: 1.75rem;
-    height: 1px;
-    background: var(--accent2);
-    content: '';
-  }
+  padding-top: var(--space-5);
 }
 
 .auth-panel > h1 {
-  margin-bottom: var(--space-2);
+  margin-bottom: var(--space-3);
+  font-size: clamp(2.5rem, 1.9rem + 2.4vw, 3.25rem);
 }
 
 .auth-panel > .hint {
-  max-width: 32rem;
-  margin-bottom: var(--space-5);
+  margin-bottom: var(--space-6);
+  font-size: 1.0625rem;
 }
 
 .auth-card {
-  padding: var(--space-5);
-  border-top: 3px solid var(--accent2);
+  padding: var(--space-6) var(--space-5);
+}
+
+// A control with a leading icon saying what it expects, and optionally a trailing button (the
+// password's show/hide). A variant of the global control box, not a second one: only the padding
+// changes, to make room for the icon and the button.
+.auth-control {
+  position: relative;
+  display: flex;
+  align-items: center;
+
+  > app-icon {
+    position: absolute;
+    left: var(--space-4);
+    color: var(--accent);
+    font-size: 0.85rem;
+    pointer-events: none;
+  }
+
+  > input {
+    width: 100%;
+    min-height: 52px;
+    padding-left: calc(var(--space-4) + 1.3rem + var(--space-3));
+  }
+
+  > input:has(+ .auth-control-toggle) {
+    padding-right: 3.25rem;
+  }
+}
+
+.auth-control-toggle {
+  position: absolute;
+  right: var(--space-1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--accent);
+  font-size: 0.9rem;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--section-warm);
+  }
+}
+
+// The submit carries a forward chevron - "go", its meaning everywhere in the app.
+.auth-card .button--block {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 52px;
+  margin-top: var(--space-2);
+
+  app-icon {
+    font-size: 0.75rem;
+  }
 }
 
 .auth-footer {
-  margin: var(--space-5) 0 0;
+  margin: var(--space-6) 0 0;
   color: var(--muted);
   font-size: 0.9375rem;
   text-align: center;
+
+  a {
+    color: var(--accent);
+    text-decoration-color: currentcolor;
+  }
 }
 
 @include bp.narrow {
+  .auth-panel {
+    padding-top: var(--space-4);
+  }
+
   .auth-card {
-    padding: var(--space-4);
+    padding: var(--space-5) var(--space-4);
   }
 }
 

@@ -6,6 +6,7 @@ import { classifyFailure } from '../../../core/http/failure';
 import { transportMessage } from '../../../core/http/transport-messages';
 import { createFormState } from '../../../shared/forms/form-state';
 import { Field } from '../../../shared/forms/field/field';
+import { Icon } from '../../../shared/icons/icon';
 
 /**
  * Asks for a reset link (S-13). Public, guard-free, reachable from the login screen.
@@ -19,7 +20,7 @@ import { Field } from '../../../shared/forms/field/field';
  * </p>
  */
 @Component({
-  imports: [Field, ReactiveFormsModule, RouterLink],
+  imports: [Field, Icon, ReactiveFormsModule, RouterLink],
   selector: 'app-forgot-password',
   styleUrl: './forgot-password.scss',
   templateUrl: './forgot-password.html',

@@ -356,6 +356,19 @@ export class Members {
     return units >= 2 && units <= 4 && (tens < 12 || tens > 14) ? 'osoby' : 'osób';
   });
 
+  /** "1 wejście", "3 wejścia", "8 wejść" — the phone card's karnet line, in the Polish plural. */
+  protected entriesLabel(left: number | null): string {
+    const n = left ?? 0;
+    const tens = n % 100;
+    const units = n % 10;
+
+    if (n === 1) {
+      return '1 wejście';
+    }
+
+    return `${n} ${units >= 2 && units <= 4 && (tens < 12 || tens > 14) ? 'wejścia' : 'wejść'}`;
+  }
+
   /** Back to the whole club: no phrase, no filter, page 1. */
   protected async clearFilters(): Promise<void> {
     this.searchInput.set('');
