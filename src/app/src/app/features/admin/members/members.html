@@ -148,13 +148,21 @@
               @case ('valid') {
                 <span class="fact-line">
                   <app-icon name="ticket" />
-                  <span>Ważny do {{ member.passValidTo | date: 'd MMM y' }}</span>
+                  <span
+                    >Ważny do {{ member.passValidTo | date: 'd MMM y' }} ({{
+                      entriesLabel(member.passEntriesLeft)
+                    }})</span
+                  >
                 </span>
               }
               @case ('spent') {
                 <span class="fact-line">
                   <app-icon name="ticket" />
-                  <span>Wykorzystany · do {{ member.passValidTo | date: 'd MMM y' }}</span>
+                  <span
+                    >Wykorzystany · do {{ member.passValidTo | date: 'd MMM y' }} ({{
+                      entriesLabel(0)
+                    }})</span
+                  >
                 </span>
               }
               @case ('none') {

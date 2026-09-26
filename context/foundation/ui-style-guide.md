@@ -102,7 +102,8 @@ The pill track is still declared per component (four copies). A fifth copy is th
   **`--accent2`** for a fact about the thing (who, how many, how long); **`--muted`** inside a form label.
 - Current meanings: `person` = who instructs · `members` = how many are signed up · `calendar` = a
   date · `ticket` = the karnet · `clock` = rest · `time` = a duration (a hold, a class type's default length) · `role` = what an
-  account may do in the club · `account-status` = whether it can sign in · `repeat` = reps · `sets` =
+  account may do in the club · `account-status` = whether it can sign in · `mail` / `lock` = an
+  address / a password box · `eye` / `eye-off` = show / hide the password · `repeat` = reps · `sets` =
   sets · `info` = more to read · `chevron-left` / `chevron-right` = previous / next or "go" ·
   `chevron-down` = a select · `back` = up to the parent. Add a case to `shared/icons/icon.html` rather
   than reusing one for a second meaning.

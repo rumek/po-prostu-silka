@@ -8,6 +8,7 @@ import { transportMessage } from '../../../core/http/transport-messages';
 import { MIN_PASSWORD_LENGTH, passwordsMatch } from '../../../core/auth/validation';
 import { createFormState } from '../../../shared/forms/form-state';
 import { Field } from '../../../shared/forms/field/field';
+import { Icon } from '../../../shared/icons/icon';
 import { ToastService } from '../../../shared/toast/toast.service';
 
 /**
@@ -25,7 +26,7 @@ import { ToastService } from '../../../shared/toast/toast.service';
  * </p>
  */
 @Component({
-  imports: [Field, ReactiveFormsModule, RouterLink],
+  imports: [Field, Icon, ReactiveFormsModule, RouterLink],
   selector: 'app-reset-password',
   styleUrl: './reset-password.scss',
   templateUrl: './reset-password.html',
@@ -57,6 +58,10 @@ export class ResetPassword {
 
   /** True once the token is spent — a dead link, and the screen offers a way to get a fresh one. */
   protected readonly tokenRejected = signal(false);
+
+  /** One eye toggle per box, so revealing one password does not reveal the other. */
+  protected readonly showNewPassword = signal(false);
+  protected readonly showConfirmation = signal(false);
 
   protected readonly state = createFormState();
 

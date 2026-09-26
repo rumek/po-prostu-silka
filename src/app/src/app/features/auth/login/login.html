@@ -1,5 +1,4 @@
 <div class="panel auth-panel">
-  <p class="auth-kicker">Po Prostu Siłka</p>
   <h1>Zaloguj się</h1>
   <p class="hint">Wróć do swojego planu, zajęć i wszystkiego, co ważne w treningu.</p>
 
@@ -16,26 +15,41 @@
 
     <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
       <app-field label="Adres e-mail" for="email">
-        <input
-          id="email"
-          type="email"
-          autocomplete="email"
-          formControlName="email"
-          [attr.aria-invalid]="form.controls.email.touched && form.controls.email.invalid"
-        />
+        <div class="auth-control">
+          <app-icon name="mail" />
+          <input
+            id="email"
+            type="email"
+            autocomplete="email"
+            formControlName="email"
+            [attr.aria-invalid]="form.controls.email.touched && form.controls.email.invalid"
+          />
+        </div>
         @if (form.controls.email.touched && form.controls.email.invalid) {
           <p class="field-error">Podaj poprawny adres e-mail.</p>
         }
       </app-field>
 
       <app-field label="Hasło" for="password">
-        <input
-          id="password"
-          type="password"
-          autocomplete="current-password"
-          formControlName="password"
-          [attr.aria-invalid]="form.controls.password.touched && form.controls.password.invalid"
-        />
+        <div class="auth-control">
+          <app-icon name="lock" />
+          <input
+            id="password"
+            [type]="showPassword() ? 'text' : 'password'"
+            autocomplete="current-password"
+            formControlName="password"
+            [attr.aria-invalid]="form.controls.password.touched && form.controls.password.invalid"
+          />
+          <button
+            type="button"
+            class="auth-control-toggle"
+            aria-label="Pokaż hasło"
+            [attr.aria-pressed]="showPassword()"
+            (click)="showPassword.set(!showPassword())"
+          >
+            <app-icon [name]="showPassword() ? 'eye-off' : 'eye'" />
+          </button>
+        </div>
         @if (form.controls.password.touched && form.controls.password.invalid) {
           <p class="field-error">Podaj hasło.</p>
         }
@@ -43,6 +57,7 @@
 
       <button type="submit" class="button button--block" [disabled]="submitting()">
         {{ submitting() ? 'Logowanie…' : 'Zaloguj się' }}
+        <app-icon name="chevron-right" />
       </button>
     </form>
   </div>
