@@ -190,7 +190,10 @@ describe('Classes', () => {
     fixture.detectChanges();
 
     const past = await vi.waitFor(() => adminRequests()[0]);
-    past.flush([{ ...row, startsAt: new Date(Date.now() - 7 * 86_400_000).toISOString() }]);
+    // A week before the row's own time, not before NOW: run after the grid's last hour, "now minus a
+    // week" lands outside the drawn day and the tile never renders.
+    const weekEarlier = new Date(row.startsAt).getTime() - 7 * 86_400_000;
+    past.flush([{ ...row, startsAt: new Date(weekEarlier).toISOString() }]);
     await settle();
   }
 

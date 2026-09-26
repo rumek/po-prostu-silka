@@ -73,9 +73,19 @@ describe('Schedule', () => {
     fixture.detectChanges();
   }
 
-  beforeEach(() => create(ADMIN));
+  // A FIXED MORNING, not the real clock. The roster cases draw a class at 20:00 today, and run after
+  // 20:00 that class has started — the overlay turns into the attendance sheet and the picker and
+  // "Zwolnij miejsce" are gone. Only Date is faked: the timers Angular and vi.waitFor rely on stay real.
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(2026, 8, 14, 9, 0));
+    create(ADMIN);
+  });
 
-  afterEach(() => controller.verify());
+  afterEach(() => {
+    controller.verify();
+    vi.useRealTimers();
+  });
 
   function scheduleRequests(): TestRequest[] {
     return controller.match((request) => request.url === '/api/classes');
