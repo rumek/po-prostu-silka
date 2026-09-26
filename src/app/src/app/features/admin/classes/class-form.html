@@ -1,4 +1,14 @@
-<h1 class="screen-title">{{ editingId() ? 'Edytuj zajęcia' : 'Nowe zajęcia' }}</h1>
+<header class="class-form-header">
+  <p class="class-form-kicker"><app-icon name="calendar" /> <span>Grafik</span></p>
+  <h1 class="screen-title">{{ editingId() ? 'Edytuj zajęcia' : 'Nowe zajęcia' }}</h1>
+  <p class="hint">
+    @if (editingId()) {
+      Zmień szczegóły tego terminu. Typ zajęć zostaje taki sam, żeby zachować jego historię.
+    } @else {
+      Wybierz typ i prowadzącego, a następnie dopasuj termin oraz liczbę miejsc.
+    }
+  </p>
+</header>
 
 @if (state.loading()) {
   <app-loading />
@@ -24,126 +34,128 @@
     <p class="alert" role="alert">{{ state.error() }}</p>
   }
 
-  <form class="panel" [formGroup]="form" (ngSubmit)="submit()">
-    <app-field label="Typ zajęć" for="classTypeId">
-      <!-- The .select wrapper is what carries the custom chevron: a select generates no
+  <form class="card class-form" [formGroup]="form" (ngSubmit)="submit()">
+    <div class="class-form-grid">
+      <app-field class="class-form-wide" label="Typ zajęć" for="classTypeId">
+        <!-- The .select wrapper is what carries the custom chevron: a select generates no
            pseudo-elements of its own, so styles.scss puts ::after here. A select without this
            wrapper has its native arrow suppressed and nothing in its place. -->
-      <app-select>
-        <select
-          id="classTypeId"
-          formControlName="classTypeId"
-          (change)="applyTypeDefaults(form.controls.classTypeId.value)"
-          [attr.aria-invalid]="
-            form.controls.classTypeId.touched && form.controls.classTypeId.invalid
-          "
-        >
-          <option value="" disabled>Wybierz typ…</option>
-          @for (type of classTypeOptions(); track type.id) {
-            <option [value]="type.id">
-              {{ type.name }}{{ type.isActive ? '' : ' (nieaktywny)' }}
-            </option>
-          }
-        </select>
-      </app-select>
+        <app-select>
+          <select
+            id="classTypeId"
+            formControlName="classTypeId"
+            (change)="applyTypeDefaults(form.controls.classTypeId.value)"
+            [attr.aria-invalid]="
+              form.controls.classTypeId.touched && form.controls.classTypeId.invalid
+            "
+          >
+            <option value="" disabled>Wybierz typ…</option>
+            @for (type of classTypeOptions(); track type.id) {
+              <option [value]="type.id">
+                {{ type.name }}{{ type.isActive ? '' : ' (nieaktywny)' }}
+              </option>
+            }
+          </select>
+        </app-select>
 
-      @if (editingId()) {
-        <p class="hint">
-          Typu nie można zmienić po utworzeniu zajęć. Aby użyć innego, usuń te zajęcia i utwórz
-          nowe.
-        </p>
-      } @else {
-        <p class="hint">
-          Czas trwania i liczba miejsc uzupełnią się z definicji — możesz je zmienić.
-        </p>
-      }
+        @if (editingId()) {
+          <p class="hint">
+            Typu nie można zmienić po utworzeniu zajęć. Aby użyć innego, usuń te zajęcia i utwórz
+            nowe.
+          </p>
+        } @else {
+          <p class="hint">
+            Czas trwania i liczba miejsc uzupełnią się z definicji — możesz je zmienić.
+          </p>
+        }
 
-      @if (form.controls.classTypeId.touched && form.controls.classTypeId.invalid) {
-        <p class="field-error">Wybierz typ zajęć.</p>
-      }
-    </app-field>
+        @if (form.controls.classTypeId.touched && form.controls.classTypeId.invalid) {
+          <p class="field-error">Wybierz typ zajęć.</p>
+        }
+      </app-field>
 
-    <app-field label="Początek" for="startsAt">
-      <input
-        id="startsAt"
-        type="datetime-local"
-        formControlName="startsAt"
-        [attr.aria-invalid]="form.controls.startsAt.touched && form.controls.startsAt.invalid"
-      />
-      @if (form.controls.startsAt.touched && form.controls.startsAt.invalid) {
-        <!-- ONE WORDING PER REFUSAL (S-19). This block used to hold its own sentences for
+      <app-field class="class-form-wide" label="Początek" for="startsAt">
+        <input
+          id="startsAt"
+          type="datetime-local"
+          formControlName="startsAt"
+          [attr.aria-invalid]="form.controls.startsAt.touched && form.controls.startsAt.invalid"
+        />
+        @if (form.controls.startsAt.touched && form.controls.startsAt.invalid) {
+          <!-- ONE WORDING PER REFUSAL (S-19). This block used to hold its own sentences for
              time_conflict and starts_in_past, so the same refusal read one way under the field and
              another in the banner. The server's answer now comes from the table via `server`; the
              `@else` is the CLIENT-side check, which the server never saw. -->
-        @if (form.controls.startsAt.hasError('server')) {
-          <p class="field-error">{{ form.controls.startsAt.getError('server') }}</p>
-        } @else {
-          <p class="field-error">Podaj datę i godzinę rozpoczęcia.</p>
-        }
-      }
-    </app-field>
-
-    <app-field label="Czas trwania (minuty)" for="durationMinutes">
-      <input
-        id="durationMinutes"
-        type="number"
-        min="1"
-        max="480"
-        formControlName="durationMinutes"
-        [attr.aria-invalid]="
-          form.controls.durationMinutes.touched && form.controls.durationMinutes.invalid
-        "
-      />
-      @if (form.controls.durationMinutes.touched && form.controls.durationMinutes.invalid) {
-        <p class="field-error">
-          {{
-            form.controls.durationMinutes.getError('server') ?? failureMessage('invalid_duration')
-          }}
-        </p>
-      }
-    </app-field>
-
-    <app-field label="Prowadzący" for="instructorMemberId">
-      <app-select>
-        <select
-          id="instructorMemberId"
-          formControlName="instructorMemberId"
-          [attr.aria-invalid]="
-            form.controls.instructorMemberId.touched && form.controls.instructorMemberId.invalid
-          "
-        >
-          <option value="" disabled>Wybierz prowadzącego…</option>
-          @for (trainer of trainers(); track trainer.id) {
-            <option [value]="trainer.id">{{ trainer.displayName }}</option>
+          @if (form.controls.startsAt.hasError('server')) {
+            <p class="field-error">{{ form.controls.startsAt.getError('server') }}</p>
+          } @else {
+            <p class="field-error">Podaj datę i godzinę rozpoczęcia.</p>
           }
-        </select>
-      </app-select>
-      @if (form.controls.instructorMemberId.touched && form.controls.instructorMemberId.invalid) {
-        <!-- Same rule as startsAt above: a drifted second sentence for the two instructor
-             refusals, replaced by the table's one. -->
-        @if (form.controls.instructorMemberId.hasError('server')) {
-          <p class="field-error">{{ form.controls.instructorMemberId.getError('server') }}</p>
-        } @else {
-          <p class="field-error">Wybierz prowadzącego.</p>
         }
-      }
-    </app-field>
+      </app-field>
 
-    <app-field label="Liczba miejsc" for="capacity">
-      <input
-        id="capacity"
-        type="number"
-        min="1"
-        max="200"
-        formControlName="capacity"
-        [attr.aria-invalid]="form.controls.capacity.touched && form.controls.capacity.invalid"
-      />
-      @if (form.controls.capacity.touched && form.controls.capacity.invalid) {
-        <p class="field-error">
-          {{ form.controls.capacity.getError('server') ?? failureMessage('invalid_capacity') }}
-        </p>
-      }
-    </app-field>
+      <app-field label="Czas trwania (minuty)" for="durationMinutes">
+        <input
+          id="durationMinutes"
+          type="number"
+          min="1"
+          max="480"
+          formControlName="durationMinutes"
+          [attr.aria-invalid]="
+            form.controls.durationMinutes.touched && form.controls.durationMinutes.invalid
+          "
+        />
+        @if (form.controls.durationMinutes.touched && form.controls.durationMinutes.invalid) {
+          <p class="field-error">
+            {{
+              form.controls.durationMinutes.getError('server') ?? failureMessage('invalid_duration')
+            }}
+          </p>
+        }
+      </app-field>
+
+      <app-field label="Liczba miejsc" for="capacity">
+        <input
+          id="capacity"
+          type="number"
+          min="1"
+          max="200"
+          formControlName="capacity"
+          [attr.aria-invalid]="form.controls.capacity.touched && form.controls.capacity.invalid"
+        />
+        @if (form.controls.capacity.touched && form.controls.capacity.invalid) {
+          <p class="field-error">
+            {{ form.controls.capacity.getError('server') ?? failureMessage('invalid_capacity') }}
+          </p>
+        }
+      </app-field>
+
+      <app-field class="class-form-wide" label="Prowadzący" for="instructorMemberId">
+        <app-select>
+          <select
+            id="instructorMemberId"
+            formControlName="instructorMemberId"
+            [attr.aria-invalid]="
+              form.controls.instructorMemberId.touched && form.controls.instructorMemberId.invalid
+            "
+          >
+            <option value="" disabled>Wybierz prowadzącego…</option>
+            @for (trainer of trainers(); track trainer.id) {
+              <option [value]="trainer.id">{{ trainer.displayName }}</option>
+            }
+          </select>
+        </app-select>
+        @if (form.controls.instructorMemberId.touched && form.controls.instructorMemberId.invalid) {
+          <!-- Same rule as startsAt above: a drifted second sentence for the two instructor
+             refusals, replaced by the table's one. -->
+          @if (form.controls.instructorMemberId.hasError('server')) {
+            <p class="field-error">{{ form.controls.instructorMemberId.getError('server') }}</p>
+          } @else {
+            <p class="field-error">Wybierz prowadzącego.</p>
+          }
+        }
+      </app-field>
+    </div>
 
     <div class="class-form-actions">
       <button type="submit" class="button" [disabled]="state.submitting()">

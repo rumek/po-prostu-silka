@@ -726,8 +726,8 @@ No schema change. No EF migration. Configuration added to the App Service:
 #### Manual
 
 - [ ] 1.6 After deploy, the live URL shows every header and no Server header
-- [ ] 1.7 Click-through as member, trainer and admin at phone and desk widths leaves the console free of CSP violations
-- [ ] 1.8 The styles load on first paint
+- [x] 1.7 Click-through as member, trainer and admin at phone and desk widths leaves the console free of CSP violations
+- [x] 1.8 The styles load on first paint
 
 ### Phase 2: Health signals that mean something
 
@@ -751,8 +751,8 @@ No schema change. No EF migration. Configuration added to the App Service:
 
 #### Manual
 
-- [ ] 3.5 Requests appear in App Insights within minutes of the deploy
-- [x] 3.6 The forced Degraded produces an alert e-mail, and the alert resolves after the setting is removed
+- [x] 3.5 Requests appear in App Insights within minutes of the deploy
+- [x] 3.6 The forced Degraded produces an alert e-mail, and the alert resolves after the setting is removed — 0752feb
 - [ ] 3.7 After 24 h, daily ingestion is well under the cap
 
 ### Phase 4: PR gate & rollback pipeline

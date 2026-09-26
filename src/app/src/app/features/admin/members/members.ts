@@ -552,6 +552,15 @@ export class Members {
     }
   }
 
+  /** The one role a compact member card needs to name, following the app-wide persona precedence. */
+  protected personaLabel(member: Member): string {
+    if (this.isAdmin(member)) {
+      return 'Administrator';
+    }
+
+    return this.isTrainer(member) ? 'Trener' : 'Członek';
+  }
+
   /**
    * The role action exists only on active accounts, mirroring the API's not_active guard. Offering
    * it elsewhere would put a button on the screen whose only outcome is a 409.

@@ -1,6 +1,7 @@
 <header class="calendar-toolbar">
-  <div class="calendar-when">
-    <!-- The title and the date picker share a row: the picker is a second way to the same answer. -->
+  <div class="calendar-context">
+    <!-- The title says where we are; the date picker is a quiet utility next to it, not a second
+         competing heading. -->
     <div class="calendar-heading">
       <!-- The heading names the visible range, not "today": after navigating away, "today" would be a
            lie about what is on screen. -->
@@ -13,8 +14,10 @@
       </h2>
 
       <label class="calendar-jump">
+        <app-icon name="calendar" />
         <input
           type="date"
+          aria-label="Przejdź do daty"
           [value]="anchorInputValue()"
           (change)="jumpTo($any($event.target).value)"
         />
@@ -177,13 +180,16 @@
   }
 </ng-template>
 
-<!-- The class card's reading order (shared/class-date/booked-class) squeezed into a tile: the time,
-     the name, then who leads it and how full it is, each fact behind the glyph it has on the
-     dashboard. A short class clips from the bottom, which is why the facts come last. -->
+<!-- The class card's reading order (shared/class-date/booked-class) squeezed into a tile: the name,
+     then who leads it and how full it is, each fact behind the glyph it has on the dashboard. The
+     time is not DRAWN: the tile's position against the hour column already says when, and the line
+     it took was the one a 45-minute class needed for its spots. It is still SAID — visually hidden,
+     so a screen reader landing on the tile hears when the class is, which its position cannot tell
+     it. A short class clips from the bottom, which is why the facts come last. -->
 <ng-template #tileBody let-weekEvent="weekEvent">
-  <p class="calendar-tile-time">
+  <span class="cdk-visually-hidden">
     {{ weekEvent.event.start | date: 'HH:mm' }}–{{ weekEvent.event.end | date: 'HH:mm' }}
-  </p>
+  </span>
   <p class="calendar-tile-name">{{ weekEvent.event.meta.name }}</p>
   <p class="calendar-tile-meta">
     <app-icon name="person" />

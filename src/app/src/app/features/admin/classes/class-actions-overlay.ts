@@ -5,6 +5,7 @@ import { RouterLink } from '@angular/router';
 import { classFailureMessage } from '../../../core/scheduling/class-failure';
 import { ScheduledClass } from '../../../core/scheduling/class.models';
 import { Field } from '../../../shared/forms/field/field';
+import { Icon } from '../../../shared/icons/icon';
 import { useOverlayFocus } from '../../../shared/forms/overlay-focus';
 
 /** The duplicate range the server accepts; outside it the API answers `invalid_weeks`. */
@@ -59,7 +60,7 @@ type Step = 'actions' | 'duplicate' | 'delete' | 'cancel';
 @Component({
   // On the host, not on the panel: Escape has to close the overlay wherever focus is.
   host: { '(document:keydown.escape)': 'close()' },
-  imports: [DatePipe, Field, FormsModule, RouterLink],
+  imports: [DatePipe, Field, FormsModule, Icon, RouterLink],
   selector: 'app-class-actions-overlay',
   styleUrl: './class-actions-overlay.scss',
   templateUrl: './class-actions-overlay.html',

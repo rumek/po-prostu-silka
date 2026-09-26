@@ -414,6 +414,59 @@ a {
   margin: 0 auto;
 }
 
+// The signed-out screens are a small, intentional welcome area rather than a form floating on the
+// page. `panel` remains the neutral layout primitive used by older forms; this companion gives the
+// authentication journey its shared identity without making login, recovery and reset drift apart.
+.auth-panel {
+  max-width: 28rem;
+}
+
+.auth-kicker {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-2);
+  color: var(--accent);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+
+  &::before {
+    width: 1.75rem;
+    height: 1px;
+    background: var(--accent2);
+    content: '';
+  }
+}
+
+.auth-panel > h1 {
+  margin-bottom: var(--space-2);
+}
+
+.auth-panel > .hint {
+  max-width: 32rem;
+  margin-bottom: var(--space-5);
+}
+
+.auth-card {
+  padding: var(--space-5);
+  border-top: 3px solid var(--accent2);
+}
+
+.auth-footer {
+  margin: var(--space-5) 0 0;
+  color: var(--muted);
+  font-size: 0.9375rem;
+  text-align: center;
+}
+
+@include bp.narrow {
+  .auth-card {
+    padding: var(--space-4);
+  }
+}
+
 .field {
   display: flex;
   flex-direction: column;
@@ -716,11 +769,14 @@ a {
   max-height: 100%;
   overflow-y: auto;
   padding: var(--space-5);
+  border: 1px solid var(--line);
 }
 
 .overlay-title {
   margin: 0 0 var(--space-2);
+  font-family: var(--font-body);
   font-size: 1.125rem;
+  font-weight: 700;
   // Long unbroken strings — a class name, an e-mail — wrap rather than widening the panel past the
   // viewport. class-create-overlay was the one of the three that lacked this.
   overflow-wrap: anywhere;
@@ -729,6 +785,7 @@ a {
 .overlay-when {
   margin: 0 0 var(--space-3);
   color: var(--muted);
+  font-size: 0.875rem;
 
   &::first-letter {
     text-transform: uppercase;
@@ -866,6 +923,36 @@ a {
   color: var(--muted);
   font-size: 0.875rem;
   overflow-wrap: anywhere;
+}
+
+// A compact stack of icon-led facts. It is intentionally quieter than a badge: these are details
+// about a row, not a status control. The member list uses it to turn table columns into a phone
+// card without inventing a second visual language for facts.
+.fact-stack {
+  display: grid;
+  gap: var(--space-1);
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.fact-line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+
+  app-icon {
+    flex: none;
+    color: var(--accent2);
+    font-size: 0.8rem;
+  }
+}
+
+.fact-line--danger {
+  color: var(--danger);
+
+  app-icon {
+    color: currentcolor;
+  }
 }
 
 .row-actions {

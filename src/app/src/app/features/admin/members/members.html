@@ -140,8 +140,40 @@
               <span class="members-role-plain">Członek</span>
             }
           </td>
-          <!-- Wide screens only: on a phone the row is for finding the person, and the karnet is one tap
-               away in Karnety. Validity is the club-local today's (MemberSummary). -->
+          <!-- Phone facts deliberately collapse to one vertical strip: an admin identifies the person,
+               then reads the three facts that change what they can do. The old layout scattered them
+               around the card and dropped the karnet altogether. -->
+          <td class="members-cell-compact fact-stack" role="cell">
+            @switch (passKind(member)) {
+              @case ('valid') {
+                <span class="fact-line">
+                  <app-icon name="ticket" />
+                  <span>Ważny do {{ member.passValidTo | date: 'd MMM y' }}</span>
+                </span>
+              }
+              @case ('spent') {
+                <span class="fact-line">
+                  <app-icon name="ticket" />
+                  <span>Wykorzystany · do {{ member.passValidTo | date: 'd MMM y' }}</span>
+                </span>
+              }
+              @case ('none') {
+                <span class="fact-line">
+                  <app-icon name="ticket" />
+                  <span>Brak karnetu</span>
+                </span>
+              }
+            }
+            <span class="fact-line">
+              <app-icon name="role" />
+              <span>{{ personaLabel(member) }}</span>
+            </span>
+            <span class="fact-line" [class.fact-line--danger]="statusKind(member) === 'blocked'">
+              <app-icon name="account-status" />
+              <span>{{ statusLabel(member) }}</span>
+            </span>
+          </td>
+          <!-- The full karnet breakdown belongs to the comparison table on wide screens. -->
           <td class="members-cell-pass" role="cell">
             @switch (passKind(member)) {
               @case ('valid') {

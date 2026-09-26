@@ -80,7 +80,7 @@
 // One member, one card: who and the menu on the first line, the facts under the name on the second.
 .members-entry {
   display: grid;
-  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--space-2);
   padding: var(--space-3) var(--space-4);
@@ -97,32 +97,33 @@
 }
 
 .members-cell-name {
-  grid-column: 1 / 4;
+  grid-column: 1;
   min-width: 0;
 }
 
 .members-cell-actions {
-  grid-column: 4;
+  grid-column: 2;
   grid-row: 1;
 }
 
-// Under the name, not under the disc: 2.5rem is the avatar, --space-3 its gap.
-.members-cell-status {
-  margin-left: calc(2.5rem + var(--space-3));
-}
-
-.members-cell-role {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1);
-}
-
+// The table's individual columns turn into one compact, ordered fact strip on a phone. The old
+// layout placed status, role and "w klubie od" on different grid tracks, so the pass could not fit
+// without looking accidental.
+// Hidden by specificity alone: the wide layout's `.members-table td` outranks these and brings the
+// columns back, exactly as it does for .members-cell-pass below.
+.members-cell-status,
+.members-cell-role,
 .members-cell-since {
-  grid-column: 3 / 5;
-  justify-self: end;
-  color: var(--muted);
-  font-size: 0.8125rem;
-  white-space: nowrap;
+  display: none;
+}
+
+// `.members-entry >` because `.members-entry > *` above would otherwise flatten the stack to a
+// block, and the same selector in the wide block below removes it again - a bare class would lose
+// to `.members-table td` there and add a seventh column.
+.members-entry > .members-cell-compact {
+  display: grid;
+  grid-column: 1 / -1;
+  margin-left: calc(2.5rem + var(--space-3));
 }
 
 .members-person {
@@ -237,6 +238,10 @@
 
   .members-entry:last-child > * {
     border-bottom: 0;
+  }
+
+  .members-entry > .members-cell-compact {
+    display: none;
   }
 
   .members-cell-since {

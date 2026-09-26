@@ -15,26 +15,28 @@
 >
   <h2 id="class-actions-title" class="overlay-title">{{ row().name }}</h2>
 
-  <p class="overlay-when">
-    {{ row().startsAt | date: 'EEEE, d MMMM' }}, {{ row().startsAt | date: 'HH:mm' }}–{{
-      endsAt() | date: 'HH:mm'
-    }}
-  </p>
+  <div class="class-actions-summary">
+    <p class="overlay-when">
+      {{ row().startsAt | date: 'EEEE, d MMMM' }}, {{ row().startsAt | date: 'HH:mm' }}–{{
+        endsAt() | date: 'HH:mm'
+      }}
+    </p>
+
+    <dl class="class-actions-facts">
+      <div>
+        <dt><app-icon name="person" /> <span>Prowadzący</span></dt>
+        <dd>{{ row().instructor }}</dd>
+      </div>
+      <div>
+        <dt><app-icon name="members" /> <span>Wolne miejsca</span></dt>
+        <dd>{{ row().freeSpots }} / {{ row().capacity }}</dd>
+      </div>
+    </dl>
+  </div>
 
   @switch (step()) {
     @case ('actions') {
-      <dl class="class-actions-facts">
-        <div>
-          <dt>Prowadzący</dt>
-          <dd>{{ row().instructor }}</dd>
-        </div>
-        <div>
-          <dt>Wolne miejsca</dt>
-          <dd>{{ row().freeSpots }} / {{ row().capacity }}</dd>
-        </div>
-      </dl>
-
-      <div class="overlay-actions">
+      <div class="class-actions-grid" aria-label="Akcje dla zajęć">
         <a class="button button--secondary" [routerLink]="['/admin/classes', row().id]">Edytuj</a>
         <button
           type="button"
@@ -73,6 +75,8 @@
             Usuń
           </button>
         }
+      </div>
+      <div class="overlay-actions">
         <button type="button" class="link-button" (click)="close()">Zamknij</button>
       </div>
     }

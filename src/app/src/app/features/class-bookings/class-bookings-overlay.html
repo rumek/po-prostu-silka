@@ -10,12 +10,20 @@
 <div class="card overlay-panel" role="dialog" aria-modal="true" aria-labelledby="bookings-title">
   <h2 id="bookings-title" class="overlay-title">Zapisani na „{{ row().name }}”</h2>
 
-  <!-- The count comes off the CLASS, not off the list length: the two must agree, and the class is
-       what the calendar tile behind this overlay is drawing. -->
-  <p class="overlay-when">
-    {{ row().startsAt | date: 'EEEE, d MMMM' }}, {{ row().startsAt | date: 'HH:mm' }} ·
-    {{ row().capacity - row().freeSpots }} / {{ row().capacity }} miejsc zajętych
-  </p>
+  <!-- The class context stays compact: the roster is the point of this sheet, but date, trainer and
+       capacity must remain visible while staff add or release a person. -->
+  <div class="bookings-summary">
+    <p class="overlay-when">
+      {{ row().startsAt | date: 'EEEE, d MMMM' }}, {{ row().startsAt | date: 'HH:mm' }}
+    </p>
+    <p class="bookings-summary-fact">
+      <app-icon name="person" /> <span>{{ row().instructor }}</span>
+    </p>
+    <p class="bookings-summary-fact">
+      <app-icon name="members" />
+      <span>{{ row().capacity - row().freeSpots }} / {{ row().capacity }} miejsc zajętych</span>
+    </p>
+  </div>
 
   <!-- The attendance sheet's tally (S-27). Words, not colours: it is read at a glance and by a
        screen reader alike. Only once the list has loaded, so it never counts an empty roster. -->

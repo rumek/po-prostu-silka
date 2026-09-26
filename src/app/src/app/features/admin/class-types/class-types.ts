@@ -13,6 +13,7 @@ import { Loading } from '../../../shared/forms/loading/loading';
 import { Empty } from '../../../shared/forms/empty/empty';
 import { List } from '../../../shared/list/list';
 import { Row } from '../../../shared/list/row';
+import { Icon } from '../../../shared/icons/icon';
 
 /**
  * The admin's class-type definitions (prd-v2 FR-005, FR-006).
@@ -28,7 +29,7 @@ import { Row } from '../../../shared/list/row';
  * filter — flicking it costs no round trip, and the admin can reactivate something they can see.
  */
 @Component({
-  imports: [Row, List, Empty, Loading, Checkbox, RouterLink],
+  imports: [Row, List, Empty, Icon, Loading, Checkbox, RouterLink],
   selector: 'app-class-types',
   styleUrl: './class-types.scss',
   templateUrl: './class-types.html',

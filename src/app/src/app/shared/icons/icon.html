@@ -174,5 +174,15 @@
       <circle cx="12" cy="12" r="8" />
       <path d="M6.5 17.5l11-11" />
     }
+    <!-- An account's facts on the admin's member list: what it may do in the club (a shield, not a
+         person — ('person') is who instructs a class) and whether it can sign in at all (a switch,
+         on or off; the danger colour and the word say which). -->
+    @case ('role') {
+      <path d="M12 3 5 6v5.5c0 4.3 2.9 7.9 7 9.5 4.1-1.6 7-5.2 7-9.5V6Z" />
+    }
+    @case ('account-status') {
+      <rect x="3" y="7" width="18" height="10" rx="5" />
+      <circle cx="16" cy="12" r="2.5" />
+    }
   }
 </svg>
