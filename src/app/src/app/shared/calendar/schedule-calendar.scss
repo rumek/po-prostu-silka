@@ -1,3 +1,5 @@
+@use 'breakpoints' as bp;
+
 // Layout: the toolbar, the surface, the tile, the drag preview. The overrides that bend
 // angular-calendar's own markup onto this app's tokens are in schedule-calendar-library.scss — a
 // second file because they are a second job, and together the two outgrew angular.json's 6 kB
@@ -11,16 +13,16 @@
 .calendar-toolbar {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
+  align-items: center;
   gap: var(--space-3) var(--space-4);
   margin-bottom: var(--space-4);
 }
 
-.calendar-when {
+.calendar-context {
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--space-2);
   min-width: 0;
 }
 
@@ -45,13 +47,37 @@
   }
 }
 
-// The one deliberate variant of the global control box (src/styles.scss): the pills' height, so it
-// sits level with them. The font stays at 1rem - below that iOS Safari zooms the page on focus.
-.calendar-jump input {
-  height: 40px;
-  padding: 0 var(--space-3);
-  color: var(--ink);
-  font-size: 1rem;
+// Date is navigation, not data entry, so it wears the week pill's track (.calendar-nav below): the
+// same --ground, radius, shadow and 48px outer height. A bordered form box here was what made the
+// toolbar read as three unrelated controls. The input keeps 1rem — below that iOS Safari zooms the
+// page on focus.
+.calendar-jump {
+  display: inline-flex;
+  align-items: center;
+  height: 48px;
+  padding: 0 var(--space-2) 0 var(--space-4);
+  border-radius: 32px;
+  background: var(--ground);
+  box-shadow: var(--shadow-card);
+  color: var(--accent);
+
+  app-icon {
+    flex: none;
+    font-size: 0.8rem;
+  }
+
+  input {
+    width: 10.5rem;
+    height: 40px;
+    padding: 0 var(--space-2);
+    border: 0;
+    // Rounded so the global focus ring follows the pill rather than cutting a rectangle across it.
+    border-radius: 20px;
+    background: transparent;
+    color: var(--ink);
+    font-size: 1rem;
+    font-variant-numeric: tabular-nums;
+  }
 }
 
 // The day strip's pill (calendar-week-strip.scss) at week width: a --ground track, round arrows, and
@@ -107,6 +133,25 @@
   // Empty on the schedule; a flex item with nothing in it would still take a gap.
   &:empty {
     display: none;
+  }
+}
+
+@include bp.narrow {
+  .calendar-toolbar {
+    align-items: stretch;
+  }
+
+  .calendar-heading {
+    align-items: flex-start;
+  }
+
+  .calendar-jump {
+    width: 100%;
+    justify-content: center;
+
+    input {
+      width: min(100%, 11rem);
+    }
   }
 }
 
@@ -203,9 +248,9 @@
 // says "a class" at any height. --accent2, the colour of every other card icon; a full class quietens
 // it to --gray, beside the words "Brak miejsc" that actually say so.
 //
-// SIZED TO THE 38px ROW (SEGMENT_HEIGHT_PX): an hour is 76px, less 4px of padding, and the time line
-// plus three 15px lines (0.75rem × 1.25) and the 1px gaps fit it; a 45-minute class (57px) fits
-// three. Every line is ONE line — a wrapping name was what pushed the facts out — and ellipsises.
+// SIZED TO THE 38px ROW (SEGMENT_HEIGHT_PX): an hour is 76px, less 4px of padding, and three 15px
+// lines (0.75rem × 1.25) and the 1px gaps fit it with room to spare; a 45-minute class (57px) fits
+// all three too, now that the time line is gone. Every line is ONE line — a wrapping name was what pushed the facts out — and ellipsises.
 // The 2px/4px padding is the style guide's hairline allowance: at this height a --space step is a
 // whole line.
 .calendar-tile {
@@ -251,14 +296,6 @@
   &:hover {
     background: color-mix(in srgb, var(--accent2) 18%, var(--section-warm));
   }
-}
-
-.calendar-tile-time {
-  color: var(--accent);
-  font-size: 0.5rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  font-variant-numeric: tabular-nums;
 }
 
 .calendar-tile-name {

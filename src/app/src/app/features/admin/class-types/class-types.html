@@ -2,11 +2,10 @@
   <h1 class="screen-title">Typy zajęć</h1>
   <a class="button" routerLink="/admin/class-types/new">Dodaj typ</a>
 </div>
-<p class="hint">
-  Typ zajęć definiujesz raz — nazwa i opis obowiązują wszystkie zajęcia tego typu, także te już
-  odbyte. Czas trwania i liczba miejsc to wartości domyślne: zajęcia dostają ich kopię przy
-  tworzeniu i można ją tam zmienić. Typów się nie usuwa — dezaktywacja znika z wyboru, a zaplanowane
-  zajęcia zostają nietknięte.
+<p class="hint class-types-lead">
+  Typ to wzór zajęć: nazwa i opis obowiązują wszystkie jego zajęcia, także odbyte. Czas i liczba
+  miejsc to wartości domyślne — każdy termin dostaje ich kopię i można ją tam zmienić. Typu się nie
+  usuwa: dezaktywowany znika z wyboru, a zaplanowane zajęcia zostają.
 </p>
 
 <div class="class-types-controls">
@@ -33,9 +32,9 @@
     >
   </div>
 } @else {
-  <app-list>
+  <app-list class="list--tiles">
     @for (row of visible(); track row.id) {
-      <li appRow class="card">
+      <li appRow class="card class-type-card">
         <p class="row-name">
           {{ row.name }}
           @if (!row.isActive) {
@@ -45,9 +44,17 @@
         @if (row.description) {
           <p class="class-types-description">{{ row.description }}</p>
         }
-        <p class="row-meta">
-          Domyślnie: {{ row.defaultDurationMinutes }} min · {{ row.defaultCapacity }} miejsc
-        </p>
+
+        <dl class="class-type-defaults">
+          <div>
+            <dt><app-icon name="time" /> <span>Czas</span></dt>
+            <dd>{{ row.defaultDurationMinutes }} min</dd>
+          </div>
+          <div>
+            <dt><app-icon name="members" /> <span>Miejsca</span></dt>
+            <dd>{{ row.defaultCapacity }}</dd>
+          </div>
+        </dl>
 
         <div slot="actions" class="row-actions">
           <a class="button button--secondary" [routerLink]="['/admin/class-types', row.id]">

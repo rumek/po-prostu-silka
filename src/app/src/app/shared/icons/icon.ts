@@ -31,7 +31,9 @@ export type IconName =
   | 'logout'
   | 'target'
   | 'level'
-  | 'kettlebell';
+  | 'kettlebell'
+  | 'role'
+  | 'account-status';
 
 /**
  * The app's icon primitive — the first one this codebase has had.

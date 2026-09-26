@@ -1,8 +1,9 @@
-<div class="panel">
-  <h1>Cześć!</h1>
-  <p class="hint">Jeśli masz już konto zaloguj się</p>
+<div class="panel auth-panel">
+  <p class="auth-kicker">Po Prostu Siłka</p>
+  <h1>Zaloguj się</h1>
+  <p class="hint">Wróć do swojego planu, zajęć i wszystkiego, co ważne w treningu.</p>
 
-  <div class="card">
+  <div class="card auth-card">
     @if (invalidInvitation) {
       <p class="alert" role="alert">
         To zaproszenie już nie jest aktywne. Poproś obsługę klubu o nowy link.
@@ -46,5 +47,5 @@
     </form>
   </div>
 
-  <p class="panel-footer"><a routerLink="/forgot-password">Nie pamiętasz hasła?</a></p>
+  <p class="auth-footer"><a routerLink="/forgot-password">Nie pamiętasz hasła?</a></p>
 </div>

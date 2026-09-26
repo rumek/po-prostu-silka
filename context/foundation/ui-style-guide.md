@@ -34,7 +34,7 @@ not repeat the structural rules in `AGENTS.md` — the presentational kit (S-23)
 | `--section-warm` | `#ece3dc` | Filled-but-quiet: avatar discs, calendar tiles, empty thumbnails, pill hover, progress tracks. |
 | `--section-cool` | `#edeae5` | Callouts (the plan note), `.notice`, a full class's tile. |
 | `--ink` | `#272321` | Body text, values. |
-| `--accent` | `#654b45` | Selected pill fill, navigation chevrons, kicker icons, today, the tile's time. |
+| `--accent` | `#654b45` | Selected pill fill, navigation chevrons, kicker icons, today. |
 | `--accent2` | `#917773` | Card fact icons (instructor, parameters, rows in Więcej), the tile's left bar, punch marks. |
 | `--gray` | `#9d9b9a` | Kicker text, parameter labels, the secondary half of a figure ("z 10", end time). |
 | `--muted` | ink @ 62% | Meta lines, hints, empty states. |
@@ -89,7 +89,7 @@ Numbers that line up down a list or a grid take `font-variant-numeric: tabular-n
 | Pill track | `--ground` track, `padding: 4px`, `gap: 2px`, `border-radius: 32px`, `--shadow-card`; cells `border-radius: 32px`, ≥ 40px tall, hover `--section-warm`; **selected = `--accent` fill + light text + 600** | Zajęcia tabs, bottom bar, desktop menu, calendar strip and week nav |
 | "See all" link | `0.8125–0.875rem`, `--accent` `chevron-right` after the words | `.dashboard-header-action`, `.exercises-open` |
 | Progress | 6px track in `--section-warm`, fill `--accent2`, radius 3px | Karnet punch card and bar |
-| Calendar tile | `--section-warm`, `border-left: 3px solid var(--accent2)`, `--radius-sm`; time `--accent` tabular, name 700, facts with `person` / `members` icons; full = `--gray` bar on `--section-cool` + the words "Brak miejsc" | `shared/calendar` |
+| Calendar tile | `--section-warm`, `border-left: 3px solid var(--accent2)`, `--radius-sm`; no time line (the hour column says when), name 700, facts with `person` / `members` icons; full = `--gray` bar on `--section-cool` + the words "Brak miejsc" | `shared/calendar` |
 
 The pill track is still declared per component (four copies). A fifth copy is the point to lift it into
 `src/styles.scss` — weigh that against the eager bundle, since the global stylesheet ships to everyone.
@@ -101,7 +101,8 @@ The pill track is still declared per component (four copies). A fifth copy is th
 - Colour by role: **`--accent`** for navigation (chevrons, the kicker's leading icon, the strip arrows);
   **`--accent2`** for a fact about the thing (who, how many, how long); **`--muted`** inside a form label.
 - Current meanings: `person` = who instructs · `members` = how many are signed up · `calendar` = a
-  date · `ticket` = the karnet · `clock` = rest · `time` = hold duration · `repeat` = reps · `sets` =
+  date · `ticket` = the karnet · `clock` = rest · `time` = a duration (a hold, a class type's default length) · `role` = what an
+  account may do in the club · `account-status` = whether it can sign in · `repeat` = reps · `sets` =
   sets · `info` = more to read · `chevron-left` / `chevron-right` = previous / next or "go" ·
   `chevron-down` = a select · `back` = up to the parent. Add a case to `shared/icons/icon.html` rather
   than reusing one for a second meaning.

@@ -16,6 +16,7 @@ import { Field } from '../../../shared/forms/field/field';
 import { Select } from '../../../shared/forms/select/select';
 import { Loading } from '../../../shared/forms/loading/loading';
 import { Empty } from '../../../shared/forms/empty/empty';
+import { Icon } from '../../../shared/icons/icon';
 
 /** Matches the server's bounds in ClassEndpoints.Validate. Keep the two in step. */
 export const MIN_CAPACITY = 1;
@@ -52,7 +53,7 @@ export const MAX_DURATION = 480;
  * hunt for which field to change.
  */
 @Component({
-  imports: [Empty, Loading, Select, Field, ReactiveFormsModule, RouterLink],
+  imports: [Empty, Icon, Loading, Select, Field, ReactiveFormsModule, RouterLink],
   selector: 'app-class-form',
   styleUrl: './class-form.scss',
   templateUrl: './class-form.html',
