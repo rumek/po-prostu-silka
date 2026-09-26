@@ -1,14 +1,14 @@
 ---
 project: "Po Prostu Siłka"
-version: 6
+version: 7
 status: draft
 created: 2026-08-31
-updated: 2026-09-23
+updated: 2026-09-25
 prd_version: 1, 2
 main_goal: quality
-top_blocker: none
-milestone_id: persona-class-day
-milestone_seq: 8
+top_blocker: external
+milestone_id: client-ready-launch
+milestone_seq: 9
 milestone_status: open
 ---
 
@@ -20,43 +20,54 @@ milestone_status: open
 
 ## Milestone
 
-**M-8: Each persona runs its own class day** (`persona-class-day`) — Status: open
+**M-9: The one environment is fit to put in front of clients** (`client-ready-launch`) — Status: open
 
-- **Intent:** The app stops being one app with role checks bolted on and becomes three: a member sees
-  only what is theirs, a trainer works the classes they instruct, and an admin runs the club. On top
-  of that split, staff record who actually came, and the karnet counts the classes a member attended
-  rather than the ones they were booked into, so what the club sees matches what happened in the room.
-- **Source materials:** the user's own description on 2026-09-22 (S-25, recorded verbatim in
-  `context/changes/role-based-visibility/change.md` and as v2's "Amendment: role-based visibility")
-  and on 2026-09-23 (S-27, recorded as the `AT-NN` anchors below). Attendance was a v1 Non-Goal; the
-  user unparked it on 2026-09-23.
-- **Done when:** S-25 and S-27 are both `done`.
+- **Intent:** The app has been built against a single Azure environment that nobody outside the
+  project depends on. It now becomes something the owner can show to prospective clubs as a fully
+  working product: every flow works end to end, including e-mail and push that actually arrive; a
+  failure reaches the owner before it reaches a client; a bad deploy or a lost row can be undone; and
+  the personal data it holds is handled to a GDPR (RODO) baseline.
+- **Source materials:** the user's own description on 2026-09-25: *"chcę przygotować aplikację pod
+  wdrożenia produkcyjne"*, then, asked about topology: *"na razie nadal jedno środowisko, chcę
+  przedstawić produkt klientom, ale w pełni funkcjonalny"*. The user also said no domain is owned yet,
+  and that GDPR handling is a separate slice. The operational inputs are the "Before production"
+  sections of `context/deployment/deploy-plan.md` (written 2026-09-25 after the outbox stall) and the
+  risk register in `context/foundation/infrastructure.md`.
+- **Done when:** S-28 and S-29 are both `done`.
 - **Scope anchors:**
-  - PV-01: Every account resolves to one persona, Admin > Trainer > Member, and the menu, the route
-    guard and the API policy gate every screen on the same predicate. The full statement is v2's
-    "Amendment: role-based visibility (S-25)"; this anchor points at it rather than restating it.
-  - AT-01: Attendance is recorded by staff, never by the member — a trainer for the classes they
-    personally instruct, an admin for any class. The same rule as booking (M-4 MP-02), so it has one
-    definition, not two.
-  - AT-02: Attendance is marked per booked member on the class roster. Only a member with a booking on
-    that class can be marked; a walk-in without a booking is out of scope.
-  - AT-03: **A karnet entry is spent by attending, not by booking.** This amends M-4's MP-06 ("an entry
-    is consumed by an active booking"). Entries left stays DERIVED from bookings and never becomes a
-    stored counter; what changes is which bookings count against it.
-  - AT-04: A member sees their own attendance history — past classes with present / absent / not yet
-    recorded — and nothing about anyone else's.
-  - AT-05: That history is designed for reading at a glance on a phone (grouping, visual status,
-    a summary rather than one sentence per class), not rendered as a wall of text. UX quality is a
-    requirement of this slice, not polish for a later one.
+  - GL-01: **One environment, still.** The existing App Service and Azure SQL database stay the only
+    environment. A separate production environment is deferred by the user, not rejected. Nothing in
+    this milestone may make adding one later harder, such as hard-coding the host name or coupling CI
+    to a single app name without a variable.
+  - GL-02: **Fully functional in front of a client.** Sign-in, the three personas, booking under the
+    karnet, attendance, plans, password reset, and e-mail and push delivery all work on the live URL
+    for accounts with real addresses. A demo should never depend on luck.
+  - GL-03: **The owner hears first.** An availability alert on `/health` that matches the body text
+    `Healthy`, not the status code. Server errors and exceptions are recorded somewhere searchable.
+    A budget alert catches bill creep.
+  - GL-04: **Recoverable.** Rolling back to a previous artifact and restoring the database to a point
+    in time have each been done once, and written down. Changes reach `main` only through checks that
+    already ran on a pull request.
+  - GL-05: **Baseline web security on every response.** Security headers, a generic error body that
+    leaks no stack trace, and no diagnostic surface reachable in the deployed environment. Secrets live
+    only in App Service settings and GitHub secrets.
+  - GL-06: **E-mail within known limits, without a domain.** The Azure-managed sender domain stays
+    for now. Its send limits are known and compared with the club's worst case, and moving to a custom
+    domain later is a change of settings only.
+  - GL-07: **GDPR (RODO) baseline for the data the app holds.** A person can read what is processed
+    about them and why; the admin can erase or anonymise a member on request without breaking the
+    club's history (bookings, attendance, karnet counts); and how long data is kept is decided rather
+    than accidental.
 
-**Why one milestone:** S-27 marks attendance on the trainer's roster of their own classes, which is
-S-25's surface, and it relies on S-25's rule that staff hold no karnet. The two form one chain with
-one intent.
+**Why two slices:** GL-01–GL-06 are about how the environment behaves and fails, and have no screen.
+GL-07 adds a capability that members and the admin can see, and a data rule with its own risk: erasure
+must not break the invariants that derive karnet entries from bookings. The two share no files and
+have separate risks, so they are separate slices that can run in parallel.
 
-**Not in scope, deliberately:** member self check-in (a QR code or a button at the door), which
-would bring back the member self-service S-16 removed; walk-ins recorded without a booking;
-attendance statistics beyond the member's own history, which sit next to v1's parked "advanced
-statistics".
+**Not in scope, deliberately:** a second (production) environment and a promotion pipeline, deferred
+by the user on 2026-09-25 (see `## Parked`); a custom domain for the app and for the sender, blocked
+until one is bought; scaling beyond one instance, since several services are single-instance by
+design (`PasswordResetThrottle`, the outbox worker's lease assumptions); a visual redesign.
 
 ## PRD addendum (M-2)
 
@@ -95,19 +106,20 @@ Mid-milestone, a second decision landed: a class stops being retyped text and be
 
 ## North star
 
-**S-27: Staff record who came, and the karnet counts attendance** — M-8's hypothesis is that
-the app can reflect what actually happened in the room, not only what was booked. S-25 is the
-prerequisite: it gives each persona its own app and gives the trainer the roster of their own
-classes. But S-25 only rearranges who sees existing data, while S-27 is the slice that changes a rule
-the club relies on. A karnet that counts attended classes instead of booked ones is either correct
-under concurrency or it is not, and nothing else in this milestone tests that.
+**S-28: The environment is fit to show to a client, and tells the owner when it is not** — M-9's
+hypothesis is that the owner can put this app in front of a prospective club without anything
+failing in the room, and without finding out about a failure from that club. The outbox stall of
+2026-09-24 is the evidence that this is not yet true: push and e-mail stopped for hours while
+`/health` answered `Healthy`, and it was noticed only because someone was waiting for a push. S-29
+matters too, but a club decides whether to trust the product during the demo, before it reads the
+privacy notice.
 
 > "North star" here means the smallest end-to-end slice whose successful delivery would prove the core
 > product hypothesis — or, for a milestone that ships nothing user-facing, the core structural
 > hypothesis. M-1's was S-09 (email + push on class changes), M-2's was S-14 (the claim path), M-3's
 > was S-15 (the plan card), M-4's was S-16 (the karnet refusal), M-5's was S-17 (the closed
-> registration door) and M-6's was S-18 (the compiler-enforced layering); all shipped, and their
-> entries live in `## Milestone History`.
+> registration door), M-6's was S-18 (the compiler-enforced layering) and M-8's was S-27 (the karnet
+> counting attendance); all shipped, and their entries live in `## Milestone History`.
 
 ## At a glance
 
@@ -142,6 +154,8 @@ under concurrency or it is not, and nothing else in this milestone tests that.
 | S-24 | test-environment-seed-data | (dev tooling) open the development environment and find it populated - 200 members (some accountless), two admins, two trainers, passes, a schedule with bookings, an exercise library and assigned plans | S-16, S-22 | none - outside any milestone (dev tooling) | done |
 | S-25 | role-based-visibility | (member, trainer, admin) each role sees its own app - a member their classes, plan and karnet without the gym schedule; a trainer a schedule of their own classes with the roster; an admin everything - and the menu reaches every page at every width | S-16, S-22 | M-8 PV-01 = v2 "Amendment: role-based visibility" (supersedes v2 FR-002, FR-018; narrows v1 FR-007, FR-024) | done |
 | S-27 | class-attendance | (trainer, admin, member) staff mark who attended a class from its roster; a karnet entry is spent by attending, not by booking; a member sees their attendance history as a readable view, not a wall of text | S-16, S-25 | M-8 AT-01–AT-05 (unparks v1 §Non-Goals "No attendance / check-in tracking"; amends M-4 MP-06) | done |
+| S-28 | client-ready-environment | (owner, every persona) the single environment works end to end in a client demo, e-mail and push included; the owner is alerted before a client notices a failure; a bad deploy and a lost row are recoverable; every response carries baseline security | S-27, deploy-plan.md "Before production" | M-9 GL-01–GL-06 | in-progress |
+| S-29 | personal-data-baseline | (member, admin) a person reads what the club processes about them and why; the admin erases or anonymises a member on request without breaking the club's history; retention is a decision, not an accident | S-14, S-27 | M-9 GL-07 (v1 NFR "GDPR-baseline handling"; touches Open Roadmap Question 8) | ready |
 
 ## Streams
 
@@ -156,6 +170,7 @@ Navigation aid — groups items that share a Prerequisites chain. Canonical orde
 | F      | Surface fitness       | `S-20` -> `S-21` -> `S-22`                         | M-7, and the first stream measured against a device and a row count rather than against a capability. A CHAIN, unlike Stream E: `S-20` defines the one mobile breakpoint `S-21` renders its table against, and `S-22` hangs the plan off the member list `S-21` rebuilds. Out of order, each boundary gets built twice. |
 | E      | Code structure        | `S-18` · `S-19` → `S-23`                           | M-6, and the first stream that is not about the product. The two slices are siblings, not a chain — they share an intent and no files, so the `·` is deliberate: either order, or both at once in separate agent runs. `S-23` follows `S-19`, whose four outlets it gives components, and was folded into M-6 at close. |
 | G      | Persona class day     | `S-25` → `S-27`                                    | M-8. A chain: attendance is marked on the roster of the trainer's own classes, which is the surface `S-25` builds, and relies on its rule that staff hold no karnet. |
+| H      | Client-ready launch   | `S-28` · `S-29`                                    | M-9. Siblings, not a chain: the environment and the data-protection capability share no files, so either order or both at once. `S-28` goes first when only one runs, because it carries the north star. |
 
 ## Baseline
 
@@ -774,6 +789,99 @@ rather than in a slice body:
   least resistance, so the anchor names the requirement up front.
 - **Status:** done
 
+### S-28: The environment is fit to show to a client, and tells the owner when it is not
+
+- **Outcome:** (owner, every persona) the owner opens the live app in front of a prospective club and
+  every flow works end to end: sign-in as each persona, booking under the karnet, attendance, plans,
+  password reset, and e-mail and push that actually arrive for accounts with real addresses. When
+  delivery stalls, the site fails, or the monthly bill runs over, the owner gets an alert before a
+  client notices. A bad deploy is rolled back and a lost row is restored by a procedure that has
+  already been rehearsed once. Every response carries baseline security headers and no error body
+  leaks internals. Nothing a member sees changes.
+- **Change ID:** client-ready-environment
+- **PRD refs:** **M-9**, anchors GL-01–GL-06. It also closes the operational items that
+  `context/deployment/deploy-plan.md` lists as required before production ("alert on `/health`",
+  "ACS sender domain and quota"), and the `infrastructure.md` risk-register mitigations that were
+  never done: the $25 budget alert, a rehearsed rollback, and PR-time checks.
+- **Prerequisites:** S-27 (the last slice to change the schema and the karnet rule, so the flows
+  checked in a demo are the final ones). Also external state: the Azure subscription's billing after
+  the B1 plan's free offer expires on 2026-09-29 (recorded in `deploy-plan.md` §C).
+- **Parallel with:** S-29
+- **Blockers:**
+  - No domain is owned (user, 2026-09-25). This does not block the slice, but it caps GL-06 at the
+    Azure-managed sender (`*.azurecomm.net`): low send limits and weaker deliverability. A custom
+    domain for the app and a verified ACS domain wait until one is bought.
+- **Unknowns:**
+  - What data a demo runs on. Option (a): the environment stays `Staging` with the S-24 test club,
+    and each client gets a real-address account added by hand. Option (b): it becomes `Production`
+    with the seeder switched off, and clients enter their own data. Under (a), a `TestDataSeed__Reset`
+    left on wipes whatever a client entered; under (b), a demo starts from an empty club. Owner: user,
+    via `/10x-plan`. Block: no, but it decides what `ASPNETCORE_ENVIRONMENT` is and whether the
+    Reset procedure survives.
+  - Whether the managed domain's current send limits cover the worst case: largest class × class
+    cancellations in one hour, plus password resets. The limits change, so they must be read from
+    the ACS documentation at planning time, not from memory. If they do not cover it, a quota
+    request goes to Azure support. Owner: `/10x-plan`. Block: no.
+  - Where errors and telemetry go, and what that costs. Application Insights is already implied by
+    the availability test, but ingestion is the bill-creep risk `infrastructure.md` names. Sampling
+    and a daily cap are part of the decision. Owner: `/10x-plan`. Block: no.
+  - Whether CI keeps the publish-profile credential or moves to OIDC federated credentials. The CLI
+    blocker recorded in `deploy-plan.md` is gone, so OIDC is now actionable. Owner: `/10x-plan`.
+    Block: no.
+  - Whether the SQL firewall's `AllowAzureServices` rule (which admits any Azure tenant's outbound
+    traffic, not only this app's) is tightened now, or recorded as an accepted risk until the second
+    environment exists. The same question applies to Managed Identity for SQL, still an open
+    follow-up in `deploy-plan.md`. Owner: user, via `/10x-plan`. Block: no.
+- **Risk:** the single environment is both where changes land and what a client sees. Every step in
+  this slice that restarts the app (settings, alerts proven by forcing `Degraded`, a restore
+  rehearsal) happens on the same URL a client may be looking at. A restore rehearsal in particular
+  must restore to a NEW database and never over the live one. The secondary risk is GL-05's content
+  security policy: the SPA loads YouTube embeds (the exercise videos), web fonts and a service
+  worker, so a policy written without checking them breaks a screen that was working. That can only
+  be caught by exercising the screens, not by reading the header.
+- **Status:** in-progress
+
+### S-29: A person can see what the club keeps about them, and the admin can erase it
+
+- **Outcome:** user (member, or a person invited to register) reads, from the registration screen
+  and from Moje konto, what the club processes about them, why, for how long, and whom to ask. The
+  admin, on a person's request, erases or anonymises that member: their name, contact details and
+  account are gone, while the club's own history stays consistent (class rosters and attendance
+  counts still add up, and no karnet's entries change for anyone else). How long each kind of data is
+  kept is written down and, where the app holds data past that, enforced.
+- **Change ID:** personal-data-baseline
+- **PRD refs:** **M-9**, anchor GL-07. v1 NFR "Personal data privacy: member data … is visible only
+  to the admin and the member themselves; GDPR-baseline handling". No slice has delivered the
+  "GDPR-baseline handling" half until now. It is also adjacent to Open Roadmap Question 8 (a trainer
+  sees members' e-mail addresses on the roster), which a privacy notice has to answer one way or the
+  other.
+- **Prerequisites:** S-14 (the member record separate from the login, which is what can be
+  anonymised without deleting the club's history) and S-27 (attendance, the newest history an erasure
+  must keep consistent).
+- **Parallel with:** S-28
+- **Blockers:**
+  - The wording of the privacy notice is legal text owned by the club as the data controller, not
+    by the app. The slice can build the place for it and a draft, but the final text needs the club
+    (or its advisor). External. It does not block planning.
+- **Unknowns:**
+  - Erase or anonymise: whether a member's rows are deleted outright or kept with the personal
+    fields replaced. Anonymising keeps rosters and counts intact, and deleting is simpler to explain
+    but cascades into bookings and attendance. Owner: `/10x-plan`. Block: no, but it is the decision
+    the slice exists to make.
+  - Whether a member can also start erasure or export themselves, or only by asking the admin.
+    Self-service export is the larger scope. Owner: user. Block: no; admin-only is the default.
+  - Retention periods: failed outbox rows (kept forever today as the diagnostic record), push
+    subscriptions of blocked members, expired invitation codes, and the history of a member who left.
+    Owner: user, via `/10x-plan`. Block: no.
+  - Open Roadmap Question 8, if the notice is to be truthful: does a trainer keep seeing e-mail
+    addresses on the roster? Owner: user. Block: no.
+- **Risk:** erasure reaches into the write path that derives karnet entries from bookings. Deleting
+  or rewriting a member's bookings carelessly changes the derived entries left and the class's
+  free-spot count, which is the no-overbooking invariant. The plan must show that erasure changes no
+  other member's figures. A migration that adds an erasure marker must have a working `Down`, like
+  every other.
+- **Status:** ready
+
 ## Backlog Handoff
 
 | Roadmap ID | Change ID                        | Suggested issue title                                        | Ready for `/10x-plan` | Notes                                              |
@@ -807,6 +915,8 @@ rather than in a slice body:
 | S-24       | test-environment-seed-data       | Config-gated seeder that fills the development environment with a realistic data set | no                    | Done — archived 2026-09-22. Outside any milestone |
 | S-25       | role-based-visibility            | Per-persona visibility (member, trainer, admin) enforced in menu, guard and API; the menu reaches every page | no                    | Done — archived 2026-09-23. M-8 |
 | S-27       | class-attendance                 | Staff mark attendance on the class roster; karnet entries are spent by attending; member attendance history | no                    | North star of M-8. Needs S-25 archived, then `/10x-plan class-attendance` |
+| S-28       | client-ready-environment         | Make the single environment client-demo ready: /health and budget alerts, error telemetry, rehearsed rollback and restore, PR checks, security headers, known e-mail limits | yes                   | North star of M-9. Run `/10x-plan client-ready-environment`. Check B1 billing before 2026-09-29 |
+| S-29       | personal-data-baseline           | GDPR baseline: privacy notice, admin-initiated erasure/anonymisation that keeps the club's history consistent, retention periods | yes                   | Parallel with S-28. Needs the club's privacy-notice text before it ships, not before it is planned |
 
 ## Open Roadmap Questions
 
@@ -828,6 +938,8 @@ Resolved since the previous roadmap: the sender-domain question that gated F-03 
 - **Multiple rooms** — Why parked: v2 §Non-Goals; the room disappears for good and no rooms lookup is introduced in advance.
 - **Month view, agenda view, external calendar export** — Why parked: v2 §Non-Goals; the calendar works in days and weeks.
 - **A latency target for week-to-week navigation, and one-handed reachability for calendar controls** — Why parked: v2 §Non-Goals; design intentions, deliberately not committed as measurable promises.
+- **A separate production environment and artifact promotion** — Why parked: the user kept one environment on 2026-09-25 ("na razie nadal jedno środowisko"). `deploy-plan.md` "a separate environment (strongly recommended)" describes the target: a second App Service and database, the same artifact promoted through a GitHub environment with required reviewers. S-28 must not close that path (GL-01).
+- **Custom domain for the app and a verified ACS sender domain** — Why parked: no domain is owned yet (user, 2026-09-25). Adding one later is configuration only: `App__BaseUrl`, a managed certificate, DNS records and `Acs__SenderAddress`.
 - **Multi-club / multi-tenancy** — Why parked: v1 §Non-Goals — one gym's app.
 - **Attendance / check-in tracking** — Why parked: v1 §Non-Goals; booking lists only. **Unparked 2026-09-23 → S-27** (`class-attendance`), as staff-recorded attendance only. Member self check-in (a QR code or a button at the door) stays parked, because it would bring back the member self-service S-16 removed.
 - **Offline-first guarantee** — Why parked: v1 §Non-Goals; installable, but a connection is required.
@@ -1045,6 +1157,17 @@ Resolved since the previous roadmap: the sender-domain question that gated F-03 
   titles, Android-style history and back, and the routed-screen slide referred to as "S-26" in
   `AGENTS.md`). Neither has an anchor in any milestone, and `mobile-native-feel` never received a
   roadmap item.
+
+- **M-8: Each persona runs its own class day** (`persona-class-day`) — seq 8, opened 2026-09-22,
+  closed 2026-09-25. Delivered S-25 (one persona per account, Admin > Trainer > Member, with the
+  same predicate in the menu, the route guard and the API; staff hold no karnet, booking or plan)
+  and S-27 (staff mark attendance on the roster; a karnet entry is spent by attending, not by
+  booking; the member's attendance history is built for scanning). Closed with its "Done when"
+  satisfied. Its scope anchors were PV-01 (pointing at v2's "Amendment: role-based visibility")
+  and AT-01–AT-05: staff record attendance, never the member; only a booked member can be marked;
+  an entry is spent by attending; a member sees only their own history; that history reads at a
+  glance on a phone. Deliberately left out: member self check-in, walk-ins without a booking, and
+  attendance statistics.
 
 ## Done
 
