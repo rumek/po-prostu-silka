@@ -75,15 +75,13 @@
   } @else {
     <!-- An explicit empty state, not a blank page: "nobody matches" and "it failed to load" must not
          look the same to the admin. -->
-    <div class="card">
-      <app-empty>
-        @if (query()) {
-          Brak członków pasujących do wyszukiwania.
-        } @else {
-          Brak członków w tym widoku.
-        }
-      </app-empty>
-    </div>
+    <app-empty [icon]="query() ? 'search' : 'members'">
+      @if (query()) {
+        Brak członków pasujących do wyszukiwania.
+      } @else {
+        Brak członków w tym widoku.
+      }
+    </app-empty>
   }
 } @else {
   <!-- A TABLE, NOT app-list (S-21, UX-06). An admin reads this screen DOWN a column — whose status,

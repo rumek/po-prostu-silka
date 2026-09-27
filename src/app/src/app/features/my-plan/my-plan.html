@@ -90,9 +90,7 @@
 } @else {
   <!-- NOT an error. A member without a plan has nothing to retry, so there is no retry button and
        no alert styling — just what is true and who to ask. -->
-  <div class="card">
-    <app-empty>
-      Nie masz jeszcze przypisanego planu treningowego. Poproś trenera, żeby Ci go ułożył.
-    </app-empty>
-  </div>
+  <app-empty icon="plan">
+    Nie masz jeszcze przypisanego planu treningowego. Poproś trenera, żeby Ci go ułożył.
+  </app-empty>
 }

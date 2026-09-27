@@ -1,6 +1,6 @@
-// Layout only — the .panel/.card/.field/.hint/.notice/.empty/.section-title/.form-actions/.button
+// Layout only — the .panel/.card/.field/.hint/.notice/.section-title/.form-actions/.button
 // classes come from src/styles.scss, exactly as member-form.scss does it. The last three joined
-// them in S-23; .empty was named here before it was true.
+// them in S-23. The empty states are app-empty's, and style themselves.
 
 .passes-back {
   margin: 0 0 var(--space-4);

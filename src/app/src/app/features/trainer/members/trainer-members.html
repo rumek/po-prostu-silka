@@ -30,15 +30,13 @@
   @if (loading()) {
     <app-loading />
   } @else {
-    <div class="card">
-      <app-empty>
-        @if (query()) {
-          Brak członków pasujących do wyszukiwania.
-        } @else {
-          Brak aktywnych członków.
-        }
-      </app-empty>
-    </div>
+    <app-empty [icon]="query() ? 'search' : 'members'">
+      @if (query()) {
+        Brak członków pasujących do wyszukiwania.
+      } @else {
+        Brak aktywnych członków.
+      }
+    </app-empty>
   }
 } @else {
   <app-list [attr.aria-busy]="loading()">

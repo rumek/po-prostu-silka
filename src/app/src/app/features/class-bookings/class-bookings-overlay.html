@@ -60,7 +60,7 @@
   } @else if (rows().length === 0) {
     <!-- An empty class is a normal state, not a failure — the wording says so rather than leaving a
          blank panel the admin has to interpret. -->
-    <app-empty>Nikt nie jest jeszcze zapisany na te zajęcia.</app-empty>
+    <app-empty icon="members" compact>Nikt nie jest jeszcze zapisany na te zajęcia.</app-empty>
   } @else {
     <ul class="bookings-list" [class.bookings-list--attendance]="marking()">
       @for (booking of rows(); track booking.bookingId) {
@@ -160,7 +160,7 @@
          is already signed up but more exist past the first page, "nobody can be added" is not known —
          the narrow-the-phrase hint below is the true answer. -->
       @if (searched() && bookable().length === 0 && candidatesTotal() <= candidates().length) {
-        <app-empty>Nikt pasujący nie może zostać dopisany.</app-empty>
+        <app-empty icon="search" compact>Nikt pasujący nie może zostać dopisany.</app-empty>
       } @else {
         <div class="bookings-add-controls">
           <app-select>

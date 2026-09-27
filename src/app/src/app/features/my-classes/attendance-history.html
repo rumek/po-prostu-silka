@@ -10,9 +10,9 @@
   </p>
 } @else {
   @if (items().length === 0 && !earlierBefore()) {
-    <app-empty>Nie masz jeszcze zajęć w historii.</app-empty>
+    <app-empty icon="booking">Nie masz jeszcze zajęć w historii.</app-empty>
   } @else if (items().length === 0) {
-    <app-empty>W ostatnich miesiącach nie było Twoich zajęć.</app-empty>
+    <app-empty icon="booking">W ostatnich miesiącach nie było Twoich zajęć.</app-empty>
   }
 
   <div class="class-months">

@@ -1,20 +1,29 @@
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { provideRouter } from '@angular/router';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Empty } from './empty';
 
-/** /my-classes' shape: the empty state a new member always sees first, and it leads somewhere. */
+/** /admin/classes/new's shape: the empty state that leads somewhere, with an icon and an action. */
 @Component({
   imports: [Empty, RouterLink],
   template: `
-    <app-empty>
-      Nie masz jeszcze żadnych zapisów.
-      <a routerLink="/schedule">Zobacz grafik zajęć</a>
+    <app-empty icon="repeat" [compact]="compact()">
+      Najpierw zdefiniuj typ zajęć.
+      <a slot="action" class="button" routerLink="/admin/class-types">Przejdź do typów zajęć</a>
     </app-empty>
   `,
 })
-class Host {}
+class Host {
+  readonly compact = signal(false);
+}
+
+/** The bare shape: words and nothing else. */
+@Component({
+  imports: [Empty],
+  template: `<app-empty>Plan jest pusty.</app-empty>`,
+})
+class BareHost {}
 
 describe('Empty', () => {
   let fixture: ComponentFixture<Host>;
@@ -30,24 +39,50 @@ describe('Empty', () => {
     fixture.detectChanges();
   });
 
-  it('carries the .empty class the global stylesheet styles', () => {
-    expect(compiled().querySelector('p.empty')).not.toBeNull();
-  });
-
   /**
    * THE REASON THIS PROJECTS WHERE app-loading FIXES. No two empty states in the app say the same
-   * thing, and this one has to carry a link — "nothing here" with no next step is the one version
-   * of the screen a new member will always see first.
+   * thing, and some carry a next step.
    */
-  it('projects whatever the screen has to say, links included', () => {
-    const paragraph = compiled().querySelector('p.empty');
+  it('projects whatever the screen has to say into the text', () => {
+    expect(compiled().querySelector('.empty-text')?.textContent).toContain(
+      'Najpierw zdefiniuj typ zajęć.',
+    );
+  });
 
-    expect(paragraph?.textContent).toContain('Nie masz jeszcze żadnych zapisów.');
-    expect(paragraph?.querySelector('a')?.getAttribute('href')).toBe('/schedule');
+  it('puts the action below the words, not inside them', () => {
+    const action = compiled().querySelector('.empty-action a');
+
+    expect(action?.getAttribute('href')).toBe('/admin/class-types');
+    expect(compiled().querySelector('.empty-text a')).toBeNull();
+  });
+
+  it('draws the icon it is given', () => {
+    expect(compiled().querySelector('.empty-icon app-icon')).not.toBeNull();
+  });
+
+  it('is a card of its own by default, and sits inside one when compact', async () => {
+    expect(compiled().querySelector('.empty--compact')).toBeNull();
+
+    fixture.componentInstance.compact.set(true);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(compiled().querySelector('.empty--compact')).not.toBeNull();
   });
 
   /** Not an error, and it must not be announced as one — the reason it is not an `.alert`. */
   it('claims no alert role', () => {
     expect(compiled().querySelector('[role=alert]')).toBeNull();
+  });
+
+  it('renders no icon and no action when given neither', async () => {
+    const bare = TestBed.createComponent(BareHost);
+    await bare.whenStable();
+    bare.detectChanges();
+    const element = bare.nativeElement as HTMLElement;
+
+    expect(element.querySelector('.empty-icon')).toBeNull();
+    expect(element.querySelector('.empty-action')?.childElementCount).toBe(0);
+    expect(element.querySelector('.empty-text')?.textContent?.trim()).toBe('Plan jest pusty.');
   });
 });

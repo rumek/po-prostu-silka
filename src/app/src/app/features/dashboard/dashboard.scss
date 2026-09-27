@@ -1,5 +1,5 @@
-// Layout only — .card/.notice/.alert/.empty come from src/styles.scss. True since S-23: this
-// comment named .empty for three slices before the class actually moved there.
+// Layout only — .card/.notice/.alert come from src/styles.scss; the empty states are app-empty's
+// and style themselves (compact, inside the card).
 
 @use 'breakpoints' as bp;
 

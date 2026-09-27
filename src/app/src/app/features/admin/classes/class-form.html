@@ -20,15 +20,15 @@
 } @else if (noClassTypes()) {
   <!-- The signpost, not an unfillable form. After the schedule wipe this is the first screen an
        admin reaches, so "why can I not do anything here" must never be a question they have to ask. -->
-  <div class="card">
-    <app-empty>Najpierw zdefiniuj typ zajęć — zajęcia powstają z definicji.</app-empty>
-    <a class="button" routerLink="/admin/class-types">Przejdź do typów zajęć</a>
-  </div>
+  <app-empty icon="repeat">
+    Najpierw zdefiniuj typ zajęć — zajęcia powstają z definicji.
+    <a slot="action" class="button" routerLink="/admin/class-types">Przejdź do typów zajęć</a>
+  </app-empty>
 } @else if (noTrainers()) {
-  <div class="card">
-    <app-empty>Nikt nie ma jeszcze roli prowadzącego. Nadaj ją zatwierdzonemu koncie.</app-empty>
-    <a class="button" routerLink="/admin/members">Przejdź do listy członków</a>
-  </div>
+  <app-empty icon="person">
+    Nikt nie ma jeszcze roli prowadzącego. Nadaj ją zatwierdzonemu kontu.
+    <a slot="action" class="button" routerLink="/admin/members">Przejdź do listy członków</a>
+  </app-empty>
 } @else {
   @if (state.error()) {
     <p class="alert" role="alert">{{ state.error() }}</p>

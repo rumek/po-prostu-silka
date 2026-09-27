@@ -885,12 +885,9 @@ a {
 // member-passes) are the same story with three and two copies. Fourteen declarations in all.
 // -----------------------------------------------------------------------------
 
-// A "nothing here", which is not an error and must not read as one — dashboard.scss:68 put it
-// best and the wording is kept.
-.empty {
-  margin: 0;
-  color: var(--muted);
-}
+// `.empty` itself has since moved into `app-empty`'s own stylesheet: it is now the component's
+// frame (a disc, the words, an action) rather than a paragraph colour, and nothing outside the
+// component carries the class.
 
 // The heading of a second section inside one screen: /profile's password form, the member form's
 // groups, the passes screen's history.

@@ -22,15 +22,11 @@
     <button type="button" class="link-button" (click)="load()">Spróbuj ponownie</button>
   </p>
 } @else if (rows().length === 0) {
-  <div class="card">
-    <app-empty>Nie zdefiniowano jeszcze żadnego typu zajęć.</app-empty>
-  </div>
+  <app-empty icon="repeat">Nie zdefiniowano jeszcze żadnego typu zajęć.</app-empty>
 } @else if (hiddenByFilter()) {
-  <div class="card">
-    <app-empty
-      >Wszystkie typy są nieaktywne. Zaznacz „Pokaż nieaktywne”, żeby je zobaczyć.</app-empty
-    >
-  </div>
+  <app-empty icon="eye-off">
+    Wszystkie typy są nieaktywne. Zaznacz „Pokaż nieaktywne”, żeby je zobaczyć.
+  </app-empty>
 } @else {
   <app-list class="list--tiles">
     @for (row of visible(); track row.id) {

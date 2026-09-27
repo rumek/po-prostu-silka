@@ -86,6 +86,7 @@ Numbers that line up down a list or a grid take `font-variant-numeric: tabular-n
 | Callout | `--section-cool`, `--radius-sm`, `var(--space-3)` padding, `--accent2` icon centred | `.my-plan-note` |
 | Chip vs badge | `.chip` = a quiet fact (muscle group); `.badge` = a state, outlined, carries a word | `src/styles.scss` |
 | Avatar disc | 3rem circle, `--section-warm`, ink icon | `.more-avatar`, `.profile-avatar` |
+| Empty state | `app-empty icon="…"`: an avatar disc (`--accent2` icon) over `--muted` words and an optional `slot="action"` button, in a card of its own; `compact` inside an existing card or overlay — no frame, the disc beside the words. The icon names what is missing, with its usual meaning. Never a bare `.card` around it. | `shared/forms/empty` |
 | Pill track | `--ground` track, `padding: 4px`, `gap: 2px`, `border-radius: 32px`, `--shadow-card`; cells `border-radius: 32px`, ≥ 40px tall, hover `--section-warm`; **selected = `--accent` fill + light text + 600** | Zajęcia tabs, bottom bar, desktop menu, calendar strip and week nav |
 | "See all" link | `0.8125–0.875rem`, `--accent` `chevron-right` after the words | `.dashboard-header-action`, `.exercises-open` |
 | Progress | 6px track in `--section-warm`, fill `--accent2`, radius 3px | Karnet punch card and bar |
@@ -105,7 +106,7 @@ The pill track is still declared per component (four copies). A fifth copy is th
   account may do in the club · `account-status` = whether it can sign in · `mail` / `lock` = an
   address / a password box · `eye` / `eye-off` = show / hide the password · `repeat` = reps · `sets` =
   sets · `info` = more to read · `chevron-left` / `chevron-right` = previous / next or "go" ·
-  `chevron-down` = a select · `back` = up to the parent. Add a case to `shared/icons/icon.html` rather
+  `chevron-down` = a select · `back` = up to the parent · `search` = a phrase that matched nothing. Add a case to `shared/icons/icon.html` rather
   than reusing one for a second meaning.
 
 ## Interaction

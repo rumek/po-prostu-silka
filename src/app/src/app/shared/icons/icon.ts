@@ -37,7 +37,8 @@ export type IconName =
   | 'mail'
   | 'lock'
   | 'eye'
-  | 'eye-off';
+  | 'eye-off'
+  | 'search';
 
 /**
  * The app's icon primitive — the first one this codebase has had.

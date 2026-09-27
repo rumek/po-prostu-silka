@@ -60,7 +60,7 @@
           }
         } @else {
           <!-- No link to a schedule: a member has none (S-25). The club books them, and says so. -->
-          <app-empty>
+          <app-empty icon="booking" compact>
             Nie masz jeszcze żadnych zapisów. Zapisy prowadzi klub — odezwij się w recepcji.
           </app-empty>
         }
@@ -121,7 +121,7 @@
           <!-- NOT an error, and deliberately not styled as one: the API says 204. It names the
            consequence rather than only the fact, because "brak karnetu" on its own does not tell a
            member why nobody is signing them up for anything. -->
-          <app-empty>
+          <app-empty icon="ticket" compact>
             Nie masz aktywnego karnetu. Bez niego klub nie zapisze Cię na zajęcia — odezwij się w
             recepcji.
           </app-empty>
@@ -154,7 +154,7 @@
             </button>
           </p>
         } @else if (todayClasses().length === 0) {
-          <app-empty>Nie prowadzisz dziś zajęć.</app-empty>
+          <app-empty icon="calendar" compact>Nie prowadzisz dziś zajęć.</app-empty>
         } @else {
           <ul class="dashboard-list">
             @for (row of todayClasses(); track row.id) {
@@ -186,7 +186,9 @@
             </button>
           </p>
         } @else if (upcomingClasses().length === 0) {
-          <app-empty>Nie prowadzisz zajęć w najbliższym tygodniu.</app-empty>
+          <app-empty icon="calendar" compact>
+            Nie prowadzisz zajęć w najbliższym tygodniu.
+          </app-empty>
         } @else {
           <ul class="dashboard-list">
             @for (row of upcomingClasses(); track row.id) {

@@ -165,7 +165,7 @@ merely reviewing badly.
 | a bare `<select>` | `<app-select><select …></app-select>` | Wrapper only. Five of seven selects shipped without it and therefore had **no arrow at all**. |
 | `<input type="checkbox">` | `<app-checkbox [checked] (checkedChange)>` | No `ControlValueAccessor` — both callers are filter toggles. Additive when a form needs one. |
 | `Wczytywanie…` | `<app-loading />` | **No input.** The word lives in the component so the app cannot end up with two of it. |
-| `<p class="empty">` | `<app-empty>` | Projects, unlike `app-loading`: no two empty states say the same thing and two carry links. |
+| `<p class="empty">` | `<app-empty icon="…">` | Projects, unlike `app-loading`: no two empty states say the same thing. A card of its own by default (don't wrap it in `.card`); `compact` inside a card or overlay; a next step goes in `slot="action"`. |
 | `<ul class="x">` / `<li class="card x-row">` | `<app-list>` / `<li appRow>` | `.row-identity`, `.row-name`, `.row-meta`, `.row-actions` are global; `card` stays the caller's. |
 
 Three things about this are not taste:
