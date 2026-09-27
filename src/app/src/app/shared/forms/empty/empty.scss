@@ -1,0 +1,79 @@
+// A "nothing here", which is not an error and must not read as one: muted words, a quiet disc, no
+// danger or accent fill. The default shape is a card of its own; `compact` sits inside one.
+:host {
+  display: block;
+}
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-6) var(--space-5);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+  text-align: center;
+}
+
+// The avatar-disc pattern (ui-style-guide.md): --section-warm, and the icon in --accent2 because it
+// names a fact about the screen — what is missing — not a way to go.
+.empty-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 50%;
+  background: var(--section-warm);
+  color: var(--accent2);
+  font-size: 1rem;
+}
+
+.empty-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.empty-text {
+  max-width: 32rem;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+
+// Rendered only when something was projected into it: Angular leaves the div with no nodes at all
+// otherwise, and a gap below the words with nothing in it reads as a layout bug.
+.empty-action:empty {
+  display: none;
+}
+
+.empty--compact {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0;
+  background: none;
+  box-shadow: none;
+  text-align: left;
+
+  .empty-icon {
+    width: 2.5rem;
+    height: 2.5rem;
+    font-size: 0.8rem;
+  }
+
+  .empty-body {
+    align-items: flex-start;
+    gap: var(--space-2);
+  }
+
+  .empty-text {
+    font-size: 0.875rem;
+  }
+}

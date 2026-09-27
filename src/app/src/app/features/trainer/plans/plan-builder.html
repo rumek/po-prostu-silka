@@ -52,7 +52,7 @@
       <h2>Ćwiczenia</h2>
 
       @if (items.length === 0) {
-        <app-empty>
+        <app-empty icon="plan" compact>
           Plan jest pusty. Wybierz ćwiczenia z biblioteki poniżej — kolejność ustawisz przeciągając
           wiersze.
         </app-empty>
@@ -204,7 +204,7 @@
             Plan ma już {{ maxItems }} ćwiczeń — to maksimum. Usuń któreś, żeby dodać inne.
           </p>
         } @else if (pickable().length === 0) {
-          <app-empty>
+          <app-empty [icon]="exerciseSearch() ? 'search' : 'hantle'" compact>
             @if (exerciseSearch()) {
               Żadne ćwiczenie nie pasuje do „{{ exerciseSearch() }}”.
             } @else {

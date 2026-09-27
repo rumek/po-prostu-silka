@@ -39,15 +39,11 @@
     <button type="button" class="link-button" (click)="load()">Spróbuj ponownie</button>
   </p>
 } @else if (rows().length === 0) {
-  <div class="card">
-    <app-empty>Nie dodano jeszcze żadnego ćwiczenia.</app-empty>
-  </div>
+  <app-empty icon="hantle">Nie dodano jeszcze żadnego ćwiczenia.</app-empty>
 } @else if (hiddenByFilter()) {
-  <div class="card">
-    <app-empty>
-      Wszystkie ćwiczenia są nieaktywne. Zaznacz „Pokaż nieaktywne”, żeby je zobaczyć.
-    </app-empty>
-  </div>
+  <app-empty icon="eye-off">
+    Wszystkie ćwiczenia są nieaktywne. Zaznacz „Pokaż nieaktywne”, żeby je zobaczyć.
+  </app-empty>
 } @else {
   <!-- Tiles rather than long rows (app-list.list--tiles, src/styles.scss): an exercise is recognised
        by its video first, so the thumbnail leads each card at full width, as many to a row as fit —

@@ -14,7 +14,7 @@
         z {{ live.entryCount }} wejść, ważny do {{ live.validTo | date: 'd MMMM y' }}.
       </p>
     } @else {
-      <app-empty>
+      <app-empty icon="ticket" compact>
         Ta osoba nie ma dziś ważnego karnetu, więc nie można jej zapisać na żadne zajęcia.
       </app-empty>
     }
@@ -108,7 +108,7 @@
     </p>
   } @else if (passes().length === 0) {
     <!-- NOT an error: a member who has never been sold a karnet is an ordinary state. -->
-    <app-empty>Ta osoba nie ma jeszcze żadnego karnetu.</app-empty>
+    <app-empty icon="ticket">Ta osoba nie ma jeszcze żadnego karnetu.</app-empty>
   } @else {
     <ul class="passes-list">
       @for (pass of passes(); track pass.id) {
