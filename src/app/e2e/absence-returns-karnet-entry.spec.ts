@@ -12,6 +12,7 @@
  * type is deactivated.
  */
 import { memberPassword, trainerCredentials } from './credentials';
+import { uniqueSuffix } from './support/club';
 import { expect, test } from './support/fixtures';
 import { openClassBookings, PHONE } from './support/schedule';
 import { signedInContext } from './support/sessions';
@@ -24,7 +25,7 @@ test('an absence recorded by the trainer returns the entry and reads absent in h
 }) => {
   // Arrange: karnet first (see CLAUDE.md), covering the past week; book while the class is ahead,
   // then move it into the past - a started class takes no booking.
-  const suffix = Date.now();
+  const suffix = uniqueSuffix();
   const name = `E2E nieobecność ${suffix}`;
   const email = `e2e-nieobecnosc-${suffix}@example.test`;
   const memberId = await club.createMember(name);

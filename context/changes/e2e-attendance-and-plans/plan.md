@@ -284,6 +284,18 @@ seed; what stays behind: member, account, plan; exercises deactivated). Steps:
 6. Member: "Opis ćwiczenia: E2E ćw A <ts>" opens the detail — `h1` with the name, `Opis` and
    `Wykonanie` with A's texts; "Wróć do planu" returns to `/my-plan`.
 
+**Adapted during implementation.**
+- Step 4 waits on the save's `POST /api/trainer/plans` response (`waitForResponse`), not on the
+  toast. The toast host is `aria-hidden`, and its words are on the page a second time in CDK's
+  visually hidden LiveAnnouncer region, so `getByText('Plan zapisany.')` is ambiguous. The business
+  outcome is still asserted: `Plan: <name>` on Członkowie.
+- The plan is named `E2E plan treningowy <ts>`, so it differs from the member's `E2E plan <ts>`.
+- The spec sets a 1280×1600 viewport, so all three builder rows are in view for the drag.
+- Both specs take `<ts>` from `uniqueSuffix()` (`support/club.ts`), not `Date.now()`. Under
+  `--repeat-each=5`, two parallel workers got the same millisecond and created two members with the
+  same name. The S-31 specs still use `Date.now()` and carry the same latent risk; they are not
+  changed here.
+
 ### Success Criteria:
 
 #### Automated Verification:
@@ -362,9 +374,9 @@ None — no schema or production change.
 
 #### Automated
 
-- [x] 2.1 The spec passes: `npx playwright test e2e/absence-returns-karnet-entry.spec.ts`
-- [x] 2.2 It passes again on the same database, and in parallel with itself: `--repeat-each=3`
-- [x] 2.3 Lint and format pass: `npm run quality:check`
+- [x] 2.1 The spec passes: `npx playwright test e2e/absence-returns-karnet-entry.spec.ts` — 5664cde
+- [x] 2.2 It passes again on the same database, and in parallel with itself: `--repeat-each=3` — 5664cde
+- [x] 2.3 Lint and format pass: `npm run quality:check` — 5664cde
 
 #### Manual
 
@@ -375,10 +387,10 @@ None — no schema or production change.
 
 #### Automated
 
-- [ ] 3.1 The spec passes: `npx playwright test e2e/trainer-plan-reaches-member.spec.ts`
-- [ ] 3.2 The drag is stable: `--repeat-each=5`
-- [ ] 3.3 The whole suite is green: `npm run e2e`
-- [ ] 3.4 Lint and format pass: `npm run quality:check`
+- [x] 3.1 The spec passes: `npx playwright test e2e/trainer-plan-reaches-member.spec.ts`
+- [x] 3.2 The drag is stable: `--repeat-each=5`
+- [x] 3.3 The whole suite is green: `npm run e2e`
+- [x] 3.4 Lint and format pass: `npm run quality:check`
 
 #### Manual
 
