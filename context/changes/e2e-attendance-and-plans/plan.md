@@ -380,19 +380,19 @@ None — no schema or production change.
 
 #### Manual
 
-- [ ] 2.4 The spec fails when the outcome is broken, at the right step
-- [ ] 2.5 The trace shows no sleeps and no fixed times
+- [x] 2.4 The spec fails when the outcome is broken, at the right step
+- [x] 2.5 The trace shows no sleeps and no fixed times
 
 ### Phase 3: Plan spec — a trainer's plan reaches the member
 
 #### Automated
 
-- [x] 3.1 The spec passes: `npx playwright test e2e/trainer-plan-reaches-member.spec.ts`
-- [x] 3.2 The drag is stable: `--repeat-each=5`
-- [x] 3.3 The whole suite is green: `npm run e2e`
-- [x] 3.4 Lint and format pass: `npm run quality:check`
+- [x] 3.1 The spec passes: `npx playwright test e2e/trainer-plan-reaches-member.spec.ts` — c9249ea
+- [x] 3.2 The drag is stable: `--repeat-each=5` — c9249ea
+- [x] 3.3 The whole suite is green: `npm run e2e` — c9249ea
+- [x] 3.4 Lint and format pass: `npm run quality:check` — c9249ea
 
 #### Manual
 
-- [ ] 3.5 The spec fails when the order is broken, at the builder's order assertion
-- [ ] 3.6 Roadmap S-32 and the manual cases it protects read correctly against what was built
+- [x] 3.5 The spec fails when the order is broken, at the builder's order assertion
+- [x] 3.6 Roadmap S-32 and the manual cases it protects read correctly against what was built

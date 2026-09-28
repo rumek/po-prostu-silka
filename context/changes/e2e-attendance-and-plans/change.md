@@ -1,7 +1,7 @@
 ---
 change_id: e2e-attendance-and-plans
 title: A browser-level test covers attendance and a trainer's plan
-status: implementing
+status: implemented
 created: 2026-09-28
 updated: 2026-09-28
 ---
