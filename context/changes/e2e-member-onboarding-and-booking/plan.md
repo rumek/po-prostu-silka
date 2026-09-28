@@ -46,7 +46,9 @@ From `src/app`, with Docker up and migrations applied, `npm run e2e` runs seven 
 projects plus four existing specs plus three new ones. It does so on the developer database and on a
 database holding only the seeded admin. Running it twice back to back is also green: no 429, no slot
 collision, no "already exists". After a run, the only rows left behind are `E2E …`-named members and
-accounts with `@example.test` addresses, plus the one E2E trainer. Each new spec was shown to fail when the
+accounts with `@example.test` addresses, the one E2E trainer, and (after the Phase 2 cleanup decision)
+the cancelled `E2E` classes that were booked, the karnets that paid for those bookings, and the
+deactivated `E2E` class types. Each new spec was shown to fail when the
 behaviour it protects is broken.
 
 ### Key Discoveries:
@@ -209,6 +211,9 @@ slot helper, registration only through the support layer, and the "members stay 
   locators were updated: the heading now reads "Zaloguj się", and the password field uses
   `getByLabel('Hasło', { exact: true })`. The spec's risk and assertions are otherwise unchanged. The
   register screen probably carries the same toggle, so Phase 2 must use `exact: true` too.
+- **`trainerAuthFile` was dropped after the implementation review (F4).** No spec read it: the trainer
+  signs in through `signedInContext`. `trainer.setup.ts` still signs in, to fail early on a wrong
+  password, but saves no session.
 - **The cleanup registry got its own file,** `support/cleanup.ts`, beside `fixtures.ts` and `club.ts`. The
   builders live on a `Club` class, exposed as a `club` fixture. `credentials.ts` also gained
   `memberPassword` for the accounts specs register.
@@ -229,8 +234,8 @@ slot helper, registration only through the support layer, and the "members stay 
 
 - On a database holding only the seeded admin (e.g. `TestDataSeed:Reset`, or a fresh container),
   `npm run e2e` creates the E2E trainer and passes. A second run creates no second trainer.
-- After a run, the admin calendar shows no leftover `E2E` classes and the class-type list shows only
-  deactivated `E2E` types.
+- After a run, the admin calendar shows no *scheduled* leftover `E2E` classes (booked ones remain,
+  cancelled, by the Phase 2 decision), and the class-type list shows only deactivated `E2E` types.
 
 **Implementation Note**: After completing this phase and all automated verification passes, pause here for
 manual confirmation from the human that the manual testing was successful before proceeding to the next
