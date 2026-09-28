@@ -366,6 +366,18 @@ booked.
   tested.
 - Update the freshness ledger if §8 asks for it.
 
+#### 4. Adapted during implementation
+
+- **Both specs run at a phone width, and reach the class the same way,** through a new
+  `support/schedule.ts`: `openClassBookings` (goes to `/schedule`, brings the day into view, opens the
+  class) and `addToClass` (search, choose, "Zapisz"). The path is the one `back-closes-open-overlay` already
+  proved, and it avoids depending on the desktop week grid. `PHONE` carries the viewport, timezone and
+  locale.
+- **The trainer-side assertion reads a roster row (`listitem`) and "1 / 5 miejsc zajętych",** not the bare
+  name. The name alone would also match the member's `<option>` if the booking had failed.
+- **The refusal spec creates nothing bookable,** so its class is deleted. The booking spec's class is booked,
+  so it is cancelled, and the member's karnet stays behind (Phase 2's cleanup decision).
+
 ### Success Criteria:
 
 #### Automated Verification:
@@ -446,25 +458,25 @@ databases by decision. `TestDataSeed:Reset=true` clears them locally.
 
 #### Automated
 
-- [x] 2.1 The spec passes: `npx playwright test e2e/invitation-claim-carries-karnet-and-booking.spec.ts`
-- [x] 2.2 Full suite still green: `npm run e2e`
-- [x] 2.3 Formatting passes: `npm run quality:check`
+- [x] 2.1 The spec passes: `npx playwright test e2e/invitation-claim-carries-karnet-and-booking.spec.ts` — e9186ce
+- [x] 2.2 Full suite still green: `npm run e2e` — e9186ce
+- [x] 2.3 Formatting passes: `npm run quality:check` — e9186ce
 
 #### Manual
 
-- [x] 2.4 Break-verify: wrong query parameter in the copied link fails the spec on the register screen
-- [x] 2.5 Break-verify: an empty pass card fails the spec on the karnet assertion
+- [x] 2.4 Break-verify: wrong query parameter in the copied link fails the spec on the register screen — e9186ce
+- [x] 2.5 Break-verify: an empty pass card fails the spec on the karnet assertion — e9186ce
 
 ### Phase 3: A trainer's booking reaches the member; a booking without a karnet is refused
 
 #### Automated
 
-- [ ] 3.1 Both specs pass: `npx playwright test e2e/staff-booking-reaches-member.spec.ts e2e/booking-without-karnet-is-refused.spec.ts`
-- [ ] 3.2 Full suite green twice in a row: `npm run e2e && npm run e2e`
-- [ ] 3.3 Formatting passes: `npm run quality:check`
+- [x] 3.1 Both specs pass: `npx playwright test e2e/staff-booking-reaches-member.spec.ts e2e/booking-without-karnet-is-refused.spec.ts`
+- [x] 3.2 Full suite green twice in a row: `npm run e2e && npm run e2e`
+- [x] 3.3 Formatting passes: `npm run quality:check`
 
 #### Manual
 
-- [ ] 3.4 Break-verify: the member's bookings omitting the new booking fails the booking spec
-- [ ] 3.5 Break-verify: a changed `no_valid_pass` sentence fails the refusal spec
+- [x] 3.4 Break-verify: the member's bookings omitting the new booking fails the booking spec
+- [x] 3.5 Break-verify: a changed `no_valid_pass` sentence fails the refusal spec
 - [ ] 3.6 `test-plan.md` reads correctly for the next spec author

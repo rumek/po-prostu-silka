@@ -40,6 +40,8 @@ spec on `seed.spec.ts`. Run one spec with `npx playwright test e2e/<file>.spec.t
 - Other personas get their own context: `anonymousContext(browser)` or
   `signedInContext(browser, credentials)` (`support/sessions.ts`). Both start from an empty session,
   because `browser.newContext()` otherwise inherits the admin's.
+- To act in a class's bookings overlay, use `support/schedule.ts` (`openClassBookings`,
+  `addToClass`) under `test.use(PHONE)`, rather than a copy of the calendar navigation.
 - Classes are instructed by the one E2E trainer (`trainerCredentials`), which `trainer.setup.ts`
   get-or-creates before any spec runs.
 - Members and accounts cannot be deleted, so they stay behind: name every member
