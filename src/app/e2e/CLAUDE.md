@@ -33,7 +33,15 @@ spec on `seed.spec.ts`. Run one spec with `npx playwright test e2e/<file>.spec.t
   slot), and a karnet that paid for a booking stays behind on its E2E member.
 - Classes only through `club.createClass`, which takes a random free slot (`support/slots.ts`) and
   retries on `time_conflict`. Never a fixed time: the overlap rule is club-wide. `showWeekOf` brings the
-  slot's week into view.
+  slot's week into view, forward or back.
+- A class that has STARTED (attendance) is `createClass` → `club.book` → `club.startClass`, which
+  moves the booked class to a random free slot in the past week through the admin edit. Never a
+  sleep until a start, never a class created to start in seconds: a started class takes no booking,
+  so book first. Its karnet must cover the past slot — `issuePass(…, { validFromDaysAgo: 7 })`. A
+  started class can be neither deleted nor cancelled, so it stays behind as attendance history.
+- Exercises only through `club.createExercise`, named `E2E <purpose> <ts>` (names are unique among
+  active exercises); cleanup deactivates them, since exercises cannot be deleted. A plan has no
+  delete either, so it stays behind on its E2E member.
 - Register accounts only through the support layer (`club.registerMember`, `anonymousContext`). They
   send a unique `X-Forwarded-For`, so the registration rate limit — not under test here — never
   answers 429 on a re-run.

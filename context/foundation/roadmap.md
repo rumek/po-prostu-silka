@@ -158,7 +158,7 @@ privacy notice.
 | S-29 | personal-data-baseline | (member, admin) a person reads what the club processes about them and why; the admin erases or anonymises a member on request without breaking the club's history; retention is a decision, not an accident | S-14, S-27 | M-9 GL-07 (v1 NFR "GDPR-baseline handling"; touches Open Roadmap Question 8) | ready |
 | S-30 | e2e-local-gate | (dev tooling) the browser-level suite runs locally before every push, against the app and the local SQL Server, and a red spec stops the push; it never runs on staging or in CI | S-31 (delivered with it) | none - outside any milestone (test tooling) | done |
 | S-31 | e2e-member-onboarding-and-booking | (dev tooling) a browser-level test proves an invited person lands on the club's record with its karnet and booking, and that a staff booking and a karnet refusal reach both screens they should | S-17, S-25 | none - outside any milestone (test tooling); manual plan REG-01, BOOK-01, BOOK-03 | done |
-| S-32 | e2e-attendance-and-plans | (dev tooling) a browser-level test proves a recorded absence returns the entry on the member's screens, and a plan a trainer builds reaches the member's plan and exercise screens | S-31, S-27 | none - outside any milestone (test tooling); manual plan ATT-01, ATT-02, PLAN-01, MBR-05, MBR-06 | proposed |
+| S-32 | e2e-attendance-and-plans | (dev tooling) a browser-level test proves a recorded absence returns the entry on the member's screens, and a plan a trainer builds reaches the member's plan and exercise screens | S-31, S-27 | none - outside any milestone (test tooling); manual plan ATT-01, ATT-02, PLAN-01, MBR-05, MBR-06 | in-progress |
 
 ## Streams
 
@@ -958,7 +958,7 @@ rather than in a slice body:
     `/10x-plan`. Block: no.
 - **Risk:** the attendance spec is the one most likely to become time-dependent; a spec that sleeps
   until a class starts is the wait-for-time anti-pattern `e2e/CLAUDE.md` forbids.
-- **Status:** proposed
+- **Status:** in-progress
 
 ## Backlog Handoff
 

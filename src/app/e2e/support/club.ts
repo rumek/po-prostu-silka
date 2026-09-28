@@ -4,14 +4,17 @@
  *
  * What cannot be removed stays behind by decision: members and accounts have no delete endpoint, so
  * every member a spec creates is named `E2E <purpose> <ts>` and every address ends @example.test.
+ * The same goes for a karnet that paid for a booking, a booked class (cancelled, or - once started -
+ * kept as attendance history), a plan (no delete endpoint either), and an exercise or class type
+ * (deactivated, never deleted).
  */
 import { APIRequestContext, APIResponse, expect } from '@playwright/test';
 import { trainerCredentials } from '../credentials';
 import { Cleanup } from './cleanup';
-import { randomClassStart } from './slots';
+import { randomClassStart, randomPastClassStart } from './slots';
 import { registerViaApi } from './sessions';
 
-/** How many random slots createClass tries before it gives up on a crowded week. */
+/** How many random slots createClass and startClass try before they give up on a crowded week. */
 const SLOT_ATTEMPTS = 20;
 
 interface PageOf<T> {
@@ -32,6 +35,18 @@ export interface CreatedClass {
   name: string;
   startsAt: Date;
   capacity: number;
+  classTypeId: string;
+  durationMinutes: number;
+  instructorMemberId: string;
+}
+
+/** The optional fields of a library exercise - only the name is required (ExerciseValidator). */
+export interface ExerciseFields {
+  description?: string;
+  muscleGroup?: string;
+  preparation?: string;
+  startingPosition?: string;
+  execution?: string;
 }
 
 /** A timestamp suffix, unique enough for names and addresses across parallel runs and re-runs. */
@@ -76,12 +91,19 @@ export class Club {
   private readonly bookedMembers = new Set<string>();
 
   /**
-   * A karnet valid from today for `validDays`. Revoked in cleanup unless a booking ever pointed at
-   * it - arrange the karnet BEFORE the class, so the class's removal runs first and records who was
-   * booked.
+   * A karnet valid from today (or `validFromDaysAgo` days back - a class moved into the past by
+   * startClass must fall inside it) until `validDays` from today. Revoked in cleanup unless a booking
+   * ever pointed at it - arrange the karnet BEFORE the class, so the class's removal runs first and
+   * records who was booked.
    */
-  async issuePass(memberId: string, entries = 5, validDays = 30): Promise<string> {
+  async issuePass(
+    memberId: string,
+    entries = 5,
+    validDays = 30,
+    options: { validFromDaysAgo?: number } = {},
+  ): Promise<string> {
     const validFrom = new Date();
+    validFrom.setDate(validFrom.getDate() - (options.validFromDaysAgo ?? 0));
     const validTo = new Date();
     validTo.setDate(validTo.getDate() + validDays);
 
@@ -108,8 +130,9 @@ export class Club {
    * A class type named `name` and one class of it in a free random slot. Cleanup deletes the class
    * if nobody was ever booked on it; otherwise - bookings made through the UI included - it CANCELS
    * it, since the API keeps a booked class as history. A cancelled class stays behind but frees its
-   * slot (the overlap rule counts Scheduled classes only). Then it deactivates the type (types
-   * cannot be deleted).
+   * slot (the overlap rule counts Scheduled classes only). A class that has STARTED (startClass) can
+   * be neither, and stays behind as it is: attendance history, in a past slot. Then it deactivates
+   * the type (types cannot be deleted).
    */
   async createClass(
     name: string,
@@ -155,7 +178,7 @@ export class Club {
 
       const id = ((await created.json()) as { id: string }).id;
       this.cleanup.add(`delete class ${id}`, () => this.removeClass(id));
-      return { id, name, startsAt, capacity };
+      return { id, name, startsAt, capacity, classTypeId, durationMinutes, instructorMemberId };
     }
 
     throw new Error(
@@ -169,6 +192,69 @@ export class Club {
       data: { memberId },
     });
     expect(response.ok(), `book: ${await response.text()}`).toBeTruthy();
+  }
+
+  /**
+   * Makes a class one that has STARTED, without waiting for it: moves its start to a random free slot
+   * in the past week through the admin edit, which - unlike creation - accepts a past start
+   * (correcting a class that already ran). Retries on `time_conflict` like createClass.
+   *
+   * Call it after every booking: a started class takes none (`class_started`). It stays behind after
+   * the test - see createClass.
+   */
+  async startClass(created: CreatedClass): Promise<CreatedClass> {
+    for (let attempt = 0; attempt < SLOT_ATTEMPTS; attempt++) {
+      const startsAt = randomPastClassStart();
+      const moved = await this.api.put(`/api/admin/classes/${created.id}`, {
+        data: {
+          classTypeId: created.classTypeId,
+          startsAt: startsAt.toISOString(),
+          durationMinutes: created.durationMinutes,
+          instructorMemberId: created.instructorMemberId,
+          capacity: created.capacity,
+        },
+      });
+
+      if (moved.status() === 409) {
+        const { reason } = (await moved.json()) as { reason?: string };
+        if (reason === 'time_conflict') {
+          continue;
+        }
+      }
+      expect(moved.ok(), `start class: ${await moved.text()}`).toBeTruthy();
+      return { ...created, startsAt };
+    }
+
+    throw new Error(
+      `No free past slot in ${SLOT_ATTEMPTS} random attempts - the past week is crowded.`,
+    );
+  }
+
+  /**
+   * A library exercise, retired (deactivated) in cleanup - exercises cannot be deleted, and a plan
+   * that prescribes one still reads after it is retired. Give it a unique `E2E …` name: names are
+   * unique among active exercises.
+   */
+  async createExercise(name: string, fields: ExerciseFields = {}): Promise<string> {
+    const response = await this.api.post('/api/admin/exercises', {
+      data: {
+        name,
+        description: fields.description ?? null,
+        muscleGroup: fields.muscleGroup ?? null,
+        difficulty: null,
+        equipment: null,
+        preparation: fields.preparation ?? null,
+        startingPosition: fields.startingPosition ?? null,
+        execution: fields.execution ?? null,
+        videoUrl: null,
+      },
+    });
+    expect(response.ok(), `create exercise: ${await response.text()}`).toBeTruthy();
+    const id = ((await response.json()) as { id: string }).id;
+    this.cleanup.add(`deactivate exercise ${id}`, () =>
+      this.api.post(`/api/admin/exercises/${id}/deactivate`),
+    );
+    return id;
   }
 
   /** Issues (or re-issues) the invitation code for an accountless member. */
@@ -201,7 +287,7 @@ export class Club {
     return trainer!.id;
   }
 
-  private async removeClass(classId: string): Promise<APIResponse> {
+  private async removeClass(classId: string): Promise<APIResponse | void> {
     const bookings = await this.api.get(`/api/admin/classes/${classId}/bookings`);
     if (bookings.ok()) {
       for (const booking of (await bookings.json()) as { memberId: string }[]) {
@@ -213,6 +299,15 @@ export class Club {
     if (deleted.status() !== 409) {
       return deleted;
     }
-    return this.api.post(`/api/admin/classes/${classId}/cancel`);
+
+    const cancelled = await this.api.post(`/api/admin/classes/${classId}/cancel`);
+    if (cancelled.status() === 409) {
+      // A class that has started is attendance history: it stays behind by decision (startClass).
+      const { reason } = (await cancelled.json()) as { reason?: string };
+      if (reason === 'class_started') {
+        return;
+      }
+    }
+    return cancelled;
   }
 }
