@@ -1,15 +1,10 @@
 import { expect, test as setup } from '@playwright/test';
-import {
-  adminCredentials,
-  trainerAuthFile,
-  trainerCredentials,
-  trainerDisplayName,
-} from './credentials';
+import { adminCredentials, trainerCredentials, trainerDisplayName } from './credentials';
 import { Cleanup } from './support/cleanup';
 import { Club } from './support/club';
 
 /**
- * Ensures the ONE E2E trainer exists and saves its session - once per run, before any spec, on any
+ * Ensures the ONE E2E trainer exists and can sign in - once per run, before any spec, on any
  * database, including one holding only the seeded admin (a fresh CI database). Classes the specs
  * create are instructed by this account.
  *
@@ -48,13 +43,13 @@ setup('ensure the E2E trainer exists', async ({ playwright, baseURL }) => {
 
   await admin.dispose();
 
-  // Signed in AFTER the grant, so the session carries the Trainer role.
+  // Proves the password works, so a wrong one fails HERE, naming the account, rather than in every
+  // spec. Nothing is saved: specs sign the trainer in themselves through signedInContext.
   const session = await playwright.request.newContext({ baseURL });
   const trainerSignIn = await session.post('/api/auth/login', { data: trainerCredentials });
   expect(
     trainerSignIn.ok(),
     `sign-in as ${trainerCredentials.email} - if the account exists with another password, reset it`,
   ).toBeTruthy();
-  await session.storageState({ path: trainerAuthFile });
   await session.dispose();
 });

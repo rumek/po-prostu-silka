@@ -23,11 +23,11 @@ export const trainerCredentials = {
   password: process.env['E2E_TRAINER_PASSWORD'] ?? 'E2eTrainer_Pass123',
 };
 
-/** The E2E trainer's DisplayName. */
+/**
+ * The E2E trainer's DisplayName. Specs act as the trainer through
+ * `signedInContext(browser, trainerCredentials)`; there is no saved trainer session.
+ */
 export const trainerDisplayName = 'E2E Trener';
-
-/** Where trainer.setup.ts saves the E2E trainer's session; gitignored. */
-export const trainerAuthFile = 'playwright/.auth/trainer.json';
 
 /** The password every member a spec registers is given. Development-only. */
 export const memberPassword = 'E2eMember_Pass123';

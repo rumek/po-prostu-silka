@@ -1,9 +1,10 @@
 ---
 change_id: e2e-member-onboarding-and-booking
 title: A browser-level test covers the invitation claim and a staff booking
-status: implementing
+status: archived
 created: 2026-09-28
 updated: 2026-09-28
+archived_at: 2026-09-28T15:28:23Z
 ---
 
 ## Notes
@@ -22,3 +23,11 @@ User's decisions (2026-09-28, Polish, recorded in English):
 - Three spec files, one test each.
 - Arrange through the API; drive through the UI only where the risk lives.
 - The staff booking is made by the E2E trainer on a class they instruct, not by the admin.
+
+Later decisions the same day (beyond the plan's "no production code"):
+
+- E2E runs locally only — never on staging, never in CI — through `.githooks/pre-push`. Roadmap
+  S-30 was re-scoped from CI to this local gate and ships inside this change.
+- A booked class is cancelled in cleanup rather than deleted, and the karnet that paid for it stays.
+- `RevokePass` no longer answers 500 for a karnet whose bookings were all released: it refuses with a
+  new reason, `has_booking_history` (409). Production code, integration test and SPA message.
