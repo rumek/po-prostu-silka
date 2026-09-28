@@ -32,12 +32,12 @@ test.describe('auth guard', () => {
 
     // The guard sends them to the login screen before the route renders or fetches anything.
     await page.waitForURL('**/login');
-    await expect(page.getByRole('heading', { level: 1, name: 'Cześć!' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Zaloguj się' })).toBeVisible();
     expect(memberDataRequests).toEqual([]);
 
     // They sign in with valid credentials.
     await page.getByLabel('Adres e-mail').fill(adminCredentials.email);
-    await page.getByLabel('Hasło').fill(adminCredentials.password);
+    await page.getByLabel('Hasło', { exact: true }).fill(adminCredentials.password);
     await page.getByRole('button', { name: 'Zaloguj się' }).click();
 
     // The dashboard opens for THIS account, and the signed-in shell is shown.

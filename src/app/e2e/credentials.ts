@@ -12,3 +12,22 @@ export const authFile = 'playwright/.auth/admin.json';
 
 /** The seeded admin's DisplayName, which the dashboard greets by. */
 export const adminDisplayName = 'Administrator';
+
+/**
+ * The one E2E trainer, get-or-created by trainer.setup.ts on any database - including one holding only
+ * the seeded admin. Classes the specs create are instructed by this account. Development-only values,
+ * like the admin's.
+ */
+export const trainerCredentials = {
+  email: process.env['E2E_TRAINER_EMAIL'] ?? 'e2e-trainer@example.test',
+  password: process.env['E2E_TRAINER_PASSWORD'] ?? 'E2eTrainer_Pass123',
+};
+
+/** The E2E trainer's DisplayName. */
+export const trainerDisplayName = 'E2E Trener';
+
+/** Where trainer.setup.ts saves the E2E trainer's session; gitignored. */
+export const trainerAuthFile = 'playwright/.auth/trainer.json';
+
+/** The password every member a spec registers is given. Development-only. */
+export const memberPassword = 'E2eMember_Pass123';
