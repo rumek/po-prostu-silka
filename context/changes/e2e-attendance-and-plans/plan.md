@@ -351,20 +351,20 @@ None — no schema or production change.
 
 #### Automated
 
-- [x] 1.1 Lint and format pass: `npm run quality:check` (from `src/app/`)
-- [x] 1.2 The existing suite stays green on the changed support layer: `npm run e2e` (from `src/app/`)
+- [x] 1.1 Lint and format pass: `npm run quality:check` (from `src/app/`) — 3fb2336
+- [x] 1.2 The existing suite stays green on the changed support layer: `npm run e2e` (from `src/app/`) — 3fb2336
 
 #### Manual
 
-- [x] 1.3 `e2e/CLAUDE.md` reads correctly for someone who has not seen this plan
+- [x] 1.3 `e2e/CLAUDE.md` reads correctly for someone who has not seen this plan — 3fb2336
 
 ### Phase 2: Attendance spec — an absence returns the entry
 
 #### Automated
 
-- [ ] 2.1 The spec passes: `npx playwright test e2e/absence-returns-karnet-entry.spec.ts`
-- [ ] 2.2 It passes again on the same database, and in parallel with itself: `--repeat-each=3`
-- [ ] 2.3 Lint and format pass: `npm run quality:check`
+- [x] 2.1 The spec passes: `npx playwright test e2e/absence-returns-karnet-entry.spec.ts`
+- [x] 2.2 It passes again on the same database, and in parallel with itself: `--repeat-each=3`
+- [x] 2.3 Lint and format pass: `npm run quality:check`
 
 #### Manual
 
