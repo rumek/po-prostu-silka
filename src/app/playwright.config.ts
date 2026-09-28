@@ -33,9 +33,10 @@ export default defineConfig({
     },
   ],
   webServer: {
-    // Rebuilds the SPA into wwwroot first, so the browser never drives a stale bundle.
-    command:
-      'npm run e2e:stage && dotnet run --project ../Api/po-prostu-silka.Api.csproj --launch-profile http',
+    // Rebuilds the SPA into wwwroot first, so the browser never drives a stale bundle. `--urls` binds
+    // the API where baseURL points, so E2E_BASE_URL can move it off 5264 (Windows-reserved on some
+    // machines).
+    command: `npm run e2e:stage && dotnet run --project ../Api/po-prostu-silka.Api.csproj --launch-profile http --urls ${baseURL}`,
     // /health opens a real DB connection - "up" means the API can actually reach SQL Server.
     url: `${baseURL}/health`,
     reuseExistingServer: !process.env['CI'],
