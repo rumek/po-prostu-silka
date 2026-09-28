@@ -1,9 +1,10 @@
 ---
 change_id: e2e-member-onboarding-and-booking
 title: A browser-level test covers the invitation claim and a staff booking
-status: impl_reviewed
+status: archived
 created: 2026-09-28
 updated: 2026-09-28
+archived_at: 2026-09-28T15:28:23Z
 ---
 
 ## Notes
