@@ -71,7 +71,7 @@ export class Club {
   /**
    * Members who held a booking on a class this test created, filled in by the class's removal. A
    * karnet that paid for a booking keeps pointing at it for good, so it cannot be revoked (the API
-   * answers 500, not 409 - a known RevokePass defect) and stays behind on its E2E member.
+   * refuses with `has_active_bookings` or `has_booking_history`) and stays behind on its E2E member.
    */
   private readonly bookedMembers = new Set<string>();
 

@@ -338,9 +338,12 @@ the relevant rollout phase ships; before that, the sub-section reads
   (no delete endpoint — S-29 owns erasure), the karnets that paid for a booking, and cancelled `E2E`
   classes. That is why e2e runs locally only — never on staging, never in CI — through a `pre-push`
   hook; `TestDataSeed:Reset=true` clears a local database. The registration rate limit is stepped around
-  with a unique `X-Forwarded-For` rather than tested (integration-owned). Found on the way, not fixed
-  here: `RevokePass` answers 500 instead of 409 for a karnet whose only bookings were released — it
-  checks active bookings, and the restrict foreign key refuses the delete.
+  with a unique `X-Forwarded-For` rather than tested (integration-owned). Found on the way and fixed
+  in the same slice: `RevokePass` answered 500 for a karnet whose only bookings were released — it
+  checked active bookings, and the restrict foreign key refused the delete. It now refuses with a new
+  reason, `has_booking_history`, pinned by
+  `MembershipPassEndpointTests.A_pass_whose_booking_was_released_cannot_be_revoked` and mapped in
+  `membership-pass-failure.ts`.
 
 ## 7. What We Deliberately Don't Test
 

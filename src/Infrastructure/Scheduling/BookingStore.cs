@@ -54,6 +54,9 @@ public class BookingStore(AppDbContext db, IMembershipPassStore passes) : IBooki
         db.Bookings.AnyAsync(
             b => b.MembershipPassId == passId && b.Status == BookingStatus.Active, cancellationToken);
 
+    public Task<bool> AnyForPassAsync(Guid passId, CancellationToken cancellationToken) =>
+        db.Bookings.AnyAsync(b => b.MembershipPassId == passId, cancellationToken);
+
     public async Task RotatePassStampsForClassAsync(Guid classId, CancellationToken cancellationToken)
     {
         // The same shape as the block cascade below: distinct pass ids, loaded through the store that

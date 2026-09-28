@@ -25,6 +25,9 @@ namespace po_prostu_silka.Application.Members;
 /// Passes are a HISTORY, not a stack.</item>
 /// <item><c>has_active_bookings</c> — the pass paid for bookings that still hold spots, so it cannot
 /// vanish underneath them.</item>
+/// <item><c>has_booking_history</c> — no booking on the pass is active any more, but some were made
+/// with it and released; those rows are history that still records which karnet paid, so the pass
+/// stays.</item>
 /// <item><c>conflict</c> — a lost optimistic race; the caller's view is stale and should be
 /// refetched.</item>
 /// </list>

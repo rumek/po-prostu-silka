@@ -279,14 +279,17 @@ fresh, empty member, and the new session must land on Start showing what the clu
   booking `Cancelled`, and the row keeps its class and karnet. `DeleteClass` refuses any booking, cancelled
   ones included (by design: history), and `removeClass` ignored that 409. `RevokePass` checks *active*
   bookings only, so on a karnet with a released booking it hits the restrict FK and answers **500**. That
-  is a production defect, recorded here for a separate change. The user's decision (2026-09-28):
+  is a production defect. It was **fixed at the user's request after Phase 3**, outside the plan's "no
+  production code" rule. `RevokePass` now refuses with `has_booking_history` (409), through a new
+  `IBookingStore.AnyForPassAsync`, and has an integration test and an SPA message. The user's decision
+  (2026-09-28):
   `removeClass` deletes the class when nobody was ever booked, and otherwise **cancels** it (freeing the
   slot). A karnet whose member held a booking on the class is left behind rather than revoked. So
   **cancelled `E2E` classes and karnets on `E2E` members now stay behind too**, which amends the Desired End
   State and manual check 1.6.
 - **E2E runs locally only.** The user's decision (2026-09-28): never against the staging database, and not
-  in the deploy pipeline, because of what runs leave behind. That conflicts with S-30 (CI wiring), which
-  needs re-scoping. Instead, `.githooks/pre-push` (enabled with `git config core.hooksPath .githooks`)
+  in the deploy pipeline, because of what runs leave behind. S-30 (CI wiring) was re-scoped in the
+  roadmap to this local pre-push gate, and is marked done by this slice. Instead, `.githooks/pre-push` (enabled with `git config core.hooksPath .githooks`)
   rebuilds the SPA and runs the suite before every push. It borrows the newest nvm Node when the default
   is below 22, and `git push --no-verify` or `SKIP_E2E=1` skips it. `playwright.config.ts`'s `webServer`
   now passes `--urls ${baseURL}`, so `E2E_BASE_URL` can move the API off the reserved port 5264.
@@ -471,12 +474,12 @@ databases by decision. `TestDataSeed:Reset=true` clears them locally.
 
 #### Automated
 
-- [x] 3.1 Both specs pass: `npx playwright test e2e/staff-booking-reaches-member.spec.ts e2e/booking-without-karnet-is-refused.spec.ts`
-- [x] 3.2 Full suite green twice in a row: `npm run e2e && npm run e2e`
-- [x] 3.3 Formatting passes: `npm run quality:check`
+- [x] 3.1 Both specs pass: `npx playwright test e2e/staff-booking-reaches-member.spec.ts e2e/booking-without-karnet-is-refused.spec.ts` — fb2fa47
+- [x] 3.2 Full suite green twice in a row: `npm run e2e && npm run e2e` — fb2fa47
+- [x] 3.3 Formatting passes: `npm run quality:check` — fb2fa47
 
 #### Manual
 
-- [x] 3.4 Break-verify: the member's bookings omitting the new booking fails the booking spec
-- [x] 3.5 Break-verify: a changed `no_valid_pass` sentence fails the refusal spec
+- [x] 3.4 Break-verify: the member's bookings omitting the new booking fails the booking spec — fb2fa47
+- [x] 3.5 Break-verify: a changed `no_valid_pass` sentence fails the refusal spec — fb2fa47
 - [ ] 3.6 `test-plan.md` reads correctly for the next spec author
