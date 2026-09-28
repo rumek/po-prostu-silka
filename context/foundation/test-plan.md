@@ -94,7 +94,7 @@ those cases (corrected by Phase 4 research).
 ## 4. Stack
 
 Test profile: **meaningful** — 23 backend integration test files and 44
-colocated SPA spec files; one browser-level (e2e) spec plus its seed, local only.
+colocated SPA spec files; six browser-level (e2e) specs plus their seed, local only.
 
 | Layer | Tool | Version | Notes |
 |-------|------|---------|-------|
@@ -103,7 +103,7 @@ colocated SPA spec files; one browser-level (e2e) spec plus its seed, local only
 | external edges | hand-written fake email/push channels in the test project | n/a | Mock only at the delivery edge |
 | SPA unit | Vitest (via `ng test`) + jsdom | 4.x / 28.x | Colocated `*.spec.ts`; not yet run in CI — see Phase 3 |
 | SPA lint/format | ESLint + Prettier (`npm run quality:check`) | 10.x / 3.x | Not yet run in CI — see Phase 3 |
-| e2e | Playwright (`@playwright/test`, Chromium) | 1.63.0 | Added 2026-09-14 as a deliberately small layer, not a promotion of any risk above: §1 principle #1 still stands, and every risk in §2 keeps its cheaper primary layer. One spec (anonymous visitor on a guarded route → login → dashboard) complements #3's SPA guard specs by proving guard, auth API, cookie and database together. Runs against the shipped shape — the API serving the built SPA from `wwwroot` — never `ng serve`, which has no `/api` proxy. Local only; not in CI. See §6.6 |
+| e2e | Playwright (`@playwright/test`, Chromium) | 1.63.0 | Added 2026-09-14 as a deliberately small layer, not a promotion of any risk above: §1 principle #1 still stands, and every risk in §2 keeps its cheaper primary layer. One spec (anonymous visitor on a guarded route → login → dashboard) complements #3's SPA guard specs by proving guard, auth API, cookie and database together. Runs against the shipped shape — the API serving the built SPA from `wwwroot` — never `ng serve`, which has no `/api` proxy. S-31 added three journeys: an invitation link claims the recorded member with their karnet and booking (REG-01, #3), a trainer's booking reaches the member's Start with one entry fewer (BOOK-01, #2/#6), and a booking without a valid karnet is refused in the overlay with its sentence (BOOK-03, #2). Local only, by decision: never against staging and never in CI, because runs leave `E2E …` data behind; a `pre-push` git hook runs it instead. See §6.6 |
 | AI-native (local) | post-edit hook (`.claude/hooks/post-edit-spa.sh`) running Prettier, ESLint and the edited file's colocated spec — checked: 2026-09-13 | n/a | Corrected in Phase 3: this row used to promise "the targeted backend tests". Backend tests are deliberately NOT hooked — Testcontainers starts a SQL Server (30-60s), which breaks "per-edit stays fast". The spec half is scoped to `core/` and `shared/`. When NOT to use: as a substitute for the CI gate |
 
 **Stack grounding tools (current session):**
@@ -123,7 +123,7 @@ colocated SPA spec files; one browser-level (e2e) spec plus its seed, local only
 | SPA lint + format (`npm run quality:check`) | local + CI, gates deploy | required (wired) | style and lint drift |
 | post-edit hook | local (agent loop) | recommended (wired) | SPA format, lint and colocated-spec regressions at edit time |
 | pre-commit (lefthook) | local (git) | recommended (wired) | the same format and lint checks on staged SPA files, including edits that never passed through the agent |
-| e2e (`npm run e2e` from `src/app`) | local only | optional (not wired to CI) | a guarded route rendering for an anonymous visitor, or a valid sign-in not opening the app, across guard + auth API + cookie + database |
+| e2e (`npm run e2e` from `src/app`) | local only — `.githooks/pre-push` (`git config core.hooksPath .githooks`) | recommended (wired locally; never CI or staging, by decision) | a guarded route rendering for an anonymous visitor, or a valid sign-in not opening the app; an invitation link not claiming its record; a staff booking not reaching the member's Start or karnet; a karnet refusal not reaching the overlay — each across UI + API + database |
 
 ## 6. Cookbook Patterns
 
@@ -263,17 +263,42 @@ the relevant rollout phase ships; before that, the sub-section reads
   time, unique `Date.now()`-suffixed data, cleanup in the same test).
 - **Auth**: specs start signed in as the seeded admin through the `setup` project, which logs in via
   `POST /api/auth/login` and saves `playwright/.auth/admin.json` (gitignored). Only a spec whose risk
-  IS the login form opts out with `test.use({ storageState: { cookies: [], origins: [] } })`.
+  IS the login form opts out with `test.use({ storageState: { cookies: [], origins: [] } })`. Other
+  personas get their own context from `e2e/support/sessions.ts`: `anonymousContext` (a visitor) and
+  `signedInContext` (any account, signed in through the API, never the form).
+- **Arranging data** (`e2e/support/`, the pattern S-31 set): import `test`/`expect` from
+  `support/fixtures`, whose `club` fixture carries the builders (`support/club.ts` — member, karnet,
+  class, booking, invitation, registration). Each builder registers its own removal at creation, and
+  the fixture runs them in reverse order after the test, pass or fail (`support/cleanup.ts`), so
+  arrange a karnet BEFORE its class. A class nobody was booked on is deleted; a booked one is
+  CANCELLED, because the API keeps it as history, and the karnet that paid for it stays behind.
+  Classes take a random free slot with retry on `time_conflict` (`support/slots.ts`) — the overlap
+  rule is club-wide, so a fixed time collides between parallel specs. `support/schedule.ts` opens a
+  class's bookings overlay at phone width.
+- **The registration rate limit is stepped around, not tested**: every registration sends a unique
+  `X-Forwarded-For` (the limiter keys on its last segment), or a re-run within 5 minutes gets 429.
+  The integration tests own the limit.
+- **The E2E trainer**: `e2e/trainer.setup.ts` get-or-creates one trainer (`trainerCredentials`) per
+  run, on any database, and every class a spec creates is instructed by it.
 - **The app under test**: `playwright.config.ts` runs `npm run e2e:stage` (build the SPA, copy it into
-  `src/Api/wwwroot`) then `dotnet run --project ../Api/po-prostu-silka.Api.csproj` on
-  http://localhost:5264, and waits for `/health`. Locally it
-  reuses a server already listening there — which then serves whatever bundle is in `wwwroot`.
+  `src/Api/wwwroot`) then `dotnet run --project ../Api/po-prostu-silka.Api.csproj --urls <baseURL>`,
+  and waits for `/health`. `baseURL` is `E2E_BASE_URL`, default http://localhost:5264 (some Windows
+  machines reserve 5264 — use e.g. 5480). Locally it reuses a server already listening there — which
+  then serves whatever bundle is in `wwwroot`; the pre-push hook always rebuilds first.
 - **Beware the second line of defence.** `authInterceptor` sends any 401 to `/login`, so "the visitor
   ended up on `/login`" passes even with every route guard removed. The reference spec asserts instead
   that no member-data request (`/api/*` outside `/api/auth/*`) was sent before the login screen showed.
-- **Reference spec**: `e2e/guarded-route-redirects-to-login.spec.ts`.
-- **Prove it bites**: make `authGuard` and `activeMemberGuard` return `true` — the spec fails on the
-  `/api/bookings/mine` request. Revert, and re-run the suite so `wwwroot` is rebuilt from clean code.
+- **Reference specs**: `e2e/guarded-route-redirects-to-login.spec.ts` (auth, no data);
+  `e2e/staff-booking-reaches-member.spec.ts` (arrange through `club`, act as one persona, assert as
+  another).
+- **Prove it bites** — each spec was shown red, then reverted and re-run so `wwwroot` is rebuilt from
+  clean code:
+  - guarded route: make `authGuard` and `activeMemberGuard` return `true` — fails on the
+    `/api/bookings/mine` request;
+  - invitation claim: write `memberCode=` instead of `invitationCode=` in `copyInvitationLink` — fails
+    on the "Załóż konto" heading; make `loadPass` set `null` — fails on `4 z 5`;
+  - staff booking: filter the new booking out of the member's bookings — fails on the member's Start;
+  - refusal: change the `no_valid_pass` sentence in `booking-failure.ts` — fails on the alert.
 - **Run locally**: Docker running and migrations applied, then from `src/app`
   `npx playwright test e2e/<file>.spec.ts` (one spec) or `npm run e2e` (all).
 
@@ -308,6 +333,17 @@ the relevant rollout phase ships; before that, the sub-section reads
   by decision: a claimed member is told at the record's address, and moving a class then moving it back
   sends two rounds. The response guidance for risk #5 was corrected in §2 — a permanent failure is
   dead-lettered on the first attempt by design, so "retried rather than lost" overstated it.
+- **S-31 (e2e: invitation claim and staff booking):** three journeys, and the `e2e/support/` layer every
+  later spec copies. What stays behind, by decision: `E2E …` members and their `@example.test` accounts
+  (no delete endpoint — S-29 owns erasure), the karnets that paid for a booking, and cancelled `E2E`
+  classes. That is why e2e runs locally only — never on staging, never in CI — through a `pre-push`
+  hook; `TestDataSeed:Reset=true` clears a local database. The registration rate limit is stepped around
+  with a unique `X-Forwarded-For` rather than tested (integration-owned). Found on the way and fixed
+  in the same slice: `RevokePass` answered 500 for a karnet whose only bookings were released — it
+  checked active bookings, and the restrict foreign key refused the delete. It now refuses with a new
+  reason, `has_booking_history`, pinned by
+  `MembershipPassEndpointTests.A_pass_whose_booking_was_released_cannot_be_revoked` and mapped in
+  `membership-pass-failure.ts`.
 
 ## 7. What We Deliberately Don't Test
 
@@ -318,7 +354,7 @@ the relevant rollout phase ships; before that, the sub-section reads
 ## 8. Freshness Ledger
 
 - Strategy (§1–§5) last reviewed: 2026-09-11
-- Stack versions last verified: 2026-09-14 (e2e row added)
+- Stack versions last verified: 2026-09-14 (e2e row added; journeys and pre-push gate added 2026-09-28, S-31)
 - AI-native tool references last verified: 2026-09-14
 
 Refresh (`/10x-test-plan --refresh`) when:

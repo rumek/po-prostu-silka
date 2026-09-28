@@ -5,10 +5,11 @@
  * Seed: seed.spec.ts. Runs as the seeded admin at a phone width, where the admin's Grafik is
  * /schedule and a class opens its bookings overlay.
  *
- * Creates a class type (unique name) and one class of it through the API; afterEach deletes the
- * class and deactivates the type — types cannot be deleted.
+ * Creates a class type (unique name) and one class of it, instructed by the E2E trainer, in a random
+ * free slot (support/slots.ts); the `club` fixture deletes the class and deactivates the type.
  */
-import { APIRequestContext, expect, test } from '@playwright/test';
+import { expect, test } from './support/fixtures';
+import { showWeekOf } from './support/slots';
 
 // The browser renders dates in the SAME timezone and locale this process computes them in, so the
 // day label the spec builds is the one the week strip shows.
@@ -18,70 +19,8 @@ test.use({
   locale: 'pl-PL',
 });
 
-let classId: string | null = null;
-let classTypeId: string | null = null;
-
-/**
- * A start inside the calendar's visible hours (06:00–23:00) that is still in the future: an hour
- * from now while that fits, otherwise tomorrow morning.
- */
-function nextStart(): Date {
-  const start = new Date(Date.now() + 60 * 60 * 1000);
-  start.setMinutes(Math.ceil(start.getMinutes() / 15) * 15, 0, 0);
-
-  if (start.getHours() >= 6 && start.getHours() < 22 && start.getDate() === new Date().getDate()) {
-    return start;
-  }
-
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  tomorrow.setHours(10, 0, 0, 0);
-  return tomorrow;
-}
-
-async function createClass(request: APIRequestContext, name: string, startsAt: Date) {
-  const trainers = await request.get('/api/admin/trainers');
-  expect(trainers.ok()).toBeTruthy();
-  const [trainer] = (await trainers.json()) as { id: string }[];
-  expect(trainer, 'the database needs at least one trainer').toBeDefined();
-
-  const type = await request.post('/api/admin/class-types', {
-    data: { name, description: null, defaultDurationMinutes: 30, defaultCapacity: 5 },
-  });
-  expect(type.ok()).toBeTruthy();
-  classTypeId = ((await type.json()) as { id: string }).id;
-
-  const created = await request.post('/api/admin/classes', {
-    data: {
-      classTypeId,
-      startsAt: startsAt.toISOString(),
-      durationMinutes: 30,
-      instructorMemberId: trainer.id,
-      capacity: 5,
-    },
-  });
-  expect(created.ok()).toBeTruthy();
-  classId = ((await created.json()) as { id: string }).id;
-}
-
-test.afterEach(async ({ request }) => {
-  if (classId) {
-    await request.delete(`/api/admin/classes/${classId}`);
-    classId = null;
-  }
-  if (classTypeId) {
-    await request.post(`/api/admin/class-types/${classTypeId}/deactivate`);
-    classTypeId = null;
-  }
-});
-
-test('back closes the open bookings overlay and stays on the schedule', async ({
-  page,
-  request,
-}) => {
-  const name = `E2E powrót ${Date.now()}`;
-  const startsAt = nextStart();
-  await createClass(request, name, startsAt);
+test('back closes the open bookings overlay and stays on the schedule', async ({ page, club }) => {
+  const created = await club.createClass(`E2E powrót ${Date.now()}`);
 
   await page.goto('/');
   await page
@@ -90,24 +29,19 @@ test('back closes the open bookings overlay and stays on the schedule', async ({
     .click();
   await page.waitForURL('/schedule');
 
-  // The phone calendar shows one day; move to the class's day if it is not today.
-  if (startsAt.toDateString() !== new Date().toDateString()) {
-    const label = startsAt.toLocaleDateString('pl-PL', {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    });
-    await expect(page.getByRole('group', { name: 'Dni tygodnia' })).toBeVisible();
-    // The strip's weeks start on Monday, so tomorrow is in the next one exactly when today is Sunday.
-    if (new Date().getDay() === 0) {
-      await page.getByRole('button', { name: 'Następny tydzień' }).click();
-    }
-    await page.getByRole('button', { name: label }).click();
-  }
+  // The phone calendar shows one day of a week strip; move to the class's week, then its day.
+  await expect(page.getByRole('group', { name: 'Dni tygodnia' })).toBeVisible();
+  await showWeekOf(page, created.startsAt);
+  const label = created.startsAt.toLocaleDateString('pl-PL', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+  await page.getByRole('button', { name: label }).click();
 
-  await page.getByRole('button', { name: new RegExp(name) }).click();
-  const dialog = page.getByRole('dialog', { name: `Zapisani na „${name}”` });
+  await page.getByRole('button', { name: new RegExp(created.name) }).click();
+  const dialog = page.getByRole('dialog', { name: `Zapisani na „${created.name}”` });
   await expect(dialog).toBeVisible();
 
   await page.goBack();

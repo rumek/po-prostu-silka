@@ -221,7 +221,10 @@ export class MemberAdminService {
     );
   }
 
-  /** Removes a karnet. Refused while any booking still points at it (`has_active_bookings`). */
+  /**
+   * Removes a karnet. Refused while any booking still points at it: `has_active_bookings` while one
+   * holds a spot, `has_booking_history` once all were released.
+   */
   async revokePass(memberId: string, passId: string): Promise<void> {
     await firstValueFrom(
       this.http.delete<void>(

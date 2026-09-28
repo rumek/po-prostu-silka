@@ -401,8 +401,84 @@ public class MembershipPassEndpointTests(IntegrationTestFixture fixture)
         Assert.Equal(1, await PassCountAsync(memberId));
     }
 
+    /// <summary>
+    /// A pass whose only booking was RELEASED is refused with <c>has_booking_history</c>, not a 500.
+    ///
+    /// <para>
+    /// The regression: the guard above looked at active bookings only, so once the spot was released
+    /// the handler went on to delete the pass, and the restrict foreign key from the (cancelled,
+    /// still-present) booking row answered with a server error. Found by the S-31 e2e cleanup.
+    /// </para>
+    ///
+    /// <para>
+    /// Arranged through the routes, like the test above, and on its own 2039 day (17 May) so the
+    /// club-wide overlap rule cannot make the two collide.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public async Task A_pass_whose_booking_was_released_cannot_be_revoked()
+    {
+        var admin = await AdminAsync();
+        var memberId = await fixture.CreateMemberAsync("Karnet Po Zwolnieniu");
+
+        var classStart = new DateTimeOffset(2039, 5, 17, 14, 0, 0, TimeSpan.Zero);
+
+        var trainerEmail = $"pass-trainer-{Guid.NewGuid():N}@test.local";
+        await fixture.CreateUserAsync(trainerEmail, AccountStatus.Active, ApplicationRoles.Trainer);
+        var trainerId = await fixture.FindMemberIdAsync(admin, trainerEmail);
+
+        var typeResponse = await admin.PostAsJsonAsync("/api/admin/class-types", new
+        {
+            name = $"Karnet Test {Guid.NewGuid():N}",
+            description = (string?)"Opis",
+            defaultDurationMinutes = 60,
+            defaultCapacity = 12,
+        });
+        Assert.Equal(HttpStatusCode.OK, typeResponse.StatusCode);
+        var type = (await typeResponse.Content.ReadFromJsonAsync<CreatedId>())!;
+
+        var classResponse = await admin.PostAsJsonAsync("/api/admin/classes", new
+        {
+            classTypeId = type.Id,
+            startsAt = classStart,
+            instructorMemberId = trainerId,
+            durationMinutes = 60,
+            capacity = 12,
+        });
+        Assert.Equal(HttpStatusCode.OK, classResponse.StatusCode);
+        var scheduled = (await classResponse.Content.ReadFromJsonAsync<CreatedId>())!;
+
+        var issued = await admin.PostAsJsonAsync(
+            $"/api/admin/members/{memberId}/passes",
+            Request(new DateOnly(2039, 5, 16), new DateOnly(2039, 5, 18)));
+        var pass = await issued.Content.ReadFromJsonAsync<MembershipPassView>();
+        Assert.NotNull(pass);
+
+        var booked = await admin.PostAsJsonAsync(
+            $"/api/admin/classes/{scheduled.Id}/bookings", new { memberId });
+        Assert.Equal(HttpStatusCode.OK, booked.StatusCode);
+
+        // The booking POST answers with the class; the booking's id comes from the class's roster.
+        var roster = await admin.GetFromJsonAsync<RosterRow[]>(
+            $"/api/admin/classes/{scheduled.Id}/bookings");
+        var booking = Assert.Single(roster!);
+
+        var released = await admin.DeleteAsync(
+            $"/api/admin/classes/{scheduled.Id}/bookings/{booking.BookingId}");
+        Assert.True(released.IsSuccessStatusCode, $"release answered {released.StatusCode}");
+
+        var refused = await admin.DeleteAsync($"/api/admin/members/{memberId}/passes/{pass.Id}");
+
+        Assert.Equal(HttpStatusCode.Conflict, refused.StatusCode);
+        Assert.Equal("has_booking_history", await ReasonAsync(refused));
+        Assert.Equal(1, await PassCountAsync(memberId));
+    }
+
     /// <summary>Just the id, for the two arrangement POSTs above.</summary>
     private sealed record CreatedId(Guid Id);
+
+    /// <summary>Just the booking id from a roster row, which the release route is addressed by.</summary>
+    private sealed record RosterRow(Guid BookingId);
 
     /// <summary>
     /// The nesting is enforced rather than decorative: without the MemberId comparison in the handler,

@@ -85,6 +85,17 @@ public interface IBookingStore
     Task<bool> AnyActiveForPassAsync(Guid passId, CancellationToken cancellationToken);
 
     /// <summary>
+    /// Whether ANY booking carries this pass's id, released ones included.
+    ///
+    /// <para>
+    /// The revoke guard's second half. A release marks a booking Cancelled but keeps the row, and the
+    /// row keeps its pass id, so a pass whose every booking was released is still referenced — the
+    /// restrict foreign key refuses its delete exactly as it refuses a class's (see DeleteClass).
+    /// </para>
+    /// </summary>
+    Task<bool> AnyForPassAsync(Guid passId, CancellationToken cancellationToken);
+
+    /// <summary>
     /// Rotates the stamp of every distinct karnet an active booking on this class carries, without
     /// saving (S-27).
     ///

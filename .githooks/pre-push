@@ -1,0 +1,48 @@
+#!/bin/sh
+# Runs the Playwright E2E suite against the LOCAL app before every push.
+#
+# E2E runs locally only - never against staging, never in the deploy pipeline - because every run
+# leaves `E2E ...` members, accounts, karnets and cancelled classes behind (src/app/e2e/CLAUDE.md).
+# This hook is where it runs instead.
+#
+# Enable once per clone:  git config core.hooksPath .githooks
+# Skip one push:          git push --no-verify   (or SKIP_E2E=1 git push)
+#
+# Needs `docker compose up -d` and migrations applied. The API is reused if it already answers on
+# E2E_BASE_URL (default http://localhost:5264), and started by Playwright otherwise.
+set -eu
+
+if [ "${SKIP_E2E:-}" = "1" ]; then
+  echo "pre-push: SKIP_E2E=1 - E2E suite skipped."
+  exit 0
+fi
+
+node_major() {
+  node --version 2>/dev/null | sed -E 's/^v([0-9]+).*/\1/'
+}
+
+# The Angular CLI refuses Node below 22 (AGENTS.md). If the default is older, borrow the newest
+# nvm-windows install for this hook only, rather than switching the machine's global version.
+if [ "$(node_major || echo 0)" -lt 22 ] && [ -n "${NVM_HOME:-}" ]; then
+  # NVM_HOME is a Windows path (C:\nvm); its drive colon would split PATH, so convert it first.
+  nvm_home=$(cygpath -u "$NVM_HOME" 2>/dev/null || echo "$NVM_HOME")
+  newest=$(ls -d "$nvm_home"/v* 2>/dev/null | sort -V | tail -n 1 || true)
+  if [ -n "$newest" ]; then
+    PATH="$newest:$PATH"
+    export PATH
+  fi
+fi
+
+if [ "$(node_major || echo 0)" -lt 22 ]; then
+  echo "pre-push: Node 22+ is required for the E2E suite (found $(node --version 2>/dev/null || echo none))." >&2
+  echo "pre-push: select a newer Node, or push with --no-verify to skip." >&2
+  exit 1
+fi
+
+cd "$(git rev-parse --show-toplevel)/src/app"
+
+echo "pre-push: building the SPA into wwwroot, then running the E2E suite (node $(node --version))..."
+
+# Always rebuild: a server that is already running is reused, and would otherwise serve a stale bundle.
+npm run e2e:stage
+npx playwright test

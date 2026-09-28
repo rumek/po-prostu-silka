@@ -33,18 +33,23 @@ describe('membershipPassFailureMessage', () => {
   });
 
   /**
-   * THE THREE REFUSALS THAT LEAD TO DIFFERENT ACTIONS AT THE DESK. Conflating any two of them sends
-   * the admin down the wrong path: unblock the person, free up their bookings, or pick another date.
+   * THE FOUR REFUSALS THAT LEAD TO DIFFERENT ACTIONS AT THE DESK. Conflating any two of them sends
+   * the admin down the wrong path: unblock the person, free up their bookings, change the karnet's
+   * dates rather than delete it, or pick another date. `has_booking_history` must NOT say "wypisz":
+   * there is nobody left to release, which is exactly why it is a reason of its own.
    */
   it('tells the blocking refusals apart', () => {
     const blocked = membershipPassFailureMessage('member_blocked');
     const booked = membershipPassFailureMessage('has_active_bookings');
+    const history = membershipPassFailureMessage('has_booking_history');
     const overlapping = membershipPassFailureMessage('overlapping_pass');
 
     expect(blocked).toContain('zablokowana');
     expect(booked).toContain('wypisz');
+    expect(history).toContain('historii');
+    expect(history).not.toContain('wypisz');
     expect(overlapping).toContain('nakładać');
 
-    expect(new Set([blocked, booked, overlapping]).size).toBe(3);
+    expect(new Set([blocked, booked, history, overlapping]).size).toBe(4);
   });
 });

@@ -303,6 +303,7 @@ export interface MembershipPassFailure {
     | 'invalid_entry_count'
     | 'overlapping_pass'
     | 'has_active_bookings'
+    | 'has_booking_history'
     | 'conflict';
 }
 
@@ -319,6 +320,7 @@ export const MEMBERSHIP_PASS_FAILURE_REASONS = Object.keys({
   invalid_entry_count: true,
   overlapping_pass: true,
   has_active_bookings: true,
+  has_booking_history: true,
   conflict: true,
 } satisfies Record<
   MembershipPassFailure['reason'],

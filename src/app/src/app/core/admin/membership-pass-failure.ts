@@ -28,6 +28,10 @@ const MESSAGES: Record<MembershipPassFailure['reason'], string> = {
     'Ta osoba ma już karnet obejmujący część tego okresu. Karnety nie mogą się nakładać.',
   has_active_bookings:
     'Z tego karnetu opłacono aktywne zapisy. Najpierw wypisz osobę z tych zajęć, potem usuń karnet.',
+  // Every booking on it was released, yet they stay as history of what this karnet paid for - so
+  // "release first" would be a dead end. What the admin can still do is change its dates.
+  has_booking_history:
+    'Tym karnetem opłacono już zapisy, które zostają w historii, więc nie da się go usunąć. Jeśli nie powinien obowiązywać, zmień jego daty.',
   // Not a product rule: the server lost an optimistic race. Refetching is genuinely the right advice.
   conflict: 'Ktoś właśnie zmienił dane tej osoby. Odśwież listę i spróbuj ponownie.',
 };

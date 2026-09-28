@@ -51,6 +51,15 @@ public static class RevokePass
             return Results.Json(new MembershipPassFailure("has_active_bookings"), statusCode: 409);
         }
 
+        // ANY BOOKING AT ALL, released ones included. A release keeps the row and its pass id, so the
+        // restrict foreign key refuses the delete; before this check that surfaced as a 500. A
+        // separate reason from the one above because the admin's next step differs: there is no
+        // spot left to release, the karnet paid for history and stays - change its dates instead.
+        if (await bookings.AnyForPassAsync(passId, cancellationToken))
+        {
+            return Results.Json(new MembershipPassFailure("has_booking_history"), statusCode: 409);
+        }
+
         passes.Remove(pass);
 
         if (!await unitOfWork.TrySaveChangesAsync(cancellationToken))
