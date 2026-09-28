@@ -3,7 +3,7 @@ project: "Po Prostu Siłka"
 version: 7
 status: draft
 created: 2026-08-31
-updated: 2026-09-25
+updated: 2026-09-28
 prd_version: 1, 2
 main_goal: quality
 top_blocker: external
@@ -156,6 +156,9 @@ privacy notice.
 | S-27 | class-attendance | (trainer, admin, member) staff mark who attended a class from its roster; a karnet entry is spent by attending, not by booking; a member sees their attendance history as a readable view, not a wall of text | S-16, S-25 | M-8 AT-01–AT-05 (unparks v1 §Non-Goals "No attendance / check-in tracking"; amends M-4 MP-06) | done |
 | S-28 | client-ready-environment | (owner, every persona) the single environment works end to end in a client demo, e-mail and push included; the owner is alerted before a client notices a failure; a bad deploy and a lost row are recoverable; every response carries baseline security | S-27, deploy-plan.md "Before production" | M-9 GL-01–GL-06 | in-progress |
 | S-29 | personal-data-baseline | (member, admin) a person reads what the club processes about them and why; the admin erases or anonymises a member on request without breaking the club's history; retention is a decision, not an accident | S-14, S-27 | M-9 GL-07 (v1 NFR "GDPR-baseline handling"; touches Open Roadmap Question 8) | ready |
+| S-30 | e2e-local-gate | (dev tooling) the browser-level suite runs locally before every push, against the app and the local SQL Server, and a red spec stops the push; it never runs on staging or in CI | S-31 (delivered with it) | none - outside any milestone (test tooling) | done |
+| S-31 | e2e-member-onboarding-and-booking | (dev tooling) a browser-level test proves an invited person lands on the club's record with its karnet and booking, and that a staff booking and a karnet refusal reach both screens they should | S-17, S-25 | none - outside any milestone (test tooling); manual plan REG-01, BOOK-01, BOOK-03 | in-progress |
+| S-32 | e2e-attendance-and-plans | (dev tooling) a browser-level test proves a recorded absence returns the entry on the member's screens, and a plan a trainer builds reaches the member's plan and exercise screens | S-31, S-27 | none - outside any milestone (test tooling); manual plan ATT-01, ATT-02, PLAN-01, MBR-05, MBR-06 | proposed |
 
 ## Streams
 
@@ -171,6 +174,7 @@ Navigation aid — groups items that share a Prerequisites chain. Canonical orde
 | E      | Code structure        | `S-18` · `S-19` → `S-23`                           | M-6, and the first stream that is not about the product. The two slices are siblings, not a chain — they share an intent and no files, so the `·` is deliberate: either order, or both at once in separate agent runs. `S-23` follows `S-19`, whose four outlets it gives components, and was folded into M-6 at close. |
 | G      | Persona class day     | `S-25` → `S-27`                                    | M-8. A chain: attendance is marked on the roster of the trainer's own classes, which is the surface `S-25` builds, and relies on its rule that staff hold no karnet. |
 | H      | Client-ready launch   | `S-28` · `S-29`                                    | M-9. Siblings, not a chain: the environment and the data-protection capability share no files, so either order or both at once. `S-28` goes first when only one runs, because it carries the north star. |
+| I      | Browser-level safety net | `S-31` (+ `S-30`) → `S-32`                  | Outside any milestone. `S-30` was re-scoped on 2026-09-28 from CI to a local pre-push gate and shipped inside `S-31`. `S-32` reuses the data-setup helpers `S-31` introduces. |
 
 ## Baseline
 
@@ -882,6 +886,80 @@ rather than in a slice body:
   every other.
 - **Status:** ready
 
+### S-30: The browser-level suite runs locally before every push, and a red spec stops the push
+
+- **Outcome:** (dev tooling - nothing a member or an admin sees changes) before every push, a
+  versioned `pre-push` git hook rebuilds the SPA into `wwwroot` and runs the Playwright suite against
+  the local API and the local Docker SQL Server; a failing spec stops the push. `git push --no-verify`
+  or `SKIP_E2E=1` skips it deliberately.
+- **Change ID:** e2e-local-gate (no change folder of its own — shipped inside
+  `e2e-member-onboarding-and-booking`, S-31)
+- **PRD refs:** none. Requested by the user on 2026-09-28 as "e2e in CI", then **re-scoped by the
+  user the same day to local only**: every run leaves `E2E …` members, accounts, karnets and cancelled
+  classes behind (members cannot be deleted), and the staging database must not collect them. So the
+  suite never runs against staging and never in the deploy pipeline. **Outside any milestone**, like
+  S-24: test tooling with no product capability.
+- **Prerequisites:** S-31 (the hook landed with its phase 2)
+- **Parallel with:** -
+- **Blockers:** -
+- **Unknowns:** -
+- **Risk:** a gate that lives on each clone, not on the server, is only as strong as its enablement:
+  a fresh clone runs nothing until `git config core.hooksPath .githooks`, and nothing stops a push
+  made with `--no-verify`. Accepted: the alternative was test data accumulating on staging.
+- **Status:** done
+
+### S-31: A browser-level test covers the invitation claim and a staff booking
+
+- **Outcome:** (dev tooling) two browser-level specs protect journeys no current test sees end to
+  end. First: an admin creates an accountless member, issues a karnet, books them into a class and
+  copies the invitation link from the member list; an anonymous visitor opens that link, registers,
+  and lands on Start showing that karnet and that booking. Second: staff book a member from the
+  schedule's bookings overlay, the member then sees the class and one entry fewer, and a member with
+  no valid karnet is refused in the overlay with the sentence the real API's reason maps to.
+- **Change ID:** e2e-member-onboarding-and-booking
+- **PRD refs:** none (test tooling). Protects the flows behind M-2 AM-004-AM-005, M-4 MP-01-MP-06
+  and M-5 IR-01-IR-06; manual plan cases `REG-01`, `BOOK-01`, `BOOK-03`. Complements `test-plan.md`
+  risks #2, #3 and #6, whose primary layers (integration, SPA specs) stay primary.
+- **Prerequisites:** S-17 (the invitation link and register screen), S-25 (the persona screens the
+  member lands on)
+- **Parallel with:** - (S-30, re-scoped to a local pre-push gate, shipped inside this slice)
+- **Blockers:** -
+- **Unknowns:**
+  - How a spec sets up its own data - through the admin API with the `request` fixture and
+    `Date.now()`-suffixed names - and how it cleans up when members cannot be deleted and a booked
+    class cannot be deleted. Owner: `/10x-plan`. Block: no.
+  - How a spec picks a class time that never collides: the overlap rule is club-wide, and parallel
+    specs and re-runs share one database. Owner: `/10x-plan`. Block: no.
+- **Risk:** the first multi-persona specs set the pattern every later one copies. A helper that
+  arranges data through production code rather than the API, or a fixed class slot, would pass once
+  and collide on the second run.
+- **Status:** in-progress
+
+### S-32: A browser-level test covers attendance and a trainer's plan
+
+- **Outcome:** (dev tooling) two browser-level specs. First: a trainer marks a booked member absent
+  on a class that has started, and the member sees the class as absent in Historia and the entry
+  back on their karnet. Second: a trainer builds a plan in the plan builder (library search, add,
+  parameters, save), and the member sees it on Mój plan in that order and opens an exercise's detail
+  from it.
+- **Change ID:** e2e-attendance-and-plans
+- **PRD refs:** none (test tooling). Protects M-8 AT-01-AT-05 and v1 FR-015-FR-017 as shipped; manual
+  plan cases `ATT-01`, `ATT-02`, `PLAN-01`, `MBR-05`, `MBR-06`.
+- **Prerequisites:** S-31 (its data-setup helpers and the multi-persona pattern), S-27 (attendance)
+- **Parallel with:** -
+- **Blockers:** -
+- **Unknowns:**
+  - How a spec gets a class that has STARTED when the API refuses to create one in the past: edit a
+    booked future class's start into the past (the API allows it on edit), or wait for a class
+    created to start within seconds. Owner: `/10x-plan`. Block: no, but it decides whether the spec
+    is deterministic.
+  - Whether the builder's drag-to-reorder is driven by a real pointer drag or left to the SPA spec,
+    since `@angular/cdk` drag-drop is the one step here that exists only in the rendered UI. Owner:
+    `/10x-plan`. Block: no.
+- **Risk:** the attendance spec is the one most likely to become time-dependent; a spec that sleeps
+  until a class starts is the wait-for-time anti-pattern `e2e/CLAUDE.md` forbids.
+- **Status:** proposed
+
 ## Backlog Handoff
 
 | Roadmap ID | Change ID                        | Suggested issue title                                        | Ready for `/10x-plan` | Notes                                              |
@@ -917,6 +995,9 @@ rather than in a slice body:
 | S-27       | class-attendance                 | Staff mark attendance on the class roster; karnet entries are spent by attending; member attendance history | no                    | North star of M-8. Needs S-25 archived, then `/10x-plan class-attendance` |
 | S-28       | client-ready-environment         | Make the single environment client-demo ready: /health and budget alerts, error telemetry, rehearsed rollback and restore, PR checks, security headers, known e-mail limits | yes                   | North star of M-9. Run `/10x-plan client-ready-environment`. Check B1 billing before 2026-09-29 |
 | S-29       | personal-data-baseline           | GDPR baseline: privacy notice, admin-initiated erasure/anonymisation that keeps the club's history consistent, retention periods | yes                   | Parallel with S-28. Needs the club's privacy-notice text before it ships, not before it is planned |
+| S-30       | e2e-local-gate                   | Run the Playwright suite locally before every push (`.githooks/pre-push`); never on staging or in CI | no                    | Done — shipped inside S-31 (e2e-member-onboarding-and-booking). Outside any milestone |
+| S-31       | e2e-member-onboarding-and-booking | E2E: invitation claim lands on the club record; staff booking and karnet refusal reach both screens | yes                   | Outside any milestone. Run `/10x-plan e2e-member-onboarding-and-booking`, then `/10x-e2e` |
+| S-32       | e2e-attendance-and-plans         | E2E: recorded absence returns the entry on the member's screens; a trainer's plan reaches the member | no                    | Needs S-31 (data-setup helpers) |
 
 ## Open Roadmap Questions
 
