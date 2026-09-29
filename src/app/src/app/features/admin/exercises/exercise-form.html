@@ -8,195 +8,237 @@
     <a class="link-button" routerLink="/admin/exercises">Wróć do listy</a>
   </p>
 } @else {
+  <!-- Said once here rather than as "(opcjonalnie)" on eight labels: the suffix doubled every label's
+       length and wrapped the paired ones onto different line counts. -->
+  <p class="hint exercise-form-hint">
+    Wymagana jest tylko nazwa — resztę możesz uzupełnić później.
+  </p>
+
   @if (state.error()) {
     <p class="alert" role="alert">{{ state.error() }}</p>
   }
 
-  <form class="panel" [formGroup]="form" (ngSubmit)="submit()">
-    <app-field label="Nazwa" for="name">
-      <input
-        id="name"
-        type="text"
-        [attr.maxlength]="maxName"
-        formControlName="name"
-        [attr.aria-invalid]="form.controls.name.touched && form.controls.name.invalid"
-      />
-      <p class="field-hint">
-        Jedyne wymagane pole. Dwa aktywne ćwiczenia nie mogą nazywać się tak samo.
-      </p>
-      @if (form.controls.name.touched && form.controls.name.invalid) {
-        <!-- The server's answer comes from the table via `server`; the other two branches are the
-             CLIENT-side checks, which the server never saw. -->
-        @if (form.controls.name.hasError('server')) {
-          <p class="field-error">{{ form.controls.name.getError('server') }}</p>
-        } @else if (form.controls.name.hasError('maxlength')) {
-          <p class="field-error">{{ failureMessage('name_too_long') }}</p>
-        } @else {
-          <p class="field-error">Podaj nazwę ćwiczenia.</p>
-        }
-      }
-    </app-field>
-
-    <app-field label="Opis (opcjonalnie)" for="description">
-      <textarea
-        id="description"
-        rows="3"
-        [attr.maxlength]="maxDescription"
-        formControlName="description"
-        [attr.aria-invalid]="form.controls.description.touched && form.controls.description.invalid"
-      ></textarea>
-      @if (form.controls.description.touched && form.controls.description.invalid) {
-        <p class="field-error">
-          {{
-            form.controls.description.getError('server') ?? failureMessage('description_too_long')
-          }}
-        </p>
-      }
-    </app-field>
-
-    <div class="exercise-form-pair">
-      <app-field label="Grupa mięśniowa (opcjonalnie)" for="muscleGroup">
-        <!-- Free text with suggestions: the list is what the library already uses, so the admin
-             clicks an existing value instead of retyping it slightly differently. Typing something
-             new is still allowed - a datalist suggests, it does not constrain. -->
-        <input
-          id="muscleGroup"
-          type="text"
-          list="muscleGroupOptions"
-          [attr.maxlength]="maxMuscleGroup"
-          formControlName="muscleGroup"
-          [attr.aria-invalid]="
-            form.controls.muscleGroup.touched && form.controls.muscleGroup.invalid
-          "
-        />
-        <datalist id="muscleGroupOptions">
-          @for (option of muscleGroups(); track option) {
-            <option [value]="option"></option>
+  <!-- Drawn like Moje konto: a block title above each card. The blocks follow the exercise screen
+       the member reads (shared/exercise-view) — facts, then instructions, then the film — so the
+       admin fills in what the member will see, in the order they will see it. -->
+  <form class="exercise-form" [formGroup]="form" (ngSubmit)="submit()">
+    <section class="exercise-form-block" aria-labelledby="exercise-form-basics">
+      <h2 id="exercise-form-basics" class="exercise-form-title">Podstawowe informacje</h2>
+      <div class="card exercise-form-card">
+        <app-field label="Nazwa" for="name">
+          <input
+            id="name"
+            type="text"
+            [attr.maxlength]="maxName"
+            formControlName="name"
+            [attr.aria-invalid]="form.controls.name.touched && form.controls.name.invalid"
+          />
+          <p class="field-hint">Dwa aktywne ćwiczenia nie mogą nazywać się tak samo.</p>
+          @if (form.controls.name.touched && form.controls.name.invalid) {
+            <!-- The server's answer comes from the table via `server`; the other two branches are
+                 the CLIENT-side checks, which the server never saw. -->
+            @if (form.controls.name.hasError('server')) {
+              <p class="field-error">{{ form.controls.name.getError('server') }}</p>
+            } @else if (form.controls.name.hasError('maxlength')) {
+              <p class="field-error">{{ failureMessage('name_too_long') }}</p>
+            } @else {
+              <p class="field-error">Podaj nazwę ćwiczenia.</p>
+            }
           }
-        </datalist>
-        @if (form.controls.muscleGroup.touched && form.controls.muscleGroup.invalid) {
-          <p class="field-error">
-            {{
-              form.controls.muscleGroup.getError('server') ??
-                failureMessage('muscle_group_too_long')
-            }}
-          </p>
-        }
-      </app-field>
+        </app-field>
 
-      <app-field label="Trudność (opcjonalnie)" for="difficulty">
-        <input
-          id="difficulty"
-          type="text"
-          list="difficultyOptions"
-          [attr.maxlength]="maxDifficulty"
-          formControlName="difficulty"
-          [attr.aria-invalid]="form.controls.difficulty.touched && form.controls.difficulty.invalid"
-        />
-        <datalist id="difficultyOptions">
-          @for (option of difficulties(); track option) {
-            <option [value]="option"></option>
+        <app-field label="Opis" for="description">
+          <textarea
+            id="description"
+            rows="3"
+            [attr.maxlength]="maxDescription"
+            formControlName="description"
+            [attr.aria-invalid]="
+              form.controls.description.touched && form.controls.description.invalid
+            "
+          ></textarea>
+          @if (form.controls.description.touched && form.controls.description.invalid) {
+            <p class="field-error">
+              {{
+                form.controls.description.getError('server') ??
+                  failureMessage('description_too_long')
+              }}
+            </p>
           }
-        </datalist>
-        @if (form.controls.difficulty.touched && form.controls.difficulty.invalid) {
-          <p class="field-error">
-            {{
-              form.controls.difficulty.getError('server') ?? failureMessage('difficulty_too_long')
-            }}
+        </app-field>
+      </div>
+    </section>
+
+    <section class="exercise-form-block" aria-labelledby="exercise-form-facts">
+      <h2 id="exercise-form-facts" class="exercise-form-title">Parametry</h2>
+      <div class="card exercise-form-card">
+        <div class="exercise-form-pair">
+          <!-- The icons are the ones the exercise screen draws beside these same facts. -->
+          <app-field label="Grupa mięśniowa" icon="target" for="muscleGroup">
+            <!-- Free text with suggestions: the list is what the library already uses, so the admin
+                 clicks an existing value instead of retyping it slightly differently. Typing
+                 something new is still allowed - a datalist suggests, it does not constrain. -->
+            <input
+              id="muscleGroup"
+              type="text"
+              list="muscleGroupOptions"
+              [attr.maxlength]="maxMuscleGroup"
+              formControlName="muscleGroup"
+              [attr.aria-invalid]="
+                form.controls.muscleGroup.touched && form.controls.muscleGroup.invalid
+              "
+            />
+            <datalist id="muscleGroupOptions">
+              @for (option of muscleGroups(); track option) {
+                <option [value]="option"></option>
+              }
+            </datalist>
+            @if (form.controls.muscleGroup.touched && form.controls.muscleGroup.invalid) {
+              <p class="field-error">
+                {{
+                  form.controls.muscleGroup.getError('server') ??
+                    failureMessage('muscle_group_too_long')
+                }}
+              </p>
+            }
+          </app-field>
+
+          <app-field label="Trudność" icon="level" for="difficulty">
+            <input
+              id="difficulty"
+              type="text"
+              list="difficultyOptions"
+              [attr.maxlength]="maxDifficulty"
+              formControlName="difficulty"
+              [attr.aria-invalid]="
+                form.controls.difficulty.touched && form.controls.difficulty.invalid
+              "
+            />
+            <datalist id="difficultyOptions">
+              @for (option of difficulties(); track option) {
+                <option [value]="option"></option>
+              }
+            </datalist>
+            @if (form.controls.difficulty.touched && form.controls.difficulty.invalid) {
+              <p class="field-error">
+                {{
+                  form.controls.difficulty.getError('server') ??
+                    failureMessage('difficulty_too_long')
+                }}
+              </p>
+            }
+          </app-field>
+        </div>
+
+        <app-field label="Sprzęt" icon="kettlebell" for="equipment">
+          <input
+            id="equipment"
+            type="text"
+            [attr.maxlength]="maxEquipment"
+            formControlName="equipment"
+            [attr.aria-invalid]="form.controls.equipment.touched && form.controls.equipment.invalid"
+          />
+          @if (form.controls.equipment.touched && form.controls.equipment.invalid) {
+            <p class="field-error">
+              {{
+                form.controls.equipment.getError('server') ?? failureMessage('equipment_too_long')
+              }}
+            </p>
+          }
+        </app-field>
+      </div>
+    </section>
+
+    <section class="exercise-form-block" aria-labelledby="exercise-form-guide">
+      <h2 id="exercise-form-guide" class="exercise-form-title">Instrukcja</h2>
+      <div class="card exercise-form-card">
+        <app-field label="Przygotowanie" for="preparation">
+          <textarea
+            id="preparation"
+            rows="3"
+            [attr.maxlength]="maxPreparation"
+            formControlName="preparation"
+            [attr.aria-invalid]="
+              form.controls.preparation.touched && form.controls.preparation.invalid
+            "
+          ></textarea>
+          @if (form.controls.preparation.touched && form.controls.preparation.invalid) {
+            <p class="field-error">
+              {{
+                form.controls.preparation.getError('server') ??
+                  failureMessage('preparation_too_long')
+              }}
+            </p>
+          }
+        </app-field>
+
+        <app-field label="Pozycja startowa" for="startingPosition">
+          <textarea
+            id="startingPosition"
+            rows="3"
+            [attr.maxlength]="maxStartingPosition"
+            formControlName="startingPosition"
+            [attr.aria-invalid]="
+              form.controls.startingPosition.touched && form.controls.startingPosition.invalid
+            "
+          ></textarea>
+          @if (form.controls.startingPosition.touched && form.controls.startingPosition.invalid) {
+            <p class="field-error">
+              {{
+                form.controls.startingPosition.getError('server') ??
+                  failureMessage('starting_position_too_long')
+              }}
+            </p>
+          }
+        </app-field>
+
+        <app-field label="Wykonanie" for="execution">
+          <textarea
+            id="execution"
+            rows="5"
+            [attr.maxlength]="maxExecution"
+            formControlName="execution"
+            [attr.aria-invalid]="form.controls.execution.touched && form.controls.execution.invalid"
+          ></textarea>
+          <p class="field-hint">
+            To jest tekst, który członek czyta między seriami — pisz krótkimi zdaniami.
           </p>
-        }
-      </app-field>
-    </div>
+          @if (form.controls.execution.touched && form.controls.execution.invalid) {
+            <p class="field-error">
+              {{
+                form.controls.execution.getError('server') ?? failureMessage('execution_too_long')
+              }}
+            </p>
+          }
+        </app-field>
+      </div>
+    </section>
 
-    <app-field label="Sprzęt (opcjonalnie)" for="equipment">
-      <input
-        id="equipment"
-        type="text"
-        [attr.maxlength]="maxEquipment"
-        formControlName="equipment"
-        [attr.aria-invalid]="form.controls.equipment.touched && form.controls.equipment.invalid"
-      />
-      @if (form.controls.equipment.touched && form.controls.equipment.invalid) {
-        <p class="field-error">
-          {{ form.controls.equipment.getError('server') ?? failureMessage('equipment_too_long') }}
-        </p>
-      }
-    </app-field>
-
-    <app-field label="Przygotowanie (opcjonalnie)" for="preparation">
-      <textarea
-        id="preparation"
-        rows="3"
-        [attr.maxlength]="maxPreparation"
-        formControlName="preparation"
-        [attr.aria-invalid]="form.controls.preparation.touched && form.controls.preparation.invalid"
-      ></textarea>
-      @if (form.controls.preparation.touched && form.controls.preparation.invalid) {
-        <p class="field-error">
-          {{
-            form.controls.preparation.getError('server') ?? failureMessage('preparation_too_long')
-          }}
-        </p>
-      }
-    </app-field>
-
-    <app-field label="Pozycja startowa (opcjonalnie)" for="startingPosition">
-      <textarea
-        id="startingPosition"
-        rows="3"
-        [attr.maxlength]="maxStartingPosition"
-        formControlName="startingPosition"
-        [attr.aria-invalid]="
-          form.controls.startingPosition.touched && form.controls.startingPosition.invalid
-        "
-      ></textarea>
-      @if (form.controls.startingPosition.touched && form.controls.startingPosition.invalid) {
-        <p class="field-error">
-          {{
-            form.controls.startingPosition.getError('server') ??
-              failureMessage('starting_position_too_long')
-          }}
-        </p>
-      }
-    </app-field>
-
-    <app-field label="Wykonanie (opcjonalnie)" for="execution">
-      <textarea
-        id="execution"
-        rows="5"
-        [attr.maxlength]="maxExecution"
-        formControlName="execution"
-        [attr.aria-invalid]="form.controls.execution.touched && form.controls.execution.invalid"
-      ></textarea>
-      <p class="field-hint">
-        To jest tekst, który członek czyta między seriami — pisz krótkimi zdaniami.
-      </p>
-      @if (form.controls.execution.touched && form.controls.execution.invalid) {
-        <p class="field-error">
-          {{ form.controls.execution.getError('server') ?? failureMessage('execution_too_long') }}
-        </p>
-      }
-    </app-field>
-
-    <app-field label="Film na YouTube (opcjonalnie)" for="videoUrl">
-      <input
-        id="videoUrl"
-        type="text"
-        inputmode="url"
-        [attr.maxlength]="maxVideoUrl"
-        formControlName="videoUrl"
-        [attr.aria-invalid]="form.controls.videoUrl.touched && form.controls.videoUrl.invalid"
-      />
-      <p class="field-hint">
-        Wklej link w dowolnej postaci — z paska adresu, z przycisku „Udostępnij”, ze Shortsów.
-        Zapisujemy sam identyfikator filmu, więc po zapisaniu zobaczysz tu link w jednolitej formie.
-      </p>
-      @if (form.controls.videoUrl.touched && form.controls.videoUrl.invalid) {
-        <p class="field-error">
-          {{ form.controls.videoUrl.getError('server') ?? failureMessage('invalid_video_url') }}
-        </p>
-      }
-    </app-field>
+    <section class="exercise-form-block" aria-labelledby="exercise-form-video">
+      <h2 id="exercise-form-video" class="exercise-form-title">Film</h2>
+      <div class="card exercise-form-card">
+        <app-field label="Link do filmu na YouTube" icon="play" for="videoUrl">
+          <input
+            id="videoUrl"
+            type="text"
+            inputmode="url"
+            [attr.maxlength]="maxVideoUrl"
+            formControlName="videoUrl"
+            [attr.aria-invalid]="form.controls.videoUrl.touched && form.controls.videoUrl.invalid"
+          />
+          <p class="field-hint">
+            Wklej link w dowolnej postaci — z paska adresu, z przycisku „Udostępnij”, ze Shortsów.
+            Zapisujemy sam identyfikator filmu, więc po zapisaniu zobaczysz tu link w jednolitej
+            formie.
+          </p>
+          @if (form.controls.videoUrl.touched && form.controls.videoUrl.invalid) {
+            <p class="field-error">
+              {{ form.controls.videoUrl.getError('server') ?? failureMessage('invalid_video_url') }}
+            </p>
+          }
+        </app-field>
+      </div>
+    </section>
 
     <div class="exercise-form-actions">
       <button type="submit" class="button" [disabled]="state.submitting()">

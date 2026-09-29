@@ -1,7 +1,48 @@
 @use 'breakpoints' as bp;
 
-// Layout only — .panel/.field/.field-error/.button/.alert/.notice and the control box itself
-// (input, select, textarea alike) come from src/styles.scss.
+// Layout only — .card/.field/.field-error/.hint/.button/.alert and the control box itself (input,
+// select, textarea alike) come from src/styles.scss. Drawn like Moje konto (features/profile): a
+// single column, a block title above each card.
+
+:host {
+  display: grid;
+  gap: var(--space-5);
+  max-width: 40rem;
+}
+
+// The screen title's own margin would double the grid's gap.
+.screen-title,
+.exercise-form-hint {
+  margin: 0;
+}
+
+.exercise-form {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.exercise-form-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+// The dashboard's block title (.dashboard-card-title): the body face, a label for the card under it.
+.exercise-form-title {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 1.125rem;
+  letter-spacing: 0;
+}
+
+.exercise-form-card {
+  padding: var(--space-5);
+
+  // The card's padding closes it; the last field's own bottom margin would double that.
+  > app-field:last-child .field {
+    margin-bottom: 0;
+  }
+}
 
 .field-hint {
   margin: 0;
@@ -9,16 +50,18 @@
   font-size: 0.8125rem;
 }
 
-// Two short fields side by side from tablet width up. This form is long — nine controls — and
-// pairing the two one-line taxonomy fields keeps the prose blocks closer together.
+// The two short taxonomy fields side by side from tablet width up. `align-items: start` so an error
+// under one of them does not stretch its neighbour; the labels are one line each, which is what
+// keeps the two inputs level.
 .exercise-form-pair {
   display: grid;
-  gap: var(--space-4);
+  align-items: start;
+  column-gap: var(--space-4);
 }
 
 @include bp.form-columns {
   .exercise-form-pair {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
 }
 
@@ -27,7 +70,6 @@
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-4);
-  margin-top: var(--space-5);
 }
 
 @include bp.narrow {

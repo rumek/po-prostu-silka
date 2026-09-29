@@ -49,10 +49,10 @@ nie tworzy się tu loginu i nie podaje e-maila.
 jest widoczna w „Moje konto” tego członka (`MBR-09`).
 
 ### MEM-07 · Kod klubowicza: pokaż, kopiuj, zamknij — P2
-**Kroki:** u osoby bez konta z aktywnym kodem wybierz „Pokaż kod klubowicza”, potem „Kopiuj kod”,
-„Kopiuj link”, „Zamknij”.
-**Oczekiwany rezultat:** widać kod i „Ważny do …”; po skopiowaniu pojawia się „Skopiowano.”, a w
-schowku jest odpowiednio kod albo pełny link `…/register?invitationCode=…`.
+**Kroki:** u osoby bez konta z aktywnym kodem wybierz „Pokaż kod klubowicza”, potem „Kopiuj link”,
+„Zamknij”.
+**Oczekiwany rezultat:** widać kod i „Ważny do …”; nie ma przycisku „Kopiuj kod”. Po skopiowaniu
+pojawia się „Skopiowano.”, a w schowku jest pełny link `…/register?invitationCode=…`.
 
 ### MEM-08 · Kod nie dla osoby z kontem ani zablokowanej — P2
 **Oczekiwany rezultat:** w menu osoby z kontem nie ma opcji kodu. U zablokowanej osoby bez konta

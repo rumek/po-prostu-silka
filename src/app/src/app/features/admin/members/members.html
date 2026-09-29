@@ -354,12 +354,10 @@
                     <p class="member-code-status">
                       Ważny do {{ view.expiresAt | date: 'd MMMM y, HH:mm' }}
                     </p>
-                    <!-- Two copies, because there are two ways to hand a code over: the LINK is
-                         pasted into a message, the CODE is read aloud at the desk. -->
+                    <!-- One copy, and it is the LINK: that is what the member needs, since it opens
+                         registration with the code filled in. The code stays on screen to be read
+                         aloud at the desk. -->
                     <div class="member-code-actions">
-                      <button type="button" class="link-button" (click)="copyCode()">
-                        Kopiuj kod
-                      </button>
                       <button type="button" class="link-button" (click)="copyInvitationLink()">
                         Kopiuj link
                       </button>
