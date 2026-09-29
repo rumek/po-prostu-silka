@@ -1,5 +1,5 @@
 import { DatePipe } from '@angular/common';
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, ElementRef, OnInit, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { useScreenTitle } from '../../../core/layout/screen-title';
@@ -19,6 +19,8 @@ import { Field } from '../../../shared/forms/field/field';
 import { Loading } from '../../../shared/forms/loading/loading';
 import { Empty } from '../../../shared/forms/empty/empty';
 import { Row } from '../../../shared/list/row';
+import { List } from '../../../shared/list/list';
+import { Icon } from '../../../shared/icons/icon';
 
 /**
  * Bounds mirrored from MembershipPassRules (src/Application/Members/MembershipPassRules.cs).
@@ -55,7 +57,7 @@ const MAX_VALIDITY_DAYS = 400;
  * </p>
  */
 @Component({
-  imports: [Row, Empty, Loading, Field, DatePipe, ReactiveFormsModule, RouterLink],
+  imports: [List, Row, Icon, Empty, Loading, Field, DatePipe, ReactiveFormsModule, RouterLink],
   selector: 'app-member-passes',
   styleUrl: './member-passes.scss',
   templateUrl: './member-passes.html',
@@ -63,6 +65,7 @@ const MAX_VALIDITY_DAYS = 400;
 export class MemberPasses implements OnInit {
   private readonly members = inject(MemberAdminService);
   private readonly route = inject(ActivatedRoute);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
 
   protected readonly memberId = signal<string>('');
   protected readonly member = signal<MemberDetail | null>(null);
@@ -174,6 +177,13 @@ export class MemberPasses implements OnInit {
       validTo: pass.validTo,
       entryCount: pass.entryCount,
     });
+
+    // The form sits ABOVE the history, so on a phone the row the admin tapped and the form it filled
+    // are screens apart. Optional calls: jsdom has neither scrollIntoView nor matchMedia.
+    const still = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? true;
+    this.host.nativeElement
+      .querySelector('#passes-form-title')
+      ?.scrollIntoView?.({ behavior: still ? 'auto' : 'smooth', block: 'start' });
   }
 
   protected cancelEdit(): void {

@@ -143,6 +143,13 @@ export class ClassBookingsOverlay implements OnInit {
   /** Rows with a mutation in flight, so one slow row does not disable the whole list. */
   protected readonly busy = createBusySet();
 
+  /**
+   * The mark each row is waiting on, so the tapped button — and only that one — turns into a spinner
+   * until the server answers. The busy set says THAT a row is busy; this says WHICH of its two buttons
+   * was pressed.
+   */
+  protected readonly pendingMark = signal<ReadonlyMap<string, Attendance>>(new Map());
+
   /** The booking whose release failed, and what to say about it. */
   protected readonly failedId = signal<string | null>(null);
   protected readonly failure = signal<string | null>(null);
@@ -398,6 +405,7 @@ export class ClassBookingsOverlay implements OnInit {
   /** One mark on the server; a refusal is left on the row. Clearing the last refusal is the caller's. */
   private async record(booking: ClassBooking, attendance: Attendance): Promise<void> {
     this.busy.setBusy(booking.bookingId, true);
+    this.pendingMark.update((pending) => new Map(pending).set(booking.bookingId, attendance));
 
     try {
       const updated = await this.bookings.recordAttendance(
@@ -416,6 +424,11 @@ export class ClassBookingsOverlay implements OnInit {
       this.failure.set(transportMessage(info) ?? bookingFailureMessage(info.reason));
     } finally {
       this.busy.setBusy(booking.bookingId, false);
+      this.pendingMark.update((pending) => {
+        const next = new Map(pending);
+        next.delete(booking.bookingId);
+        return next;
+      });
     }
   }
 

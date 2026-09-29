@@ -1,62 +1,200 @@
-// Layout only — the .panel/.card/.field/.hint/.notice/.section-title/.form-actions/.button
-// classes come from src/styles.scss, exactly as member-form.scss does it. The last three joined
-// them in S-23. The empty states are app-empty's, and style themselves.
+// Layout only — .card/.field/.hint/.alert/.badge/.form-actions/.button and the row classes come from
+// src/styles.scss; the empty states are app-empty's and style themselves. Drawn like Moje konto: a
+// single column of blocks, each a title above its card, and the live karnet as Start's karnet card.
+
+:host {
+  display: grid;
+  gap: var(--space-5);
+  max-width: 36rem;
+}
+
+// The screen title's own margin would double the grid's gap.
+.screen-title {
+  margin: 0;
+}
 
 .passes-back {
-  margin: 0 0 var(--space-4);
+  margin: calc(-1 * var(--space-3)) 0 0;
 }
 
-// The two date inputs sit side by side where there is room and stack on a phone. Not a media query:
-// the range is the only place on this screen with two controls on one line, so the wrap does the
-// whole job.
-.passes-range {
+// Block = title above card (ui-style-guide, "Screen anatomy").
+.passes-block {
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-4);
-
-  > .field {
-    flex: 1 1 12rem;
-  }
+  flex-direction: column;
+  gap: var(--space-2);
 }
 
-.passes-list {
-  list-style: none;
+.passes-block-title {
   margin: 0;
-  padding: 0;
-  display: grid;
+  font-family: var(--font-body);
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+// --- the live karnet: Start's karnet card, figure · rule · text -------------------------------------
+
+.passes-current {
+  display: flex;
+  flex-direction: column;
   gap: var(--space-3);
+  padding: var(--space-5);
 }
 
-// The live karnet, marked by a border rather than a fill — the badge already names it, and a filled
-// row would read as selected rather than as current.
-.passes-row--current {
-  border-color: var(--accent, currentColor);
-}
+.passes-kicker {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin: 0;
+  line-height: 1.2;
+  color: var(--gray);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 
-// A local override of the shared .row-identity: the pass lines are set tight against each other.
-.row-identity {
-  flex: 1 1 16rem;
-
-  > p {
-    margin: 0 0 var(--space-1);
+  app-icon {
+    color: var(--accent);
+    font-size: 0.8rem;
   }
+}
+
+.passes-current-body {
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.passes-figure {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 3rem;
+  margin: 0;
+}
+
+.passes-count {
+  font-family: var(--font-display);
+  font-size: 2.5rem;
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.passes-total {
+  color: var(--gray);
+  font-size: 0.875rem;
+  font-weight: 300;
+}
+
+.passes-current-text {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  padding-left: var(--space-3);
+  border-left: 1px solid var(--line-strong);
+}
+
+.passes-bar {
+  height: 6px;
+  margin-top: var(--space-1);
+  border-radius: 3px;
+  background: var(--section-warm);
+  overflow: hidden;
+
+  span {
+    display: block;
+    height: 100%;
+    background: var(--accent2);
+  }
+}
+
+// --- the form -----------------------------------------------------------------------------------
+
+.passes-form {
+  padding: var(--space-5);
+}
+
+// The two dates side by side where there is room, stacked on a phone — sized by the grid, no media
+// query. The grid's items are the app-field hosts, which is what a `> .field` selector used to miss.
+.passes-range {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+  column-gap: var(--space-4);
+}
+
+// Pulled up under the dates it explains, rather than floating halfway to the next field.
+.passes-range-hint {
+  margin: calc(-1 * var(--space-2)) 0 var(--space-4);
+}
+
+.passes-actions {
+  margin-top: var(--space-5);
+}
+
+// --- the history --------------------------------------------------------------------------------
+
+// List-card density (ui-style-guide, "Card density").
+.passes-row {
+  padding: var(--space-3) var(--space-4);
+}
+
+// The live karnet: the calendar tile's left bar, with the badge saying the same in a word.
+.passes-row--current {
+  border-left: 3px solid var(--accent2);
+}
+
+// The row the form above is editing, so the admin can tell which one Zapisz will change.
+.passes-row--editing {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
 }
 
 .passes-badge {
-  margin-left: var(--space-2);
-  font-size: 0.75rem;
+  color: var(--accent);
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--muted);
 }
 
-.passes-range-text,
-.passes-entries {
-  font-size: 0.9375rem;
+// The pass lines set tight against each other. On the projected paragraphs, which carry this
+// screen's scope — Row's own .row-identity wrapper does not, and a rule on it would never match.
+.passes-row p:not(:last-child) {
+  margin: 0 0 var(--space-1);
+}
+
+.passes-row p:last-child {
+  margin: 0;
+}
+
+.passes-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+
+  app-icon {
+    flex: none;
+    color: var(--accent2);
+    font-size: 0.75rem;
+  }
+
+  strong {
+    color: var(--ink);
+  }
+}
+
+.passes-used {
+  color: var(--gray);
 }
 
 .passes-issued {
-  color: var(--muted);
+  color: var(--gray);
   font-size: 0.8125rem;
 }

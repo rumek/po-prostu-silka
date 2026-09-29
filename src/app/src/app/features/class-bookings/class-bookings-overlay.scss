@@ -14,10 +14,11 @@
   justify-content: center;
   padding: var(--space-4);
 
-  // On a phone the roster is the whole point, so this becomes a bottom sheet: the sheet opens by
-  // the thumb, its title stays at the top and the list has the maximum possible vertical room.
+  // On a phone the roster is the whole point, so the sheet takes the whole screen: a bottom sheet
+  // that stopped a few pixels short of the top read as "almost covered", with the page peeking
+  // behind it and nothing to close it by but a link at the foot.
   @include bp.narrow {
-    align-items: flex-end;
+    align-items: stretch;
     padding: 0;
   }
 }
@@ -28,10 +29,74 @@
 .overlay-panel {
   max-width: 32rem;
 
+  // Full screen, as a column: the head (title, class facts, tally) and the sign-up block stay put and
+  // only the roster between them scrolls, so the tally and the close stay in reach of the thumb while
+  // the staff member works down a long list.
   @include bp.narrow {
-    max-height: calc(100dvh - var(--space-2));
-    padding: var(--space-4);
-    border-radius: var(--radius) var(--radius) 0 0;
+    display: flex;
+    flex-direction: column;
+    max-width: none;
+    height: 100dvh;
+    max-height: 100dvh;
+    padding: calc(var(--space-3) + env(safe-area-inset-top)) var(--space-4)
+      calc(var(--space-4) + env(safe-area-inset-bottom));
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+}
+
+// The title and, on a phone, the X that closes the sheet.
+.bookings-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2);
+
+  .overlay-title {
+    min-width: 0;
+  }
+
+  @include bp.narrow {
+    align-items: center;
+    margin-bottom: var(--space-2);
+
+    .overlay-title {
+      margin: 0;
+    }
+  }
+}
+
+.bookings-close {
+  display: none;
+
+  @include bp.narrow {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    margin-right: calc(-1 * var(--space-2));
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--ink);
+    cursor: pointer;
+    transition: background-color 200ms ease;
+
+    app-icon {
+      font-size: 1rem;
+    }
+
+    &:hover {
+      background: var(--section-warm);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      transition: none;
+    }
   }
 }
 
@@ -218,6 +283,40 @@
     cursor: progress;
     opacity: 0.6;
   }
+
+  // The tapped option, waiting on the server: full strength, so the spinner reads as "working" rather
+  // than as the dimmed "unavailable" of its twin.
+  &[aria-busy='true'] {
+    opacity: 1;
+    color: var(--accent);
+  }
+}
+
+// The same ring as app-loading's, at the glyph's size: the same arc in --accent over a --section-warm
+// track, so "working" looks one way in the app.
+.attendance-spinner {
+  width: 1.125rem;
+  height: 1.125rem;
+  border: 2px solid var(--section-warm);
+  border-top-color: currentcolor;
+  border-radius: 50%;
+  animation: attendance-spin 800ms linear infinite;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: attendance-breathe 1.6s ease-in-out infinite alternate;
+  }
+}
+
+@keyframes attendance-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes attendance-breathe {
+  to {
+    opacity: 0.4;
+  }
 }
 
 .attendance-option--present[aria-pressed='true'] {
@@ -231,6 +330,24 @@
 }
 
 @include bp.narrow {
+  // The roster is the part that scrolls. Hairlines above and below mark where it runs under the fixed
+  // head and foot; contain keeps a fling at the end of the list from dragging the page behind.
+  .bookings-list {
+    flex: 1 1 auto;
+    min-height: 0;
+    margin: 0 calc(-1 * var(--space-4));
+    padding: var(--space-3) var(--space-4);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+  }
+
+  // The X in the head closes the sheet; a second close at the foot would only take roster room.
+  .overlay-actions {
+    display: none;
+  }
+
   // A timestamp is useful at the desk but not while scanning a phone roster. Keeping only the
   // contact line leaves each pre-class row to name one person and offer one clear action.
   .bookings-row:not(.bookings-row--attendance) .row-identity .row-meta:last-child {

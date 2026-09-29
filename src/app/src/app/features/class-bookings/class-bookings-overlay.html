@@ -8,7 +8,16 @@
 ></button>
 
 <div class="card overlay-panel" role="dialog" aria-modal="true" aria-labelledby="bookings-title">
-  <h2 id="bookings-title" class="overlay-title">Zapisani na „{{ row().name }}”</h2>
+  <!-- On a phone the sheet takes the whole screen, so its way out moves to where a full-screen
+       dialog keeps it: an X beside the title. Hidden above the phone width, where the backdrop and
+       the "Zamknij" link at the foot already close it — exactly one close control is ever visible. -->
+  <div class="bookings-head">
+    <h2 id="bookings-title" class="overlay-title">Zapisani na „{{ row().name }}”</h2>
+    <button type="button" class="bookings-close" title="Zamknij" (click)="close()">
+      <app-icon name="close" />
+      <span class="cdk-visually-hidden">Zamknij</span>
+    </button>
+  </div>
 
   <!-- The class context stays compact: the roster is the point of this sheet, but date, trainer and
        capacity must remain visible while staff add or release a person. -->
@@ -93,10 +102,17 @@
                 class="attendance-option attendance-option--present"
                 [attr.aria-pressed]="booking.attendance === 'present'"
                 [disabled]="busy.isBusy(booking.bookingId)"
+                [attr.aria-busy]="pendingMark().get(booking.bookingId) === 'present' || null"
                 (click)="mark(booking, 'present')"
                 title="Obecny"
               >
-                <app-icon name="present" />
+                <!-- The tapped option spins until the server answers; the word stays for a
+                     screen reader, and aria-busy tells it the mark is on its way. -->
+                @if (pendingMark().get(booking.bookingId) === 'present') {
+                  <span class="attendance-spinner" aria-hidden="true"></span>
+                } @else {
+                  <app-icon name="present" />
+                }
                 <span class="cdk-visually-hidden">Obecny</span>
               </button>
               <button
@@ -104,10 +120,17 @@
                 class="attendance-option attendance-option--absent"
                 [attr.aria-pressed]="booking.attendance === 'absent'"
                 [disabled]="busy.isBusy(booking.bookingId)"
+                [attr.aria-busy]="pendingMark().get(booking.bookingId) === 'absent' || null"
                 (click)="mark(booking, 'absent')"
                 title="Nieobecny"
               >
-                <app-icon name="absent" />
+                <!-- The tapped option spins until the server answers; the word stays for a
+                     screen reader, and aria-busy tells it the mark is on its way. -->
+                @if (pendingMark().get(booking.bookingId) === 'absent') {
+                  <span class="attendance-spinner" aria-hidden="true"></span>
+                } @else {
+                  <app-icon name="absent" />
+                }
                 <span class="cdk-visually-hidden">Nieobecny</span>
               </button>
             </div>
