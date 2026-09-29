@@ -132,9 +132,9 @@ test('a plan a trainer builds and reorders reaches the member in that order', as
     // The card opens that exercise's detail, and up leads back to the plan.
     await details.nth(1).click();
     await expect(page.getByRole('heading', { level: 1, name: a })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Opis' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Opis', exact: true })).toBeVisible();
     await expect(page.getByText(description)).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Wykonanie' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Wykonanie', exact: true })).toBeVisible();
     await expect(page.getByText(execution)).toBeVisible();
 
     await page.getByRole('link', { name: 'Wróć do planu' }).click();

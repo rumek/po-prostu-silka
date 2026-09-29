@@ -10,6 +10,7 @@
  * member stays behind.
  */
 import { trainerCredentials } from './credentials';
+import { uniqueSuffix } from './support/club';
 import { expect, test } from './support/fixtures';
 import { addToClass, openClassBookings, PHONE } from './support/schedule';
 import { signedInContext } from './support/sessions';
@@ -21,7 +22,7 @@ test('booking a member without a valid karnet is refused in the overlay', async 
   club,
 }) => {
   // Arrange: a member the club recorded, with no karnet, and an empty class.
-  const suffix = Date.now();
+  const suffix = uniqueSuffix();
   const name = `E2E bez karnetu ${suffix}`;
   await club.createMember(name);
   const created = await club.createClass(`E2E klasa odmowy ${suffix}`);

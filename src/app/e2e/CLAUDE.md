@@ -38,7 +38,9 @@ spec on `seed.spec.ts`. Run one spec with `npx playwright test e2e/<file>.spec.t
   moves the booked class to a random free slot in the past week through the admin edit. Never a
   sleep until a start, never a class created to start in seconds: a started class takes no booking,
   so book first. Its karnet must cover the past slot — `issuePass(…, { validFromDaysAgo: 7 })`. A
-  started class can be neither deleted nor cancelled, so it stays behind as attendance history.
+  started class can be neither deleted nor cancelled, so it stays behind as attendance history —
+  in a pool of past slots every run of the last 6 days shares. Avoid large `--repeat-each` runs of
+  the attendance spec: around a hundred in one week and `startClass` finds no free slot.
 - Exercises only through `club.createExercise`, named `E2E <purpose> <ts>` (names are unique among
   active exercises); cleanup deactivates them, since exercises cannot be deleted. A plan has no
   delete either, so it stays behind on its E2E member.
@@ -53,7 +55,9 @@ spec on `seed.spec.ts`. Run one spec with `npx playwright test e2e/<file>.spec.t
 - Classes are instructed by the one E2E trainer (`trainerCredentials`), which `trainer.setup.ts`
   get-or-creates before any spec runs.
 - Members and accounts cannot be deleted, so they stay behind: name every member
-  `E2E <purpose> <Date.now()>` and give every address `@example.test`.
+  `E2E <purpose> <uniqueSuffix()>` (`support/club.ts`) and give every address `@example.test`.
+  Not `Date.now()`: parallel workers can start in the same millisecond, and two members with one
+  name break every locator that finds them by name.
 - E2E runs against the LOCAL database only — never staging, never in the deploy pipeline — because
   of what it leaves behind. The `pre-push` hook (`.githooks/pre-push`) runs the suite before a push;
   `git push --no-verify` skips it.

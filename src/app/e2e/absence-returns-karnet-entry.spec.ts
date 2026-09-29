@@ -54,7 +54,7 @@ test('an absence recorded by the trainer returns the entry and reads absent in h
         .getByRole('button', { name: 'Nieobecny' });
       await absent.click();
       await expect(absent).toHaveAttribute('aria-pressed', 'true');
-      await expect(dialog.getByText(/Nieobecni: 1/)).toBeVisible();
+      await expect(dialog.getByText(/Nieobecni: 1 ·/)).toBeVisible();
     } finally {
       await trainer.close();
     }

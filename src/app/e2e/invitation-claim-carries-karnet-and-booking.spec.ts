@@ -11,6 +11,7 @@
  * and its `@example.test` account stay behind.
  */
 import { memberPassword } from './credentials';
+import { uniqueSuffix } from './support/club';
 import { expect, test } from './support/fixtures';
 import { anonymousContext } from './support/sessions';
 
@@ -23,7 +24,7 @@ test('an invitation link claims the recorded member with their karnet and bookin
 }) => {
   // Arrange: a member the club recorded at the desk, with a karnet and a booking already on it.
   // The karnet goes first - the class's removal must release the booking before it is revoked.
-  const suffix = Date.now();
+  const suffix = uniqueSuffix();
   const name = `E2E zaproszenie ${suffix}`;
   const memberId = await club.createMember(name);
   await club.issuePass(memberId, 5);

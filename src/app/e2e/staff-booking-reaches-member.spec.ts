@@ -10,6 +10,7 @@
  * type; the cancelled class, the member with its karnet and account stay behind.
  */
 import { memberPassword, trainerCredentials } from './credentials';
+import { uniqueSuffix } from './support/club';
 import { expect, test } from './support/fixtures';
 import { addToClass, openClassBookings, PHONE } from './support/schedule';
 import { signedInContext } from './support/sessions';
@@ -21,7 +22,7 @@ test('a trainer booking reaches the member start with one entry fewer', async ({
   club,
 }) => {
   // Arrange: a member with an account and a karnet, then an empty class (karnet first - see CLAUDE.md).
-  const suffix = Date.now();
+  const suffix = uniqueSuffix();
   const name = `E2E zapis ${suffix}`;
   const email = `e2e-${suffix}@example.test`;
   const memberId = await club.createMember(name);
