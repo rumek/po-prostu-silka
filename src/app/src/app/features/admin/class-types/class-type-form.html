@@ -8,104 +8,131 @@
     <a class="link-button" routerLink="/admin/class-types">Wróć do listy</a>
   </p>
 } @else {
+  <!-- Said once here rather than as "(opcjonalnie)" on a label, as on the exercise form. -->
+  <p class="hint class-type-form-hint">Opis jest opcjonalny — pozostałe pola trzeba wypełnić.</p>
+
   @if (state.error()) {
     <p class="alert" role="alert">{{ state.error() }}</p>
   }
 
-  <form class="panel" [formGroup]="form" (ngSubmit)="submit()">
-    <app-field label="Nazwa" for="name">
-      <input
-        id="name"
-        type="text"
-        [attr.maxlength]="maxName"
-        formControlName="name"
-        [attr.aria-invalid]="form.controls.name.touched && form.controls.name.invalid"
-      />
-      <p class="field-hint">
-        Widoczna przy każdych zajęciach tego typu. Zmiana nazwy zmienia ją wszędzie, także w
-        zajęciach, które już się odbyły.
-      </p>
-      @if (form.controls.name.touched && form.controls.name.invalid) {
-        <!-- The server's answer comes from the table via `server`; the other two branches are the
-             CLIENT-side checks, which the server never saw. -->
-        @if (form.controls.name.hasError('server')) {
-          <p class="field-error">{{ form.controls.name.getError('server') }}</p>
-        } @else if (form.controls.name.hasError('maxlength')) {
-          <p class="field-error">{{ failureMessage('name_too_long') }}</p>
-        } @else {
-          <p class="field-error">Podaj nazwę typu zajęć.</p>
-        }
-      }
-    </app-field>
+  <!-- Drawn like the exercise form and Moje konto: a block title above each card. The numbers get
+       a block of their own because they are the part that behaves differently — a copy taken when
+       a class is created, where the name propagates everywhere. -->
+  <form class="class-type-form" [formGroup]="form" (ngSubmit)="submit()">
+    <section class="class-type-form-block" aria-labelledby="class-type-form-basics">
+      <h2 id="class-type-form-basics" class="class-type-form-title">Podstawowe informacje</h2>
+      <div class="card class-type-form-card">
+        <app-field label="Nazwa" for="name">
+          <input
+            id="name"
+            type="text"
+            [attr.maxlength]="maxName"
+            formControlName="name"
+            [attr.aria-invalid]="form.controls.name.touched && form.controls.name.invalid"
+          />
+          <p class="field-hint">
+            Widoczna przy każdych zajęciach tego typu. Zmiana nazwy zmienia ją wszędzie, także w
+            zajęciach, które już się odbyły.
+          </p>
+          @if (form.controls.name.touched && form.controls.name.invalid) {
+            <!-- The server's answer comes from the table via `server`; the other two branches are
+                 the CLIENT-side checks, which the server never saw. -->
+            @if (form.controls.name.hasError('server')) {
+              <p class="field-error">{{ form.controls.name.getError('server') }}</p>
+            } @else if (form.controls.name.hasError('maxlength')) {
+              <p class="field-error">{{ failureMessage('name_too_long') }}</p>
+            } @else {
+              <p class="field-error">Podaj nazwę typu zajęć.</p>
+            }
+          }
+        </app-field>
 
-    <app-field label="Opis (opcjonalnie)" for="description">
-      <textarea
-        id="description"
-        rows="4"
-        [attr.maxlength]="maxDescription"
-        formControlName="description"
-        [attr.aria-invalid]="form.controls.description.touched && form.controls.description.invalid"
-      ></textarea>
-      <p class="field-hint">
-        Co to za zajęcia, dla kogo, co zabrać. To jedyne miejsce, w którym członek dowie się tego
-        przed zapisaniem.
-      </p>
-      @if (form.controls.description.touched && form.controls.description.invalid) {
-        <p class="field-error">
-          {{
-            form.controls.description.getError('server') ?? failureMessage('description_too_long')
-          }}
-        </p>
-      }
-    </app-field>
+        <app-field label="Opis" for="description">
+          <textarea
+            id="description"
+            rows="4"
+            [attr.maxlength]="maxDescription"
+            formControlName="description"
+            [attr.aria-invalid]="
+              form.controls.description.touched && form.controls.description.invalid
+            "
+          ></textarea>
+          <p class="field-hint">
+            Co to za zajęcia, dla kogo, co zabrać. To jedyne miejsce, w którym członek dowie się
+            tego przed zapisaniem.
+          </p>
+          @if (form.controls.description.touched && form.controls.description.invalid) {
+            <p class="field-error">
+              {{
+                form.controls.description.getError('server') ??
+                  failureMessage('description_too_long')
+              }}
+            </p>
+          }
+        </app-field>
+      </div>
+    </section>
 
-    <app-field label="Domyślny czas trwania (minuty)" for="defaultDurationMinutes">
-      <input
-        id="defaultDurationMinutes"
-        type="number"
-        min="1"
-        max="480"
-        formControlName="defaultDurationMinutes"
-        [attr.aria-invalid]="
-          form.controls.defaultDurationMinutes.touched &&
-          form.controls.defaultDurationMinutes.invalid
-        "
-      />
-      @if (
-        form.controls.defaultDurationMinutes.touched && form.controls.defaultDurationMinutes.invalid
-      ) {
-        <p class="field-error">
-          {{
-            form.controls.defaultDurationMinutes.getError('server') ??
-              failureMessage('invalid_duration')
-          }}
-        </p>
-      }
-    </app-field>
+    <section class="class-type-form-block" aria-labelledby="class-type-form-defaults">
+      <h2 id="class-type-form-defaults" class="class-type-form-title">Wartości domyślne</h2>
+      <div class="card class-type-form-card">
+        <!-- Short labels on purpose: the block title already says "domyślne", and a long label in
+             one column of the pair wraps onto a second line and knocks the inputs out of level. -->
+        <div class="class-type-form-pair">
+          <app-field label="Czas trwania (minuty)" icon="time" for="defaultDurationMinutes">
+            <input
+              id="defaultDurationMinutes"
+              type="number"
+              min="1"
+              max="480"
+              formControlName="defaultDurationMinutes"
+              [attr.aria-invalid]="
+                form.controls.defaultDurationMinutes.touched &&
+                form.controls.defaultDurationMinutes.invalid
+              "
+            />
+            @if (
+              form.controls.defaultDurationMinutes.touched &&
+              form.controls.defaultDurationMinutes.invalid
+            ) {
+              <p class="field-error">
+                {{
+                  form.controls.defaultDurationMinutes.getError('server') ??
+                    failureMessage('invalid_duration')
+                }}
+              </p>
+            }
+          </app-field>
 
-    <app-field label="Domyślna liczba miejsc" for="defaultCapacity">
-      <input
-        id="defaultCapacity"
-        type="number"
-        min="1"
-        max="200"
-        formControlName="defaultCapacity"
-        [attr.aria-invalid]="
-          form.controls.defaultCapacity.touched && form.controls.defaultCapacity.invalid
-        "
-      />
-      <p class="field-hint">
-        Zajęcia dostają kopię tej liczby przy tworzeniu. Późniejsza zmiana tutaj nie ruszy zajęć,
-        które już zaplanowano.
-      </p>
-      @if (form.controls.defaultCapacity.touched && form.controls.defaultCapacity.invalid) {
-        <p class="field-error">
-          {{
-            form.controls.defaultCapacity.getError('server') ?? failureMessage('invalid_capacity')
-          }}
+          <app-field label="Liczba miejsc" icon="members" for="defaultCapacity">
+            <input
+              id="defaultCapacity"
+              type="number"
+              min="1"
+              max="200"
+              formControlName="defaultCapacity"
+              [attr.aria-invalid]="
+                form.controls.defaultCapacity.touched && form.controls.defaultCapacity.invalid
+              "
+            />
+            @if (form.controls.defaultCapacity.touched && form.controls.defaultCapacity.invalid) {
+              <p class="field-error">
+                {{
+                  form.controls.defaultCapacity.getError('server') ??
+                    failureMessage('invalid_capacity')
+                }}
+              </p>
+            }
+          </app-field>
+        </div>
+
+        <!-- Under both fields rather than one: it is true of the pair. -->
+        <p class="field-hint class-type-form-defaults-hint">
+          Zajęcia dostają kopię tych wartości przy tworzeniu. Późniejsza zmiana tutaj nie ruszy
+          zajęć, które już zaplanowano.
         </p>
-      }
-    </app-field>
+      </div>
+    </section>
 
     <div class="class-type-form-actions">
       <button type="submit" class="button" [disabled]="state.submitting()">
