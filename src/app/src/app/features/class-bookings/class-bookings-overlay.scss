@@ -14,90 +14,19 @@
   justify-content: center;
   padding: var(--space-4);
 
-  // On a phone the roster is the whole point, so the sheet takes the whole screen: a bottom sheet
-  // that stopped a few pixels short of the top read as "almost covered", with the page peeking
-  // behind it and nothing to close it by but a link at the foot.
+  // On a phone the panel is a sheet from the bottom edge — here a full-screen one
+  // (.overlay-panel--full), because the roster is the whole point.
   @include bp.narrow {
-    align-items: stretch;
+    align-items: flex-end;
     padding: 0;
   }
 }
 
-// The one real difference between the three overlays, and the reason it is not in the shared rule:
-// this one holds a list of names and addresses, not a short form. Everything else about the panel
-// comes from src/styles.scss.
+// The one real difference between the overlays, and the reason it is not in the shared rule: this
+// one holds a list of names and addresses, not a short form. Everything else about the panel — the
+// head with its X, the scrolling body, the pinned foot — comes from src/styles.scss.
 .overlay-panel {
   max-width: 32rem;
-
-  // Full screen, as a column: the head (title, class facts, tally) and the sign-up block stay put and
-  // only the roster between them scrolls, so the tally and the close stay in reach of the thumb while
-  // the staff member works down a long list.
-  @include bp.narrow {
-    display: flex;
-    flex-direction: column;
-    max-width: none;
-    height: 100dvh;
-    max-height: 100dvh;
-    padding: calc(var(--space-3) + env(safe-area-inset-top)) var(--space-4)
-      calc(var(--space-4) + env(safe-area-inset-bottom));
-    border: 0;
-    border-radius: 0;
-    box-shadow: none;
-  }
-}
-
-// The title and, on a phone, the X that closes the sheet.
-.bookings-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-2);
-
-  .overlay-title {
-    min-width: 0;
-  }
-
-  @include bp.narrow {
-    align-items: center;
-    margin-bottom: var(--space-2);
-
-    .overlay-title {
-      margin: 0;
-    }
-  }
-}
-
-.bookings-close {
-  display: none;
-
-  @include bp.narrow {
-    display: inline-flex;
-    flex: none;
-    align-items: center;
-    justify-content: center;
-    width: 44px;
-    height: 44px;
-    margin-right: calc(-1 * var(--space-2));
-    padding: 0;
-    border: 0;
-    border-radius: 50%;
-    background: transparent;
-    color: var(--ink);
-    cursor: pointer;
-    transition: background-color 200ms ease;
-
-    app-icon {
-      font-size: 1rem;
-    }
-
-    &:hover {
-      background: var(--section-warm);
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-      transition: none;
-    }
-  }
 }
 
 .bookings-summary {
@@ -150,7 +79,9 @@
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--space-2);
-  padding-bottom: var(--space-3);
+  // Hairline rows inside the panel, flush with the class facts above: vertical padding only, where
+  // the shared .row pads all four sides for a row that is a card of its own.
+  padding: var(--space-3) 0;
   border-bottom: 1px solid var(--line);
 
   &:last-child {
@@ -199,20 +130,17 @@
   }
 }
 
-// The attendance sheet (S-27). The tally and the bulk mark share a line; the button wraps beneath
-// the tally when a phone has no room for both.
-.attendance-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+// The attendance sheet's foot (S-27): the tally on the left, the bulk mark on the right; the button
+// wraps beneath the tally when a phone has no room for both.
+.attendance-foot {
   justify-content: space-between;
-  gap: var(--space-2);
-  margin-top: calc(-1 * var(--space-2));
-  margin-bottom: var(--space-3);
 }
 
 .attendance-tally {
   margin: 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
 }
 
 .attendance-all {
@@ -230,7 +158,7 @@
 .bookings-row--attendance {
   display: flex;
   flex-wrap: nowrap;
-  padding-bottom: var(--space-2);
+  padding-block: var(--space-2);
 
   .row-meta {
     margin-top: 0;
@@ -330,24 +258,6 @@
 }
 
 @include bp.narrow {
-  // The roster is the part that scrolls. Hairlines above and below mark where it runs under the fixed
-  // head and foot; contain keeps a fling at the end of the list from dragging the page behind.
-  .bookings-list {
-    flex: 1 1 auto;
-    min-height: 0;
-    margin: 0 calc(-1 * var(--space-4));
-    padding: var(--space-3) var(--space-4);
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    border-top: 1px solid var(--line);
-    border-bottom: 1px solid var(--line);
-  }
-
-  // The X in the head closes the sheet; a second close at the foot would only take roster room.
-  .overlay-actions {
-    display: none;
-  }
-
   // A timestamp is useful at the desk but not while scanning a phone roster. Keeping only the
   // contact line leaves each pre-class row to name one person and offer one clear action.
   .bookings-row:not(.bookings-row--attendance) .row-identity .row-meta:last-child {

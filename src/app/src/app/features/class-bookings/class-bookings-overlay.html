@@ -7,38 +7,211 @@
   (click)="close()"
 ></button>
 
-<div class="card overlay-panel" role="dialog" aria-modal="true" aria-labelledby="bookings-title">
-  <!-- On a phone the sheet takes the whole screen, so its way out moves to where a full-screen
-       dialog keeps it: an X beside the title. Hidden above the phone width, where the backdrop and
-       the "Zamknij" link at the foot already close it — exactly one close control is ever visible. -->
-  <div class="bookings-head">
+<div
+  class="card overlay-panel overlay-panel--full"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="bookings-title"
+>
+  <app-overlay-head (closed)="close()">
     <h2 id="bookings-title" class="overlay-title">Zapisani na „{{ row().name }}”</h2>
-    <button type="button" class="bookings-close" title="Zamknij" (click)="close()">
-      <app-icon name="close" />
-      <span class="cdk-visually-hidden">Zamknij</span>
-    </button>
-  </div>
+  </app-overlay-head>
 
-  <!-- The class context stays compact: the roster is the point of this sheet, but date, trainer and
+  <div class="overlay-body">
+    <!-- The class context stays compact: the roster is the point of this sheet, but date, trainer and
        capacity must remain visible while staff add or release a person. -->
-  <div class="bookings-summary">
-    <p class="overlay-when">
-      {{ row().startsAt | date: 'EEEE, d MMMM' }}, {{ row().startsAt | date: 'HH:mm' }}
-    </p>
-    <p class="bookings-summary-fact">
-      <app-icon name="person" /> <span>{{ row().instructor }}</span>
-    </p>
-    <p class="bookings-summary-fact">
-      <app-icon name="members" />
-      <span>{{ row().capacity - row().freeSpots }} / {{ row().capacity }} miejsc zajętych</span>
-    </p>
+    <div class="bookings-summary">
+      <p class="overlay-when">
+        {{ row().startsAt | date: 'EEEE, d MMMM' }}, {{ row().startsAt | date: 'HH:mm' }}
+      </p>
+      <p class="bookings-summary-fact">
+        <app-icon name="person" /> <span>{{ row().instructor }}</span>
+      </p>
+      <p class="bookings-summary-fact">
+        <app-icon name="members" />
+        <span>{{ row().capacity - row().freeSpots }} / {{ row().capacity }} miejsc zajętych</span>
+      </p>
+    </div>
+
+    @if (loading()) {
+      <app-loading />
+    } @else if (loadFailed()) {
+      <p class="alert" role="alert">
+        Nie udało się wczytać listy zapisanych.
+        <button type="button" class="link-button" (click)="load()">Spróbuj ponownie</button>
+      </p>
+    } @else if (rows().length === 0) {
+      <!-- An empty class is a normal state, not a failure — the wording says so rather than leaving a
+         blank panel the admin has to interpret. -->
+      <app-empty icon="members" compact>Nikt nie jest jeszcze zapisany na te zajęcia.</app-empty>
+    } @else {
+      <ul class="bookings-list" [class.bookings-list--attendance]="marking()">
+        @for (booking of rows(); track booking.bookingId) {
+          <!-- The attendance sheet is a flat roster: one line per person, the toggle beside the name.
+             It is ticked off at the side of a mat, a phone in one hand, so the booking time — which
+             nobody needs once the class has started — goes, and the address shrinks to one line. -->
+          <li appRow class="bookings-row" [class.bookings-row--attendance]="marking()">
+            <p class="row-name">{{ booking.displayName }}</p>
+            <p class="row-meta">{{ booking.email }}</p>
+            @if (!marking()) {
+              <p class="row-meta">Zapis: {{ booking.bookedAt | date: 'd MMMM, HH:mm' }}</p>
+            }
+
+            @if (cancelled()) {
+              <!-- A cancelled class: a read-only list. Nothing to release, nobody to mark. -->
+            } @else if (started()) {
+              <!-- Two real buttons with aria-pressed rather than a radio pair: "neither" is a legal
+                 state (not recorded yet), which a radio group cannot show without a third option.
+                 Icon only on screen, so the pair fits beside the name on a phone; the word stays in
+                 the accessibility tree and in the tooltip, and the two glyphs differ in shape, so the
+                 state never rests on colour alone. -->
+              <div
+                slot="actions"
+                class="attendance-toggle"
+                role="group"
+                [attr.aria-label]="'Obecność: ' + booking.displayName"
+              >
+                <button
+                  type="button"
+                  class="attendance-option attendance-option--present"
+                  [attr.aria-pressed]="booking.attendance === 'present'"
+                  [disabled]="busy.isBusy(booking.bookingId)"
+                  [attr.aria-busy]="pendingMark().get(booking.bookingId) === 'present' || null"
+                  (click)="mark(booking, 'present')"
+                  title="Obecny"
+                >
+                  <!-- The tapped option spins until the server answers; the word stays for a
+                     screen reader, and aria-busy tells it the mark is on its way. -->
+                  @if (pendingMark().get(booking.bookingId) === 'present') {
+                    <span class="attendance-spinner" aria-hidden="true"></span>
+                  } @else {
+                    <app-icon name="present" />
+                  }
+                  <span class="cdk-visually-hidden">Obecny</span>
+                </button>
+                <button
+                  type="button"
+                  class="attendance-option attendance-option--absent"
+                  [attr.aria-pressed]="booking.attendance === 'absent'"
+                  [disabled]="busy.isBusy(booking.bookingId)"
+                  [attr.aria-busy]="pendingMark().get(booking.bookingId) === 'absent' || null"
+                  (click)="mark(booking, 'absent')"
+                  title="Nieobecny"
+                >
+                  <!-- The tapped option spins until the server answers; the word stays for a
+                     screen reader, and aria-busy tells it the mark is on its way. -->
+                  @if (pendingMark().get(booking.bookingId) === 'absent') {
+                    <span class="attendance-spinner" aria-hidden="true"></span>
+                  } @else {
+                    <app-icon name="absent" />
+                  }
+                  <span class="cdk-visually-hidden">Nieobecny</span>
+                </button>
+              </div>
+            } @else {
+              <button
+                slot="actions"
+                type="button"
+                class="link-button"
+                [disabled]="busy.isBusy(booking.bookingId)"
+                (click)="release(booking)"
+              >
+                {{ busy.isBusy(booking.bookingId) ? 'Zwalnianie…' : 'Zwolnij miejsce' }}
+              </button>
+            }
+
+            @if (failedId() === booking.bookingId) {
+              <p slot="foot" class="field-error bookings-error" role="alert">{{ failure() }}</p>
+            }
+          </li>
+        }
+      </ul>
+    }
+
+    <!-- Sign somebody up (S-14, AM-007). Below the list rather than above it: the panel's subject is
+       who is coming, and this is an action taken after reading that. Gone from the start (S-27): the
+       server refuses a booking on a started class, so the sheet offers none. Before it, always
+       rendered since S-21:
+       whether anyone is left to add can no longer be known without searching, so the block is a
+       search box first and a select of its matches second. -->
+    @if (!started() && !cancelled()) {
+      <div class="bookings-add">
+        <!-- The label carried class="field" itself before S-23, so the flex column landed on the LABEL
+         and the control it names sat outside it entirely. app-field is the block; the label is a
+         label. -->
+        <app-field label="Dopisz członka" for="add-member-search">
+          <input
+            id="add-member-search"
+            type="search"
+            autocomplete="off"
+            maxlength="100"
+            [placeholder]="search().placeholder"
+            [ngModel]="addSearch()"
+            (ngModelChange)="onAddSearchInput($event)"
+            [disabled]="adding()"
+          />
+        </app-field>
+
+        <!-- A phrase nobody bookable matches says so, rather than leaving an empty select and a disabled
+         button to explain themselves. Only when these are ALL the matches, though: if every one shown
+         is already signed up but more exist past the first page, "nobody can be added" is not known —
+         the narrow-the-phrase hint below is the true answer. -->
+        @if (searched() && bookable().length === 0 && candidatesTotal() <= candidates().length) {
+          <app-empty icon="search" compact>Nikt pasujący nie może zostać dopisany.</app-empty>
+        } @else {
+          <div class="bookings-add-controls">
+            <app-select>
+              <select
+                id="add-member"
+                aria-label="Osoba do dopisania"
+                [ngModel]="chosen()"
+                (ngModelChange)="chosen.set($event)"
+                [disabled]="adding() || bookable().length === 0"
+              >
+                <option value="">
+                  {{ searched() ? 'Wybierz osobę…' : 'Wpisz imię lub e-mail…' }}
+                </option>
+                @for (member of bookable(); track member.id) {
+                  <option [value]="member.id">
+                    {{ member.displayName }}{{ member.hasAccount ? '' : ' — bez konta' }}
+                  </option>
+                }
+              </select>
+            </app-select>
+
+            <button
+              type="button"
+              class="button button--secondary"
+              [disabled]="!chosen() || adding()"
+              (click)="add()"
+            >
+              {{ adding() ? 'Zapisuję…' : 'Zapisz' }}
+            </button>
+          </div>
+
+          @if (candidatesTotal() > candidates().length) {
+            <p class="hint">
+              Pokazano {{ candidates().length }} z {{ candidatesTotal() }} pasujących — zawęź
+              wyszukiwanie.
+            </p>
+          }
+        }
+
+        @if (addFailure()) {
+          <p class="field-error" role="alert">{{ addFailure() }}</p>
+        }
+      </div>
+    }
   </div>
 
-  <!-- The attendance sheet's tally (S-27). Words, not colours: it is read at a glance and by a
-       screen reader alike. Only once the list has loaded, so it never counts an empty roster. -->
+  <!-- The attendance sheet's foot (S-27): the tally and the one action on the whole roster, pinned
+       below the scrolling list so both stay in reach however long the class is. Words, not colours:
+       the tally is read at a glance and by a screen reader alike. Only once the list has loaded, so it
+       never counts an empty roster. Before the start there is no foot: the X is the way out, and the
+       sign-up block is part of the body. -->
   @if (started() && !cancelled() && !loading() && !loadFailed() && rows().length > 0) {
-    <div class="attendance-head">
-      <p class="overlay-when attendance-tally">
+    <div class="overlay-actions attendance-foot">
+      <p class="attendance-tally">
         Obecni: {{ tally().present }} · Nieobecni: {{ tally().absent }} · Nieoznaczeni:
         {{ tally().unrecorded }}
       </p>
@@ -48,7 +221,7 @@
       @if (tally().present < rows().length) {
         <button
           type="button"
-          class="button button--secondary attendance-all"
+          class="button attendance-all"
           [disabled]="markingAll()"
           (click)="markAllPresent()"
         >
@@ -58,178 +231,4 @@
       }
     </div>
   }
-
-  @if (loading()) {
-    <app-loading />
-  } @else if (loadFailed()) {
-    <p class="alert" role="alert">
-      Nie udało się wczytać listy zapisanych.
-      <button type="button" class="link-button" (click)="load()">Spróbuj ponownie</button>
-    </p>
-  } @else if (rows().length === 0) {
-    <!-- An empty class is a normal state, not a failure — the wording says so rather than leaving a
-         blank panel the admin has to interpret. -->
-    <app-empty icon="members" compact>Nikt nie jest jeszcze zapisany na te zajęcia.</app-empty>
-  } @else {
-    <ul class="bookings-list" [class.bookings-list--attendance]="marking()">
-      @for (booking of rows(); track booking.bookingId) {
-        <!-- The attendance sheet is a flat roster: one line per person, the toggle beside the name.
-             It is ticked off at the side of a mat, a phone in one hand, so the booking time — which
-             nobody needs once the class has started — goes, and the address shrinks to one line. -->
-        <li appRow class="bookings-row" [class.bookings-row--attendance]="marking()">
-          <p class="row-name">{{ booking.displayName }}</p>
-          <p class="row-meta">{{ booking.email }}</p>
-          @if (!marking()) {
-            <p class="row-meta">Zapis: {{ booking.bookedAt | date: 'd MMMM, HH:mm' }}</p>
-          }
-
-          @if (cancelled()) {
-            <!-- A cancelled class: a read-only list. Nothing to release, nobody to mark. -->
-          } @else if (started()) {
-            <!-- Two real buttons with aria-pressed rather than a radio pair: "neither" is a legal
-                 state (not recorded yet), which a radio group cannot show without a third option.
-                 Icon only on screen, so the pair fits beside the name on a phone; the word stays in
-                 the accessibility tree and in the tooltip, and the two glyphs differ in shape, so the
-                 state never rests on colour alone. -->
-            <div
-              slot="actions"
-              class="attendance-toggle"
-              role="group"
-              [attr.aria-label]="'Obecność: ' + booking.displayName"
-            >
-              <button
-                type="button"
-                class="attendance-option attendance-option--present"
-                [attr.aria-pressed]="booking.attendance === 'present'"
-                [disabled]="busy.isBusy(booking.bookingId)"
-                [attr.aria-busy]="pendingMark().get(booking.bookingId) === 'present' || null"
-                (click)="mark(booking, 'present')"
-                title="Obecny"
-              >
-                <!-- The tapped option spins until the server answers; the word stays for a
-                     screen reader, and aria-busy tells it the mark is on its way. -->
-                @if (pendingMark().get(booking.bookingId) === 'present') {
-                  <span class="attendance-spinner" aria-hidden="true"></span>
-                } @else {
-                  <app-icon name="present" />
-                }
-                <span class="cdk-visually-hidden">Obecny</span>
-              </button>
-              <button
-                type="button"
-                class="attendance-option attendance-option--absent"
-                [attr.aria-pressed]="booking.attendance === 'absent'"
-                [disabled]="busy.isBusy(booking.bookingId)"
-                [attr.aria-busy]="pendingMark().get(booking.bookingId) === 'absent' || null"
-                (click)="mark(booking, 'absent')"
-                title="Nieobecny"
-              >
-                <!-- The tapped option spins until the server answers; the word stays for a
-                     screen reader, and aria-busy tells it the mark is on its way. -->
-                @if (pendingMark().get(booking.bookingId) === 'absent') {
-                  <span class="attendance-spinner" aria-hidden="true"></span>
-                } @else {
-                  <app-icon name="absent" />
-                }
-                <span class="cdk-visually-hidden">Nieobecny</span>
-              </button>
-            </div>
-          } @else {
-            <button
-              slot="actions"
-              type="button"
-              class="link-button"
-              [disabled]="busy.isBusy(booking.bookingId)"
-              (click)="release(booking)"
-            >
-              {{ busy.isBusy(booking.bookingId) ? 'Zwalnianie…' : 'Zwolnij miejsce' }}
-            </button>
-          }
-
-          @if (failedId() === booking.bookingId) {
-            <p slot="foot" class="field-error bookings-error" role="alert">{{ failure() }}</p>
-          }
-        </li>
-      }
-    </ul>
-  }
-
-  <!-- Sign somebody up (S-14, AM-007). Below the list rather than above it: the panel's subject is
-       who is coming, and this is an action taken after reading that. Gone from the start (S-27): the
-       server refuses a booking on a started class, so the sheet offers none. Before it, always
-       rendered since S-21:
-       whether anyone is left to add can no longer be known without searching, so the block is a
-       search box first and a select of its matches second. -->
-  @if (!started() && !cancelled()) {
-    <div class="bookings-add">
-      <!-- The label carried class="field" itself before S-23, so the flex column landed on the LABEL
-         and the control it names sat outside it entirely. app-field is the block; the label is a
-         label. -->
-      <app-field label="Dopisz członka" for="add-member-search">
-        <input
-          id="add-member-search"
-          type="search"
-          autocomplete="off"
-          maxlength="100"
-          [placeholder]="search().placeholder"
-          [ngModel]="addSearch()"
-          (ngModelChange)="onAddSearchInput($event)"
-          [disabled]="adding()"
-        />
-      </app-field>
-
-      <!-- A phrase nobody bookable matches says so, rather than leaving an empty select and a disabled
-         button to explain themselves. Only when these are ALL the matches, though: if every one shown
-         is already signed up but more exist past the first page, "nobody can be added" is not known —
-         the narrow-the-phrase hint below is the true answer. -->
-      @if (searched() && bookable().length === 0 && candidatesTotal() <= candidates().length) {
-        <app-empty icon="search" compact>Nikt pasujący nie może zostać dopisany.</app-empty>
-      } @else {
-        <div class="bookings-add-controls">
-          <app-select>
-            <select
-              id="add-member"
-              aria-label="Osoba do dopisania"
-              [ngModel]="chosen()"
-              (ngModelChange)="chosen.set($event)"
-              [disabled]="adding() || bookable().length === 0"
-            >
-              <option value="">
-                {{ searched() ? 'Wybierz osobę…' : 'Wpisz imię lub e-mail…' }}
-              </option>
-              @for (member of bookable(); track member.id) {
-                <option [value]="member.id">
-                  {{ member.displayName }}{{ member.hasAccount ? '' : ' — bez konta' }}
-                </option>
-              }
-            </select>
-          </app-select>
-
-          <button
-            type="button"
-            class="button button--secondary"
-            [disabled]="!chosen() || adding()"
-            (click)="add()"
-          >
-            {{ adding() ? 'Zapisuję…' : 'Zapisz' }}
-          </button>
-        </div>
-
-        @if (candidatesTotal() > candidates().length) {
-          <p class="hint">
-            Pokazano {{ candidates().length }} z {{ candidatesTotal() }} pasujących — zawęź
-            wyszukiwanie.
-          </p>
-        }
-      }
-
-      @if (addFailure()) {
-        <p class="field-error" role="alert">{{ addFailure() }}</p>
-      }
-    </div>
-  }
-
-  <div class="overlay-actions">
-    <button type="button" class="link-button" (click)="close()">Zamknij</button>
-  </div>
 </div>

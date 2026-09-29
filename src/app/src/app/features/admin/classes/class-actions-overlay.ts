@@ -5,6 +5,7 @@ import { RouterLink } from '@angular/router';
 import { classFailureMessage } from '../../../core/scheduling/class-failure';
 import { ScheduledClass } from '../../../core/scheduling/class.models';
 import { Field } from '../../../shared/forms/field/field';
+import { OverlayHead } from '../../../shared/overlay/overlay-head';
 import { Icon } from '../../../shared/icons/icon';
 import { useOverlayFocus } from '../../../shared/forms/overlay-focus';
 
@@ -60,7 +61,7 @@ type Step = 'actions' | 'duplicate' | 'delete' | 'cancel';
 @Component({
   // On the host, not on the panel: Escape has to close the overlay wherever focus is.
   host: { '(document:keydown.escape)': 'close()' },
-  imports: [DatePipe, Field, FormsModule, Icon, RouterLink],
+  imports: [DatePipe, Field, FormsModule, Icon, RouterLink, OverlayHead],
   selector: 'app-class-actions-overlay',
   styleUrl: './class-actions-overlay.scss',
   templateUrl: './class-actions-overlay.html',
