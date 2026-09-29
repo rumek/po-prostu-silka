@@ -3,7 +3,7 @@ project: "Po Prostu Siłka"
 version: 7
 status: draft
 created: 2026-08-31
-updated: 2026-09-28
+updated: 2026-09-29
 prd_version: 1, 2
 main_goal: quality
 top_blocker: external
@@ -158,7 +158,7 @@ privacy notice.
 | S-29 | personal-data-baseline | (member, admin) a person reads what the club processes about them and why; the admin erases or anonymises a member on request without breaking the club's history; retention is a decision, not an accident | S-14, S-27 | M-9 GL-07 (v1 NFR "GDPR-baseline handling"; touches Open Roadmap Question 8) | ready |
 | S-30 | e2e-local-gate | (dev tooling) the browser-level suite runs locally before every push, against the app and the local SQL Server, and a red spec stops the push; it never runs on staging or in CI | S-31 (delivered with it) | none - outside any milestone (test tooling) | done |
 | S-31 | e2e-member-onboarding-and-booking | (dev tooling) a browser-level test proves an invited person lands on the club's record with its karnet and booking, and that a staff booking and a karnet refusal reach both screens they should | S-17, S-25 | none - outside any milestone (test tooling); manual plan REG-01, BOOK-01, BOOK-03 | done |
-| S-32 | e2e-attendance-and-plans | (dev tooling) a browser-level test proves a recorded absence returns the entry on the member's screens, and a plan a trainer builds reaches the member's plan and exercise screens | S-31, S-27 | none - outside any milestone (test tooling); manual plan ATT-01, ATT-02, PLAN-01, MBR-05, MBR-06 | in-progress |
+| S-32 | e2e-attendance-and-plans | (dev tooling) a browser-level test proves a recorded absence returns the entry on the member's screens, and a plan a trainer builds reaches the member's plan and exercise screens | S-31, S-27 | none - outside any milestone (test tooling); manual plan ATT-01, ATT-02, PLAN-01, MBR-05, MBR-06 | done |
 
 ## Streams
 
@@ -958,7 +958,7 @@ rather than in a slice body:
     `/10x-plan`. Block: no.
 - **Risk:** the attendance spec is the one most likely to become time-dependent; a spec that sleeps
   until a class starts is the wait-for-time anti-pattern `e2e/CLAUDE.md` forbids.
-- **Status:** in-progress
+- **Status:** done
 
 ## Backlog Handoff
 
@@ -1282,3 +1282,4 @@ Resolved since the previous roadmap: the sender-domain question that gated F-03 
 - **S-25: (member, trainer, admin) every account resolves to one persona by the precedence Admin > Trainer > Member, and the menu, the route guards and the API enforce the same predicate. A member sees their own classes, plan, karnet (the dashboard card) and profile, and no schedule. A trainer sees a schedule of only the classes they instruct, opens a class's roster and books members into it, and has their member list and a dashboard of their classes. An admin sees every class and the management screens, with a dashboard of the classes they instruct. Staff hold no karnet, booking or plan - the domain refuses them with `member_is_staff`. Every top-level screen is reachable from the menu at every width, the desktop header included.** — Archived 2026-09-23 → `context/archive/2026-09-22-role-based-visibility/`. Lesson: —.
 - **S-27: user (trainer) opens the roster of a class they instruct and marks each booked member as present or absent; an admin does the same for any class; a karnet entry is spent when the member attends, not when they are booked, so a recorded absence gives the entry back; the member opens Moje zajęcia and sees their past classes with whether they attended, in a view built for scanning rather than a list of sentences.** — Archived 2026-09-23 → `context/archive/2026-09-23-class-attendance/`. Lesson: —.
 - **S-31: (dev tooling) two browser-level specs protect journeys no current test sees end to end. First: an admin creates an accountless member, issues a karnet, books them into a class and copies the invitation link from the member list; an anonymous visitor opens that link, registers, and lands on Start showing that karnet and that booking. Second: staff book a member from the schedule's bookings overlay, the member then sees the class and one entry fewer, and a member with no valid karnet is refused in the overlay with the sentence the real API's reason maps to.** — Archived 2026-09-28 → `context/archive/2026-09-28-e2e-member-onboarding-and-booking/`. Lesson: —.
+- **S-32: (dev tooling) two browser-level specs. First: a trainer marks a booked member absent on a class that has started, and the member sees the class as absent in Historia and the entry back on their karnet. Second: a trainer builds a plan in the plan builder (library search, add, parameters, save), and the member sees it on Mój plan in that order and opens an exercise's detail from it.** — Archived 2026-09-29 → `context/archive/2026-09-28-e2e-attendance-and-plans/`. Lesson: —.
