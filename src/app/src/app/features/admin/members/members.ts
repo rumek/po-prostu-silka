@@ -690,36 +690,14 @@ export class Members {
   }
 
   /**
-   * Copies the code as it is displayed. The Clipboard API needs a secure context and a permission
-   * that can simply be refused, so the failure is SHOWN rather than swallowed — an admin who thinks
-   * they copied a code and pastes something else is the outcome worth avoiding, and the code stays
-   * on screen to be typed out.
-   */
-  protected async copyCode(): Promise<void> {
-    const view = this.code();
-    if (!view) {
-      return;
-    }
-
-    this.codeCopied.set(false);
-    this.codeCopyFailed.set(false);
-
-    try {
-      await navigator.clipboard.writeText(view.code);
-      this.codeCopied.set(true);
-    } catch {
-      this.codeCopyFailed.set(true);
-    }
-  }
-
-  /**
-   * Copies the whole invitation URL rather than the bare code (S-17, IR-06).
+   * Copies the whole invitation URL — the ONLY copy action (S-17, IR-06). The bare code used to have
+   * its own "Kopiuj kod", but a pasted code sends the member hunting for where to type it, so the
+   * link is always what gets copied. The code stays displayed for the admin who reads it down the
+   * phone, which is why its alphabet drops the characters people confuse when transcribing.
    *
    * <p>
-   * BOTH ACTIONS EXIST BECAUSE BOTH DELIVERIES DO. The link is what an admin pastes into a message;
-   * the code is what they read down the phone, which is the entire reason its alphabet drops the
-   * characters people confuse when transcribing. Replacing the code with the link would take that
-   * away.
+   * The Clipboard API needs a secure context and a permission that can simply be refused, so the
+   * failure is SHOWN rather than swallowed, and the code stays on screen to be typed out.
    * </p>
    *
    * <p>

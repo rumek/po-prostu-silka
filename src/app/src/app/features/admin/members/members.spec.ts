@@ -1226,11 +1226,8 @@ describe('Members', () => {
     // without a configured base URL to keep in step.
     expect(link.startsWith(document.location.origin)).toBe(true);
 
-    // And the code alone is still one click away, for the admin reading it out at the desk.
-    buttons.find((b) => b.textContent?.includes('Kopiuj kod'))!.click();
-    await settle();
-
-    expect(writeText).toHaveBeenLastCalledWith('ABCD-2345');
+    // The link is the only thing to copy; the bare code has no copy action of its own.
+    expect(buttons.some((b) => b.textContent?.includes('Kopiuj kod'))).toBe(false);
 
     Reflect.deleteProperty(navigator, 'clipboard');
   });
