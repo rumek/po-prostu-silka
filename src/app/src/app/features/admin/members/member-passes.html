@@ -1,28 +1,58 @@
-<div class="panel">
-  <h1 class="screen-title">Karnety{{ member() ? ' — ' + member()!.displayName : '' }}</h1>
+<h1 class="screen-title">Karnety{{ member() ? ' — ' + member()!.displayName : '' }}</h1>
 
-  <p class="passes-back">
-    <a class="link-button" routerLink="/admin/members">Wróć do listy członków</a>
-  </p>
+<!-- A desk screen's "Wróć do listy" stays a routerLink (AGENTS.md, mobile-native-feel); up-link hides
+     it on a phone, where the bar's back arrow says the same thing. -->
+<p class="passes-back up-link">
+  <a class="link-button" routerLink="/admin/members">Wróć do listy członków</a>
+</p>
 
-  <!-- The desk's first question, answered in one line rather than by reading the table. -->
-  @if (!state.loading() && !state.loadFailed()) {
+<!-- The desk's first question — is this person's karnet live — answered by the same card the member
+     reads on Start: the entries left over the total, a rule, what they mean and when they run out. -->
+@if (!state.loading() && !state.loadFailed()) {
+  <section class="passes-block" aria-labelledby="passes-current-title">
+    <h2 id="passes-current-title" class="passes-block-title">Aktywny karnet</h2>
+
     @if (current(); as live) {
-      <p class="notice" role="status">
-        Aktywny karnet: <strong>{{ live.typeName }}</strong> — zostało
-        <strong>{{ live.entriesLeft }}</strong>
-        z {{ live.entryCount }} wejść, ważny do {{ live.validTo | date: 'd MMMM y' }}.
-      </p>
+      <article class="card passes-current" role="status">
+        <p class="passes-kicker">
+          <app-icon name="ticket" />
+          <span>{{ live.typeName }}</span>
+        </p>
+
+        <div class="passes-current-body">
+          <p class="passes-figure">
+            <span class="passes-count">{{ live.entriesLeft }}</span>
+            <span class="passes-total">z {{ live.entryCount }}</span>
+          </p>
+
+          <div class="passes-current-text">
+            <p class="row-name">Pozostałe wejścia</p>
+            <p class="passes-meta">
+              <app-icon name="calendar" />
+              <span>ważny do {{ live.validTo | date: 'd MMMM y' }}</span>
+            </p>
+          </div>
+        </div>
+
+        <!-- Decorative: the figure above says the same in words. -->
+        <div class="passes-bar" aria-hidden="true">
+          <span [style.width.%]="(live.entriesLeft / live.entryCount) * 100"></span>
+        </div>
+      </article>
     } @else {
-      <app-empty icon="ticket" compact>
+      <app-empty icon="ticket">
         Ta osoba nie ma dziś ważnego karnetu, więc nie można jej zapisać na żadne zajęcia.
       </app-empty>
     }
-  }
+  </section>
+}
 
-  <div class="card">
-    <h2 class="section-title">{{ editing() ? 'Edytuj karnet' : 'Wystaw karnet' }}</h2>
+<section class="passes-block" aria-labelledby="passes-form-title">
+  <h2 id="passes-form-title" class="passes-block-title">
+    {{ editing() ? 'Edytuj karnet' : 'Wystaw karnet' }}
+  </h2>
 
+  <div class="card passes-form">
     @if (state.error()) {
       <p class="alert" role="alert">{{ state.error() }}</p>
     }
@@ -69,7 +99,9 @@
 
       <!-- Both ends count, and the form says so: an admin reading "ważny do 30" needs to know the
            30th is covered, because that is the day someone will turn up. -->
-      <p class="hint">Oba dni są wliczone — karnet ważny do 30 obejmuje także 30.</p>
+      <p class="hint passes-range-hint">
+        Oba dni są wliczone — karnet ważny do 30 obejmuje także 30.
+      </p>
 
       <app-field label="Liczba wejść" for="entryCount">
         <input
@@ -85,7 +117,7 @@
         }
       </app-field>
 
-      <div class="form-actions">
+      <div class="form-actions passes-actions">
         <button type="submit" class="button" [disabled]="state.submitting()">
           {{ state.submitting() ? 'Zapisuję…' : editing() ? 'Zapisz zmiany' : 'Wystaw karnet' }}
         </button>
@@ -96,8 +128,10 @@
       </div>
     </form>
   </div>
+</section>
 
-  <h2 class="section-title">Historia karnetów</h2>
+<section class="passes-block" aria-labelledby="passes-history-title">
+  <h2 id="passes-history-title" class="passes-block-title">Historia karnetów</h2>
 
   @if (state.loading()) {
     <app-loading />
@@ -110,23 +144,35 @@
     <!-- NOT an error: a member who has never been sold a karnet is an ordinary state. -->
     <app-empty icon="ticket">Ta osoba nie ma jeszcze żadnego karnetu.</app-empty>
   } @else {
-    <ul class="passes-list">
+    <app-list class="passes-list">
       @for (pass of passes(); track pass.id) {
-        <li appRow class="card" [class.passes-row--current]="pass.coversToday">
+        <!-- The live karnet carries the calendar tile's left bar AND the word — never the bar alone. -->
+        <li
+          appRow
+          class="card passes-row"
+          [class.passes-row--current]="pass.coversToday"
+          [class.passes-row--editing]="editingId() === pass.id"
+        >
           <p class="row-name">
             {{ pass.typeName }}
             @if (pass.coversToday) {
-              <span class="passes-badge">Aktywny</span>
+              <span class="badge passes-badge">Aktywny</span>
             }
           </p>
 
-          <p class="passes-range-text">
-            {{ pass.validFrom | date: 'd MMM y' }} – {{ pass.validTo | date: 'd MMM y' }}
+          <p class="passes-meta">
+            <app-icon name="calendar" />
+            <span>
+              {{ pass.validFrom | date: 'd MMM y' }} – {{ pass.validTo | date: 'd MMM y' }}
+            </span>
           </p>
 
-          <p class="passes-entries">
-            Wykorzystano {{ pass.entriesUsed }} z {{ pass.entryCount }} wejść — zostało
-            <strong>{{ pass.entriesLeft }}</strong>
+          <p class="passes-meta passes-entries">
+            <app-icon name="ticket" />
+            <span>
+              Zostało <strong>{{ pass.entriesLeft }}</strong> z {{ pass.entryCount }} wejść
+              <span class="passes-used">(wykorzystano {{ pass.entriesUsed }})</span>
+            </span>
           </p>
 
           <p class="passes-issued">Wystawiony {{ pass.issuedAt | date: 'd MMMM y' }}</p>
@@ -152,6 +198,6 @@
           </div>
         </li>
       }
-    </ul>
+    </app-list>
   }
-</div>
+</section>

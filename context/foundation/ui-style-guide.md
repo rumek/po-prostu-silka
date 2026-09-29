@@ -106,7 +106,7 @@ The pill track is still declared per component (four copies). A fifth copy is th
   account may do in the club · `account-status` = whether it can sign in · `mail` / `lock` = an
   address / a password box · `eye` / `eye-off` = show / hide the password · `repeat` = reps · `sets` =
   sets · `info` = more to read · `chevron-left` / `chevron-right` = previous / next or "go" ·
-  `chevron-down` = a select · `back` = up to the parent · `search` = a phrase that matched nothing. Add a case to `shared/icons/icon.html` rather
+  `chevron-down` = a select · `back` = up to the parent · `search` = a phrase that matched nothing · `close` = leave a full-screen sheet (drawn smaller than `absent`, which it sits beside). Add a case to `shared/icons/icon.html` rather
   than reusing one for a second meaning.
 
 ## Interaction

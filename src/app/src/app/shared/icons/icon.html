@@ -209,5 +209,10 @@
       <circle cx="11" cy="11" r="6.5" />
       <path d="m16 16 4.5 4.5" />
     }
+    <!-- Leave a full-screen sheet. Its own case rather than a reuse of ('absent'), which it resembles:
+         one glyph per meaning, and the two sit on the same sheet — so this one is drawn smaller. -->
+    @case ('close') {
+      <path d="M7.5 7.5l9 9M16.5 7.5l-9 9" />
+    }
   }
 </svg>

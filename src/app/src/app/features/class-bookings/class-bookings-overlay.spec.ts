@@ -596,6 +596,29 @@ describe('ClassBookingsOverlay — attendance', () => {
     expect(element().textContent).toContain('Obecni: 0 · Nieobecni: 1 · Nieoznaczeni: 0');
   });
 
+  it('spins the tapped option — and only that one — until the server answers', async () => {
+    open(STARTED);
+    await respond([signup()]);
+
+    buttonWith('Nieobecny', rowOf('Ala Kowalska'))!.click();
+    await settle();
+
+    const absent = buttonWith('Nieobecny', rowOf('Ala Kowalska'))!;
+    const present = buttonWith('Obecny', rowOf('Ala Kowalska'))!;
+    expect(absent.querySelector('.attendance-spinner')).not.toBeNull();
+    expect(absent.getAttribute('aria-busy')).toBe('true');
+    expect(present.querySelector('.attendance-spinner')).toBeNull();
+    expect(present.disabled).toBe(true);
+
+    controller
+      .expectOne('/api/admin/classes/c1/bookings/b1/attendance')
+      .flush(signup({ attendance: 'absent' }));
+    await settle();
+
+    expect(element().querySelector('.attendance-spinner')).toBeNull();
+    expect(buttonWith('Nieobecny', rowOf('Ala Kowalska'))!.hasAttribute('aria-busy')).toBe(false);
+  });
+
   it('shows the no-entries refusal on the row and keeps the old mark', async () => {
     open(STARTED);
     await respond([signup({ attendance: 'absent' })]);
