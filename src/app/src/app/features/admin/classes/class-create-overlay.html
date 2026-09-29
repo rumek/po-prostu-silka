@@ -8,98 +8,105 @@
   (click)="close()"
 ></button>
 
-<div class="card overlay-panel" role="dialog" aria-modal="true" aria-labelledby="overlay-title">
-  <h2 id="overlay-title" class="overlay-title">Nowe zajęcia</h2>
+<div
+  class="card overlay-panel overlay-panel--full"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="overlay-title"
+>
+  <app-overlay-head (closed)="close()">
+    <h2 id="overlay-title" class="overlay-title">Nowe zajęcia</h2>
+  </app-overlay-head>
 
-  <!-- What the gesture already decided. Shown, not editable here: to change the time, redraw. -->
-  <p class="overlay-when">
-    {{ drawn().startsAt | date: 'EEEE, d MMMM' }}, {{ drawn().startsAt | date: 'HH:mm' }} ·
-    {{ drawn().durationMinutes }} min
-  </p>
-
-  @if (loading()) {
-    <app-loading />
-  } @else if (loadFailed()) {
-    <p class="alert" role="alert">Nie udało się wczytać typów zajęć i trenerów.</p>
-  } @else if (nothingToPick()) {
-    <!-- No submit that cannot succeed: same rule as the class form's empty states. -->
-    <p class="alert" role="alert">
-      Aby dodać zajęcia, potrzebny jest aktywny typ zajęć i konto z rolą trenera.
+  <div class="overlay-body">
+    <!-- What the gesture already decided. Shown, not editable here: to change the time, redraw. -->
+    <p class="overlay-when">
+      {{ drawn().startsAt | date: 'EEEE, d MMMM' }}, {{ drawn().startsAt | date: 'HH:mm' }} ·
+      {{ drawn().durationMinutes }} min
     </p>
-  } @else {
-    @if (error()) {
-      <p class="alert" role="alert">{{ error() }}</p>
+
+    @if (loading()) {
+      <app-loading />
+    } @else if (loadFailed()) {
+      <p class="alert" role="alert">Nie udało się wczytać typów zajęć i trenerów.</p>
+    } @else if (nothingToPick()) {
+      <!-- No submit that cannot succeed: same rule as the class form's empty states. -->
+      <p class="alert" role="alert">
+        Aby dodać zajęcia, potrzebny jest aktywny typ zajęć i konto z rolą trenera.
+      </p>
+    } @else {
+      @if (error()) {
+        <p class="alert" role="alert">{{ error() }}</p>
+      }
+
+      <app-field label="Typ zajęć" for="create-class-type">
+        <app-select>
+          <select
+            id="create-class-type"
+            [ngModel]="classTypeId()"
+            (ngModelChange)="selectType($event)"
+            name="classTypeId"
+          >
+            <option value="" disabled>Wybierz typ</option>
+            @for (type of types(); track type.id) {
+              <option [value]="type.id">{{ type.name }}</option>
+            }
+          </select>
+        </app-select>
+      </app-field>
+
+      <app-field label="Prowadzący" for="create-instructor">
+        <app-select>
+          <select
+            id="create-instructor"
+            [ngModel]="instructorMemberId()"
+            (ngModelChange)="instructorMemberId.set($event)"
+            name="instructorMemberId"
+          >
+            <option value="" disabled>Wybierz prowadzącego</option>
+            @for (trainer of trainers(); track trainer.id) {
+              <option [value]="trainer.id">{{ trainer.displayName }}</option>
+            }
+          </select>
+        </app-select>
+      </app-field>
+
+      <div class="overlay-numbers">
+        <app-field label="Czas trwania (min)" for="create-duration">
+          <input
+            id="create-duration"
+            type="number"
+            min="1"
+            max="480"
+            [ngModel]="durationMinutes()"
+            (ngModelChange)="durationMinutes.set(+$event)"
+            name="durationMinutes"
+          />
+        </app-field>
+
+        <app-field label="Liczba miejsc" for="create-capacity">
+          <input
+            id="create-capacity"
+            type="number"
+            min="1"
+            max="200"
+            [ngModel]="capacity()"
+            (ngModelChange)="capacity.set(+$event)"
+            name="capacity"
+          />
+        </app-field>
+      </div>
     }
+  </div>
 
-    <app-field label="Typ zajęć" for="create-class-type">
-      <app-select>
-        <select
-          id="create-class-type"
-          [ngModel]="classTypeId()"
-          (ngModelChange)="selectType($event)"
-          name="classTypeId"
-        >
-          <option value="" disabled>Wybierz typ</option>
-          @for (type of types(); track type.id) {
-            <option [value]="type.id">{{ type.name }}</option>
-          }
-        </select>
-      </app-select>
-    </app-field>
-
-    <app-field label="Prowadzący" for="create-instructor">
-      <app-select>
-        <select
-          id="create-instructor"
-          [ngModel]="instructorMemberId()"
-          (ngModelChange)="instructorMemberId.set($event)"
-          name="instructorMemberId"
-        >
-          <option value="" disabled>Wybierz prowadzącego</option>
-          @for (trainer of trainers(); track trainer.id) {
-            <option [value]="trainer.id">{{ trainer.displayName }}</option>
-          }
-        </select>
-      </app-select>
-    </app-field>
-
-    <div class="overlay-numbers">
-      <app-field label="Czas trwania (min)" for="create-duration">
-        <input
-          id="create-duration"
-          type="number"
-          min="1"
-          max="480"
-          [ngModel]="durationMinutes()"
-          (ngModelChange)="durationMinutes.set(+$event)"
-          name="durationMinutes"
-        />
-      </app-field>
-
-      <app-field label="Liczba miejsc" for="create-capacity">
-        <input
-          id="create-capacity"
-          type="number"
-          min="1"
-          max="200"
-          [ngModel]="capacity()"
-          (ngModelChange)="capacity.set(+$event)"
-          name="capacity"
-        />
-      </app-field>
-    </div>
-
+  <!-- The foot only when there is something to submit: a load failure or nothing to pick leaves the
+       X as the way out. -->
+  @if (!loading() && !loadFailed() && !nothingToPick()) {
     <div class="overlay-actions">
       <button type="button" class="button" [disabled]="!canSubmit()" (click)="submit()">
         {{ saving() ? 'Zapisywanie…' : 'Dodaj zajęcia' }}
       </button>
       <button type="button" class="link-button" (click)="close()">Anuluj</button>
-    </div>
-  }
-
-  @if (loadFailed() || nothingToPick()) {
-    <div class="overlay-actions">
-      <button type="button" class="link-button" (click)="close()">Zamknij</button>
     </div>
   }
 </div>

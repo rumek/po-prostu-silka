@@ -29,6 +29,7 @@ import { Select } from '../../shared/forms/select/select';
 import { Loading } from '../../shared/forms/loading/loading';
 import { Empty } from '../../shared/forms/empty/empty';
 import { Row } from '../../shared/list/row';
+import { OverlayHead } from '../../shared/overlay/overlay-head';
 import { Icon } from '../../shared/icons/icon';
 
 /** How many matches the picker offers. Past this, it asks to narrow the phrase. */
@@ -88,7 +89,7 @@ export const PICKER_DEBOUNCE_MS = 300;
   // On the host, not on the panel: Escape has to close the overlay wherever focus is, including
   // before the admin has touched anything.
   host: { '(document:keydown.escape)': 'close()' },
-  imports: [Row, Empty, Loading, Select, Field, Icon, DatePipe, FormsModule],
+  imports: [Row, Empty, Loading, Select, Field, Icon, OverlayHead, DatePipe, FormsModule],
   selector: 'app-class-bookings-overlay',
   styleUrl: './class-bookings-overlay.scss',
   templateUrl: './class-bookings-overlay.html',

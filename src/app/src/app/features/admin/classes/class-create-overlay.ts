@@ -12,6 +12,7 @@ import { ClassTypeSummary } from '../../../core/scheduling/class-type.models';
 import { DrawnRange } from '../../../shared/calendar/schedule-calendar';
 import { MAX_CAPACITY, MAX_DURATION, MIN_CAPACITY, MIN_DURATION } from './class-form';
 import { useOverlayFocus } from '../../../shared/forms/overlay-focus';
+import { OverlayHead } from '../../../shared/overlay/overlay-head';
 import { Field } from '../../../shared/forms/field/field';
 import { Select } from '../../../shared/forms/select/select';
 import { Loading } from '../../../shared/forms/loading/loading';
@@ -43,7 +44,7 @@ function inRange(value: number, min: number, max: number): boolean {
   // On the host, not on the panel: Escape has to close the overlay wherever focus is, including
   // before the admin has touched a control.
   host: { '(document:keydown.escape)': 'close()' },
-  imports: [Loading, Select, Field, DatePipe, FormsModule],
+  imports: [Loading, Select, Field, OverlayHead, DatePipe, FormsModule],
   selector: 'app-class-create-overlay',
   styleUrl: './class-create-overlay.scss',
   templateUrl: './class-create-overlay.html',

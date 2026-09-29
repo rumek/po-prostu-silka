@@ -1,4 +1,6 @@
-// Layout only — .card/.field/.button/.alert/.notice come from src/styles.scss.
+// Layout only — .card/.field/.button/.alert/.notice and the overlay chrome come from src/styles.scss.
+
+@use 'breakpoints' as bp;
 
 :host {
   position: fixed;
@@ -8,6 +10,13 @@
   align-items: center;
   justify-content: center;
   padding: var(--space-4);
+
+  // A full-screen sheet on a phone (.overlay-panel--full): a form under an open keyboard needs every
+  // row of height.
+  @include bp.narrow {
+    align-items: flex-end;
+    padding: 0;
+  }
 }
 
 // Side by side where there is room; the two numbers are short and belong together.
@@ -16,7 +25,8 @@
   flex-wrap: wrap;
   gap: var(--space-3);
 
-  .field {
+  // The app-field HOSTS are the flex items; a `.field` selector sat one level too deep to size them.
+  app-field {
     flex: 1 1 8rem;
   }
 }

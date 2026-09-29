@@ -148,11 +148,21 @@ is a business refusal like any other.
 `z-index` values for surfaces that resolve at the **document root** — the skip link, the phone's
 pinned app bar, the bottom nav, the overlays, the toast — come from the `--z-*` scale in
 `src/styles.scss`; never write a literal for one of those. Neither `App`'s `:host` nor `.shell-main`
-opens a stacking context, so those five surfaces all stack against each other and the five numbers
-only work as a set.
+may open a stacking context, so those five surfaces all stack against each other and the five numbers
+only work as a set. **One caveat:** `.shell-main`'s `view-transition-name: page` (S-26) *does* open
+one, which trapped every overlay under the app bar and the bottom nav — `styles.scss` drops the name
+while an `.overlay-panel` is open (`main.shell-main:has(.overlay-panel)`). Anything new that renders a
+root-level surface inside `<main>` needs the same treatment.
+
 A `z-index` that is local to its own positioned ancestor is outside the scale and stays a literal
 — `schedule-calendar.scss` is the one such case, where absolutely-positioned overlays stack
 within a single calendar tile.
+
+**Every overlay has one shape:** `<app-overlay-head (closed)="close()">` with the projected `h2`
+(the title and the X — the X is the way out, not a "Zamknij" link), then `.overlay-body` (the only part
+that scrolls), then `.overlay-actions`, the foot pinned below it, primary action first — omitted when
+there is nothing to confirm. On a phone a panel is a bottom sheet; `.overlay-panel--full` makes it
+full-screen (a roster, a form).
 
 ### The presentational kit (S-23)
 

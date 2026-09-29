@@ -152,9 +152,11 @@
   // The stacking scale (S-19).
   //
   // These four numbers only work as a set, which is exactly why they are tokens. Neither App's
-  // :host nor .shell-main opens a stacking context, so every one of these surfaces resolves at the
-  // document ROOT — an equal z-index there is broken by document order, and the bottom nav renders
-  // after </main>. That is how the bar once painted over a modal.
+  // :host nor .shell-main opens a stacking context (save .shell-main's view-transition-name,
+  // which main.shell-main:has(.overlay-panel) below switches off while a panel is open), so every
+  // one of these surfaces resolves at the document ROOT — an equal z-index there is broken by
+  // document order, and the bottom nav renders after </main>. That is how the bar once painted
+  // over a modal.
   //
   // Before S-19 the same coordination was maintained by a comment in bottom-nav.scss asking future
   // contributors to "declare a value above 10". --bottom-nav-tab-height exists because that style
@@ -814,18 +816,60 @@ a {
 
 // `position: relative` so it stacks above the backdrop without a z-index of its own. The visible
 // surface is .card, which this sits alongside in the markup.
+//
+// ONE SHAPE FOR EVERY OVERLAY: `app-overlay-head` (the title and the X that closes it), then
+// `.overlay-body`, the only part that scrolls, then `.overlay-actions`, the foot pinned to the
+// bottom edge. A long roster or a form under an open keyboard scrolls between them, and neither the
+// way out nor the primary action ever scrolls away.
 .overlay-panel {
   position: relative;
+  display: flex;
+  flex-direction: column;
   width: 100%;
   max-width: 26rem;
   max-height: 100%;
-  overflow-y: auto;
-  padding: var(--space-5);
+  overflow: hidden;
+  padding: 0;
   border: 1px solid var(--line);
+
+  // On a phone a panel is a sheet off the bottom edge, full width. `--full` takes the whole screen —
+  // a roster or a form, where every row of height is worth having and the page behind has nothing
+  // left to say.
+  @include bp.narrow {
+    max-width: none;
+    max-height: 100dvh;
+    border: 0;
+    border-radius: var(--radius) var(--radius) 0 0;
+  }
+}
+
+.overlay-panel--full {
+  @include bp.narrow {
+    height: 100dvh;
+    border-radius: 0;
+    box-shadow: none;
+
+    app-overlay-head {
+      padding-top: calc(var(--space-3) + env(safe-area-inset-top));
+    }
+  }
+}
+
+.overlay-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: var(--space-4) var(--space-5) var(--space-5);
+  overflow-y: auto;
+  // A fling at the end of the body stops there instead of dragging the page behind the backdrop.
+  overscroll-behavior: contain;
+
+  @include bp.narrow {
+    padding-inline: var(--space-4);
+  }
 }
 
 .overlay-title {
-  margin: 0 0 var(--space-2);
+  margin: 0;
   font-family: var(--font-body);
   font-size: 1.125rem;
   font-weight: 700;
@@ -844,12 +888,32 @@ a {
   }
 }
 
+// The foot: the panel's actions, primary first, under a hairline and pinned below the body.
 .overlay-actions {
   display: flex;
+  flex: none;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-3);
-  margin-top: var(--space-4);
+  padding: var(--space-3) var(--space-5);
+  border-top: 1px solid var(--line);
+
+  @include bp.narrow {
+    padding: var(--space-3) var(--space-4) calc(var(--space-3) + env(safe-area-inset-bottom));
+  }
+}
+
+// WHY AN OPEN OVERLAY TAKES THE SHELL OUT OF ITS VIEW TRANSITION. `.shell-main` carries
+// `view-transition-name: page` (S-26), and a named element forms a stacking context — so every
+// overlay, which renders inside <main>, had its --z-overlay resolved INSIDE main rather than at the
+// document root, and the pinned app bar and the bottom nav painted over the open panel. For as long
+// as a panel is open, main is an ordinary block again and the --z-* scale works as written. An
+// overlay closes before any route change, so no transition ever misses its name.
+//
+// `main.` for specificity: App's own `.shell-main` rule is scoped and injected after this sheet, and
+// an equal-specificity tie would go to it.
+main.shell-main:has(.overlay-panel) {
+  view-transition-name: none;
 }
 
 // EIGHTEEN copies, not the three the plan expected inside the overlays — sixteen of them
