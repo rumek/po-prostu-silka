@@ -8,6 +8,7 @@
  * Creates a class type (unique name) and one class of it, instructed by the E2E trainer, in a random
  * free slot (support/slots.ts); the `club` fixture deletes the class and deactivates the type.
  */
+import { uniqueSuffix } from './support/club';
 import { expect, test } from './support/fixtures';
 import { showWeekOf } from './support/slots';
 
@@ -20,7 +21,7 @@ test.use({
 });
 
 test('back closes the open bookings overlay and stays on the schedule', async ({ page, club }) => {
-  const created = await club.createClass(`E2E powrót ${Date.now()}`);
+  const created = await club.createClass(`E2E powrót ${uniqueSuffix()}`);
 
   await page.goto('/');
   await page

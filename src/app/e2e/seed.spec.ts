@@ -5,8 +5,8 @@
  *
  * Authenticated via the storageState the `setup` project saved - no UI login here.
  *
- * A spec that CREATES data must also: suffix names with Date.now() so parallel runs and re-runs never
- * collide, and delete what it created (through the `request` fixture) in the same test or afterEach.
+ * A spec that CREATES data must also: suffix names with uniqueSuffix() (support/club.ts) so parallel runs and
+ * re-runs never collide, and delete what it created (through the `request` fixture) in the same test or afterEach.
  * This one only reads, so it has nothing to clean up.
  */
 import { expect, test } from '@playwright/test';
