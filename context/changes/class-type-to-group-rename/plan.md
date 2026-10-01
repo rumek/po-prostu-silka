@@ -395,9 +395,9 @@ that step in `deploy-plan.md`.
 
 #### Automated
 
-- [x] 3.1 No leftovers in living docs
-- [x] 3.2 Full backend suite still passes
-- [x] 3.3 Browser suite passes locally
+- [x] 3.1 No leftovers in living docs — e27d0e4
+- [x] 3.2 Full backend suite still passes — e27d0e4
+- [x] 3.3 Browser suite passes locally — e27d0e4
 
 #### Manual
 
