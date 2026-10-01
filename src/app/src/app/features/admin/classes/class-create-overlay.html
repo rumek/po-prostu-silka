@@ -28,28 +28,28 @@
     @if (loading()) {
       <app-loading />
     } @else if (loadFailed()) {
-      <p class="alert" role="alert">Nie udało się wczytać typów zajęć i trenerów.</p>
+      <p class="alert" role="alert">Nie udało się wczytać grup i trenerów.</p>
     } @else if (nothingToPick()) {
       <!-- No submit that cannot succeed: same rule as the class form's empty states. -->
       <p class="alert" role="alert">
-        Aby dodać zajęcia, potrzebny jest aktywny typ zajęć i konto z rolą trenera.
+        Aby dodać zajęcia, potrzebna jest aktywna grupa i konto z rolą trenera.
       </p>
     } @else {
       @if (error()) {
         <p class="alert" role="alert">{{ error() }}</p>
       }
 
-      <app-field label="Typ zajęć" for="create-class-type">
+      <app-field label="Grupa" for="create-class-group">
         <app-select>
           <select
-            id="create-class-type"
-            [ngModel]="classTypeId()"
-            (ngModelChange)="selectType($event)"
-            name="classTypeId"
+            id="create-class-group"
+            [ngModel]="classGroupId()"
+            (ngModelChange)="selectGroup($event)"
+            name="classGroupId"
           >
-            <option value="" disabled>Wybierz typ</option>
-            @for (type of types(); track type.id) {
-              <option [value]="type.id">{{ type.name }}</option>
+            <option value="" disabled>Wybierz grupę</option>
+            @for (group of groups(); track group.id) {
+              <option [value]="group.id">{{ group.name }}</option>
             }
           </select>
         </app-select>

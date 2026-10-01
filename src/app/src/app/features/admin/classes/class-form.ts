@@ -4,9 +4,9 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { MemberAdminService } from '../../../core/admin/member-admin.service';
 import { TrainerSummary } from '../../../core/admin/member-admin.models';
 import { ClassService } from '../../../core/scheduling/class.service';
-import { ClassTypeService } from '../../../core/scheduling/class-type.service';
+import { ClassGroupService } from '../../../core/scheduling/class-group.service';
 import { ClassFailure } from '../../../core/scheduling/class.models';
-import { ClassTypeSummary } from '../../../core/scheduling/class-type.models';
+import { ClassGroupSummary } from '../../../core/scheduling/class-group.models';
 import { classFailureMessage } from '../../../core/scheduling/class-failure';
 import { classifyFailure } from '../../../core/http/failure';
 import { transportMessage } from '../../../core/http/transport-messages';
@@ -32,7 +32,7 @@ export const MAX_DURATION = 480;
  *
  * <p>
  * A FORM OF SELECTIONS. Since S-06 there is no name, no room and no typed instructor: the admin
- * picks a class type and a trainer, and the two numbers arrive PREFILLED from the type's defaults.
+ * picks a group and a trainer, and the two numbers arrive PREFILLED from the group's defaults.
  * That prefill is the whole reason the definition layer exists — it is what removes the retyping.
  * </p>
  *
@@ -40,7 +40,7 @@ export const MAX_DURATION = 480;
  * THE PREFILL MUST NOT FIRE WHEN LOADING AN EXISTING CLASS. An occurrence owns its own copies of
  * duration and capacity (prd-v2 FR-007); re-prefilling them on edit would silently replace an
  * override — and, for capacity, move the value the no-overbooking guarantee is checked against.
- * `applyTypeDefaults` is wired to the SELECT's change event, not to the form value, precisely so
+ * `applyGroupDefaults` is wired to the SELECT's change event, not to the form value, precisely so
  * `setValue` during load cannot trigger it.
  * </p>
  *
@@ -60,13 +60,13 @@ export const MAX_DURATION = 480;
 })
 export class ClassForm implements OnInit {
   private readonly classes = inject(ClassService);
-  private readonly classTypes = inject(ClassTypeService);
+  private readonly classGroups = inject(ClassGroupService);
   private readonly members = inject(MemberAdminService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
 
   protected readonly form = inject(FormBuilder).nonNullable.group({
-    classTypeId: ['', [Validators.required]],
+    classGroupId: ['', [Validators.required]],
     startsAt: ['', [Validators.required]],
     durationMinutes: [
       60,
@@ -83,13 +83,13 @@ export class ClassForm implements OnInit {
   protected readonly editingId = signal<string | null>(null);
 
   /**
-   * What the type select offers.
+   * What the group select offers.
    *
-   * Active types only when creating — a retired type must not be attachable to anything new
-   * (FR-006). When editing, this holds exactly the class's own type, active or not: the select is
-   * disabled anyway, and the type still has to render a label.
+   * Active groups only when creating — a retired group must not be attachable to anything new
+   * (FR-006). When editing, this holds exactly the class's own group, active or not: the select is
+   * disabled anyway, and the group still has to render a label.
    */
-  protected readonly classTypeOptions = signal<ClassTypeSummary[]>([]);
+  protected readonly classGroupOptions = signal<ClassGroupSummary[]>([]);
 
   protected readonly trainers = signal<TrainerSummary[]>([]);
 
@@ -111,7 +111,7 @@ export class ClassForm implements OnInit {
    * form with two empty selects and no explanation is the worst possible first impression — the
    * template replaces the form with a signpost instead.
    */
-  protected readonly noClassTypes = signal(false);
+  protected readonly noClassGroups = signal(false);
   protected readonly noTrainers = signal(false);
 
   async ngOnInit(): Promise<void> {
@@ -122,25 +122,25 @@ export class ClassForm implements OnInit {
 
     try {
       // In parallel: neither depends on the other, and the form needs both before it can render.
-      const [types, trainers] = await Promise.all([
-        this.classTypes.getAll(),
+      const [groups, trainers] = await Promise.all([
+        this.classGroups.getAll(),
         this.members.getTrainers(),
       ]);
 
       this.trainers.set(trainers);
 
       if (id) {
-        await this.loadExisting(id, types);
+        await this.loadExisting(id, groups);
       } else {
-        const active = types.filter((type) => type.isActive);
-        this.classTypeOptions.set(active);
+        const active = groups.filter((group) => group.isActive);
+        this.classGroupOptions.set(active);
 
-        // BOTH empty states are CREATE-ONLY preconditions. An existing class already has a type and
-        // an instructor; if the club later retires every type or revokes every Trainer role, the
+        // BOTH empty states are CREATE-ONLY preconditions. An existing class already has a group and
+        // an instructor; if the club later retires every group or revokes every Trainer role, the
         // admin must still be able to open that class and fix its time or capacity. Setting either
         // signal on the edit path replaces the whole form (see class-form.html) and locks them out
         // of a class that is perfectly valid.
-        this.noClassTypes.set(active.length === 0);
+        this.noClassGroups.set(active.length === 0);
         this.noTrainers.set(trainers.length === 0);
       }
     } catch {
@@ -153,22 +153,22 @@ export class ClassForm implements OnInit {
   /**
    * Populates the form from an existing class.
    *
-   * The type select is narrowed to the class's OWN type and disabled: the type is immutable once an
-   * occurrence exists (the API refuses a change with `class_type_immutable`), and offering
+   * The group select is narrowed to the class's OWN group and disabled: the group is immutable once an
+   * occurrence exists (the API refuses a change with `class_group_immutable`), and offering
    * alternatives the server will reject is worse than offering none.
    */
-  private async loadExisting(id: string, types: ClassTypeSummary[]): Promise<void> {
+  private async loadExisting(id: string, groups: ClassGroupSummary[]): Promise<void> {
     const existing = await this.classes.getById(id);
-    const ownType = types.find((type) => type.id === existing.classTypeId);
+    const ownGroup = groups.find((group) => group.id === existing.classGroupId);
 
-    // The type is guaranteed to exist — deactivated, possibly, but never deleted (FR-006). The
-    // fallback covers only a type the list somehow did not return, so the select still has a label.
-    this.classTypeOptions.set(
-      ownType
-        ? [ownType]
+    // The group is guaranteed to exist — deactivated, possibly, but never deleted (FR-006). The
+    // fallback covers only a group the list somehow did not return, so the select still has a label.
+    this.classGroupOptions.set(
+      ownGroup
+        ? [ownGroup]
         : [
             {
-              id: existing.classTypeId,
+              id: existing.classGroupId,
               name: existing.name,
               description: existing.description,
               defaultDurationMinutes: existing.durationMinutes,
@@ -186,7 +186,7 @@ export class ClassForm implements OnInit {
     // after submitting, as `unknown_instructor`.
     //
     // Class.cs documents the stale reference itself as an accepted risk of this slice; what is not
-    // acceptable is hiding it until save. Same fallback trick as the class type above, flagged in the
+    // acceptable is hiding it until save. Same fallback trick as the group above, flagged in the
     // label so the admin sees they must pick someone else.
     if (!this.trainers().some((trainer) => trainer.id === existing.instructorMemberId)) {
       this.trainers.update((trainers) => [
@@ -195,10 +195,10 @@ export class ClassForm implements OnInit {
       ]);
     }
 
-    // setValue, NOT applyTypeDefaults: these numbers are the OCCURRENCE's, and re-deriving them from
-    // the type is exactly the bug this component is shaped to prevent.
+    // setValue, NOT applyGroupDefaults: these numbers are the OCCURRENCE's, and re-deriving them from
+    // the group is exactly the bug this component is shaped to prevent.
     this.form.setValue({
-      classTypeId: existing.classTypeId,
+      classGroupId: existing.classGroupId,
       // UTC instant -> the local wall clock the input displays.
       startsAt: toLocalInputValue(existing.startsAt),
       durationMinutes: existing.durationMinutes,
@@ -206,29 +206,29 @@ export class ClassForm implements OnInit {
       capacity: existing.capacity,
     });
 
-    this.form.controls.classTypeId.disable();
+    this.form.controls.classGroupId.disable();
   }
 
   /**
-   * Copies the chosen type's defaults onto the two numbers (prd-v2 FR-008).
+   * Copies the chosen group's defaults onto the two numbers (prd-v2 FR-008).
    *
    * Called from the select's (change) event and only while creating. The admin may then override
    * either — the numbers vary legitimately per session, which is why they are copies rather than
    * references.
    */
-  protected applyTypeDefaults(classTypeId: string): void {
+  protected applyGroupDefaults(classGroupId: string): void {
     if (this.editingId()) {
       return;
     }
 
-    const type = this.classTypeOptions().find((option) => option.id === classTypeId);
-    if (!type) {
+    const group = this.classGroupOptions().find((option) => option.id === classGroupId);
+    if (!group) {
       return;
     }
 
     this.form.patchValue({
-      durationMinutes: type.defaultDurationMinutes,
-      capacity: type.defaultCapacity,
+      durationMinutes: group.defaultDurationMinutes,
+      capacity: group.defaultCapacity,
     });
   }
 
@@ -242,12 +242,12 @@ export class ClassForm implements OnInit {
     this.state.error.set(null);
     this.state.submitting.set(true);
 
-    // getRawValue, not value: the type control is DISABLED when editing, and `value` omits disabled
-    // controls. The API requires classTypeId on an edit too — it is how it detects an attempted
+    // getRawValue, not value: the group control is DISABLED when editing, and `value` omits disabled
+    // controls. The API requires classGroupId on an edit too — it is how it detects an attempted
     // change — so dropping it here would turn every edit into a missing_field.
     const value = this.form.getRawValue();
     const request = {
-      classTypeId: value.classTypeId,
+      classGroupId: value.classGroupId,
       // The local wall clock the admin typed -> the UTC instant the API stores.
       startsAt: fromLocalInputValue(value.startsAt),
       durationMinutes: value.durationMinutes,
@@ -303,11 +303,11 @@ export class ClassForm implements OnInit {
           server: classFailureMessage(reason),
         });
         return;
-      case 'unknown_class_type':
-      case 'inactive_class_type':
-      case 'class_type_immutable':
+      case 'unknown_class_group':
+      case 'inactive_class_group':
+      case 'class_group_immutable':
         // The control is disabled while editing, so setErrors alone would not show anything — the
-        // banner carries these. They all mean the same thing to the admin: this type cannot be used
+        // banner carries these. They all mean the same thing to the admin: this group cannot be used
         // for this class, reload and start again.
         this.state.error.set(classFailureMessage(reason));
         return;

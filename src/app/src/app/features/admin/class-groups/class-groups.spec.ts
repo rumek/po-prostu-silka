@@ -2,11 +2,11 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { ClassTypeSummary } from '../../../core/scheduling/class-type.models';
+import { ClassGroupSummary } from '../../../core/scheduling/class-group.models';
 import { ToastService } from '../../../shared/toast/toast.service';
-import { ClassTypes } from './class-types';
+import { ClassGroups } from './class-groups';
 
-const JOGA: ClassTypeSummary = {
+const JOGA: ClassGroupSummary = {
   id: 't1',
   name: 'Joga dla początkujących',
   description: 'Spokojne zajęcia dla osób bez doświadczenia.',
@@ -16,7 +16,7 @@ const JOGA: ClassTypeSummary = {
   createdAt: new Date('2026-09-01T10:00').toISOString(),
 };
 
-const RETIRED: ClassTypeSummary = {
+const RETIRED: ClassGroupSummary = {
   ...JOGA,
   id: 't2',
   name: 'Zumba',
@@ -24,20 +24,20 @@ const RETIRED: ClassTypeSummary = {
   isActive: false,
 };
 
-describe('ClassTypes', () => {
-  let fixture: ComponentFixture<ClassTypes>;
+describe('ClassGroups', () => {
+  let fixture: ComponentFixture<ClassGroups>;
   let controller: HttpTestingController;
 
-  async function createWith(rows: ClassTypeSummary[]) {
+  async function createWith(rows: ClassGroupSummary[]) {
     TestBed.configureTestingModule({
-      imports: [ClassTypes],
+      imports: [ClassGroups],
       providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
     });
 
     controller = TestBed.inject(HttpTestingController);
-    fixture = TestBed.createComponent(ClassTypes);
+    fixture = TestBed.createComponent(ClassGroups);
 
-    (await vi.waitFor(() => controller.expectOne('/api/admin/class-types'))).flush(rows);
+    (await vi.waitFor(() => controller.expectOne('/api/admin/class-groups'))).flush(rows);
     await settle();
   }
 
@@ -85,7 +85,7 @@ describe('ClassTypes', () => {
     )!;
   }
 
-  it('renders one row per type, with its defaults and description', async () => {
+  it('renders one row per group, with its defaults and description', async () => {
     await createWith([JOGA]);
 
     expect(rows().length).toBe(1);
@@ -95,8 +95,8 @@ describe('ClassTypes', () => {
     expect(html()).toContain('12');
   });
 
-  /** The toggle is off by default: retired types are the exception and must not crowd the list. */
-  it('hides inactive types until the toggle is set', async () => {
+  /** The toggle is off by default: retired groups are the exception and must not crowd the list. */
+  it('hides inactive groups until the toggle is set', async () => {
     await createWith([JOGA, RETIRED]);
 
     expect(rows().length).toBe(1);
@@ -107,7 +107,7 @@ describe('ClassTypes', () => {
 
     expect(rows().length).toBe(2);
     expect(html()).toContain('Zumba');
-    expect(html()).toContain('Nieaktywny');
+    expect(html()).toContain('Nieaktywna');
   });
 
   it('offers Dezaktywuj on an active row and Aktywuj on an inactive one', async () => {
@@ -128,7 +128,7 @@ describe('ClassTypes', () => {
 
     buttonIn(rows()[0], 'Dezaktywuj').click();
 
-    (await vi.waitFor(() => controller.expectOne('/api/admin/class-types/t1/deactivate'))).flush({
+    (await vi.waitFor(() => controller.expectOne('/api/admin/class-groups/t1/deactivate'))).flush({
       ...JOGA,
       isActive: false,
     });
@@ -142,7 +142,7 @@ describe('ClassTypes', () => {
     await settle();
 
     expect(rows().length).toBe(1);
-    expect(html()).toContain('Nieaktywny');
+    expect(html()).toContain('Nieaktywna');
   });
 
   /** Absence is a poor confirmation — the admin cannot tell a vanished row from a failed request. */
@@ -151,35 +151,35 @@ describe('ClassTypes', () => {
 
     buttonIn(rows()[0], 'Dezaktywuj').click();
 
-    (await vi.waitFor(() => controller.expectOne('/api/admin/class-types/t1/deactivate'))).flush({
+    (await vi.waitFor(() => controller.expectOne('/api/admin/class-groups/t1/deactivate'))).flush({
       ...JOGA,
       isActive: false,
     });
     await settle();
 
-    expect(toastText()).toContain('został dezaktywowany');
+    expect(toastText()).toContain('została dezaktywowana');
     expect(toastTone()).toBe('success');
   });
 
-  it('reactivates an inactive type', async () => {
+  it('reactivates an inactive group', async () => {
     await createWith([RETIRED]);
     toggle().click();
     await settle();
 
     buttonIn(rows()[0], 'Aktywuj').click();
 
-    (await vi.waitFor(() => controller.expectOne('/api/admin/class-types/t2/activate'))).flush({
+    (await vi.waitFor(() => controller.expectOne('/api/admin/class-groups/t2/activate'))).flush({
       ...RETIRED,
       isActive: true,
     });
     await settle();
 
-    expect(html()).not.toContain('Nieaktywny');
+    expect(html()).not.toContain('Nieaktywna');
   });
 
   /**
    * The sharpest edge in the slice. The activate request carries no name, so nothing on screen
-   * suggests a name can clash — but deactivating released the name and another type may hold it now.
+   * suggests a name can clash — but deactivating released the name and another group may hold it now.
    * The message has to explain that, because there is no control to attach it to.
    */
   it('explains a name clash when a reactivation is refused', async () => {
@@ -189,7 +189,7 @@ describe('ClassTypes', () => {
 
     buttonIn(rows()[0], 'Aktywuj').click();
 
-    (await vi.waitFor(() => controller.expectOne('/api/admin/class-types/t2/activate'))).flush(
+    (await vi.waitFor(() => controller.expectOne('/api/admin/class-groups/t2/activate'))).flush(
       { reason: 'name_taken' },
       { status: 409, statusText: 'Conflict' },
     );
@@ -201,7 +201,7 @@ describe('ClassTypes', () => {
     expect(toastTone()).toBe('error');
     expect(html()).toContain('Zumba');
     // Still inactive: a refused activation must not look like it worked.
-    expect(html()).toContain('Nieaktywny');
+    expect(html()).toContain('Nieaktywna');
   });
 
   it('keeps the row and surfaces the error when an action fails', async () => {
@@ -209,7 +209,7 @@ describe('ClassTypes', () => {
 
     buttonIn(rows()[0], 'Dezaktywuj').click();
 
-    (await vi.waitFor(() => controller.expectOne('/api/admin/class-types/t1/deactivate'))).flush(
+    (await vi.waitFor(() => controller.expectOne('/api/admin/class-groups/t1/deactivate'))).flush(
       null,
       { status: 500, statusText: 'Server Error' },
     );
@@ -229,7 +229,7 @@ describe('ClassTypes', () => {
     expect(buttonIn(rows()[0], 'Dezaktywowanie…').disabled).toBe(true);
     expect(buttonIn(rows()[1], 'Dezaktywuj').disabled).toBe(false);
 
-    (await vi.waitFor(() => controller.expectOne('/api/admin/class-types/t1/deactivate'))).flush({
+    (await vi.waitFor(() => controller.expectOne('/api/admin/class-groups/t1/deactivate'))).flush({
       ...JOGA,
       isActive: false,
     });
@@ -248,20 +248,20 @@ describe('ClassTypes', () => {
     await createWith([RETIRED]);
 
     expect(rows().length).toBe(0);
-    expect(html()).toContain('Wszystkie typy są nieaktywne');
+    expect(html()).toContain('Wszystkie grupy są nieaktywne');
     expect(html()).not.toContain('Nie zdefiniowano jeszcze');
   });
 
   it('reports a failed load and offers a retry', async () => {
     TestBed.configureTestingModule({
-      imports: [ClassTypes],
+      imports: [ClassGroups],
       providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
     });
 
     controller = TestBed.inject(HttpTestingController);
-    fixture = TestBed.createComponent(ClassTypes);
+    fixture = TestBed.createComponent(ClassGroups);
 
-    (await vi.waitFor(() => controller.expectOne('/api/admin/class-types'))).flush(null, {
+    (await vi.waitFor(() => controller.expectOne('/api/admin/class-groups'))).flush(null, {
       status: 500,
       statusText: 'Server Error',
     });
@@ -273,7 +273,7 @@ describe('ClassTypes', () => {
       .querySelector<HTMLButtonElement>('.link-button')!
       .click();
 
-    (await vi.waitFor(() => controller.expectOne('/api/admin/class-types'))).flush([JOGA]);
+    (await vi.waitFor(() => controller.expectOne('/api/admin/class-groups'))).flush([JOGA]);
     await settle();
 
     expect(rows().length).toBe(1);

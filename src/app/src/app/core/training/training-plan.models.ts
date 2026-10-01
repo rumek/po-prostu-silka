@@ -182,7 +182,7 @@ export interface TrainingPlanFailure {
 /**
  * The bounds the plan builder and the plan message table both need.
  *
- * Moved out of `plan-builder.ts` in S-19 for the reason CLASS_TYPE_BOUNDS and EXERCISE_BOUNDS were:
+ * Moved out of `plan-builder.ts` in S-19 for the reason CLASS_GROUP_BOUNDS and EXERCISE_BOUNDS were:
  * fourteen of this union's seventeen refusal sentences quote one of these numbers, and a sentence
  * that quotes a limit the form owns privately drifts the first time that limit moves.
  *

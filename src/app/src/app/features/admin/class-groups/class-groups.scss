@@ -1,39 +1,39 @@
 @use 'breakpoints' as bp;
 
-.class-types-lead {
+.class-groups-lead {
   max-width: 44rem;
   margin: var(--space-2) 0 var(--space-4);
 }
 
-.class-types-controls {
+.class-groups-controls {
   margin-bottom: var(--space-4);
 }
 
-.class-type-card {
+.class-group-card {
   gap: var(--space-3);
 }
 
-.class-type-card .row-identity {
+.class-group-card .row-identity {
   flex: 0 1 auto;
 }
 
-.class-type-card .row-actions {
+.class-group-card .row-actions {
   width: 100%;
   margin: auto 0 0;
   padding-top: var(--space-3);
   border-top: 1px solid var(--line);
 }
 
-.class-types-description {
+.class-groups-description {
   margin: var(--space-1) 0 0;
   color: var(--muted);
   font-size: 0.875rem;
   overflow-wrap: anywhere;
 }
 
-// The two values are the useful part of a type. A compact parameter strip makes them scannable
+// The two values are the useful part of a group. A compact parameter strip makes them scannable
 // across cards and mirrors the plan and exercise screens, rather than hiding them in a sentence.
-.class-type-defaults {
+.class-group-defaults {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   margin: var(--space-4) 0 0;
@@ -71,7 +71,7 @@
 }
 
 // Retired, not broken — muted like .badge-pending rather than coloured like .badge-blocked. A
-// deactivated type is a deliberate state, not a problem to fix. The .badge base rule this sits on
+// deactivated group is a deliberate state, not a problem to fix. The .badge base rule this sits on
 // is global (src/styles.scss); only this modifier is local.
 .badge-inactive {
   color: var(--muted);

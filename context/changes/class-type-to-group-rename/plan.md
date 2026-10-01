@@ -365,11 +365,11 @@ that step in `deploy-plan.md`.
 
 #### Automated
 
-- [x] 1.1 Solution builds warning-free
-- [x] 1.2 Model and migrations agree (no pending model changes)
-- [x] 1.3 The new migration contains no DropTable or CreateTable
-- [x] 1.4 Integration tests pass with an unchanged test count
-- [x] 1.5 No backend leftovers outside migration history
+- [x] 1.1 Solution builds warning-free — 432c051
+- [x] 1.2 Model and migrations agree (no pending model changes) — 432c051
+- [x] 1.3 The new migration contains no DropTable or CreateTable — 432c051
+- [x] 1.4 Integration tests pass with an unchanged test count — 432c051
+- [x] 1.5 No backend leftovers outside migration history — 432c051
 
 #### Manual
 
@@ -379,10 +379,10 @@ that step in `deploy-plan.md`.
 
 #### Automated
 
-- [ ] 2.1 Lint and formatting pass
-- [ ] 2.2 SPA specs pass
-- [ ] 2.3 Production build succeeds
-- [ ] 2.4 No SPA leftovers
+- [x] 2.1 Lint and formatting pass
+- [x] 2.2 SPA specs pass
+- [x] 2.3 Production build succeeds
+- [x] 2.4 No SPA leftovers
 
 #### Manual
 

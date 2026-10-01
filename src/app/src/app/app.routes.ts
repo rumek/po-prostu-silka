@@ -6,8 +6,8 @@ import { invitationGuard } from './core/auth/invitation.guard';
 import { memberGuard, staffGuard } from './core/auth/persona.guards';
 import { trainerGuard } from './core/auth/trainer.guard';
 import { ClassForm } from './features/admin/classes/class-form';
-import { ClassTypes } from './features/admin/class-types/class-types';
-import { ClassTypeForm } from './features/admin/class-types/class-type-form';
+import { ClassGroups } from './features/admin/class-groups/class-groups';
+import { ClassGroupForm } from './features/admin/class-groups/class-group-form';
 import { Members } from './features/admin/members/members';
 import { Login } from './features/auth/login/login';
 import { Register } from './features/auth/register/register';
@@ -172,25 +172,25 @@ export const routes: Routes = [
     canActivate: [authGuard, adminGuard],
   },
   {
-    path: 'admin/class-types',
-    title: 'Typy zajęć',
+    path: 'admin/class-groups',
+    title: 'Grupy',
     data: { level: 'tab' } satisfies ScreenData,
-    component: ClassTypes,
+    component: ClassGroups,
     canActivate: [authGuard, adminGuard],
   },
   // 'new' MUST precede ':id' here too, or the literal segment is swallowed by the parameter.
   {
-    path: 'admin/class-types/new',
-    title: 'Nowy typ zajęć',
-    data: { level: 'child', parent: '/admin/class-types' } satisfies ScreenData,
-    component: ClassTypeForm,
+    path: 'admin/class-groups/new',
+    title: 'Nowa grupa',
+    data: { level: 'child', parent: '/admin/class-groups' } satisfies ScreenData,
+    component: ClassGroupForm,
     canActivate: [authGuard, adminGuard],
   },
   {
-    path: 'admin/class-types/:id',
-    title: 'Edytuj typ zajęć',
-    data: { level: 'child', parent: '/admin/class-types' } satisfies ScreenData,
-    component: ClassTypeForm,
+    path: 'admin/class-groups/:id',
+    title: 'Edytuj grupę',
+    data: { level: 'child', parent: '/admin/class-groups' } satisfies ScreenData,
+    component: ClassGroupForm,
     canActivate: [authGuard, adminGuard],
   },
   // S-10's exercise library. LAZY, and not for the reason the two routes above are: these screens

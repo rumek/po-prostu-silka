@@ -239,7 +239,7 @@ describe('Exercises', () => {
     );
     await settle();
 
-    // The TABLE's sentence now — see the class-types spec for the same note.
+    // The TABLE's sentence now — see the class-groups spec for the same note.
     expect(toastText()).toContain('już zajęta');
     expect(toastTone()).toBe('error');
   });

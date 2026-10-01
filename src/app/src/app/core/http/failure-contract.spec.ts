@@ -29,8 +29,8 @@ import {
 import { bookingFailureMessage } from '../scheduling/booking-failure';
 import { BOOKING_FAILURE_REASONS } from '../scheduling/booking.models';
 import { classFailureMessage } from '../scheduling/class-failure';
-import { classTypeFailureMessage } from '../scheduling/class-type-failure';
-import { CLASS_TYPE_FAILURE_REASONS } from '../scheduling/class-type.models';
+import { classGroupFailureMessage } from '../scheduling/class-group-failure';
+import { CLASS_GROUP_FAILURE_REASONS } from '../scheduling/class-group.models';
 import { CLASS_FAILURE_REASONS, SCHEDULE_READ_FAILURE_REASONS } from '../scheduling/class.models';
 import { scheduleReadFailureMessage } from '../scheduling/schedule-read-failure';
 import { exerciseFailureMessage } from '../training/exercise-failure';
@@ -68,10 +68,10 @@ const UNIONS: readonly UnionUnderContract[] = [
     name: 'ClassFailure',
     reasons: CLASS_FAILURE_REASONS,
     message: classFailureMessage,
-    // class-failure.ts:38-44 states both groups outright: all three class-type refusals mean "this
-    // type cannot be used", and both instructor refusals mean "pick someone else".
+    // class-failure.ts:38-44 states both groups outright: all three class-group refusals mean "this
+    // group cannot be used", and both instructor refusals mean "pick someone else".
     deliberateDuplicates: [
-      ['unknown_class_type', 'inactive_class_type', 'class_type_immutable'],
+      ['unknown_class_group', 'inactive_class_group', 'class_group_immutable'],
       ['unknown_instructor', 'instructor_not_trainer'],
     ],
   },
@@ -81,9 +81,9 @@ const UNIONS: readonly UnionUnderContract[] = [
     message: scheduleReadFailureMessage,
   },
   {
-    name: 'ClassTypeFailure',
-    reasons: CLASS_TYPE_FAILURE_REASONS,
-    message: classTypeFailureMessage,
+    name: 'ClassGroupFailure',
+    reasons: CLASS_GROUP_FAILURE_REASONS,
+    message: classGroupFailureMessage,
   },
   {
     name: 'ExerciseFailure',
@@ -216,8 +216,8 @@ describe('the failure-message contract', () => {
     );
 
     /**
-     * TWO REFUSALS THAT READ THE SAME ARE ONE REFUSAL. Where a table means that — three class-type
-     * refusals that all mean "you cannot use this type" — it says so in its own comments, and the
+     * TWO REFUSALS THAT READ THE SAME ARE ONE REFUSAL. Where a table means that — three class-group
+     * refusals that all mean "you cannot use this group" — it says so in its own comments, and the
      * registry entry repeats the claim. Anything else sharing a sentence is drift.
      */
     it('gives each reason its own sentence, except where the table says otherwise', () => {

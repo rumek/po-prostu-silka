@@ -8,9 +8,9 @@ import { Empty } from './empty';
 @Component({
   imports: [Empty, RouterLink],
   template: `
-    <app-empty icon="repeat" [compact]="compact()">
-      Najpierw zdefiniuj typ zajęć.
-      <a slot="action" class="button" routerLink="/admin/class-types">Przejdź do typów zajęć</a>
+    <app-empty icon="group" [compact]="compact()">
+      Najpierw zdefiniuj grupę.
+      <a slot="action" class="button" routerLink="/admin/class-groups">Przejdź do grup</a>
     </app-empty>
   `,
 })
@@ -45,14 +45,14 @@ describe('Empty', () => {
    */
   it('projects whatever the screen has to say into the text', () => {
     expect(compiled().querySelector('.empty-text')?.textContent).toContain(
-      'Najpierw zdefiniuj typ zajęć.',
+      'Najpierw zdefiniuj grupę.',
     );
   });
 
   it('puts the action below the words, not inside them', () => {
     const action = compiled().querySelector('.empty-action a');
 
-    expect(action?.getAttribute('href')).toBe('/admin/class-types');
+    expect(action?.getAttribute('href')).toBe('/admin/class-groups');
     expect(compiled().querySelector('.empty-text a')).toBeNull();
   });
 

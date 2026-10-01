@@ -84,7 +84,7 @@ export interface ExerciseFailure {
 /**
  * The bounds the exercise form and the exercise message table both need.
  *
- * Moved out of `exercise-form.ts` in S-19 for the reason CLASS_TYPE_BOUNDS was: a refusal message
+ * Moved out of `exercise-form.ts` in S-19 for the reason CLASS_GROUP_BOUNDS was: a refusal message
  * that quotes a limit the form owns privately drifts the first time that limit moves.
  *
  * Every length matches a HasMaxLength in ExerciseConfiguration AND the check in

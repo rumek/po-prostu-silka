@@ -1,8 +1,8 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { ClassTypeService } from '../../../core/scheduling/class-type.service';
-import { ClassTypeSummary } from '../../../core/scheduling/class-type.models';
-import { classTypeFailureMessage } from '../../../core/scheduling/class-type-failure';
+import { ClassGroupService } from '../../../core/scheduling/class-group.service';
+import { ClassGroupSummary } from '../../../core/scheduling/class-group.models';
+import { classGroupFailureMessage } from '../../../core/scheduling/class-group-failure';
 import { classifyFailure } from '../../../core/http/failure';
 import { transportMessage } from '../../../core/http/transport-messages';
 import { ToastService } from '../../../shared/toast/toast.service';
@@ -16,7 +16,7 @@ import { Row } from '../../../shared/list/row';
 import { Icon } from '../../../shared/icons/icon';
 
 /**
- * The admin's class-type definitions (prd-v2 FR-005, FR-006).
+ * The admin's class-group definitions (prd-v2 FR-005, FR-006).
  *
  * Same shape as the classes screen: loading / failed / empty signals, a per-row busy Set so one slow
  * row does not disable the list, and a generation guard so a refetch that resolves late cannot
@@ -30,27 +30,27 @@ import { Icon } from '../../../shared/icons/icon';
  */
 @Component({
   imports: [Row, List, Empty, Icon, Loading, Checkbox, RouterLink],
-  selector: 'app-class-types',
-  styleUrl: './class-types.scss',
-  templateUrl: './class-types.html',
+  selector: 'app-class-groups',
+  styleUrl: './class-groups.scss',
+  templateUrl: './class-groups.html',
 })
-export class ClassTypes implements OnInit {
-  private readonly classTypes = inject(ClassTypeService);
+export class ClassGroups implements OnInit {
+  private readonly classGroups = inject(ClassGroupService);
 
   /** Everything the API returned, unfiltered. `visible` is what the template renders. */
-  protected readonly rows = signal<ClassTypeSummary[]>([]);
+  protected readonly rows = signal<ClassGroupSummary[]>([]);
 
   protected readonly loading = signal(true);
   protected readonly loadFailed = signal(false);
 
-  /** Off by default: retired types are the exception and should not crowd the working list. */
+  /** Off by default: retired groups are the exception and should not crowd the working list. */
   protected readonly showInactive = signal(false);
 
   protected readonly visible = computed(() =>
     this.showInactive() ? this.rows() : this.rows().filter((t) => t.isActive),
   );
 
-  /** True when types exist but the filter hides every one — a different message from "none yet". */
+  /** True when groups exist but the filter hides every one — a different message from "none yet". */
   protected readonly hiddenByFilter = computed(
     () => this.rows().length > 0 && this.visible().length === 0,
   );
@@ -89,7 +89,7 @@ export class ClassTypes implements OnInit {
     this.failedId.set(null);
 
     try {
-      const rows = await this.classTypes.getAll();
+      const rows = await this.classGroups.getAll();
       if (!this.fence.isCurrent(generation)) {
         return;
       }
@@ -111,27 +111,27 @@ export class ClassTypes implements OnInit {
     this.showInactive.update((shown) => !shown);
   }
 
-  protected async deactivate(row: ClassTypeSummary): Promise<void> {
+  protected async deactivate(row: ClassGroupSummary): Promise<void> {
     await this.setActive(row, false);
   }
 
-  protected async activate(row: ClassTypeSummary): Promise<void> {
+  protected async activate(row: ClassGroupSummary): Promise<void> {
     await this.setActive(row, true);
   }
 
   /**
    * Flips one row's activation and patches it in place from the response, rather than refetching:
-   * the server returns the updated type, so a second round trip would buy nothing and would reorder
+   * the server returns the updated group, so a second round trip would buy nothing and would reorder
    * the list under the admin's cursor.
    */
-  private async setActive(row: ClassTypeSummary, active: boolean): Promise<void> {
+  private async setActive(row: ClassGroupSummary, active: boolean): Promise<void> {
     this.failedId.set(null);
     this.busy.setBusy(row.id, true);
 
     try {
       const updated = active
-        ? await this.classTypes.activate(row.id)
-        : await this.classTypes.deactivate(row.id);
+        ? await this.classGroups.activate(row.id)
+        : await this.classGroups.deactivate(row.id);
 
       this.rows.update((rows) => rows.map((t) => (t.id === updated.id ? updated : t)));
 
@@ -139,8 +139,8 @@ export class ClassTypes implements OnInit {
       // confirmation — the admin cannot tell it from a failed request. Say what happened.
       this.toast.success(
         active
-          ? `Typ „${updated.name}” jest znowu aktywny.`
-          : `Typ „${updated.name}” został dezaktywowany. Zaznacz „Pokaż nieaktywne”, aby go zobaczyć.`,
+          ? `Grupa „${updated.name}” jest znowu aktywna.`
+          : `Grupa „${updated.name}” została dezaktywowana. Zaznacz „Pokaż nieaktywne”, aby ją zobaczyć.`,
       );
     } catch (failure) {
       const info = classifyFailure(failure);
@@ -155,11 +155,11 @@ export class ClassTypes implements OnInit {
 
       // Activation is the one action that can be refused for a reason the admin can actually fix,
       // and it has no control to attach the message to — the request carries no name. Deactivating
-      // released this name, and another type has claimed it since.
+      // released this name, and another group has claimed it since.
       if (info.reason === 'name_taken') {
         // THE TABLE'S SENTENCE. This screen used to write its own, longer version for the one
         // refusal that reaches both here and the form — so the same name clash read two ways.
-        this.toast.error(classTypeFailureMessage(info.reason));
+        this.toast.error(classGroupFailureMessage(info.reason));
         return;
       }
 

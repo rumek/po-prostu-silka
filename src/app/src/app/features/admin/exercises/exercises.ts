@@ -19,13 +19,13 @@ import { Icon } from '../../../shared/icons/icon';
 /**
  * The admin's exercise library (prd.md FR-018, FR-019).
  *
- * Same shape as the class-types screen: loading / failed / empty signals, a per-row busy Set so one
+ * Same shape as the class-groups screen: loading / failed / empty signals, a per-row busy Set so one
  * slow row does not disable the list, and a generation guard so a refetch that resolves late cannot
  * overwrite fresher rows.
  *
  * NO DELETE. Deactivation replaces deletion, so there is no confirmation prompt to write —
  * deactivating is reversible, which is the whole reason it replaced deleting. It matters more here
- * than for class types: S-11's training plans will reference these rows.
+ * than for groups: S-11's training plans will reference these rows.
  *
  * The API returns active AND inactive in one call, so the "show inactive" toggle is a pure client
  * filter — flicking it costs no round trip, and the admin can reactivate something they can see.

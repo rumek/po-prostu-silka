@@ -2,10 +2,10 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, Router, provideRouter } from '@angular/router';
-import { ClassTypeSummary } from '../../../core/scheduling/class-type.models';
-import { ClassTypeForm } from './class-type-form';
+import { ClassGroupSummary } from '../../../core/scheduling/class-group.models';
+import { ClassGroupForm } from './class-group-form';
 
-const EXISTING: ClassTypeSummary = {
+const EXISTING: ClassGroupSummary = {
   id: 't1',
   name: 'Joga dla początkujących',
   description: 'Spokojne zajęcia dla osób bez doświadczenia.',
@@ -15,14 +15,14 @@ const EXISTING: ClassTypeSummary = {
   createdAt: new Date('2026-09-01T10:00').toISOString(),
 };
 
-describe('ClassTypeForm', () => {
-  let fixture: ComponentFixture<ClassTypeForm>;
+describe('ClassGroupForm', () => {
+  let fixture: ComponentFixture<ClassGroupForm>;
   let controller: HttpTestingController;
 
   /** Boots the form with or without an :id route parameter. */
   async function create(id: string | null) {
     TestBed.configureTestingModule({
-      imports: [ClassTypeForm],
+      imports: [ClassGroupForm],
       providers: [
         provideHttpClient(),
         provideHttpClientTesting(),
@@ -35,11 +35,11 @@ describe('ClassTypeForm', () => {
     });
 
     controller = TestBed.inject(HttpTestingController);
-    fixture = TestBed.createComponent(ClassTypeForm);
+    fixture = TestBed.createComponent(ClassGroupForm);
     fixture.detectChanges();
 
     if (id) {
-      (await vi.waitFor(() => controller.expectOne(`/api/admin/class-types/${id}`))).flush(
+      (await vi.waitFor(() => controller.expectOne(`/api/admin/class-groups/${id}`))).flush(
         EXISTING,
       );
     }
@@ -85,14 +85,14 @@ describe('ClassTypeForm', () => {
   it('renders an empty create form when there is no route id', async () => {
     await create(null);
 
-    expect(el().textContent).toContain('Nowy typ zajęć');
+    expect(el().textContent).toContain('Nowa grupa');
     expect(field('name').value).toBe('');
   });
 
-  it('loads the existing type when the route carries an id', async () => {
+  it('loads the existing group when the route carries an id', async () => {
     await create('t1');
 
-    expect(el().textContent).toContain('Edytuj typ zajęć');
+    expect(el().textContent).toContain('Edytuj grupę');
     expect(field('name').value).toBe('Joga dla początkujących');
     expect(field('description').value).toBe('Spokojne zajęcia dla osób bez doświadczenia.');
     expect(field('defaultDurationMinutes').value).toBe('60');
@@ -102,7 +102,7 @@ describe('ClassTypeForm', () => {
   /** The API's "absent" is null; the form's is an empty string. Feeding null in would render "null". */
   it('renders a null description as an empty field', async () => {
     TestBed.configureTestingModule({
-      imports: [ClassTypeForm],
+      imports: [ClassGroupForm],
       providers: [
         provideHttpClient(),
         provideHttpClientTesting(),
@@ -112,10 +112,10 @@ describe('ClassTypeForm', () => {
     });
 
     controller = TestBed.inject(HttpTestingController);
-    fixture = TestBed.createComponent(ClassTypeForm);
+    fixture = TestBed.createComponent(ClassGroupForm);
     fixture.detectChanges();
 
-    (await vi.waitFor(() => controller.expectOne('/api/admin/class-types/t1'))).flush({
+    (await vi.waitFor(() => controller.expectOne('/api/admin/class-groups/t1'))).flush({
       ...EXISTING,
       description: null,
     });
@@ -157,7 +157,7 @@ describe('ClassTypeForm', () => {
 
     submit();
 
-    const request = await vi.waitFor(() => controller.expectOne('/api/admin/class-types'));
+    const request = await vi.waitFor(() => controller.expectOne('/api/admin/class-groups'));
     expect(request.request.method).toBe('POST');
     expect(request.request.body.description).toBeNull();
 
@@ -173,7 +173,7 @@ describe('ClassTypeForm', () => {
 
     submit();
 
-    const request = await vi.waitFor(() => controller.expectOne('/api/admin/class-types'));
+    const request = await vi.waitFor(() => controller.expectOne('/api/admin/class-groups'));
     expect(request.request.body.description).toBe('Zajęcia wzmacniające.');
 
     request.flush({ ...EXISTING });
@@ -186,14 +186,14 @@ describe('ClassTypeForm', () => {
     await fillValid();
     submit();
 
-    (await vi.waitFor(() => controller.expectOne('/api/admin/class-types'))).flush(
+    (await vi.waitFor(() => controller.expectOne('/api/admin/class-groups'))).flush(
       { reason: 'name_taken' },
       { status: 409, statusText: 'Conflict' },
     );
     await settle();
 
     expect(field('name').getAttribute('aria-invalid')).toBe('true');
-    expect(el().textContent).toContain('już zajęta przez inny aktywny typ');
+    expect(el().textContent).toContain('już zajęta przez inną aktywną grupę');
     expect(el().querySelector('.alert')).toBeNull();
   });
 
@@ -206,7 +206,7 @@ describe('ClassTypeForm', () => {
     await fillValid();
     submit();
 
-    (await vi.waitFor(() => controller.expectOne('/api/admin/class-types'))).flush(
+    (await vi.waitFor(() => controller.expectOne('/api/admin/class-groups'))).flush(
       { reason: 'name_too_long' },
       { status: 400, statusText: 'Bad Request' },
     );
@@ -237,7 +237,7 @@ describe('ClassTypeForm', () => {
     await fillValid();
     submit();
 
-    (await vi.waitFor(() => controller.expectOne('/api/admin/class-types'))).flush(
+    (await vi.waitFor(() => controller.expectOne('/api/admin/class-groups'))).flush(
       { reason: 'description_too_long' },
       { status: 400, statusText: 'Bad Request' },
     );
@@ -253,7 +253,7 @@ describe('ClassTypeForm', () => {
     await fillValid();
     submit();
 
-    (await vi.waitFor(() => controller.expectOne('/api/admin/class-types'))).flush(null, {
+    (await vi.waitFor(() => controller.expectOne('/api/admin/class-groups'))).flush(null, {
       status: 500,
       statusText: 'Server Error',
     });
@@ -269,17 +269,19 @@ describe('ClassTypeForm', () => {
     await fillValid();
     submit();
 
-    (await vi.waitFor(() => controller.expectOne('/api/admin/class-types'))).flush({ ...EXISTING });
+    (await vi.waitFor(() => controller.expectOne('/api/admin/class-groups'))).flush({
+      ...EXISTING,
+    });
     await settle();
 
-    expect(navigate).toHaveBeenCalledWith(['/admin/class-types']);
+    expect(navigate).toHaveBeenCalledWith(['/admin/class-groups']);
   });
 
-  it('PUTs to the type-scoped path when editing', async () => {
+  it('PUTs to the group-scoped path when editing', async () => {
     await create('t1');
     submit();
 
-    const request = await vi.waitFor(() => controller.expectOne('/api/admin/class-types/t1'));
+    const request = await vi.waitFor(() => controller.expectOne('/api/admin/class-groups/t1'));
     expect(request.request.method).toBe('PUT');
     request.flush({ ...EXISTING });
     await settle();

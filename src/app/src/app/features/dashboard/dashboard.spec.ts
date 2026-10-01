@@ -60,7 +60,7 @@ function booking(over: Partial<MyBooking> = {}): MyBooking {
 function scheduled(over: Partial<ScheduledClass> = {}): ScheduledClass {
   return {
     id: over.id ?? 's1',
-    classTypeId: 'ct1',
+    classGroupId: 'ct1',
     name: over.name ?? 'Crossfit',
     description: null,
     startsAt: over.startsAt ?? new Date().toISOString(),

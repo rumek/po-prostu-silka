@@ -5,8 +5,8 @@
  * Seed: seed.spec.ts. Runs as the seeded admin at a phone width, where the admin's Grafik is
  * /schedule and a class opens its bookings overlay.
  *
- * Creates a class type (unique name) and one class of it, instructed by the E2E trainer, in a random
- * free slot (support/slots.ts); the `club` fixture deletes the class and deactivates the type.
+ * Creates a group (unique name) and one class of it, instructed by the E2E trainer, in a random
+ * free slot (support/slots.ts); the `club` fixture deletes the class and deactivates the group.
  */
 import { uniqueSuffix } from './support/club';
 import { expect, test } from './support/fixtures';

@@ -13,12 +13,12 @@ export interface MyBooking {
   classId: string;
 
   /**
-   * RESOLVED FROM THE CLASS TYPE, like `ScheduledClass.name`. A booking stores none of the three
-   * resolved fields, so correcting a typo on the type corrects it here too.
+   * RESOLVED FROM THE GROUP, like `ScheduledClass.name`. A booking stores none of the three
+   * resolved fields, so correcting a typo on the group corrects it here too.
    */
   name: string;
 
-  /** The type's description, same reference semantics as `name`. Absent as `null`. */
+  /** The group's description, same reference semantics as `name`. Absent as `null`. */
   description: string | null;
 
   /** ISO 8601 UTC from the API. Kept as a string; the screen converts and formats it. */

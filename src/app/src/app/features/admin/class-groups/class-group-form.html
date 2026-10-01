@@ -1,11 +1,11 @@
-<h1 class="screen-title">{{ editingId() ? 'Edytuj typ zajęć' : 'Nowy typ zajęć' }}</h1>
+<h1 class="screen-title">{{ editingId() ? 'Edytuj grupę' : 'Nowa grupa' }}</h1>
 
 @if (state.loading()) {
   <app-loading />
 } @else if (state.loadFailed()) {
   <p class="alert" role="alert">
-    Nie udało się wczytać tego typu zajęć.
-    <a class="link-button" routerLink="/admin/class-types">Wróć do listy</a>
+    Nie udało się wczytać tej grupy.
+    <a class="link-button" routerLink="/admin/class-groups">Wróć do listy</a>
   </p>
 } @else {
   @if (state.error()) {
@@ -22,7 +22,7 @@
         [attr.aria-invalid]="form.controls.name.touched && form.controls.name.invalid"
       />
       <p class="field-hint">
-        Widoczna przy każdych zajęciach tego typu. Zmiana nazwy zmienia ją wszędzie, także w
+        Widoczna przy każdych zajęciach tej grupy. Zmiana nazwy zmienia ją wszędzie, także w
         zajęciach, które już się odbyły.
       </p>
       @if (form.controls.name.touched && form.controls.name.invalid) {
@@ -33,7 +33,7 @@
         } @else if (form.controls.name.hasError('maxlength')) {
           <p class="field-error">{{ failureMessage('name_too_long') }}</p>
         } @else {
-          <p class="field-error">Podaj nazwę typu zajęć.</p>
+          <p class="field-error">Podaj nazwę grupy.</p>
         }
       }
     </app-field>
@@ -107,11 +107,11 @@
       }
     </app-field>
 
-    <div class="class-type-form-actions">
+    <div class="class-group-form-actions">
       <button type="submit" class="button" [disabled]="state.submitting()">
         {{ state.submitting() ? 'Zapisywanie…' : 'Zapisz' }}
       </button>
-      <a class="link-button" routerLink="/admin/class-types">Anuluj</a>
+      <a class="link-button" routerLink="/admin/class-groups">Anuluj</a>
     </div>
   </form>
 }

@@ -6,7 +6,7 @@ import { ClassActionsOverlay, bookedCount, canCancel } from './class-actions-ove
 
 const JOGA: ScheduledClass = {
   id: 'c1',
-  classTypeId: 't1',
+  classGroupId: 't1',
   name: 'Joga',
   description: null,
   startsAt: new Date(Date.now() + 86_400_000).toISOString(),

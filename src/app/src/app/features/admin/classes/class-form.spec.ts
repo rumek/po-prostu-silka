@@ -4,10 +4,10 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, Router, provideRouter } from '@angular/router';
 import { TrainerSummary } from '../../../core/admin/member-admin.models';
 import { ScheduledClass } from '../../../core/scheduling/class.models';
-import { ClassTypeSummary } from '../../../core/scheduling/class-type.models';
+import { ClassGroupSummary } from '../../../core/scheduling/class-group.models';
 import { ClassForm } from './class-form';
 
-const YOGA: ClassTypeSummary = {
+const YOGA: ClassGroupSummary = {
   id: 't1',
   name: 'Joga',
   description: 'Dla początkujących',
@@ -17,7 +17,7 @@ const YOGA: ClassTypeSummary = {
   createdAt: '2026-09-01T10:00:00Z',
 };
 
-const RETIRED: ClassTypeSummary = {
+const RETIRED: ClassGroupSummary = {
   ...YOGA,
   id: 't2',
   name: 'Pilates',
@@ -31,7 +31,7 @@ const TRAINERS: TrainerSummary[] = [
 
 const EXISTING: ScheduledClass = {
   id: 'c1',
-  classTypeId: 't1',
+  classGroupId: 't1',
   name: 'Joga',
   description: 'Dla początkujących',
   startsAt: new Date('2026-09-04T22:00').toISOString(),
@@ -39,7 +39,7 @@ const EXISTING: ScheduledClass = {
   instructorMemberId: 'u1',
   instructor: 'Ola',
   // Deliberately DIFFERENT from YOGA's defaults (75/18) — several tests below turn on the fact that
-  // an occurrence keeps its own numbers rather than re-deriving them from the type.
+  // an occurrence keeps its own numbers rather than re-deriving them from the group.
   capacity: 20,
   freeSpots: 20,
   status: 'Scheduled',
@@ -57,7 +57,7 @@ describe('ClassForm', () => {
    */
   async function create(
     id: string | null,
-    options: { types?: ClassTypeSummary[]; trainers?: TrainerSummary[] } = {},
+    options: { groups?: ClassGroupSummary[]; trainers?: TrainerSummary[] } = {},
   ) {
     TestBed.configureTestingModule({
       imports: [ClassForm],
@@ -76,8 +76,8 @@ describe('ClassForm', () => {
     fixture = TestBed.createComponent(ClassForm);
     fixture.detectChanges();
 
-    (await vi.waitFor(() => controller.expectOne('/api/admin/class-types'))).flush(
-      options.types ?? [YOGA, RETIRED],
+    (await vi.waitFor(() => controller.expectOne('/api/admin/class-groups'))).flush(
+      options.groups ?? [YOGA, RETIRED],
     );
     (await vi.waitFor(() => controller.expectOne('/api/admin/trainers'))).flush(
       options.trainers ?? TRAINERS,
@@ -132,7 +132,7 @@ describe('ClassForm', () => {
   }
 
   async function fillValid() {
-    pick('classTypeId', 't1');
+    pick('classGroupId', 't1');
     set('startsAt', '2026-12-01T18:00');
     pick('instructorMemberId', 'u1');
     await settle();
@@ -142,14 +142,14 @@ describe('ClassForm', () => {
     await create(null);
 
     expect(el().textContent).toContain('Nowe zajęcia');
-    expect(select('classTypeId').value).toBe('');
+    expect(select('classGroupId').value).toBe('');
     expect(select('instructorMemberId').value).toBe('');
   });
 
-  it('offers only active class types when creating', async () => {
+  it('offers only active groups when creating', async () => {
     await create(null);
 
-    const labels = [...select('classTypeId').querySelectorAll('option')].map((o) =>
+    const labels = [...select('classGroupId').querySelectorAll('option')].map((o) =>
       o.textContent?.trim(),
     );
 
@@ -159,10 +159,10 @@ describe('ClassForm', () => {
 
   // --- the prefill, and the one case where it must NOT fire ------------------
 
-  it('prefills duration and capacity from the chosen type', async () => {
+  it('prefills duration and capacity from the chosen group', async () => {
     await create(null);
 
-    pick('classTypeId', 't1');
+    pick('classGroupId', 't1');
     await settle();
 
     expect(input('durationMinutes').value).toBe('75');
@@ -172,7 +172,7 @@ describe('ClassForm', () => {
   it('keeps an override the admin typed after the prefill', async () => {
     await create(null);
 
-    pick('classTypeId', 't1');
+    pick('classGroupId', 't1');
     await settle();
     set('capacity', '8');
     await settle();
@@ -182,7 +182,7 @@ describe('ClassForm', () => {
 
   /**
    * THE REGRESSION THIS FILE EXISTS FOR. An occurrence owns its own copies of duration and capacity
-   * (prd-v2 FR-007). Re-deriving them from the type on load would silently replace an override —
+   * (prd-v2 FR-007). Re-deriving them from the group on load would silently replace an override —
    * and, for capacity, move the value the no-overbooking guarantee is checked against.
    */
   it('does NOT re-prefill the numbers when loading an existing class', async () => {
@@ -197,7 +197,7 @@ describe('ClassForm', () => {
     await create('c1');
 
     expect(el().textContent).toContain('Edytuj zajęcia');
-    expect(select('classTypeId').value).toBe('t1');
+    expect(select('classGroupId').value).toBe('t1');
     expect(select('instructorMemberId').value).toBe('u1');
   });
 
@@ -215,20 +215,20 @@ describe('ClassForm', () => {
     expect(selects.every((s) => s.parentElement?.classList.contains('select'))).toBe(true);
   });
 
-  it('disables the type select when editing', async () => {
+  it('disables the group select when editing', async () => {
     await create('c1');
 
-    expect(select('classTypeId').disabled).toBe(true);
-    expect(el().textContent).toContain('Typu nie można zmienić');
+    expect(select('classGroupId').disabled).toBe(true);
+    expect(el().textContent).toContain('Grupy nie można zmienić');
   });
 
   // --- the empty states ------------------------------------------------------
 
-  it('signposts the class-type screen when no active type exists', async () => {
-    await create(null, { types: [RETIRED] });
+  it('signposts the class-group screen when no active group exists', async () => {
+    await create(null, { groups: [RETIRED] });
 
-    expect(el().textContent).toContain('Najpierw zdefiniuj typ zajęć');
-    expect(el().querySelector('a[href="/admin/class-types"]')).not.toBeNull();
+    expect(el().textContent).toContain('Najpierw zdefiniuj grupę');
+    expect(el().querySelector('a[href="/admin/class-groups"]')).not.toBeNull();
     expect(el().querySelector('form')).toBeNull();
   });
 
@@ -241,7 +241,7 @@ describe('ClassForm', () => {
   });
 
   /**
-   * Both empty states are CREATE-only preconditions. An existing class already has a type and an
+   * Both empty states are CREATE-only preconditions. An existing class already has a group and an
    * instructor, so an empty list must not replace the form — that would lock the admin out of a
    * perfectly valid class they need to reschedule.
    */
@@ -269,11 +269,11 @@ describe('ClassForm', () => {
     expect(select('instructorMemberId').value).toBe('u1');
   });
 
-  it('still renders the edit form when every class type was retired', async () => {
-    await create('c1', { types: [RETIRED] });
+  it('still renders the edit form when every group was retired', async () => {
+    await create('c1', { groups: [RETIRED] });
 
     expect(el().querySelector('form')).not.toBeNull();
-    expect(el().textContent).not.toContain('Najpierw zdefiniuj typ zajęć');
+    expect(el().textContent).not.toContain('Najpierw zdefiniuj grupę');
   });
 
   // --- time handling ---------------------------------------------------------
@@ -297,7 +297,7 @@ describe('ClassForm', () => {
 
     const request = await vi.waitFor(() => controller.expectOne('/api/admin/classes'));
     expect(request.request.method).toBe('POST');
-    expect(request.request.body.classTypeId).toBe('t1');
+    expect(request.request.body.classGroupId).toBe('t1');
     expect(request.request.body.instructorMemberId).toBe('u1');
 
     // Round-trips to the same wall clock the admin typed.
@@ -371,19 +371,19 @@ describe('ClassForm', () => {
     expect(el().textContent).toContain('listy aktywnych trenerów');
   });
 
-  /** The type control is disabled while editing, so these carry a banner rather than a field error. */
-  it('reports a rejected class type as a form-level message', async () => {
+  /** The group control is disabled while editing, so these carry a banner rather than a field error. */
+  it('reports a rejected group as a form-level message', async () => {
     await create(null);
     await fillValid();
     submit();
 
     (await vi.waitFor(() => controller.expectOne('/api/admin/classes'))).flush(
-      { reason: 'inactive_class_type' },
+      { reason: 'inactive_class_group' },
       { status: 400, statusText: 'Bad Request' },
     );
     await settle();
 
-    expect(el().querySelector('.alert')?.textContent).toContain('Nie można użyć tego typu zajęć');
+    expect(el().querySelector('.alert')?.textContent).toContain('Nie można użyć tej grupy');
   });
 
   it('falls back to a form-level message for an unexpected failure', async () => {
@@ -414,17 +414,17 @@ describe('ClassForm', () => {
   });
 
   /**
-   * getRawValue, not value: the type control is DISABLED when editing, and `value` omits disabled
-   * controls. The API requires classTypeId on an edit — it is how it detects an attempted change —
+   * getRawValue, not value: the group control is DISABLED when editing, and `value` omits disabled
+   * controls. The API requires classGroupId on an edit — it is how it detects an attempted change —
    * so dropping it would turn every edit into a missing_field.
    */
-  it('PUTs the class type back even though its control is disabled', async () => {
+  it('PUTs the group back even though its control is disabled', async () => {
     await create('c1');
     submit();
 
     const request = await vi.waitFor(() => controller.expectOne('/api/admin/classes/c1'));
     expect(request.request.method).toBe('PUT');
-    expect(request.request.body.classTypeId).toBe('t1');
+    expect(request.request.body.classGroupId).toBe('t1');
     request.flush({ ...EXISTING });
     await settle();
   });

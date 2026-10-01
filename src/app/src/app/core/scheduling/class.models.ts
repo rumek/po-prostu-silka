@@ -5,25 +5,25 @@
 export interface ScheduledClass {
   id: string;
 
-  /** Which class type this occurrence instantiates. Immutable once created — see ClassRequest. */
-  classTypeId: string;
+  /** Which group this occurrence instantiates. Immutable once created — see ClassRequest. */
+  classGroupId: string;
 
   /**
-   * RESOLVED FROM THE CLASS TYPE, not stored on the occurrence (prd-v2 FR-010). The occurrence has
-   * no name of its own, which is what makes correcting a typo on the type correct it on every week
+   * RESOLVED FROM THE GROUP, not stored on the occurrence (prd-v2 FR-010). The occurrence has
+   * no name of its own, which is what makes correcting a typo on the group correct it on every week
    * at once, past occurrences included.
    */
   name: string;
 
-  /** The type's description, same reference semantics as `name`. Absent as `null`. */
+  /** The group's description, same reference semantics as `name`. Absent as `null`. */
   description: string | null;
 
   /** ISO 8601 UTC from the API. Kept as a string; the screen converts and formats it. */
   startsAt: string;
 
   /**
-   * A COPY of the type's default, taken at creation and overridable for this occurrence alone. The
-   * opposite of `name`: never re-read from the type. Same for `capacity` — see prd-v2 FR-007.
+   * A COPY of the group's default, taken at creation and overridable for this occurrence alone. The
+   * opposite of `name`: never re-read from the group. Same for `capacity` — see prd-v2 FR-007.
    */
   durationMinutes: number;
 
@@ -54,21 +54,21 @@ export interface ScheduledClass {
  * Mirrors ClassRequest. Create and edit take the same shape.
  *
  * A FORM OF SELECTIONS, NOT OF TEXT (prd-v2 US-01): there is no name and no room to type. What
- * remains typed are the two numbers, and they arrive prefilled from the type's defaults.
+ * remains typed are the two numbers, and they arrive prefilled from the group's defaults.
  */
 export interface ClassRequest {
   /**
-   * Required on an edit too, but only so the server can refuse a CHANGE to it: the type is immutable
-   * once an occurrence exists (`class_type_immutable`). Send back what the class already has.
+   * Required on an edit too, but only so the server can refuse a CHANGE to it: the group is immutable
+   * once an occurrence exists (`class_group_immutable`). Send back what the class already has.
    */
-  classTypeId: string;
+  classGroupId: string;
 
   /** ISO 8601 UTC. The form works in local time and converts on submit — see class-form. */
   startsAt: string;
 
   durationMinutes: number;
 
-  /** A member id from `/api/admin/trainers`. Unlike the type, this IS editable. */
+  /** A member id from `/api/admin/trainers`. Unlike the group, this IS editable. */
   instructorMemberId: string;
 
   capacity: number;
@@ -115,9 +115,9 @@ export interface ClassFailure {
     | 'starts_in_past'
     | 'invalid_weeks'
     | 'time_conflict'
-    | 'unknown_class_type'
-    | 'inactive_class_type'
-    | 'class_type_immutable'
+    | 'unknown_class_group'
+    | 'inactive_class_group'
+    | 'class_group_immutable'
     | 'unknown_instructor'
     | 'instructor_not_trainer'
     | 'has_bookings'
@@ -141,9 +141,9 @@ export const CLASS_FAILURE_REASONS = Object.keys({
   starts_in_past: true,
   invalid_weeks: true,
   time_conflict: true,
-  unknown_class_type: true,
-  inactive_class_type: true,
-  class_type_immutable: true,
+  unknown_class_group: true,
+  inactive_class_group: true,
+  class_group_immutable: true,
   unknown_instructor: true,
   instructor_not_trainer: true,
   has_bookings: true,

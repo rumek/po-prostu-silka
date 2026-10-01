@@ -25,8 +25,8 @@ function todayAt(hour: number): string {
 
 const JOGA: ScheduledClass = {
   id: 'c1',
-  classTypeId: 't1',
-  // Resolved from the class type, not stored on the occurrence — see class.models.
+  classGroupId: 't1',
+  // Resolved from the group, not stored on the occurrence — see class.models.
   name: 'Joga',
   description: 'Dla poczatkujacych',
   startsAt: todayAt(18),
@@ -44,7 +44,7 @@ const BOOKED: ScheduledClass = { ...JOGA, id: 'c3', name: 'Crossfit', freeSpots:
 const PILATES: ScheduledClass = {
   ...JOGA,
   id: 'c2',
-  classTypeId: 't2',
+  classGroupId: 't2',
   name: 'Pilates',
   startsAt: todayAt(20),
 };
@@ -426,7 +426,7 @@ describe('Classes', () => {
     const body = updateRequest().request.body;
 
     // The update endpoint takes a whole ClassRequest — omitting these would blank them.
-    expect(body.classTypeId).toBe('t1');
+    expect(body.classGroupId).toBe('t1');
     expect(body.instructorMemberId).toBe('u1');
     expect(body.capacity).toBe(20);
     expect(body.durationMinutes).toBe(90);
@@ -690,7 +690,7 @@ describe('Classes', () => {
     fixture.detectChanges();
     expect(element().querySelector('app-class-create-overlay')).not.toBeNull();
     // The create overlay loads its own two selects; answer them so nothing is left open.
-    controller.expectOne('/api/admin/class-types').flush([]);
+    controller.expectOne('/api/admin/class-groups').flush([]);
     controller.expectOne('/api/admin/trainers').flush([]);
 
     // Nothing traps Tab in an overlay, so the tile behind it is still reachable.
@@ -939,7 +939,7 @@ describe('Classes', () => {
         element().querySelectorAll<HTMLAnchorElement>('.classes-desk-only a'),
       ).map((link) => link.getAttribute('href'));
 
-      expect(links).toEqual(['/schedule', '/admin/classes/new', '/admin/class-types']);
+      expect(links).toEqual(['/schedule', '/admin/classes/new', '/admin/class-groups']);
     });
 
     it('fetches no classes', async () => {
