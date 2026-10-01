@@ -101,7 +101,7 @@ public static class CancelClass
 
         await notification.NotifyCancelledAsync(
             new ClassDescription(
-                existing.ClassType.Name,
+                existing.ClassGroup.Name,
                 existing.StartsAt,
                 existing.DurationMinutes,
 
@@ -127,6 +127,6 @@ public static class CancelClass
         // the save succeeded, so no booking write landed in between — any that had tried would have
         // rotated the stamp and taken this save down with it.
         return Results.Ok(
-            ClassDtoMapping.ToDto(existing, existing.ClassType, existing.Instructor!.DisplayName, recipients.Count));
+            ClassDtoMapping.ToDto(existing, existing.ClassGroup, existing.Instructor!.DisplayName, recipients.Count));
     }
 }

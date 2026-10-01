@@ -27,16 +27,16 @@ import { ClassFailure } from './class.models';
  * entry for it exists or should.
  */
 const MESSAGES: Record<ClassFailure['reason'], string> = {
-  missing_field: 'Wybierz typ zajęć i prowadzącego.',
+  missing_field: 'Wybierz grupę i prowadzącego.',
   invalid_capacity: 'Liczba miejsc musi mieścić się w zakresie 1–200.',
   invalid_duration: 'Czas trwania musi mieścić się w zakresie 1–480 minut.',
   starts_in_past: 'Nie można zaplanować zajęć w przeszłości.',
   invalid_weeks: 'Liczba tygodni musi mieścić się w zakresie 1–8.',
   time_conflict: 'O tej porze są już inne zajęcia. Wybierz inny termin.',
   // All three mean the same thing to the admin: this type cannot be used for this class.
-  unknown_class_type: 'Nie można użyć tego typu zajęć. Odśwież stronę i spróbuj ponownie.',
-  inactive_class_type: 'Nie można użyć tego typu zajęć. Odśwież stronę i spróbuj ponownie.',
-  class_type_immutable: 'Nie można użyć tego typu zajęć. Odśwież stronę i spróbuj ponownie.',
+  unknown_class_group: 'Nie można użyć tej grupy. Odśwież stronę i spróbuj ponownie.',
+  inactive_class_group: 'Nie można użyć tej grupy. Odśwież stronę i spróbuj ponownie.',
+  class_group_immutable: 'Nie można użyć tej grupy. Odśwież stronę i spróbuj ponownie.',
   // Likewise these two: the selection only ever offers active trainers, so either means the list is
   // stale and "pick someone else" is the whole of the useful advice.
   unknown_instructor: 'Wybierz prowadzącego z listy aktywnych trenerów.',

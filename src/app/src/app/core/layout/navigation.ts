@@ -43,10 +43,10 @@ const TRAINER_MEMBERS: NavLink = {
 
 const ADMIN_CLASSES: NavLink = { ...SCHEDULE, route: '/admin/classes' };
 const ADMIN_MEMBERS: NavLink = { ...TRAINER_MEMBERS, route: '/admin/members' };
-const CLASS_TYPES: NavLink = {
-  route: '/admin/class-types',
-  label: 'Typy zajęć',
-  icon: 'repeat',
+const CLASS_GROUPS: NavLink = {
+  route: '/admin/class-groups',
+  label: 'Grupy',
+  icon: 'group',
   exact: false,
 };
 const EXERCISES: NavLink = {
@@ -77,7 +77,7 @@ const NONE: Navigation = { header: [], bar: [MORE], more: [] };
  * bookings overlay, on a screen that works on a phone. `desk` comes from the caller's
  * `mediaQuerySignal(DESK_MEDIA_QUERY, true)` so this stays a pure function.
  *
- * Only the admin needs /more for a destination (Typy zajęć — the sixth link does not fit a
+ * Only the admin needs /more for a destination (Grupy — the sixth link does not fit a
  * five-slot bar). Member and trainer still get the Więcej tab: it is where the phone reaches Moje
  * konto and logout.
  */
@@ -98,9 +98,9 @@ export function navigationFor(persona: Persona | null, desk: boolean): Navigatio
     case 'admin': {
       const grafik = desk ? ADMIN_CLASSES : SCHEDULE;
       return {
-        header: [START, grafik, ADMIN_MEMBERS, CLASS_TYPES, EXERCISES],
+        header: [START, grafik, ADMIN_MEMBERS, CLASS_GROUPS, EXERCISES],
         bar: [START, grafik, ADMIN_MEMBERS, EXERCISES, MORE],
-        more: [CLASS_TYPES],
+        more: [CLASS_GROUPS],
       };
     }
     default:

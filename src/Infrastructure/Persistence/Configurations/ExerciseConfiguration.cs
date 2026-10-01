@@ -11,10 +11,10 @@ public class ExerciseConfiguration : IEntityTypeConfiguration<Exercise>
         builder.ToTable("Exercises");
         builder.HasKey(x => x.Id);
 
-        // 200 matches ClassType.Name - a label an admin types, seen in a list.
+        // 200 matches ClassGroup.Name - a label an admin types, seen in a list.
         builder.Property(x => x.Name).IsRequired().HasMaxLength(200);
 
-        // Every column below is nullable, and nullable ONLY because the CLR type is - there is no
+        // Every column below is nullable, and nullable ONLY because the CLR group is - there is no
         // IsRequired(false) anywhere in this codebase. The lengths are what the endpoint's
         // validation mirrors; the two must stay in step, or an over-long value becomes a 500 at the
         // database instead of a 400 on the field.
@@ -35,7 +35,7 @@ public class ExerciseConfiguration : IEntityTypeConfiguration<Exercise>
         builder.Property(x => x.CreatedAt).IsRequired();
 
         // Defaulting to true means a row inserted without an explicit flag is OFFERED, never
-        // silently hidden - the same reasoning ClassTypeConfiguration applies.
+        // silently hidden - the same reasoning ClassGroupConfiguration applies.
         builder.Property(x => x.IsActive).IsRequired().HasDefaultValue(true);
 
         // FILTERED, not plain. Uniqueness holds among ACTIVE exercises only: without the filter,

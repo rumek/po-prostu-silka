@@ -24,14 +24,14 @@ describe('navigationFor', () => {
     expect(nav.more).toEqual([]);
   });
 
-  it('gives an admin at desk width the calendar, the admin lists and Typy zajęć under Więcej', () => {
+  it('gives an admin at desk width the calendar, the admin lists and Grupy under Więcej', () => {
     const nav = navigationFor('admin', true);
 
     expect(routes(nav.header)).toEqual([
       '/',
       '/admin/classes',
       '/admin/members',
-      '/admin/class-types',
+      '/admin/class-groups',
       '/admin/exercises',
     ]);
     expect(routes(nav.bar)).toEqual([
@@ -41,7 +41,7 @@ describe('navigationFor', () => {
       '/admin/exercises',
       '/more',
     ]);
-    expect(routes(nav.more)).toEqual(['/admin/class-types']);
+    expect(routes(nav.more)).toEqual(['/admin/class-groups']);
   });
 
   /** UX-01: below desk the calendar refuses to render, so Grafik is the schedule there. */

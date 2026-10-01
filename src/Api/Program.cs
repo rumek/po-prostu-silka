@@ -326,10 +326,10 @@ builder.Services.AddScoped<IClassStore, ClassStore>();
 builder.Services.AddScoped<IBookingStore, BookingStore>();
 builder.Services.AddScoped<IBookingQuery, BookingQuery>();
 
-// S-05's class-type definitions (prd-v2 FR-004..FR-007). Scoped for the same reason as the two
+// S-05's group definitions (prd-v2 FR-004..FR-007). Scoped for the same reason as the two
 // above - the store must share the request's DbContext with IUnitOfWork, which is what commits it.
-builder.Services.AddScoped<IClassTypeQuery, ClassTypeQuery>();
-builder.Services.AddScoped<IClassTypeStore, ClassTypeStore>();
+builder.Services.AddScoped<IClassGroupQuery, ClassGroupQuery>();
+builder.Services.AddScoped<IClassGroupStore, ClassGroupStore>();
 
 // S-10's exercise library (prd.md FR-018, FR-019). Scoped for the same reason as the sets above -
 // the store must share the request's DbContext with IUnitOfWork, which is what commits it.
@@ -429,7 +429,7 @@ app.MapMembershipPassEndpoints();
 app.MapMyPassEndpoints();
 app.MapTrainerEndpoints();
 app.MapClassEndpoints();
-app.MapClassTypeEndpoints();
+app.MapClassGroupEndpoints();
 app.MapExerciseEndpoints();
 app.MapTrainingPlanEndpoints();
 app.MapTrainerMemberEndpoints();

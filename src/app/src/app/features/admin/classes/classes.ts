@@ -131,7 +131,7 @@ export class Classes {
   /** The bookings overlay's picker searches the admin member list here (S-25). */
   protected readonly candidateSearch = adminCandidateSearch(inject(MemberAdminService));
 
-  /** The range drawn on the grid, awaiting a type and a trainer. Null when no overlay is open. */
+  /** The range drawn on the grid, awaiting a group and a trainer. Null when no overlay is open. */
   protected readonly drawn = signal<DrawnRange | null>(null);
 
   /**
@@ -261,7 +261,7 @@ export class Classes {
    * moving it again is the one thing that would make a direct-manipulation gesture feel broken. The
    * previous rows are kept so a refusal can put it back exactly, in one step.
    *
-   * The fields the gesture cannot express — type, trainer, capacity — are sent back unchanged. The
+   * The fields the gesture cannot express — group, trainer, capacity — are sent back unchanged. The
    * update endpoint takes a whole ClassRequest, so omitting them would blank them.
    */
   protected async reschedule(change: RescheduledClass): Promise<void> {
@@ -285,7 +285,7 @@ export class Classes {
 
     try {
       await this.classes.update(row.id, {
-        classTypeId: row.classTypeId,
+        classGroupId: row.classGroupId,
         startsAt,
         durationMinutes: change.durationMinutes,
         instructorMemberId: row.instructorMemberId,

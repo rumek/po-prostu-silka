@@ -12,7 +12,7 @@ import { CalendarRange, DrawnRange, RescheduledClass, ScheduleCalendar } from '.
 function at(local: string, over: Partial<ScheduledClass> = {}): ScheduledClass {
   return {
     id: over.id ?? local,
-    classTypeId: over.classTypeId ?? 't1',
+    classGroupId: over.classGroupId ?? 't1',
     name: over.name ?? 'Joga',
     description: over.description ?? null,
     startsAt: new Date(local).toISOString(),

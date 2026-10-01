@@ -14,7 +14,7 @@ public sealed record TestDataSet(
     IReadOnlyList<SeedAccount> Accounts,
     IReadOnlyList<Member> Members,
     IReadOnlyList<MembershipPass> Passes,
-    IReadOnlyList<ClassType> ClassTypes,
+    IReadOnlyList<ClassGroup> ClassGroups,
     IReadOnlyList<Class> Classes,
     IReadOnlyList<Booking> Bookings,
     IReadOnlyList<Exercise> Exercises,
@@ -96,7 +96,7 @@ public sealed class TestDataGenerator
     private readonly List<SeedAccount> _accounts = [];
     private readonly List<Member> _members = [];
     private readonly List<MembershipPass> _passes = [];
-    private readonly List<ClassType> _classTypes = [];
+    private readonly List<ClassGroup> _classGroups = [];
     private readonly List<Class> _classes = [];
     private readonly List<Booking> _bookings = [];
     private readonly List<Exercise> _exercises = [];
@@ -125,14 +125,14 @@ public sealed class TestDataGenerator
         AddStaff();
         AddMembers();
         AddPasses();
-        AddClassTypes();
+        AddClassGroups();
         AddClasses();
         AddBookings();
         AddExercises();
         AddPlans();
 
         return new TestDataSet(
-            _accounts, _members, _passes, _classTypes, _classes, _bookings, _exercises, _plans);
+            _accounts, _members, _passes, _classGroups, _classes, _bookings, _exercises, _plans);
     }
 
     // ------------------------------------------------------------------
@@ -356,11 +356,11 @@ public sealed class TestDataGenerator
     // Schedule
     // ------------------------------------------------------------------
 
-    private void AddClassTypes()
+    private void AddClassGroups()
     {
-        foreach (var spec in TestDataNames.ClassTypes)
+        foreach (var spec in TestDataNames.ClassGroups)
         {
-            _classTypes.Add(new ClassType
+            _classGroups.Add(new ClassGroup
             {
                 Id = NewId(),
                 Name = spec.Name,
@@ -375,7 +375,7 @@ public sealed class TestDataGenerator
 
     private void AddClasses()
     {
-        var activeTypes = _classTypes.Where(t => t.IsActive).ToList();
+        var activeTypes = _classGroups.Where(t => t.IsActive).ToList();
 
         for (var day = -WindowDays; day <= WindowDays; day++)
         {
@@ -399,7 +399,7 @@ public sealed class TestDataGenerator
                     Status = ClassStatus.Scheduled,
                     CreatedAt = At(Math.Min(day - 21, -1), 9, 0),
                     ConcurrencyStamp = NewId().ToString(),
-                    ClassTypeId = type.Id,
+                    ClassGroupId = type.Id,
                     InstructorMemberId = Pick(Instructors).Id,
                 });
             }

@@ -31,8 +31,8 @@ public class AdminBookingEndpointTests(IntegrationTestFixture fixture)
     /// <summary>Mirrors ScheduledClass — only what these tests read from it.</summary>
     private sealed record ClassBody(Guid Id, int Capacity, int FreeSpots, DateTimeOffset StartsAt);
 
-    /// <summary>Mirrors ClassTypeSummary — only what these tests read from it.</summary>
-    private sealed record ClassTypeBody(Guid Id, string Name);
+    /// <summary>Mirrors ClassGroupSummary — only what these tests read from it.</summary>
+    private sealed record ClassGroupBody(Guid Id, string Name);
 
     /// <summary>Mirrors ClassBooking.</summary>
     private sealed record ClassBookingBody(
@@ -47,7 +47,7 @@ public class AdminBookingEndpointTests(IntegrationTestFixture fixture)
     private sealed record FailureBody(string Reason);
 
     private const string ClassesEndpoint = "/api/admin/classes";
-    private const string TypesEndpoint = "/api/admin/class-types";
+    private const string TypesEndpoint = "/api/admin/class-groups";
 
     private static string AdminBookingsOf(Guid classId) => $"/api/admin/classes/{classId}/bookings";
 
@@ -66,7 +66,7 @@ public class AdminBookingEndpointTests(IntegrationTestFixture fixture)
     private Task<HttpClient> AdminAsync() =>
         fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveAdminEmail);
 
-    private static async Task<ClassTypeBody> CreateTypeAsync(HttpClient admin)
+    private static async Task<ClassGroupBody> CreateTypeAsync(HttpClient admin)
     {
         var response = await admin.PostAsJsonAsync(TypesEndpoint, new
         {
@@ -77,7 +77,7 @@ public class AdminBookingEndpointTests(IntegrationTestFixture fixture)
         });
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        return (await response.Content.ReadFromJsonAsync<ClassTypeBody>())!;
+        return (await response.Content.ReadFromJsonAsync<ClassGroupBody>())!;
     }
 
     /// <summary>An active trainer's MEMBER id, which is what a class names as its instructor.</summary>
@@ -116,7 +116,7 @@ public class AdminBookingEndpointTests(IntegrationTestFixture fixture)
 
         var response = await admin.PostAsJsonAsync(ClassesEndpoint, new
         {
-            classTypeId = type.Id,
+            classGroupId = type.Id,
             startsAt = NextSlot(),
             instructorMemberId = trainerId,
             durationMinutes = 60,
@@ -198,7 +198,7 @@ public class AdminBookingEndpointTests(IntegrationTestFixture fixture)
 
         var response = await admin.PostAsJsonAsync(ClassesEndpoint, new
         {
-            classTypeId = type.Id,
+            classGroupId = type.Id,
             startsAt = NextSlot(),
             instructorMemberId = trainerId,
             durationMinutes = 60,
@@ -220,7 +220,7 @@ public class AdminBookingEndpointTests(IntegrationTestFixture fixture)
 
         var response = await admin.PostAsJsonAsync(ClassesEndpoint, new
         {
-            classTypeId = type.Id,
+            classGroupId = type.Id,
             startsAt,
             instructorMemberId = trainerId,
             durationMinutes = 60,

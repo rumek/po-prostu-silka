@@ -28,7 +28,7 @@ const ADMIN = user('admin', ['Admin']);
 const ADMIN_TRAINER = user('admin-trainer', ['Admin', 'Trainer']);
 const BLOCKED_MEMBER = user('blocked', ['User'], { membershipStatus: 'Blocked' });
 
-const ADMIN_LISTS = ['/admin/members', '/admin/class-types', '/admin/exercises'];
+const ADMIN_LISTS = ['/admin/members', '/admin/class-groups', '/admin/exercises'];
 
 /**
  * The shell (S-25): the header and the bottom bar render the persona's links from

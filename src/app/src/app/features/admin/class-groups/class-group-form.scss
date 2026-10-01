@@ -1,0 +1,86 @@
+@use 'breakpoints' as bp;
+
+// Layout only — .card/.field/.field-error/.hint/.button/.alert come from src/styles.scss. Drawn like
+// the exercise form and Moje konto (features/profile): a single column, a block title above each
+// card.
+
+:host {
+  display: grid;
+  gap: var(--space-5);
+  max-width: 40rem;
+}
+
+// The screen title's own margin would double the grid's gap.
+.screen-title,
+.class-group-form-hint {
+  margin: 0;
+}
+
+.class-group-form {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.class-group-form-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+// The dashboard's block title (.dashboard-card-title): the body face, a label for the card under it.
+.class-group-form-title {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 1.125rem;
+  letter-spacing: 0;
+}
+
+.class-group-form-card {
+  padding: var(--space-5);
+
+  // The card's padding closes it; the last field's own bottom margin would double that.
+  > app-field:last-child .field {
+    margin-bottom: 0;
+  }
+}
+
+// Per-field guidance, quieter than a label and distinct from .field-error. This form carries more
+// of it than any other screen because FR-007's asymmetry is not guessable: the admin has to be told
+// that the name propagates and the numbers do not.
+.field-hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+// The two numbers side by side from tablet width up. `align-items: start` so an error under one of
+// them does not stretch its neighbour; the labels are one line each, which keeps the inputs level.
+.class-group-form-pair {
+  display: grid;
+  align-items: start;
+  column-gap: var(--space-4);
+}
+
+@include bp.form-columns {
+  .class-group-form-pair {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
+// The pair's fields keep their bottom margin; the hint sits in it, so it closes the card.
+.class-group-form-defaults-hint {
+  margin-top: calc(-1 * var(--space-2));
+}
+
+.class-group-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+@include bp.narrow {
+  .class-group-form-actions .button {
+    width: 100%;
+  }
+}

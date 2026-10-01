@@ -359,7 +359,7 @@ public class MembershipPassEndpointTests(IntegrationTestFixture fixture)
         await fixture.CreateUserAsync(trainerEmail, AccountStatus.Active, ApplicationRoles.Trainer);
         var trainerId = await fixture.FindMemberIdAsync(admin, trainerEmail);
 
-        var typeResponse = await admin.PostAsJsonAsync("/api/admin/class-types", new
+        var typeResponse = await admin.PostAsJsonAsync("/api/admin/class-groups", new
         {
             name = $"Karnet Test {Guid.NewGuid():N}",
             description = (string?)"Opis",
@@ -371,7 +371,7 @@ public class MembershipPassEndpointTests(IntegrationTestFixture fixture)
 
         var classResponse = await admin.PostAsJsonAsync("/api/admin/classes", new
         {
-            classTypeId = type.Id,
+            classGroupId = type.Id,
             startsAt = classStart,
             instructorMemberId = trainerId,
             durationMinutes = 60,
@@ -427,7 +427,7 @@ public class MembershipPassEndpointTests(IntegrationTestFixture fixture)
         await fixture.CreateUserAsync(trainerEmail, AccountStatus.Active, ApplicationRoles.Trainer);
         var trainerId = await fixture.FindMemberIdAsync(admin, trainerEmail);
 
-        var typeResponse = await admin.PostAsJsonAsync("/api/admin/class-types", new
+        var typeResponse = await admin.PostAsJsonAsync("/api/admin/class-groups", new
         {
             name = $"Karnet Test {Guid.NewGuid():N}",
             description = (string?)"Opis",
@@ -439,7 +439,7 @@ public class MembershipPassEndpointTests(IntegrationTestFixture fixture)
 
         var classResponse = await admin.PostAsJsonAsync("/api/admin/classes", new
         {
-            classTypeId = type.Id,
+            classGroupId = type.Id,
             startsAt = classStart,
             instructorMemberId = trainerId,
             durationMinutes = 60,

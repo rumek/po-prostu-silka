@@ -28,10 +28,10 @@ public class Booking
     public Guid ClassId { get; set; }
 
     /// <summary>
-    /// The occurrence. READ SIDE ONLY, same contract as <see cref="Class.ClassType"/>.
+    /// The occurrence. READ SIDE ONLY, same contract as <see cref="Class.ClassGroup"/>.
     ///
     /// <para>
-    /// It exists so the member's upcoming-bookings query can project the class's time and its type's
+    /// It exists so the member's upcoming-bookings query can project the class's time and its group's
     /// name in one statement. NO WRITE PATH MAY READ <see cref="Class.Capacity"/> THROUGH IT without
     /// also rotating <see cref="Class.ConcurrencyStamp"/> — a capacity check that does not rotate the
     /// stamp is not a check, it is a guess that happens to be right most of the time.

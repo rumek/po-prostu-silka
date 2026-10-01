@@ -5,7 +5,7 @@ using po_prostu_silka.Infrastructure.Persistence;
 namespace po_prostu_silka.Infrastructure.Training;
 
 /// <summary>
-/// Infrastructure side of <see cref="IExerciseQuery"/>. Same shape as ClassTypeQuery: AsNoTracking
+/// Infrastructure side of <see cref="IExerciseQuery"/>. Same shape as ClassGroupQuery: AsNoTracking
 /// and projected in the database, with no in-memory pass because ExerciseSummary carries no enum
 /// needing ToString().
 /// </summary>

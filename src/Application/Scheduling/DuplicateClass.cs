@@ -26,9 +26,9 @@ public static class DuplicateClass
     /// half-created weeks behind.
     ///
     /// <para>
-    /// The copies carry the SOURCE's type, instructor and numbers verbatim. No validation of the
-    /// type's active state runs here: the source occurrence is already valid, and refusing to
-    /// duplicate a class because its type was retired afterwards would contradict FR-006 exactly as
+    /// The copies carry the SOURCE's group, instructor and numbers verbatim. No validation of the
+    /// group's active state runs here: the source occurrence is already valid, and refusing to
+    /// duplicate a class because its group was retired afterwards would contradict FR-006 exactly as
     /// refusing to edit it would.
     /// </para>
     /// </summary>
@@ -78,7 +78,7 @@ public static class DuplicateClass
             store.Add(new Class
             {
                 Id = Guid.NewGuid(),
-                ClassTypeId = source.ClassTypeId,
+                ClassGroupId = source.ClassGroupId,
                 StartsAt = startsAt,
                 DurationMinutes = source.DurationMinutes,
                 InstructorMemberId = source.InstructorMemberId,

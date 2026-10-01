@@ -233,7 +233,7 @@ the relevant rollout phase ships; before that, the sub-section reads
   a member with neither (skipped — book a reachable member alongside as a control), and a claimed member
   whose login differs from the record (told at the record's address). Book accountless members through
   `BookMemberAsync`; `BookAsync` needs a signed-in client.
-- **Finding your rows**: every class type carries a GUID in its name and the subject carries the name, so
+- **Finding your rows**: every group carries a GUID in its name and the subject carries the name, so
   `MessagesAboutAsync(type.Name)` returns exactly this test's rows in the shared table.
 - **Rows stay as written.** The integration host does NOT run `OutboxDeliveryWorker` (removed in
   `TestAppFactory`), so a `Pending` row is a stable observation. If a test ever needs delivery, it builds

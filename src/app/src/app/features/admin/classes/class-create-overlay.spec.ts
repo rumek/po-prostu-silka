@@ -2,11 +2,11 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { Component, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { ClassTypeSummary } from '../../../core/scheduling/class-type.models';
+import { ClassGroupSummary } from '../../../core/scheduling/class-group.models';
 import { DrawnRange } from '../../../shared/calendar/schedule-calendar';
 import { ClassCreateOverlay } from './class-create-overlay';
 
-const TYPE: ClassTypeSummary = {
+const GROUP: ClassGroupSummary = {
   id: 't1',
   name: 'Joga',
   description: 'Dla poczatkujacych',
@@ -16,9 +16,9 @@ const TYPE: ClassTypeSummary = {
   createdAt: '2026-09-01T10:00:00Z',
 };
 
-const RETIRED: ClassTypeSummary = { ...TYPE, id: 't2', name: 'Stare', isActive: false };
+const RETIRED: ClassGroupSummary = { ...GROUP, id: 't2', name: 'Stare', isActive: false };
 
-/** 45 minutes drawn from 10:00 — a duration no type default would produce, so prefill is provable. */
+/** 45 minutes drawn from 10:00 — a duration no group default would produce, so prefill is provable. */
 const DRAWN: DrawnRange = {
   startsAt: new Date(2030, 5, 3, 10, 0),
   durationMinutes: 45,
@@ -51,7 +51,7 @@ describe('ClassCreateOverlay', () => {
   let controller: HttpTestingController;
 
   async function create(
-    types: ClassTypeSummary[] = [TYPE],
+    groups: ClassGroupSummary[] = [GROUP],
     trainers = [{ id: 'u1', displayName: 'Ola' }],
   ) {
     TestBed.configureTestingModule({
@@ -64,7 +64,7 @@ describe('ClassCreateOverlay', () => {
     host = fixture.componentInstance;
     fixture.detectChanges();
 
-    (await vi.waitFor(() => controller.expectOne('/api/admin/class-types'))).flush(types);
+    (await vi.waitFor(() => controller.expectOne('/api/admin/class-groups'))).flush(groups);
     controller.expectOne('/api/admin/trainers').flush(trainers);
     await settle();
   }
@@ -126,31 +126,31 @@ describe('ClassCreateOverlay', () => {
     expect(html()).toContain('45 min');
   });
 
-  it('copies the capacity from the chosen type but keeps the drawn duration', async () => {
+  it('copies the capacity from the chosen group but keeps the drawn duration', async () => {
     await create();
 
-    await choose('classTypeId', 't1');
+    await choose('classGroupId', 't1');
 
-    // Capacity has no gesture, so the type's default wins.
+    // Capacity has no gesture, so the group's default wins.
     expect(number('capacity').value).toBe('12');
-    // Duration does — the admin just expressed 45, and the type's 60 must not overwrite it.
+    // Duration does — the admin just expressed 45, and the group's 60 must not overwrite it.
     expect(number('durationMinutes').value).toBe('45');
   });
 
-  it('offers only active types', async () => {
-    await create([TYPE, RETIRED]);
+  it('offers only active groups', async () => {
+    await create([GROUP, RETIRED]);
 
-    // getAll() is unfiltered by design; a retired type must not be newly attachable (prd-v2 FR-006).
+    // getAll() is unfiltered by design; a retired group must not be newly attachable (prd-v2 FR-006).
     expect(html()).toContain('Joga');
     expect(html()).not.toContain('Stare');
   });
 
   // --- submitting ------------------------------------------------------------
 
-  it('submits the drawn start with the chosen type, trainer and numbers', async () => {
+  it('submits the drawn start with the chosen group, trainer and numbers', async () => {
     await create();
 
-    await choose('classTypeId', 't1');
+    await choose('classGroupId', 't1');
     await choose('instructorMemberId', 'u1');
 
     button('Dodaj zajęcia').click();
@@ -159,7 +159,7 @@ describe('ClassCreateOverlay', () => {
     const request = controller.expectOne('/api/admin/classes');
 
     expect(request.request.body).toEqual({
-      classTypeId: 't1',
+      classGroupId: 't1',
       startsAt: DRAWN.startsAt.toISOString(),
       durationMinutes: 45,
       instructorMemberId: 'u1',
@@ -172,12 +172,12 @@ describe('ClassCreateOverlay', () => {
     expect(host.createdCount).toBe(1);
   });
 
-  it('will not submit before a type and a trainer are chosen', async () => {
+  it('will not submit before a group and a trainer are chosen', async () => {
     await create();
 
     expect(button('Dodaj zajęcia').disabled).toBe(true);
 
-    await choose('classTypeId', 't1');
+    await choose('classGroupId', 't1');
     expect(button('Dodaj zajęcia').disabled).toBe(true);
 
     await choose('instructorMemberId', 'u1');
@@ -186,7 +186,7 @@ describe('ClassCreateOverlay', () => {
 
   it('will not submit a duration or a capacity outside the bounds the class form enforces', async () => {
     await create();
-    await choose('classTypeId', 't1');
+    await choose('classGroupId', 't1');
     await choose('instructorMemberId', 'u1');
 
     // An emptied number input reads as 0. `min` on the input stops the spinner, not a submit — so
@@ -212,7 +212,7 @@ describe('ClassCreateOverlay', () => {
   it('keeps the overlay open with its values when the slot is taken', async () => {
     await create();
 
-    await choose('classTypeId', 't1');
+    await choose('classGroupId', 't1');
     await choose('instructorMemberId', 'u1');
 
     button('Dodaj zajęcia').click();
@@ -227,14 +227,14 @@ describe('ClassCreateOverlay', () => {
     expect(host.createdCount).toBe(0);
     expect(host.closedCount).toBe(0);
     // The values survive, or the admin retypes everything to try one minute later.
-    expect(select('classTypeId').value).toBe('t1');
+    expect(select('classGroupId').value).toBe('t1');
     expect(number('durationMinutes').value).toBe('45');
   });
 
   it('reports a stale trainer selection the way the class form does', async () => {
     await create();
 
-    await choose('classTypeId', 't1');
+    await choose('classGroupId', 't1');
     await choose('instructorMemberId', 'u1');
 
     button('Dodaj zajęcia').click();
@@ -251,16 +251,16 @@ describe('ClassCreateOverlay', () => {
   // --- nothing to pick -------------------------------------------------------
 
   it('does not offer a submit that cannot succeed when there are no trainers', async () => {
-    await create([TYPE], []);
+    await create([GROUP], []);
 
     expect(html()).toContain('rolą trenera');
     expect(button('Dodaj zajęcia')).toBeUndefined();
   });
 
-  it('does not offer a submit that cannot succeed when every type is retired', async () => {
+  it('does not offer a submit that cannot succeed when every group is retired', async () => {
     await create([RETIRED]);
 
-    expect(html()).toContain('typ zajęć');
+    expect(html()).toContain('aktywna grupa');
     expect(button('Dodaj zajęcia')).toBeUndefined();
   });
 

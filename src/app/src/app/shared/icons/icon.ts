@@ -19,6 +19,7 @@ export type IconName =
   | 'drag'
   | 'hantle'
   | 'members'
+  | 'group'
   | 'back'
   | 'profile'
   | 'ticket'

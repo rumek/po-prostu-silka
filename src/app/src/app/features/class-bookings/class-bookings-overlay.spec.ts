@@ -16,7 +16,7 @@ import { ClassBookingsOverlay } from './class-bookings-overlay';
 
 const JOGA: ScheduledClass = {
   id: 'c1',
-  classTypeId: 't1',
+  classGroupId: 't1',
   name: 'Joga',
   description: null,
   startsAt: new Date(Date.now() + 86_400_000).toISOString(),

@@ -24,10 +24,10 @@
     (classRescheduled)="reschedule($event)"
   >
     <!-- Screen-level actions ride along the calendar's toolbar, so navigation and the things you do
-       with it stay in one place. "Typy zajęć" lives here rather than in the global nav because
-       /admin/classes carries no nav entry either, and types are what these classes are built from. -->
+       with it stay in one place. "Grupy" lives here rather than in the global nav because
+       /admin/classes carries no nav entry either, and groups are what these classes are built from. -->
     <ng-container calendarHeaderActions>
-      <a class="button button--secondary" routerLink="/admin/class-types">Typy zajęć</a>
+      <a class="button button--secondary" routerLink="/admin/class-groups">Grupy</a>
       <a class="button" routerLink="/admin/classes/new">Dodaj zajęcia</a>
     </ng-container>
   </app-schedule-calendar>
@@ -82,7 +82,7 @@
     <div class="classes-desk-only-links">
       <a class="button" routerLink="/schedule">Zobacz grafik zajęć</a>
       <a class="button button--secondary" routerLink="/admin/classes/new">Dodaj zajęcia</a>
-      <a class="link-button" routerLink="/admin/class-types">Typy zajęć</a>
+      <a class="link-button" routerLink="/admin/class-groups">Grupy</a>
     </div>
   </div>
 }

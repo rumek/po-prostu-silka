@@ -643,7 +643,7 @@ a {
 // second channel, never the only one.
 //
 // Global rather than component-scoped: this base rule is shared by the members screen (account
-// status and roles) and the class-types screen (active/inactive). It lived in members.scss until a
+// status and roles) and the class-groups screen (active/inactive). It lived in members.scss until a
 // second screen needed it, where Angular's default Emulated encapsulation silently kept it from
 // reaching anyone else — the badge rendered as bare text with no pill at all. Per-state modifiers
 // (.badge-pending, .badge-inactive, …) stay in the component that owns their meaning.
@@ -732,7 +732,7 @@ a {
 // The page header (S-19, CS-06).
 //
 // EIGHT near-identical copies, not the three the roadmap counted: six list headers
-// (members, exercises, class-types, plans, plan-builder, classes) and two detail headers
+// (members, exercises, class-groups, plans, plan-builder, classes) and two detail headers
 // (exercise-detail, plan-exercise-detail). `members.scss` had already drifted to --space-3
 // where the other five used --space-4 — the drift resolves here, to --space-4.
 //
@@ -939,7 +939,7 @@ main.shell-main:has(.overlay-panel) {
 // -----------------------------------------------------------------------------
 // The three classes whose comments already said they lived here (S-23).
 //
-// `.empty` was declared NINE times — class-types, exercise-detail, exercises, members, dashboard,
+// `.empty` was declared NINE times — class-groups, exercise-detail, exercises, members, dashboard,
 // my-plan, plan-exercise-detail, plan-builder, plans — and `dashboard.scss` and
 // `member-passes.scss` both opened by naming it among the classes that "come from
 // src/styles.scss". It did not. All nine copies were byte-identical, so unlike `.page-header`
@@ -982,8 +982,8 @@ main.shell-main:has(.overlay-panel) {
 // -----------------------------------------------------------------------------
 // The list row (S-23).
 //
-// The same flex recipe under seven prefixes: bookings, class-types, exercises, members,
-// my-classes, passes, plans. `exercises.scss`, `class-types.scss` and `plans.scss` declared it
+// The same flex recipe under seven prefixes: bookings, class-groups, exercises, members,
+// my-classes, passes, plans. `exercises.scss`, `class-groups.scss` and `plans.scss` declared it
 // byte-identical apart from one `justify-content`; the four `<ul>` rules were identical outright.
 //
 // GLOBAL RATHER THAN IN app-row's OWN STYLESHEET, and not by preference. Emulated encapsulation
@@ -1012,7 +1012,7 @@ main.shell-main:has(.overlay-panel) {
   padding: var(--space-5);
 }
 
-// `class-types` and `members` pushed the actions over with `justify-content: space-between` while
+// `class-groups` and `members` pushed the actions over with `justify-content: space-between` while
 // `exercises` and `plans` used `margin-left: auto` on the actions themselves. The drift resolves
 // to the second: it still works when a row has no actions at all, where space-between would leave
 // the identity stranded in the middle.

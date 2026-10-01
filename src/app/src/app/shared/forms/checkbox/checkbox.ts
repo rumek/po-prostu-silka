@@ -5,7 +5,7 @@ import { Component, input, output } from '@angular/core';
  *
  * <p>
  * NO <c>ControlValueAccessor</c>, DELIBERATELY. Both callers are filter toggles — "pokaż
- * nieaktywne" on the class-types and exercises lists — and no form in this app has a checkbox at
+ * nieaktywne" on the class-groups and exercises lists — and no form in this app has a checkbox at
  * all. A CVA written now would be the only untested code path in the kit, existing for a caller
  * that does not exist; when a form does need one it is an additive change, not a rewrite, because
  * nothing about this component's markup would have to move.

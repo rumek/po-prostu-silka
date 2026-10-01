@@ -3,9 +3,9 @@
   <h1 class="screen-title">{{ editingId() ? 'Edytuj zajęcia' : 'Nowe zajęcia' }}</h1>
   <p class="hint">
     @if (editingId()) {
-      Zmień szczegóły tego terminu. Typ zajęć zostaje taki sam, żeby zachować jego historię.
+      Zmień szczegóły tego terminu. Grupa zostaje ta sama, żeby zachować jego historię.
     } @else {
-      Wybierz typ i prowadzącego, a następnie dopasuj termin oraz liczbę miejsc.
+      Wybierz grupę i prowadzącego, a następnie dopasuj termin oraz liczbę miejsc.
     }
   </p>
 </header>
@@ -17,12 +17,12 @@
     Nie udało się wczytać tych zajęć.
     <a class="link-button" routerLink="/admin/classes">Wróć do listy</a>
   </p>
-} @else if (noClassTypes()) {
+} @else if (noClassGroups()) {
   <!-- The signpost, not an unfillable form. After the schedule wipe this is the first screen an
        admin reaches, so "why can I not do anything here" must never be a question they have to ask. -->
-  <app-empty icon="repeat">
-    Najpierw zdefiniuj typ zajęć — zajęcia powstają z definicji.
-    <a slot="action" class="button" routerLink="/admin/class-types">Przejdź do typów zajęć</a>
+  <app-empty icon="group">
+    Najpierw zdefiniuj grupę — zajęcia powstają z definicji.
+    <a slot="action" class="button" routerLink="/admin/class-groups">Przejdź do grup</a>
   </app-empty>
 } @else if (noTrainers()) {
   <app-empty icon="person">
@@ -36,23 +36,23 @@
 
   <form class="card class-form" [formGroup]="form" (ngSubmit)="submit()">
     <div class="class-form-grid">
-      <app-field class="class-form-wide" label="Typ zajęć" for="classTypeId">
+      <app-field class="class-form-wide" label="Grupa" for="classGroupId">
         <!-- The .select wrapper is what carries the custom chevron: a select generates no
            pseudo-elements of its own, so styles.scss puts ::after here. A select without this
            wrapper has its native arrow suppressed and nothing in its place. -->
         <app-select>
           <select
-            id="classTypeId"
-            formControlName="classTypeId"
-            (change)="applyTypeDefaults(form.controls.classTypeId.value)"
+            id="classGroupId"
+            formControlName="classGroupId"
+            (change)="applyGroupDefaults(form.controls.classGroupId.value)"
             [attr.aria-invalid]="
-              form.controls.classTypeId.touched && form.controls.classTypeId.invalid
+              form.controls.classGroupId.touched && form.controls.classGroupId.invalid
             "
           >
-            <option value="" disabled>Wybierz typ…</option>
-            @for (type of classTypeOptions(); track type.id) {
-              <option [value]="type.id">
-                {{ type.name }}{{ type.isActive ? '' : ' (nieaktywny)' }}
+            <option value="" disabled>Wybierz grupę…</option>
+            @for (group of classGroupOptions(); track group.id) {
+              <option [value]="group.id">
+                {{ group.name }}{{ group.isActive ? '' : ' (nieaktywna)' }}
               </option>
             }
           </select>
@@ -60,7 +60,7 @@
 
         @if (editingId()) {
           <p class="hint">
-            Typu nie można zmienić po utworzeniu zajęć. Aby użyć innego, usuń te zajęcia i utwórz
+            Grupy nie można zmienić po utworzeniu zajęć. Aby użyć innej, usuń te zajęcia i utwórz
             nowe.
           </p>
         } @else {
@@ -69,8 +69,8 @@
           </p>
         }
 
-        @if (form.controls.classTypeId.touched && form.controls.classTypeId.invalid) {
-          <p class="field-error">Wybierz typ zajęć.</p>
+        @if (form.controls.classGroupId.touched && form.controls.classGroupId.invalid) {
+          <p class="field-error">Wybierz grupę.</p>
         }
       </app-field>
 

@@ -5,7 +5,7 @@
  * What cannot be removed stays behind by decision: members and accounts have no delete endpoint, so
  * every member a spec creates is named `E2E <purpose> <ts>` and every address ends @example.test.
  * The same goes for a karnet that paid for a booking, a booked class (cancelled, or - once started -
- * kept as attendance history), a plan (no delete endpoint either), and an exercise or class type
+ * kept as attendance history), a plan (no delete endpoint either), and an exercise or group
  * (deactivated, never deleted).
  */
 import { APIRequestContext, APIResponse, expect } from '@playwright/test';
@@ -35,7 +35,7 @@ export interface CreatedClass {
   name: string;
   startsAt: Date;
   capacity: number;
-  classTypeId: string;
+  classGroupId: string;
   durationMinutes: number;
   instructorMemberId: string;
 }
@@ -127,12 +127,12 @@ export class Club {
   }
 
   /**
-   * A class type named `name` and one class of it in a free random slot. Cleanup deletes the class
+   * A group named `name` and one class of it in a free random slot. Cleanup deletes the class
    * if nobody was ever booked on it; otherwise - bookings made through the UI included - it CANCELS
    * it, since the API keeps a booked class as history. A cancelled class stays behind but frees its
    * slot (the overlap rule counts Scheduled classes only). A class that has STARTED (startClass) can
    * be neither, and stays behind as it is: attendance history, in a past slot. Then it deactivates
-   * the type (types cannot be deleted).
+   * the group (groups cannot be deleted).
    */
   async createClass(
     name: string,
@@ -142,7 +142,7 @@ export class Club {
     const durationMinutes = options.durationMinutes ?? 30;
     const instructorMemberId = options.instructorMemberId ?? (await this.e2eTrainerId());
 
-    const type = await this.api.post('/api/admin/class-types', {
+    const group = await this.api.post('/api/admin/class-groups', {
       data: {
         name,
         description: null,
@@ -150,17 +150,17 @@ export class Club {
         defaultCapacity: capacity,
       },
     });
-    expect(type.ok(), `create class type: ${await type.text()}`).toBeTruthy();
-    const classTypeId = ((await type.json()) as { id: string }).id;
-    this.cleanup.add(`deactivate class type ${classTypeId}`, () =>
-      this.api.post(`/api/admin/class-types/${classTypeId}/deactivate`),
+    expect(group.ok(), `create group: ${await group.text()}`).toBeTruthy();
+    const classGroupId = ((await group.json()) as { id: string }).id;
+    this.cleanup.add(`deactivate group ${classGroupId}`, () =>
+      this.api.post(`/api/admin/class-groups/${classGroupId}/deactivate`),
     );
 
     for (let attempt = 0; attempt < SLOT_ATTEMPTS; attempt++) {
       const startsAt = randomClassStart();
       const created = await this.api.post('/api/admin/classes', {
         data: {
-          classTypeId,
+          classGroupId,
           startsAt: startsAt.toISOString(),
           durationMinutes,
           instructorMemberId,
@@ -178,7 +178,7 @@ export class Club {
 
       const id = ((await created.json()) as { id: string }).id;
       this.cleanup.add(`delete class ${id}`, () => this.removeClass(id));
-      return { id, name, startsAt, capacity, classTypeId, durationMinutes, instructorMemberId };
+      return { id, name, startsAt, capacity, classGroupId, durationMinutes, instructorMemberId };
     }
 
     throw new Error(
@@ -207,7 +207,7 @@ export class Club {
       const startsAt = randomPastClassStart();
       const moved = await this.api.put(`/api/admin/classes/${created.id}`, {
         data: {
-          classTypeId: created.classTypeId,
+          classGroupId: created.classGroupId,
           startsAt: startsAt.toISOString(),
           durationMinutes: created.durationMinutes,
           instructorMemberId: created.instructorMemberId,

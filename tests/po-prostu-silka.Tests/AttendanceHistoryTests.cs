@@ -22,7 +22,7 @@ public class AttendanceHistoryTests(IntegrationTestFixture fixture)
 {
     private sealed record ClassBody(Guid Id);
 
-    private sealed record ClassTypeBody(Guid Id, string Name);
+    private sealed record ClassGroupBody(Guid Id, string Name);
 
     private sealed record Entry(Guid BookingId, Guid ClassId, string Name, DateTimeOffset StartsAt, string Outcome);
 
@@ -50,7 +50,7 @@ public class AttendanceHistoryTests(IntegrationTestFixture fixture)
 
     private async Task<ClassBody> ClassAsync(HttpClient admin)
     {
-        var typeResponse = await admin.PostAsJsonAsync("/api/admin/class-types", new
+        var typeResponse = await admin.PostAsJsonAsync("/api/admin/class-groups", new
         {
             name = $"Historia-{Guid.NewGuid():N}",
             description = (string?)"Opis",
@@ -58,14 +58,14 @@ public class AttendanceHistoryTests(IntegrationTestFixture fixture)
             defaultCapacity = 12,
         });
         Assert.Equal(HttpStatusCode.OK, typeResponse.StatusCode);
-        var type = (await typeResponse.Content.ReadFromJsonAsync<ClassTypeBody>())!;
+        var type = (await typeResponse.Content.ReadFromJsonAsync<ClassGroupBody>())!;
 
         var trainerEmail = $"hist-trainer-{Guid.NewGuid():N}@test.local";
         await fixture.CreateUserAsync(trainerEmail, AccountStatus.Active, ApplicationRoles.Trainer);
 
         var response = await admin.PostAsJsonAsync("/api/admin/classes", new
         {
-            classTypeId = type.Id,
+            classGroupId = type.Id,
             startsAt = NextSlot(),
             instructorMemberId = await fixture.FindMemberIdAsync(admin, trainerEmail),
             durationMinutes = 60,

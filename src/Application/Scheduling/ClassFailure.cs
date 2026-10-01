@@ -15,8 +15,8 @@ namespace po_prostu_silka.Application.Scheduling;
 ///
 /// <para>
 /// Reasons: <c>missing_field</c>, <c>invalid_capacity</c>, <c>invalid_duration</c>,
-/// <c>starts_in_past</c>, <c>invalid_weeks</c>, <c>time_conflict</c>, <c>unknown_class_type</c>,
-/// <c>inactive_class_type</c>, <c>class_type_immutable</c>, <c>unknown_instructor</c>,
+/// <c>starts_in_past</c>, <c>invalid_weeks</c>, <c>time_conflict</c>, <c>unknown_class_group</c>,
+/// <c>inactive_class_group</c>, <c>class_group_immutable</c>, <c>unknown_instructor</c>,
 /// <c>instructor_not_trainer</c>, <c>has_bookings</c>, <c>capacity_below_bookings</c>,
 /// <c>conflict</c>, <c>class_started</c>, <c>already_cancelled</c>. Adding one here means adding it
 /// to the SPA's ClassFailure union too — that type mirrors this one field for field.

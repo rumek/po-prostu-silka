@@ -5,7 +5,7 @@ namespace po_prostu_silka.Application.Paging;
 ///
 /// <para>
 /// GENERIC ON PURPOSE. The member list is the first list to page, not the last: the exercise,
-/// class-type and plan lists share its design and were deferred only because they grow slower. When
+/// group and plan lists share its design and were deferred only because they grow slower. When
 /// they page, they reuse this shape rather than inventing a second one the SPA has to mirror.
 /// </para>
 ///

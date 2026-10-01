@@ -9,7 +9,7 @@ namespace po_prostu_silka.Application.Notifications;
 ///
 /// <para>
 /// PASSED IN RATHER THAN READ OFF THE ENTITY, for the reason ClassDtoMapping.ToDto records. An
-/// occurrence carries neither its type's name nor its instructor's display name (prd-v2 FR-007,
+/// occurrence carries neither its group's name nor its instructor's display name (prd-v2 FR-007,
 /// FR-009), and after a trainer reassignment the tracked entity's Instructor navigation still points
 /// at the PREVIOUS account — so a service reaching through navigations would render a stale name in
 /// exactly the message whose subject is that the trainer changed.
@@ -133,7 +133,7 @@ public class ClassChangeNotification(
     }
 
     /// <summary>
-    /// The outbox <c>Subject</c> column is nvarchar(200) and <c>ClassType.Name</c> is itself allowed
+    /// The outbox <c>Subject</c> column is nvarchar(200) and <c>ClassGroup.Name</c> is itself allowed
     /// the full 200 characters, so a prefixed subject can overflow it. That is not a cosmetic
     /// failure: SQL Server refuses the insert, the truncation error surfaces as a
     /// <c>DbUpdateException</c> which <c>TrySaveChangesAsync</c> does not catch, and because the

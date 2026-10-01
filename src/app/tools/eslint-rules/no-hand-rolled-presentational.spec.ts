@@ -72,7 +72,7 @@ ruleTester.run('no-hand-rolled-presentational', rule, {
 
   invalid: [
     {
-      code: `<select id="classTypeId" name="classTypeId"></select>`,
+      code: `<select id="classGroupId" name="classGroupId"></select>`,
       errors: [{ messageId: 'useAppSelect' }],
     },
     {

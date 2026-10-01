@@ -519,7 +519,7 @@ namespace po_prostu_silka.Infrastructure.Persistence.Migrations
                     b.Property<int>("Capacity")
                         .HasColumnType("int");
 
-                    b.Property<Guid>("ClassTypeId")
+                    b.Property<Guid>("ClassGroupId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("ConcurrencyStamp")
@@ -547,7 +547,7 @@ namespace po_prostu_silka.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ClassTypeId");
+                    b.HasIndex("ClassGroupId");
 
                     b.HasIndex("InstructorMemberId")
                         .HasDatabaseName("IX_Classes_InstructorMemberId");
@@ -561,7 +561,7 @@ namespace po_prostu_silka.Infrastructure.Persistence.Migrations
                     b.ToTable("Classes", (string)null);
                 });
 
-            modelBuilder.Entity("po_prostu_silka.Domain.Scheduling.ClassType", b =>
+            modelBuilder.Entity("po_prostu_silka.Domain.Scheduling.ClassGroup", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -594,10 +594,10 @@ namespace po_prostu_silka.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("Name")
                         .IsUnique()
-                        .HasDatabaseName("IX_ClassTypes_Name_Active")
+                        .HasDatabaseName("IX_ClassGroups_Name_Active")
                         .HasFilter("[IsActive] = 1");
 
-                    b.ToTable("ClassTypes", (string)null);
+                    b.ToTable("ClassGroups", (string)null);
                 });
 
             modelBuilder.Entity("po_prostu_silka.Domain.Training.Exercise", b =>
@@ -864,9 +864,9 @@ namespace po_prostu_silka.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("po_prostu_silka.Domain.Scheduling.Class", b =>
                 {
-                    b.HasOne("po_prostu_silka.Domain.Scheduling.ClassType", "ClassType")
+                    b.HasOne("po_prostu_silka.Domain.Scheduling.ClassGroup", "ClassGroup")
                         .WithMany()
-                        .HasForeignKey("ClassTypeId")
+                        .HasForeignKey("ClassGroupId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
@@ -876,7 +876,7 @@ namespace po_prostu_silka.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.Navigation("ClassType");
+                    b.Navigation("ClassGroup");
 
                     b.Navigation("Instructor");
                 });

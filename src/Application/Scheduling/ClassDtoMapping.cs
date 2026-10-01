@@ -49,11 +49,11 @@ internal static class ClassDtoMapping
     /// passes 0; every other caller counts.
     /// </param>
     internal static ScheduledClass ToDto(
-        Class entity, ClassType classType, string instructorName, int bookedCount) =>
+        Class entity, ClassGroup classGroup, string instructorName, int bookedCount) =>
         new(entity.Id,
-            entity.ClassTypeId,
-            classType.Name,
-            classType.Description,
+            entity.ClassGroupId,
+            classGroup.Name,
+            classGroup.Description,
             entity.StartsAt,
             entity.DurationMinutes,
             entity.InstructorMemberId,

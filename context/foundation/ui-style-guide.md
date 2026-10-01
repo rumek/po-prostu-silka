@@ -102,10 +102,10 @@ The pill track is still declared per component (four copies). A fifth copy is th
 - Colour by role: **`--accent`** for navigation (chevrons, the kicker's leading icon, the strip arrows);
   **`--accent2`** for a fact about the thing (who, how many, how long); **`--muted`** inside a form label.
 - Current meanings: `person` = who instructs · `members` = how many are signed up · `calendar` = a
-  date · `ticket` = the karnet · `clock` = rest · `time` = a duration (a hold, a class type's default length) · `role` = what an
+  date · `ticket` = the karnet · `clock` = rest · `time` = a duration (a hold, a group's default length) · `role` = what an
   account may do in the club · `account-status` = whether it can sign in · `mail` / `lock` = an
-  address / a password box · `eye` / `eye-off` = show / hide the password · `repeat` = reps · `sets` =
-  sets · `info` = more to read · `chevron-left` / `chevron-right` = previous / next or "go" ·
+  address / a password box · `eye` / `eye-off` = show / hide the password · `repeat` = reps, and only reps · `group` = a group, the club's class definition (S-33; groups borrowed
+  `repeat` until then) · `sets` = sets · `info` = more to read · `chevron-left` / `chevron-right` = previous / next or "go" ·
   `chevron-down` = a select · `back` = up to the parent · `search` = a phrase that matched nothing · `close` = leave a full-screen sheet (drawn smaller than `absent`, which it sits beside). Add a case to `shared/icons/icon.html` rather
   than reusing one for a second meaning.
 

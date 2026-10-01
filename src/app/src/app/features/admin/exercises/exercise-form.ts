@@ -34,7 +34,7 @@ const {
 
 /**
  * Create and edit an exercise (prd.md FR-018, FR-019), in one component distinguished by the route
- * parameter — the same shape as ClassTypeForm.
+ * parameter — the same shape as ClassGroupForm.
  *
  * Server failures land on the CONTROL they belong to, following every other form here: name_taken on
  * the name field, each length refusal on its own field, invalid_video_url on the video field. A
@@ -189,7 +189,7 @@ export class ExerciseForm implements OnInit {
 
   /**
    * Maps a server refusal onto the control responsible for it, so the admin sees what to change.
-   * Follows class-type-form.ts's applyFailure/reject pair.
+   * Follows class-group-form.ts's applyFailure/reject pair.
    */
   private applyFailure(failure: unknown): void {
     const info = classifyFailure(failure);

@@ -61,7 +61,7 @@ public class BookingConfiguration : IEntityTypeConfiguration<Booking>
         builder.HasIndex(x => new { x.MembershipPassId, x.Status })
             .HasDatabaseName("IX_Bookings_MembershipPassId_Status");
 
-        // FILTERED, not plain - the same shape and the same reasoning as IX_ClassTypes_Name_Active.
+        // FILTERED, not plain - the same shape and the same reasoning as IX_ClassGroups_Name_Active.
         // A member may hold at most ONE active booking per class, but cancelling must not hold the
         // pair hostage: FR-009 keeps the cancelled row in history, and the member is allowed to book
         // the class again, so a plain unique index would reject the second booking forever.

@@ -24,7 +24,7 @@ nawzajem po ID. Po prefiksie w tabeli niżej znajdziesz plik z danym przypadkiem
 | [01-account-and-access.md](01-account-and-access.md) | logowanie i sesja, rejestracja z zaproszenia, hasło, nawigacja i uprawnienia person | `AUTH`, `REG`, `PWD`, `NAV` |
 | [02-member-screens.md](02-member-screens.md) | ekran Start, Moje zajęcia i historia, Mój plan, Moje konto | `DASH`, `MBR` |
 | [03-members-and-passes.md](03-members-and-passes.md) | lista członków, kartoteki, kody zaproszeń, role, blokowanie; karnety | `MEM`, `PASS` |
-| [04-schedule-bookings-attendance.md](04-schedule-bookings-attendance.md) | typy zajęć, kalendarz administratora, grafik obsługi, zapisy, obecność | `TYPE`, `CLS`, `SCH`, `BOOK`, `ATT` |
+| [04-schedule-bookings-attendance.md](04-schedule-bookings-attendance.md) | grupy, kalendarz administratora, grafik obsługi, zapisy, obecność | `TYPE`, `CLS`, `SCH`, `BOOK`, `ATT` |
 | [05-exercises-and-plans.md](05-exercises-and-plans.md) | biblioteka ćwiczeń, kreator planów treningowych | `EX`, `PLAN` |
 | [06-notifications-and-cross-cutting.md](06-notifications-and-cross-cutting.md) | e-mail i push, instalacja PWA, brak sieci, dostępność, wygląd | `NOTIF`, `PWA`, `X` |
 
@@ -48,7 +48,7 @@ Każde konto widzi aplikację jednej persony. Pierwszeństwo: **Administrator > 
 | --- | --- | --- |
 | **Członek** | Start, Zajęcia, Plan, (Więcej) | podgląd swoich zajęć, historii obecności, karnetu i planu; profil; zmiana hasła |
 | **Trener** | Start, Grafik, Członkowie, (Więcej) | grafik **tylko swoich** zajęć, zapisywanie członków na swoje zajęcia, obecność, plany treningowe członków |
-| **Administrator** | Start, Grafik, Członkowie, Typy zajęć, Ćwiczenia | wszystko: członkowie, karnety, kody zaproszeń, role, typy zajęć, grafik, zapisy na dowolne zajęcia, ćwiczenia, plany |
+| **Administrator** | Start, Grafik, Członkowie, Grupy, Ćwiczenia | wszystko: członkowie, karnety, kody zaproszeń, role, grupy, grafik, zapisy na dowolne zajęcia, ćwiczenia, plany |
 
 Zasady, które warto mieć w głowie podczas testów:
 

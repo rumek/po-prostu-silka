@@ -28,7 +28,7 @@ const BLOCKED_MEMBER = user('blocked-member', ['User'], { membershipStatus: 'Blo
 
 /**
  * The "Więcej" hub (S-12). Since S-25 its panel is the persona's `more` list from
- * core/layout/navigation.ts: only the admin overflows the five-slot bar (Typy zajęć). Every account
+ * core/layout/navigation.ts: only the admin overflows the five-slot bar (Grupy). Every account
  * — a blocked one included — keeps Moje konto and logout, because on a phone this screen is the only
  * path to either.
  */
@@ -74,15 +74,15 @@ describe('More', () => {
     expect(element.querySelector('button')!.textContent).toContain('Wyloguj');
   });
 
-  it('gives an admin Typy zajęć as the only panel entry', () => {
+  it('gives an admin Grupy as the only panel entry', () => {
     const element = createWith(ADMIN);
 
     expect(element.textContent).toContain('Panel');
-    expect(hrefs(element)).toEqual(['/profile', '/admin/class-types']);
+    expect(hrefs(element)).toEqual(['/profile', '/admin/class-groups']);
   });
 
   it('gives an admin who also trains the same panel as an admin', () => {
-    expect(hrefs(createWith(ADMIN_TRAINER))).toEqual(['/profile', '/admin/class-types']);
+    expect(hrefs(createWith(ADMIN_TRAINER))).toEqual(['/profile', '/admin/class-groups']);
   });
 
   it.each([

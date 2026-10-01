@@ -3,7 +3,7 @@ project: "Po Prostu Siłka"
 version: 7
 status: draft
 created: 2026-08-31
-updated: 2026-09-29
+updated: 2026-10-01
 prd_version: 1, 2
 main_goal: quality
 top_blocker: external
@@ -159,6 +159,7 @@ privacy notice.
 | S-30 | e2e-local-gate | (dev tooling) the browser-level suite runs locally before every push, against the app and the local SQL Server, and a red spec stops the push; it never runs on staging or in CI | S-31 (delivered with it) | none - outside any milestone (test tooling) | done |
 | S-31 | e2e-member-onboarding-and-booking | (dev tooling) a browser-level test proves an invited person lands on the club's record with its karnet and booking, and that a staff booking and a karnet refusal reach both screens they should | S-17, S-25 | none - outside any milestone (test tooling); manual plan REG-01, BOOK-01, BOOK-03 | done |
 | S-32 | e2e-attendance-and-plans | (dev tooling) a browser-level test proves a recorded absence returns the entry on the member's screens, and a plan a trainer builds reaches the member's plan and exercise screens | S-31, S-27 | none - outside any milestone (test tooling); manual plan ATT-01, ATT-02, PLAN-01, MBR-05, MBR-06 | done |
+| S-33 | class-type-to-group-rename | (admin, trainer, member) the club's class definitions are called "grupy" everywhere - every screen, the API, the code and the database - with nothing about how they behave changing | S-05, S-06, S-32 | none - outside any milestone (naming); renames v2 FR-004-FR-007's "class type" | in-progress |
 
 ## Streams
 
@@ -960,6 +961,59 @@ rather than in a slice body:
   until a class starts is the wait-for-time anti-pattern `e2e/CLAUDE.md` forbids.
 - **Status:** done
 
+### S-33: Class types are called groups, from the screen down to the table
+
+- **Outcome:** (naming — no capability changes) what the app has called a "typ zajęć" since S-05 is
+  called a "grupa": the admin's Typy zajęć screen, its form, the class form's picker, the menu and
+  `/more`, route titles, empty states, the failure tables and every spec that asserts those words.
+  The rename goes all the way down: the SPA route (`/admin/class-types` → a group path), the API
+  (`/api/admin/class-types`, its DTOs and its refusal reasons such as `unknown_class_type`,
+  `inactive_class_type`, `class_type_immutable`), the `ClassType` entity and everything named after
+  it in `Domain`, `Application` and `Infrastructure`, the `ClassTypes` table, `Classes.ClassTypeId`
+  and the `IX_ClassTypes_Name_Active` index, the test-data seeder and the E2E `club.ts` helpers. The
+  entity keeps every field and rule it has: a name unique among active groups, a description, a
+  default duration and capacity, deactivation, and immutability once a class is built from it.
+- **Change ID:** class-type-to-group-rename
+- **PRD refs:** none. Requested by the user on 2026-10-01 (*"rename funkcjonalności typy zajęć na
+  grupy"*), who confirmed the same day that it is a full rename and that "grupa" means exactly what
+  "typ zajęć" meant — a new word for the same thing, not a fixed set of members. **Delivered outside
+  any milestone**: M-9's scope anchors are about the environment and personal data, and a rename is
+  neither. v2 FR-004–FR-007 keep their wording in `prd-v2.md`, which is versioned as shipped.
+- **Prerequisites:** S-05 and S-06 (the entity and the class form being renamed), S-32 (the E2E
+  suite is the safety net the rename is checked against, and its helpers are renamed with it).
+- **Parallel with:** S-28 only if it touches no scheduling files; not with S-29, whose erasure work
+  reads classes and bookings. A rename touching ~100 files collides with anything open at the same
+  time, so it should land in one short-lived branch.
+- **Blockers:** -
+- **Unknowns:**
+  - What a rollback does after the migration. Owner: `/10x-plan`. Block: yes — rollback redeploys the
+    previous artifact without rolling the schema back, and that artifact queries `ClassTypes` and
+    `ClassTypeId`. A plain `RenameTable` / `RenameColumn` makes the previous release unusable the
+    moment it ships. The plan must choose: an expand/contract pair across two releases (for example a
+    synonym or view under the old name, dropped one release later, as "destructive changes lag one
+    release" already requires), or an accepted risk written down with the manual `Down` step that
+    restores the old names.
+  - The C# and URL name. Owner: `/10x-plan`. Block: no, but it must be decided once. A bare `Group`
+    reads poorly next to `MapGroup` (every endpoint file) and LINQ's `group`; `ClassGroup` /
+    `class-groups` avoids both.
+  - "Grupa" next to "grupa mięśniowa". Owner: user. Block: no. S-15 put the muscle group on the plan
+    card and the exercise form, so "grupa" alone appears on two unrelated screens. Fine if the context
+    always disambiguates; the plan should list the screens where both words can be read together.
+  - Whether a bookmarked or cached `/admin/class-types` URL redirects to the new path or simply
+    404s. Owner: `/10x-plan`. Block: no — only the admin uses it.
+- **Risk:** the migration must be a rename that keeps the rows, never the drop-and-create EF
+  scaffolds when it cannot tell a rename from a new entity — on the only database there is, that
+  deletes every group and, through the foreign key, every class. The generated migration is
+  reviewed by hand, and its `Up` and `Down` are both exercised against a copy of real data before
+  merge. Second risk: a mechanical rename in the SPA can miss words the lint rule cannot see, such as
+  interpolated strings and failure tables. `failure-contract.spec.ts`, `app.routes.spec.ts` and a
+  repo-wide search for "typ zaj" in non-archive files are the checks.
+- **Migration:** `20261001070637_RenameClassTypesToClassGroups`, hand-written renames only (table,
+  column, two indexes, PK, FK). The user accepted, once and without precedent, the deploy-window
+  outage and the manual-`Down` rollback this implies on staging, and waived the rehearsal against a
+  copy of real data; the rollback step is in `context/deployment/deploy-plan.md`, "Rollback note".
+- **Status:** in-progress
+
 ## Backlog Handoff
 
 | Roadmap ID | Change ID                        | Suggested issue title                                        | Ready for `/10x-plan` | Notes                                              |
@@ -998,6 +1052,7 @@ rather than in a slice body:
 | S-30       | e2e-local-gate                   | Run the Playwright suite locally before every push (`.githooks/pre-push`); never on staging or in CI | no                    | Done — shipped inside S-31 (e2e-member-onboarding-and-booking). Outside any milestone |
 | S-31       | e2e-member-onboarding-and-booking | E2E: invitation claim lands on the club record; staff booking and karnet refusal reach both screens | yes                   | Outside any milestone. Run `/10x-plan e2e-member-onboarding-and-booking`, then `/10x-e2e` |
 | S-32       | e2e-attendance-and-plans         | E2E: recorded absence returns the entry on the member's screens; a trainer's plan reaches the member | no                    | Needs S-31 (data-setup helpers) |
+| S-33       | class-type-to-group-rename       | Rename class types to groups across UI, API, code and database | no                    | Planned 2026-10-01. Rollback gap accepted once (staging only); run `/10x-implement class-type-to-group-rename phase 1` |
 
 ## Open Roadmap Questions
 

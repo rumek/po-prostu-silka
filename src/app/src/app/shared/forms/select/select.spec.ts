@@ -12,8 +12,8 @@ import { Select } from './select';
   template: `
     <form [formGroup]="form">
       <app-select>
-        <select id="classTypeId" formControlName="classTypeId" (change)="changed.set(true)">
-          <option value="">Wybierz typ…</option>
+        <select id="classGroupId" formControlName="classGroupId" (change)="changed.set(true)">
+          <option value="">Wybierz grupę…</option>
           <option value="1">Joga</option>
         </select>
       </app-select>
@@ -21,7 +21,7 @@ import { Select } from './select';
   `,
 })
 class Host {
-  readonly form = new FormGroup({ classTypeId: new FormControl('') });
+  readonly form = new FormGroup({ classGroupId: new FormControl('') });
   readonly changed = signal(false);
 }
 
@@ -56,7 +56,7 @@ describe('Select', () => {
   it('projects the select unmodified, options and all', () => {
     const select = compiled().querySelector('select');
 
-    expect(select?.id).toBe('classTypeId');
+    expect(select?.id).toBe('classGroupId');
     expect(select?.querySelectorAll('option')).toHaveLength(2);
   });
 
@@ -72,7 +72,7 @@ describe('Select', () => {
     fixture.detectChanges();
     await fixture.whenStable();
 
-    expect(fixture.componentInstance.form.controls.classTypeId.value).toBe('1');
+    expect(fixture.componentInstance.form.controls.classGroupId.value).toBe('1');
     expect(fixture.componentInstance.changed()).toBe(true);
   });
 });

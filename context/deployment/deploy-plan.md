@@ -150,6 +150,25 @@ Two decisions worth not re-litigating:
 EF migrations do **not** roll back with an artifact redeploy (no slots on B1). Migrations must ship a
 working `Down`, and destructive changes lag one release behind the code that stops needing them.
 
+**One exception, S-33 (class-type-to-group-rename, 2026-10-01).** `RenameClassTypesToClassGroups`
+renames `ClassTypes` → `ClassGroups` and `Classes.ClassTypeId` → `ClassGroupId` in place, in the
+same release as the code, which breaks "schema ≥ code" both ways. The user accepted it once, because
+the only environment is still staging; it is not a precedent. Two consequences:
+
+- While "Apply migrations" has run and the new build is not yet serving (about 6–7 minutes on B1),
+  every screen that reads classes on the old build returns 500. Deploy outside demo hours.
+- Rolling back to any artifact older than this release needs the schema rolled back **first**, by
+  hand, because `rollback.yml` runs no migration:
+
+  ```bash
+  dotnet ef database update 20260923133910_AddBookingAttendance \
+    --project src/Infrastructure/po-prostu-silka.Infrastructure.csproj \
+    --startup-project src/Api/po-prostu-silka.Api.csproj \
+    --connection "<the App Service's Default connection string>"
+  ```
+
+  Then run `rollback.yml`. The `Down` is renames only, so no row is lost either way.
+
 ## Notification delivery foundation (F-03) — 2026-08-31, Phase 1
 
 ### Azure CLI upgraded

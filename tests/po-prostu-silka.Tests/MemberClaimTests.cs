@@ -482,7 +482,7 @@ public class MemberClaimTests(IntegrationTestFixture fixture)
     private async Task<Guid> SeedFutureClassAsync(HttpClient admin)
     {
         var typeResponse = await admin.PostAsJsonAsync(
-            "/api/admin/class-types",
+            "/api/admin/class-groups",
             new
             {
                 name = $"Typ {Guid.NewGuid():N}",
@@ -506,7 +506,7 @@ public class MemberClaimTests(IntegrationTestFixture fixture)
             "/api/admin/classes",
             new
             {
-                classTypeId = typeId,
+                classGroupId = typeId,
                 startsAt,
                 durationMinutes = 60,
                 capacity = 10,

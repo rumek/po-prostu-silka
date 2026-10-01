@@ -39,7 +39,7 @@ export interface DrawnRange {
  * An existing class moved or resized on the grid (prd-v2 FR-019).
  *
  * Carries the class it happened to, so the screen can send back the fields the gesture cannot touch —
- * type, trainer, capacity — unchanged. The two it CAN touch arrive here already snapped to the grid.
+ * group, trainer, capacity — unchanged. The two it CAN touch arrive here already snapped to the grid.
  */
 export interface RescheduledClass {
   class: ScheduledClass;
@@ -208,7 +208,7 @@ export class ScheduleCalendar {
 
   /**
    * The admin drew a time range on empty grid (prd-v2 FR-019). Carries only what the GESTURE can
-   * know — when and how long. The class type and the trainer are the screen's problem, because a
+   * know — when and how long. The group and the trainer are the screen's problem, because a
    * pointer cannot express them.
    *
    * Never emitted while {@link readOnly}, which is what keeps the member schedule and past weeks

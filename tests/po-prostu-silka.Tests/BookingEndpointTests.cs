@@ -32,7 +32,7 @@ public class BookingEndpointTests(IntegrationTestFixture fixture)
     /// <summary>Mirrors ScheduledClass.</summary>
     private sealed record ClassBody(
         Guid Id,
-        Guid ClassTypeId,
+        Guid ClassGroupId,
         string Name,
         string? Description,
         DateTimeOffset StartsAt,
@@ -43,8 +43,8 @@ public class BookingEndpointTests(IntegrationTestFixture fixture)
         int FreeSpots,
         string Status);
 
-    /// <summary>Mirrors ClassTypeSummary — only what these tests read from it.</summary>
-    private sealed record ClassTypeBody(Guid Id, string Name);
+    /// <summary>Mirrors ClassGroupSummary — only what these tests read from it.</summary>
+    private sealed record ClassGroupBody(Guid Id, string Name);
 
     /// <summary>Mirrors MyBooking.</summary>
     private sealed record MyBookingBody(
@@ -70,7 +70,7 @@ public class BookingEndpointTests(IntegrationTestFixture fixture)
     private sealed record FailureBody(string Reason);
 
     private const string ClassesEndpoint = "/api/admin/classes";
-    private const string TypesEndpoint = "/api/admin/class-types";
+    private const string TypesEndpoint = "/api/admin/class-groups";
     private const string MineEndpoint = "/api/bookings/mine";
 
     // BookingsOf and MyBookingOn are GONE with the routes they addressed (S-16, MP-01). The one
@@ -101,7 +101,7 @@ public class BookingEndpointTests(IntegrationTestFixture fixture)
     private Task<HttpClient> AdminAsync() =>
         fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveAdminEmail);
 
-    private static async Task<ClassTypeBody> CreateTypeAsync(HttpClient admin)
+    private static async Task<ClassGroupBody> CreateTypeAsync(HttpClient admin)
     {
         var response = await admin.PostAsJsonAsync(TypesEndpoint, new
         {
@@ -112,7 +112,7 @@ public class BookingEndpointTests(IntegrationTestFixture fixture)
         });
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        return (await response.Content.ReadFromJsonAsync<ClassTypeBody>())!;
+        return (await response.Content.ReadFromJsonAsync<ClassGroupBody>())!;
     }
 
     /// <summary>
@@ -146,7 +146,7 @@ public class BookingEndpointTests(IntegrationTestFixture fixture)
         return await fixture.CreateAuthenticatedClientAsync(email);
     }
 
-    /// <summary>An admin, a type and a trainer — the arrangement every class needs.</summary>
+    /// <summary>An admin, a group and a trainer — the arrangement every class needs.</summary>
     private async Task<(HttpClient Admin, Guid TypeId, Guid TrainerId)> ArrangeAsync()
     {
         var admin = await AdminAsync();
@@ -161,7 +161,7 @@ public class BookingEndpointTests(IntegrationTestFixture fixture)
     {
         var response = await admin.PostAsJsonAsync(ClassesEndpoint, new
         {
-            classTypeId = typeId,
+            classGroupId = typeId,
             startsAt = NextSlot(),
             instructorMemberId = trainerId,
             durationMinutes = 60,
@@ -201,7 +201,7 @@ public class BookingEndpointTests(IntegrationTestFixture fixture)
         var entity = new Class
         {
             Id = Guid.NewGuid(),
-            ClassTypeId = typeId,
+            ClassGroupId = typeId,
             InstructorMemberId = trainerId,
             StartsAt = startsAt,
             DurationMinutes = 60,
@@ -521,7 +521,7 @@ public class BookingEndpointTests(IntegrationTestFixture fixture)
 
         Assert.Equal(new[] { first.Id, second.Id }, mine!.Select(b => b.ClassId).ToArray());
 
-        // Resolved through the class's type and instructor - a booking stores none of the three.
+        // Resolved through the class's group and instructor - a booking stores none of the three.
         Assert.All(mine!, b => Assert.Equal(first.Name, b.Name));
         Assert.All(mine!, b => Assert.Equal("Opis zajęć", b.Description));
         Assert.All(mine!, b => Assert.False(string.IsNullOrWhiteSpace(b.Instructor)));
@@ -683,7 +683,7 @@ public class BookingEndpointTests(IntegrationTestFixture fixture)
 
         var response = await admin.PutAsJsonAsync($"{ClassesEndpoint}/{scheduled.Id}", new
         {
-            classTypeId = typeId,
+            classGroupId = typeId,
             startsAt = scheduled.StartsAt,
             instructorMemberId = trainerId,
             durationMinutes = scheduled.DurationMinutes,
@@ -714,7 +714,7 @@ public class BookingEndpointTests(IntegrationTestFixture fixture)
         await Task.WhenAll(
             admin.PutAsJsonAsync($"{ClassesEndpoint}/{scheduled.Id}", new
             {
-                classTypeId = typeId,
+                classGroupId = typeId,
                 startsAt = scheduled.StartsAt,
                 instructorMemberId = trainerId,
                 durationMinutes = scheduled.DurationMinutes,

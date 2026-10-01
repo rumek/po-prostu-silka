@@ -15,7 +15,7 @@ namespace po_prostu_silka.Application.Training;
 /// </para>
 ///
 /// <para>
-/// <c>IsActive</c> is deliberately ABSENT, exactly as in <see cref="Scheduling.ClassTypeRequest"/>:
+/// <c>IsActive</c> is deliberately ABSENT, exactly as in <see cref="Scheduling.ClassGroupRequest"/>:
 /// activation has its own two endpoints, so a careless edit cannot resurrect a retired exercise.
 /// </para>
 /// </summary>

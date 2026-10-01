@@ -1,0 +1,281 @@
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
+import { ClassGroupSummary } from '../../../core/scheduling/class-group.models';
+import { ToastService } from '../../../shared/toast/toast.service';
+import { ClassGroups } from './class-groups';
+
+const JOGA: ClassGroupSummary = {
+  id: 't1',
+  name: 'Joga dla początkujących',
+  description: 'Spokojne zajęcia dla osób bez doświadczenia.',
+  defaultDurationMinutes: 60,
+  defaultCapacity: 12,
+  isActive: true,
+  createdAt: new Date('2026-09-01T10:00').toISOString(),
+};
+
+const RETIRED: ClassGroupSummary = {
+  ...JOGA,
+  id: 't2',
+  name: 'Zumba',
+  description: null,
+  isActive: false,
+};
+
+describe('ClassGroups', () => {
+  let fixture: ComponentFixture<ClassGroups>;
+  let controller: HttpTestingController;
+
+  async function createWith(rows: ClassGroupSummary[]) {
+    TestBed.configureTestingModule({
+      imports: [ClassGroups],
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
+    });
+
+    controller = TestBed.inject(HttpTestingController);
+    fixture = TestBed.createComponent(ClassGroups);
+
+    (await vi.waitFor(() => controller.expectOne('/api/admin/class-groups'))).flush(rows);
+    await settle();
+  }
+
+  afterEach(() => controller.verify());
+
+  async function settle() {
+    await fixture.whenStable();
+    fixture.detectChanges();
+  }
+
+  function html(): string {
+    return (fixture.nativeElement as HTMLElement).textContent ?? '';
+  }
+
+  /**
+   * What this screen SAYS, as opposed to what it renders.
+   *
+   * Since S-19 a row action reports through the toast rather than a `.notice` banner inside this
+   * component — the host is mounted once in the shell, so it is deliberately not in this fixture.
+   */
+  function toastText(): string {
+    return TestBed.inject(ToastService)
+      .toasts()
+      .map((toast) => toast.message)
+      .join(' ');
+  }
+
+  function toastTone(): string | undefined {
+    return TestBed.inject(ToastService).toasts().at(-1)?.tone;
+  }
+
+  function rows(): HTMLElement[] {
+    return Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('li.row'));
+  }
+
+  function buttonIn(row: HTMLElement, label: string): HTMLButtonElement {
+    return Array.from(row.querySelectorAll('button')).find((b) =>
+      (b.textContent ?? '').includes(label),
+    )!;
+  }
+
+  function toggle(): HTMLInputElement {
+    return (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>(
+      'app-checkbox input',
+    )!;
+  }
+
+  it('renders one row per group, with its defaults and description', async () => {
+    await createWith([JOGA]);
+
+    expect(rows().length).toBe(1);
+    expect(html()).toContain('Joga dla początkujących');
+    expect(html()).toContain('Spokojne zajęcia');
+    expect(html()).toContain('60');
+    expect(html()).toContain('12');
+  });
+
+  /** The toggle is off by default: retired groups are the exception and must not crowd the list. */
+  it('hides inactive groups until the toggle is set', async () => {
+    await createWith([JOGA, RETIRED]);
+
+    expect(rows().length).toBe(1);
+    expect(html()).not.toContain('Zumba');
+
+    toggle().click();
+    await settle();
+
+    expect(rows().length).toBe(2);
+    expect(html()).toContain('Zumba');
+    expect(html()).toContain('Nieaktywna');
+  });
+
+  it('offers Dezaktywuj on an active row and Aktywuj on an inactive one', async () => {
+    await createWith([JOGA, RETIRED]);
+    toggle().click();
+    await settle();
+
+    expect(buttonIn(rows()[0], 'Dezaktywuj')).toBeTruthy();
+    expect(buttonIn(rows()[1], 'Aktywuj')).toBeTruthy();
+  });
+
+  /**
+   * Patched in place from the response rather than refetched: a second round trip would buy nothing
+   * and would reorder the list under the admin's cursor.
+   */
+  it('updates the row in place after a deactivation, without refetching', async () => {
+    await createWith([JOGA]);
+
+    buttonIn(rows()[0], 'Dezaktywuj').click();
+
+    (await vi.waitFor(() => controller.expectOne('/api/admin/class-groups/t1/deactivate'))).flush({
+      ...JOGA,
+      isActive: false,
+    });
+    await settle();
+
+    // Now hidden by the default filter — proof the row really changed rather than being re-rendered
+    // from stale state. afterEach's verify() proves no list refetch was issued.
+    expect(rows().length).toBe(0);
+
+    toggle().click();
+    await settle();
+
+    expect(rows().length).toBe(1);
+    expect(html()).toContain('Nieaktywna');
+  });
+
+  /** Absence is a poor confirmation — the admin cannot tell a vanished row from a failed request. */
+  it('confirms a deactivation in words, not only by the row disappearing', async () => {
+    await createWith([JOGA]);
+
+    buttonIn(rows()[0], 'Dezaktywuj').click();
+
+    (await vi.waitFor(() => controller.expectOne('/api/admin/class-groups/t1/deactivate'))).flush({
+      ...JOGA,
+      isActive: false,
+    });
+    await settle();
+
+    expect(toastText()).toContain('została dezaktywowana');
+    expect(toastTone()).toBe('success');
+  });
+
+  it('reactivates an inactive group', async () => {
+    await createWith([RETIRED]);
+    toggle().click();
+    await settle();
+
+    buttonIn(rows()[0], 'Aktywuj').click();
+
+    (await vi.waitFor(() => controller.expectOne('/api/admin/class-groups/t2/activate'))).flush({
+      ...RETIRED,
+      isActive: true,
+    });
+    await settle();
+
+    expect(html()).not.toContain('Nieaktywna');
+  });
+
+  /**
+   * The sharpest edge in the slice. The activate request carries no name, so nothing on screen
+   * suggests a name can clash — but deactivating released the name and another group may hold it now.
+   * The message has to explain that, because there is no control to attach it to.
+   */
+  it('explains a name clash when a reactivation is refused', async () => {
+    await createWith([RETIRED]);
+    toggle().click();
+    await settle();
+
+    buttonIn(rows()[0], 'Aktywuj').click();
+
+    (await vi.waitFor(() => controller.expectOne('/api/admin/class-groups/t2/activate'))).flush(
+      { reason: 'name_taken' },
+      { status: 409, statusText: 'Conflict' },
+    );
+    await settle();
+
+    // The TABLE's sentence now — this screen used to write its own, longer version of the one
+    // refusal that also reaches the form, so a name clash read two ways.
+    expect(toastText()).toContain('już zajęta');
+    expect(toastTone()).toBe('error');
+    expect(html()).toContain('Zumba');
+    // Still inactive: a refused activation must not look like it worked.
+    expect(html()).toContain('Nieaktywna');
+  });
+
+  it('keeps the row and surfaces the error when an action fails', async () => {
+    await createWith([JOGA]);
+
+    buttonIn(rows()[0], 'Dezaktywuj').click();
+
+    (await vi.waitFor(() => controller.expectOne('/api/admin/class-groups/t1/deactivate'))).flush(
+      null,
+      { status: 500, statusText: 'Server Error' },
+    );
+    await settle();
+
+    expect(rows().length).toBe(1);
+    expect(html()).toContain('Nie udało się');
+  });
+
+  /** One slow row must not disable the list — the busy flag is per row, not global. */
+  it('marks only the acting row busy', async () => {
+    await createWith([JOGA, { ...JOGA, id: 't3', name: 'Pilates' }]);
+
+    buttonIn(rows()[0], 'Dezaktywuj').click();
+    await settle();
+
+    expect(buttonIn(rows()[0], 'Dezaktywowanie…').disabled).toBe(true);
+    expect(buttonIn(rows()[1], 'Dezaktywuj').disabled).toBe(false);
+
+    (await vi.waitFor(() => controller.expectOne('/api/admin/class-groups/t1/deactivate'))).flush({
+      ...JOGA,
+      isActive: false,
+    });
+    await settle();
+  });
+
+  it('renders an explicit empty state rather than a blank page', async () => {
+    await createWith([]);
+
+    expect(rows().length).toBe(0);
+    expect(html()).toContain('Nie zdefiniowano jeszcze');
+  });
+
+  /** "None exist" and "all are hidden" are different problems and need different messages. */
+  it('distinguishes an empty list from one the filter has emptied', async () => {
+    await createWith([RETIRED]);
+
+    expect(rows().length).toBe(0);
+    expect(html()).toContain('Wszystkie grupy są nieaktywne');
+    expect(html()).not.toContain('Nie zdefiniowano jeszcze');
+  });
+
+  it('reports a failed load and offers a retry', async () => {
+    TestBed.configureTestingModule({
+      imports: [ClassGroups],
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
+    });
+
+    controller = TestBed.inject(HttpTestingController);
+    fixture = TestBed.createComponent(ClassGroups);
+
+    (await vi.waitFor(() => controller.expectOne('/api/admin/class-groups'))).flush(null, {
+      status: 500,
+      statusText: 'Server Error',
+    });
+    await settle();
+
+    expect(html()).toContain('Nie udało się wczytać');
+
+    (fixture.nativeElement as HTMLElement)
+      .querySelector<HTMLButtonElement>('.link-button')!
+      .click();
+
+    (await vi.waitFor(() => controller.expectOne('/api/admin/class-groups'))).flush([JOGA]);
+    await settle();
+
+    expect(rows().length).toBe(1);
+  });
+});

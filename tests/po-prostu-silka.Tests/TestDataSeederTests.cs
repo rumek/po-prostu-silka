@@ -315,7 +315,7 @@ public class TestDataSeederTests(IntegrationTestFixture fixture)
             scope.ServiceProvider, configuration, new StubEnvironment(environment), NullLogger.Instance);
     }
 
-    private async Task<(int Users, int Members, int Passes, int ClassTypes, int Classes, int Bookings, int Exercises, int Plans)> CountsAsync()
+    private async Task<(int Users, int Members, int Passes, int ClassGroups, int Classes, int Bookings, int Exercises, int Plans)> CountsAsync()
     {
         await using var scope = fixture.Factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -324,7 +324,7 @@ public class TestDataSeederTests(IntegrationTestFixture fixture)
             await db.Users.CountAsync(),
             await db.Members.CountAsync(),
             await db.MembershipPasses.CountAsync(),
-            await db.ClassTypes.CountAsync(),
+            await db.ClassGroups.CountAsync(),
             await db.Classes.CountAsync(),
             await db.Bookings.CountAsync(),
             await db.Exercises.CountAsync(),

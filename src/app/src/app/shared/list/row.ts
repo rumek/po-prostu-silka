@@ -14,7 +14,7 @@ import { Component } from '@angular/core';
  *
  * <p>
  * FOUR SLOTS AND NO INPUTS. Every row in the app carries something of its own — exercises a 16:9
- * thumbnail, class-types and members a badge row, members an anchored action menu, plan-builder a
+ * thumbnail, class-groups and members a badge row, members an anchored action menu, plan-builder a
  * drag handle, my-classes a date column in the lead slot. An input per variation would
  * have grown one every time a screen needed something; projection holds all of them without the
  * component knowing what it holds. What it cannot then do is check that a row HAS a name, or that

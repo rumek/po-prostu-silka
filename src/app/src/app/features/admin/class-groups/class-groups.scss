@@ -1,0 +1,86 @@
+@use 'breakpoints' as bp;
+
+.class-groups-lead {
+  max-width: 44rem;
+  margin: var(--space-2) 0 var(--space-4);
+}
+
+.class-groups-controls {
+  margin-bottom: var(--space-4);
+}
+
+.class-group-card {
+  gap: var(--space-3);
+}
+
+.class-group-card .row-identity {
+  flex: 0 1 auto;
+}
+
+.class-group-card .row-actions {
+  width: 100%;
+  margin: auto 0 0;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--line);
+}
+
+.class-groups-description {
+  margin: var(--space-1) 0 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+
+// The two values are the useful part of a group. A compact parameter strip makes them scannable
+// across cards and mirrors the plan and exercise screens, rather than hiding them in a sentence.
+.class-group-defaults {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: var(--space-4) 0 0;
+  border-top: 1px solid var(--line);
+
+  > div {
+    padding: var(--space-3) 0 0;
+
+    & + div {
+      padding-left: var(--space-3);
+      border-left: 1px solid var(--line);
+    }
+  }
+
+  dt {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    color: var(--gray);
+    font-size: 0.75rem;
+
+    app-icon {
+      color: var(--accent2);
+      font-size: 0.8rem;
+    }
+  }
+
+  dd {
+    margin: var(--space-1) 0 0;
+    color: var(--ink);
+    font-size: 1.125rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+// Retired, not broken — muted like .badge-pending rather than coloured like .badge-blocked. A
+// deactivated group is a deliberate state, not a problem to fix. The .badge base rule this sits on
+// is global (src/styles.scss); only this modifier is local.
+.badge-inactive {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+@include bp.narrow {
+  .row-actions .button {
+    flex: 1 1 auto;
+    text-align: center;
+  }
+}
