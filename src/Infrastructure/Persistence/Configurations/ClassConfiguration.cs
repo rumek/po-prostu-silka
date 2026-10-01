@@ -13,7 +13,7 @@ public class ClassConfiguration : IEntityTypeConfiguration<Class>
         builder.HasKey(x => x.Id);
 
         // Name, Room and Instructor are GONE, not merely unused. They were the occurrence's own
-        // identity until S-06; the name and description now resolve through ClassType and the
+        // identity until S-06; the name and description now resolve through ClassGroup and the
         // instructor through ApplicationUser, and the club has one room so that field never carried
         // information at all.
         //
@@ -59,16 +59,16 @@ public class ClassConfiguration : IEntityTypeConfiguration<Class>
 
         // The definition this occurrence instantiates (prd-v2 FR-008). REQUIRED since S-06.
         //
-        // RESTRICT, never Cascade: FR-006 rules out hard-deleting a type at all, and a cascade that
+        // RESTRICT, never Cascade: FR-006 rules out hard-deleting a group at all, and a cascade that
         // could take booked classes down with it is the worst failure available here.
         //
-        // The navigation is a READ-SIDE affordance and nothing more - see Class.ClassType before
+        // The navigation is a READ-SIDE affordance and nothing more - see Class.ClassGroup before
         // using it. No write path may reach DefaultCapacity through it.
-        builder.Property(x => x.ClassTypeId).IsRequired();
+        builder.Property(x => x.ClassGroupId).IsRequired();
 
-        builder.HasOne(x => x.ClassType)
+        builder.HasOne(x => x.ClassGroup)
             .WithMany()
-            .HasForeignKey(x => x.ClassTypeId)
+            .HasForeignKey(x => x.ClassGroupId)
             .OnDelete(DeleteBehavior.Restrict);
 
         // Who runs it (prd-v2 FR-009), as a MEMBER since S-14.

@@ -70,7 +70,7 @@ public class Exercise
 
     /// <summary>
     /// Whether the exercise is offered. Hard deletion is ruled out for the same reason it is for
-    /// class types: S-11's plans will reference exercises, and a deleted row would either orphan a
+    /// groups: S-11's plans will reference exercises, and a deleted row would either orphan a
     /// plan or be blocked by the foreign key. A bool rather than an enum because there are exactly
     /// two states.
     /// </summary>

@@ -38,7 +38,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
 
     public DbSet<Class> Classes => Set<Class>();
 
-    public DbSet<ClassType> ClassTypes => Set<ClassType>();
+    public DbSet<ClassGroup> ClassGroups => Set<ClassGroup>();
 
     public DbSet<Booking> Bookings => Set<Booking>();
 

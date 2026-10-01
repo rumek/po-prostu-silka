@@ -5,16 +5,16 @@ using po_prostu_silka.Domain.Scheduling;
 namespace po_prostu_silka.Application.Scheduling;
 
 /// <summary>
-/// Shape validation for the class-type write paths, with the bounds it enforces.
+/// Shape validation for the group write paths, with the bounds it enforces.
 ///
 /// <para>
 /// THESE BOUNDS ARE DUPLICATED IN ClassRequestValidator ON PURPOSE, not shared from here. An
-/// occurrence may legitimately override its type's defaults (prd-v2 FR-008), so it cannot
-/// inherit the type's bounds by reference any more than it inherits its numbers. Keep the
+/// occurrence may legitimately override its group's defaults (prd-v2 FR-008), so it cannot
+/// inherit the group's bounds by reference any more than it inherits its numbers. Keep the
 /// four pairs in step by hand; do not consolidate them.
 /// </para>
 /// </summary>
-internal static class ClassTypeValidator
+internal static class ClassGroupValidator
 {
     /// <summary>
     /// Bounds on a default duration. The floor matches ClassEndpoints.Validate — a zero-length class
@@ -35,7 +35,7 @@ internal static class ClassTypeValidator
     private const int MaxCapacity = 200;
 
     /// <summary>
-    /// Matches ClassTypeConfiguration's column length. Keep the two in step.
+    /// Matches ClassGroupConfiguration's column length. Keep the two in step.
     ///
     /// NOT optional to check. Without it a longer name reaches SQL Server, which refuses the INSERT
     /// with "String or binary data would be truncated" - an unhandled DbUpdateException, i.e. a 500
@@ -43,7 +43,7 @@ internal static class ClassTypeValidator
     /// </summary>
     private const int MaxNameLength = 200;
 
-    /// <summary>Matches ClassTypeConfiguration's column length. Keep the two in step.</summary>
+    /// <summary>Matches ClassGroupConfiguration's column length. Keep the two in step.</summary>
     private const int MaxDescriptionLength = 1000;
 
     /// <summary>
@@ -51,36 +51,36 @@ internal static class ClassTypeValidator
     /// codebase — there is no validation library here and adding one for four fields is not
     /// warranted.
     /// </summary>
-    public static IResult? Validate(ClassTypeRequest request)
+    public static IResult? Validate(ClassGroupRequest request)
     {
         // Description is the one genuinely optional field in the scheduling context, so it is
         // absent from this check on purpose.
         if (string.IsNullOrWhiteSpace(request.Name))
         {
-            return Results.Json(new ClassTypeFailure("missing_field"), statusCode: 400);
+            return Results.Json(new ClassGroupFailure("missing_field"), statusCode: 400);
         }
 
         // Measured on the TRIMMED value, like the description below and like the write itself.
         if (request.Name.Trim().Length > MaxNameLength)
         {
-            return Results.Json(new ClassTypeFailure("name_too_long"), statusCode: 400);
+            return Results.Json(new ClassGroupFailure("name_too_long"), statusCode: 400);
         }
 
         // Measured on the TRIMMED value, which is what gets stored - otherwise trailing whitespace
         // could be refused for a description that fits.
         if (NormalizeDescription(request.Description) is { Length: > MaxDescriptionLength })
         {
-            return Results.Json(new ClassTypeFailure("description_too_long"), statusCode: 400);
+            return Results.Json(new ClassGroupFailure("description_too_long"), statusCode: 400);
         }
 
         if (request.DefaultDurationMinutes is < MinDurationMinutes or > MaxDurationMinutes)
         {
-            return Results.Json(new ClassTypeFailure("invalid_duration"), statusCode: 400);
+            return Results.Json(new ClassGroupFailure("invalid_duration"), statusCode: 400);
         }
 
         if (request.DefaultCapacity is < MinCapacity or > MaxCapacity)
         {
-            return Results.Json(new ClassTypeFailure("invalid_capacity"), statusCode: 400);
+            return Results.Json(new ClassGroupFailure("invalid_capacity"), statusCode: 400);
         }
 
         return null;

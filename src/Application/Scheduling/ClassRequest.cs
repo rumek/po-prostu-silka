@@ -13,18 +13,18 @@ namespace po_prostu_silka.Application.Scheduling;
 ///
 /// <para>
 /// A FORM OF SELECTIONS, NOT OF TEXT (prd-v2 US-01). There is no name and no room to type;
-/// <see cref="ClassTypeId"/> and <see cref="InstructorMemberId"/> are references the client picked from
-/// two lists. What remains typed are the two numbers — and they arrive here PREFILLED from the type's
+/// <see cref="ClassGroupId"/> and <see cref="InstructorMemberId"/> are references the client picked from
+/// two lists. What remains typed are the two numbers — and they arrive here PREFILLED from the group's
 /// defaults, which the admin may have overridden for this session.
 /// </para>
 ///
 /// <para>
-/// <see cref="ClassTypeId"/> is required on an edit too, but only so the server can refuse a change
-/// to it: the type is immutable once an occurrence exists (<c>class_type_immutable</c>).
+/// <see cref="ClassGroupId"/> is required on an edit too, but only so the server can refuse a change
+/// to it: the group is immutable once an occurrence exists (<c>class_group_immutable</c>).
 /// </para>
 /// </summary>
 public record ClassRequest(
-    Guid ClassTypeId,
+    Guid ClassGroupId,
     DateTimeOffset StartsAt,
     int DurationMinutes,
     Guid InstructorMemberId,

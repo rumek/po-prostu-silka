@@ -51,11 +51,11 @@ public class ClassScheduleQuery(AppDbContext db) : IClassScheduleQuery
     {
         // The name, description and instructor name are RESOLVED through the navigations, not read
         // off the occurrence - it holds none of the three (prd-v2 FR-007, FR-009, FR-010). That is
-        // what makes correcting a typo on a class type correct it on every occurrence at once, past
+        // what makes correcting a typo on a group correct it on every occurrence at once, past
         // ones included.
         //
         // Navigations inside a Select, NOT Include: this stays a projection, so EF emits joins and
-        // returns exactly these columns. An Include added here would materialise whole ClassType and
+        // returns exactly these columns. An Include added here would materialise whole ClassGroup and
         // ApplicationUser rows for every class - and, with query splitting ever enabled globally,
         // turn one statement into three.
         var rows = await query
@@ -64,9 +64,9 @@ public class ClassScheduleQuery(AppDbContext db) : IClassScheduleQuery
             .Select(c => new
             {
                 c.Id,
-                c.ClassTypeId,
-                ClassTypeName = c.ClassType.Name,
-                ClassTypeDescription = c.ClassType.Description,
+                c.ClassGroupId,
+                ClassGroupName = c.ClassGroup.Name,
+                ClassGroupDescription = c.ClassGroup.Description,
                 c.StartsAt,
                 c.DurationMinutes,
                 c.InstructorMemberId,
@@ -91,9 +91,9 @@ public class ClassScheduleQuery(AppDbContext db) : IClassScheduleQuery
         return rows
             .Select(r => new ScheduledClass(
                 r.Id,
-                r.ClassTypeId,
-                r.ClassTypeName,
-                r.ClassTypeDescription,
+                r.ClassGroupId,
+                r.ClassGroupName,
+                r.ClassGroupDescription,
                 r.StartsAt,
                 r.DurationMinutes,
                 r.InstructorMemberId,

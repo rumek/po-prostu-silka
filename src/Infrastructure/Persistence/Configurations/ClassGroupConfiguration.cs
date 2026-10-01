@@ -4,11 +4,11 @@ using po_prostu_silka.Domain.Scheduling;
 
 namespace po_prostu_silka.Infrastructure.Persistence.Configurations;
 
-public class ClassTypeConfiguration : IEntityTypeConfiguration<ClassType>
+public class ClassGroupConfiguration : IEntityTypeConfiguration<ClassGroup>
 {
-    public void Configure(EntityTypeBuilder<ClassType> builder)
+    public void Configure(EntityTypeBuilder<ClassGroup> builder)
     {
-        builder.ToTable("ClassTypes");
+        builder.ToTable("ClassGroups");
         builder.HasKey(x => x.Id);
 
         // 200 matches Class.Name - the two are the same label seen from two sides.
@@ -26,16 +26,16 @@ public class ClassTypeConfiguration : IEntityTypeConfiguration<ClassType>
         // silently hidden - the same reasoning ClassConfiguration applies to Status.
         builder.Property(x => x.IsActive).IsRequired().HasDefaultValue(true);
 
-        // FILTERED, not plain. Uniqueness holds among ACTIVE types only (FR-006): without the
-        // filter, deactivating a type would hold its name hostage forever, and the admin could
+        // FILTERED, not plain. Uniqueness holds among ACTIVE groups only (FR-006): without the
+        // filter, deactivating a group would hold its name hostage forever, and the admin could
         // never re-create "Joga dla początkujących" after retiring one.
         //
         // This index is what actually closes the race the endpoint's pre-check only narrows - two
         // simultaneous creates both pass the check, and the second write fails here rather than
-        // producing two active types with one name.
+        // producing two active groups with one name.
         builder.HasIndex(x => x.Name)
             .IsUnique()
             .HasFilter("[IsActive] = 1")
-            .HasDatabaseName("IX_ClassTypes_Name_Active");
+            .HasDatabaseName("IX_ClassGroups_Name_Active");
     }
 }

@@ -15,7 +15,7 @@ namespace po_prostu_silka.Tests;
 /// </para>
 ///
 /// <para>
-/// The other half of what these tests exist for is the length bounds. F2 of the class-type
+/// The other half of what these tests exist for is the length bounds. F2 of the group
 /// implementation review was a 201-character name reaching SQL Server as an unhandled 500 because
 /// the column had a limit and the endpoint did not. This entity has EIGHT such columns, so every one
 /// of them is pinned below, at the bound and one past it.

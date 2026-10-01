@@ -25,7 +25,7 @@ namespace po_prostu_silka.Api.Endpoints.Training;
 /// </para>
 ///
 /// <para>
-/// NO DELETE, by design — deactivation instead, for the reason FR-006 gives class types and which
+/// NO DELETE, by design — deactivation instead, for the reason FR-006 gives groups and which
 /// applies harder here: S-11's plans will reference exercises, so a deleted row would either orphan
 /// a plan or be blocked by a foreign key.
 /// </para>
@@ -66,7 +66,7 @@ public static class ExerciseEndpoints
         admin.MapPost("/", CreateExercise.HandleAsync);
         admin.MapPut("/{id:guid}", UpdateExercise.HandleAsync);
 
-        // Two verbs rather than a boolean on the edit payload, matching the class-type surface: the
+        // Two verbs rather than a boolean on the edit payload, matching the group surface: the
         // action the admin took is legible in the request, and an edit cannot perform it by accident.
         admin.MapPost("/{id:guid}/deactivate", DeactivateExercise.HandleAsync);
         admin.MapPost("/{id:guid}/activate", ActivateExercise.HandleAsync);

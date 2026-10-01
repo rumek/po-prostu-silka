@@ -18,7 +18,7 @@ namespace po_prostu_silka.Application.Scheduling;
 public interface IClassStore
 {
     /// <summary>
-    /// One occurrence WITH its ClassType and Instructor navigations loaded — ToDto resolves the name,
+    /// One occurrence WITH its ClassGroup and Instructor navigations loaded — ToDto resolves the name,
     /// description and display name through them, so a bare entity is not enough.
     /// </summary>
     Task<Class?> FindAsync(Guid id, CancellationToken cancellationToken);

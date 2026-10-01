@@ -37,7 +37,7 @@ namespace po_prostu_silka.Tests;
 /// <para>
 /// OUTBOX ROWS ARE MATCHED BY SUBJECT, not by truncating the table. These tests run in the same
 /// collection as the delivery tests, which own that table's lifecycle; every class here is created
-/// from a type with a GUID in its name, and the subject carries that name, so each test sees exactly
+/// from a group with a GUID in its name, and the subject carries that name, so each test sees exactly
 /// its own rows however many others ran first.
 /// </para>
 /// </summary>
@@ -47,8 +47,8 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
     /// <summary>Mirrors ScheduledClass — only what these tests read from it.</summary>
     private sealed record ClassBody(Guid Id, string Name, int Capacity, int FreeSpots, string Status);
 
-    /// <summary>Mirrors ClassTypeSummary — only what these tests read from it.</summary>
-    private sealed record ClassTypeBody(Guid Id, string Name);
+    /// <summary>Mirrors ClassGroupSummary — only what these tests read from it.</summary>
+    private sealed record ClassGroupBody(Guid Id, string Name);
 
     /// <summary>Mirrors MyBooking - only what these tests read from it.</summary>
     private sealed record MyBookingBody(Guid BookingId, Guid ClassId, string Name, DateTimeOffset StartsAt);
@@ -60,7 +60,7 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
     private sealed record FailureBody(string Reason);
 
     private const string Endpoint = "/api/admin/classes";
-    private const string TypesEndpoint = "/api/admin/class-types";
+    private const string TypesEndpoint = "/api/admin/class-groups";
 
     private static string CancelOf(Guid classId) => $"{Endpoint}/{classId}/cancel";
 
@@ -79,10 +79,10 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
         fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveAdminEmail);
 
     /// <summary>
-    /// A class type whose name carries a GUID. That name reaches the message subject, which is how
+    /// A group whose name carries a GUID. That name reaches the message subject, which is how
     /// each test finds its own outbox rows in a shared table.
     /// </summary>
-    private static async Task<ClassTypeBody> CreateTypeAsync(HttpClient admin)
+    private static async Task<ClassGroupBody> CreateTypeAsync(HttpClient admin)
     {
         var response = await admin.PostAsJsonAsync(TypesEndpoint, new
         {
@@ -93,7 +93,7 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
         });
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        return (await response.Content.ReadFromJsonAsync<ClassTypeBody>())!;
+        return (await response.Content.ReadFromJsonAsync<ClassGroupBody>())!;
     }
 
     private Task<Guid> CreateTrainerAsync(HttpClient admin) =>
@@ -112,7 +112,7 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
         return await fixture.FindMemberIdAsync(admin, email);
     }
 
-    private async Task<(HttpClient Admin, ClassTypeBody Type, Guid TrainerId)> ArrangeAsync()
+    private async Task<(HttpClient Admin, ClassGroupBody Type, Guid TrainerId)> ArrangeAsync()
     {
         var admin = await AdminAsync();
 
@@ -124,7 +124,7 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
     {
         var response = await admin.PostAsJsonAsync(Endpoint, new
         {
-            classTypeId = typeId,
+            classGroupId = typeId,
             startsAt,
             instructorMemberId = trainerId,
             durationMinutes = 60,
@@ -149,7 +149,7 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
         int capacity = 12) =>
         admin.PutAsJsonAsync($"{Endpoint}/{classId}", new
         {
-            classTypeId = typeId,
+            classGroupId = typeId,
             startsAt,
             instructorMemberId = trainerId,
             durationMinutes = duration,
@@ -279,7 +279,7 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
         var entity = new Class
         {
             Id = Guid.NewGuid(),
-            ClassTypeId = typeId,
+            ClassGroupId = typeId,
             InstructorMemberId = trainerId,
 
             // Both keys, because the legacy column is still NOT NULL and still carries a foreign key.
@@ -297,7 +297,7 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
         return entity.Id;
     }
 
-    /// <summary>Every outbox row whose subject names this class type — this test's own rows.</summary>
+    /// <summary>Every outbox row whose subject names this group — this test's own rows.</summary>
     /// <summary>
     /// The club-local hour of an instant, derived here rather than by calling
     /// <c>MessageTime.ToClubWallClock</c>. Computing an expectation with the function under test asserts
@@ -499,7 +499,7 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
         await BookAsync(released, scheduled.Id);
         await ReleaseAsync(released, scheduled.Id);
 
-        // And a member booked on a DIFFERENT class of the same type must not be swept in.
+        // And a member booked on a DIFFERENT class of the same group must not be swept in.
         var other = await PostClassAsync(admin, type.Id, trainerId, NextSlot());
         var (bystander, bystanderId, bystanderEmail) = await NewMemberAsync(deviceCount: 1);
         await BookAsync(bystander, other.Id);
@@ -713,19 +713,19 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
     }
 
     /// <summary>
-    /// ClassType.Name is allowed the full 200 characters and OutboxMessage.Subject is nvarchar(200),
+    /// ClassGroup.Name is allowed the full 200 characters and OutboxMessage.Subject is nvarchar(200),
     /// so a prefixed subject overflows the column. This is a CANCELLATION test, not a formatting one:
     /// SQL Server refuses the insert, the truncation error surfaces as a DbUpdateException which
     /// TrySaveChangesAsync does not catch, and because the enqueue shares its unit of work with the
     /// status flip, the cancellation itself would never commit.
     /// </summary>
     [Fact]
-    public async Task A_class_type_name_at_the_column_limit_still_lets_the_cancellation_commit()
+    public async Task A_class_group_name_at_the_column_limit_still_lets_the_cancellation_commit()
     {
         var admin = await AdminAsync();
         var trainerId = await CreateTrainerAsync(admin);
 
-        // Exactly the 200 the column allows, unique so it cannot collide with another test's type.
+        // Exactly the 200 the column allows, unique so it cannot collide with another test's group.
         var longName = $"{Guid.NewGuid():N}{new string('A', 168)}";
 
         var typeResponse = await admin.PostAsJsonAsync(TypesEndpoint, new
@@ -737,7 +737,7 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
         });
 
         Assert.Equal(HttpStatusCode.OK, typeResponse.StatusCode);
-        var type = (await typeResponse.Content.ReadFromJsonAsync<ClassTypeBody>())!;
+        var type = (await typeResponse.Content.ReadFromJsonAsync<ClassGroupBody>())!;
 
         var scheduled = await PostClassAsync(admin, type.Id, trainerId, NextSlot());
 
@@ -1099,7 +1099,7 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
         var push = new FakePushSender();
         await DeliverEverythingPendingAsync(email, push);
 
-        // Filtered by this class type's GUID-bearing name: the pass drains the whole shared table, and
+        // Filtered by this group's GUID-bearing name: the pass drains the whole shared table, and
         // rows other tests left Pending are delivered to the same fakes.
         Assert.Equal(
             new[] { withDeviceEmail, withoutDeviceEmail, deskAddress }.Order().ToArray(),

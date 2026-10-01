@@ -5,7 +5,7 @@ using po_prostu_silka.Domain.Scheduling;
 namespace po_prostu_silka.Application.Scheduling;
 
 /// <summary>
-/// One class type as the admin's list and form see it. This is a CONTRACT the SPA's class-type
+/// One group as the admin's list and form see it. This is a CONTRACT the SPA's group
 /// service mirrors — renaming a field breaks both screens silently.
 ///
 /// <para>
@@ -20,7 +20,7 @@ namespace po_prostu_silka.Application.Scheduling;
 /// (prd-v2 FR-007), and the naming is what keeps that obvious at the call site.
 /// </para>
 /// </summary>
-public record ClassTypeSummary(
+public record ClassGroupSummary(
     Guid Id,
     string Name,
     string? Description,

@@ -4,27 +4,27 @@ using System.Net.Http.Json;
 namespace po_prostu_silka.Tests;
 
 /// <summary>
-/// The admin's class-type definitions (prd-v2 FR-004..FR-007).
+/// The admin's group definitions (prd-v2 FR-004..FR-007).
 ///
 /// <para>
 /// THE REASON THIS RUNS AGAINST A REAL ENGINE: the slice's central rule — a name is unique among
-/// ACTIVE types only — is enforced by a FILTERED unique index
-/// (<c>IX_ClassTypes_Name_Active</c>, <c>HasFilter("[IsActive] = 1")</c>). No in-memory provider
+/// ACTIVE groups only — is enforced by a FILTERED unique index
+/// (<c>IX_ClassGroups_Name_Active</c>, <c>HasFilter("[IsActive] = 1")</c>). No in-memory provider
 /// implements filtered indexes, and no mocked frontend spec can reach the behaviour at all. The
 /// deactivate-then-reuse-then-reactivate cycle below is the one test that actually pins the design.
 /// </para>
 ///
 /// <para>
-/// Every test creates its own types with a GUID-suffixed name. The uniqueness rule is global to the
+/// Every test creates its own groups with a GUID-suffixed name. The uniqueness rule is global to the
 /// table, so fixed names would make these tests collide with each other rather than with the rule
 /// under test.
 /// </para>
 /// </summary>
 [Collection(nameof(IntegrationCollection))]
-public class ClassTypeEndpointTests(IntegrationTestFixture fixture)
+public class ClassGroupEndpointTests(IntegrationTestFixture fixture)
 {
-    /// <summary>Mirrors ClassTypeSummary.</summary>
-    private sealed record ClassTypeBody(
+    /// <summary>Mirrors ClassGroupSummary.</summary>
+    private sealed record ClassGroupBody(
         Guid Id,
         string Name,
         string? Description,
@@ -35,7 +35,7 @@ public class ClassTypeEndpointTests(IntegrationTestFixture fixture)
 
     private sealed record FailureBody(string Reason);
 
-    private const string Endpoint = "/api/admin/class-types";
+    private const string Endpoint = "/api/admin/class-groups";
 
     private static string UniqueName(string prefix = "Joga") => $"{prefix}-{Guid.NewGuid():N}";
 
@@ -52,7 +52,7 @@ public class ClassTypeEndpointTests(IntegrationTestFixture fixture)
             defaultCapacity = capacity,
         };
 
-    private async Task<(HttpClient Admin, ClassTypeBody Created)> CreateAsync(
+    private async Task<(HttpClient Admin, ClassGroupBody Created)> CreateAsync(
         string? name = null,
         string? description = null,
         int duration = 60,
@@ -64,7 +64,7 @@ public class ClassTypeEndpointTests(IntegrationTestFixture fixture)
             Endpoint, Request(name ?? UniqueName(), description, duration, capacity));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        return (admin, (await response.Content.ReadFromJsonAsync<ClassTypeBody>())!);
+        return (admin, (await response.Content.ReadFromJsonAsync<ClassGroupBody>())!);
     }
 
     // --- who may reach the group ----------------------------------------------
@@ -199,7 +199,7 @@ public class ClassTypeEndpointTests(IntegrationTestFixture fixture)
         Assert.Equal(200, created.DefaultCapacity);
     }
 
-    // --- uniqueness among ACTIVE types ---------------------------------------
+    // --- uniqueness among ACTIVE groups ---------------------------------------
 
     [Fact]
     public async Task Second_active_type_with_the_same_name_is_409()
@@ -228,7 +228,7 @@ public class ClassTypeEndpointTests(IntegrationTestFixture fixture)
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
     }
 
-    /// <summary>Editing a type while keeping its own name must not collide with itself.</summary>
+    /// <summary>Editing a group while keeping its own name must not collide with itself.</summary>
     [Fact]
     public async Task Editing_a_type_keeping_its_own_name_succeeds()
     {
@@ -239,7 +239,7 @@ public class ClassTypeEndpointTests(IntegrationTestFixture fixture)
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
-        var updated = (await response.Content.ReadFromJsonAsync<ClassTypeBody>())!;
+        var updated = (await response.Content.ReadFromJsonAsync<ClassGroupBody>())!;
         Assert.Equal(90, updated.DefaultDurationMinutes);
         Assert.Equal("Nowy opis.", updated.Description);
     }
@@ -250,7 +250,7 @@ public class ClassTypeEndpointTests(IntegrationTestFixture fixture)
         var (admin, first) = await CreateAsync();
 
         var secondResponse = await admin.PostAsJsonAsync(Endpoint, Request(UniqueName()));
-        var second = (await secondResponse.Content.ReadFromJsonAsync<ClassTypeBody>())!;
+        var second = (await secondResponse.Content.ReadFromJsonAsync<ClassGroupBody>())!;
 
         var response = await admin.PutAsJsonAsync($"{Endpoint}/{second.Id}", Request(first.Name));
 
@@ -261,7 +261,7 @@ public class ClassTypeEndpointTests(IntegrationTestFixture fixture)
 
     /// <summary>
     /// THE TEST THIS CLASS EXISTS FOR. The whole design rests on the filtered index: deactivating
-    /// RELEASES a name, so a retired type never holds one hostage — but reactivating can then
+    /// RELEASES a name, so a retired group never holds one hostage — but reactivating can then
     /// collide, even though the activate request carries no name at all. That last step is the
     /// slice's sharpest edge, and the one an unhandled DbUpdateException would turn into a 500.
     /// </summary>
@@ -273,12 +273,12 @@ public class ClassTypeEndpointTests(IntegrationTestFixture fixture)
         // 1. Retire it. The name is now free.
         var deactivated = await admin.PostAsync($"{Endpoint}/{original.Id}/deactivate", null);
         Assert.Equal(HttpStatusCode.OK, deactivated.StatusCode);
-        Assert.False((await deactivated.Content.ReadFromJsonAsync<ClassTypeBody>())!.IsActive);
+        Assert.False((await deactivated.Content.ReadFromJsonAsync<ClassGroupBody>())!.IsActive);
 
-        // 2. A brand-new ACTIVE type may take the released name — this is what the filter buys.
+        // 2. A brand-new ACTIVE group may take the released name — this is what the filter buys.
         var replacement = await admin.PostAsJsonAsync(Endpoint, Request(original.Name));
         Assert.Equal(HttpStatusCode.OK, replacement.StatusCode);
-        var replacementBody = (await replacement.Content.ReadFromJsonAsync<ClassTypeBody>())!;
+        var replacementBody = (await replacement.Content.ReadFromJsonAsync<ClassGroupBody>())!;
 
         // 3. Reactivating the original now collides — a clean 409, never a 500.
         var refused = await admin.PostAsync($"{Endpoint}/{original.Id}/activate", null);
@@ -290,7 +290,7 @@ public class ClassTypeEndpointTests(IntegrationTestFixture fixture)
 
         var restored = await admin.PostAsync($"{Endpoint}/{original.Id}/activate", null);
         Assert.Equal(HttpStatusCode.OK, restored.StatusCode);
-        Assert.True((await restored.Content.ReadFromJsonAsync<ClassTypeBody>())!.IsActive);
+        Assert.True((await restored.Content.ReadFromJsonAsync<ClassGroupBody>())!.IsActive);
     }
 
     /// <summary>
@@ -321,7 +321,7 @@ public class ClassTypeEndpointTests(IntegrationTestFixture fixture)
         await admin.PostAsync($"{Endpoint}/{retired.Id}/deactivate", null);
         await CreateAsync("Aaa-active-" + Guid.NewGuid().ToString("N"));
 
-        var all = (await admin.GetFromJsonAsync<ClassTypeBody[]>(Endpoint))!;
+        var all = (await admin.GetFromJsonAsync<ClassGroupBody[]>(Endpoint))!;
 
         Assert.Contains(all, t => t.Id == retired.Id && !t.IsActive);
 
@@ -336,7 +336,7 @@ public class ClassTypeEndpointTests(IntegrationTestFixture fixture)
     {
         var (admin, created) = await CreateAsync();
 
-        var fetched = await admin.GetFromJsonAsync<ClassTypeBody>($"{Endpoint}/{created.Id}");
+        var fetched = await admin.GetFromJsonAsync<ClassGroupBody>($"{Endpoint}/{created.Id}");
 
         Assert.Equal(created.Id, fetched!.Id);
         Assert.Equal(created.Name, fetched.Name);

@@ -20,8 +20,8 @@ namespace po_prostu_silka.Application.Scheduling;
 ///
 /// <para>
 /// <see cref="Name"/>, <see cref="Description"/> and <see cref="Instructor"/> are RESOLVED through
-/// the class's type and instructor, exactly as they are on the schedule — a booking stores none of
-/// the three, so correcting a typo on a class type corrects it here too.
+/// the class's group and instructor, exactly as they are on the schedule — a booking stores none of
+/// the three, so correcting a typo on a group corrects it here too.
 /// </para>
 /// </summary>
 public record MyBooking(

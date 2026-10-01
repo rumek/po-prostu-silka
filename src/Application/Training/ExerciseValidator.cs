@@ -8,7 +8,7 @@ namespace po_prostu_silka.Application.Training;
 /// Validation and normalisation for the exercise write paths, with the lengths it enforces.
 ///
 /// <para>
-/// MaxNameLength and MaxDescriptionLength match ClassTypeValidator's by parallel derivation
+/// MaxNameLength and MaxDescriptionLength match ClassGroupValidator's by parallel derivation
 /// from the same column widths, NOT by sharing a rule. Do not consolidate them.
 /// </para>
 /// </summary>

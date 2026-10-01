@@ -5,7 +5,7 @@ namespace po_prostu_silka.Domain.Scheduling;
 ///
 /// <para>
 /// AN INSTANCE, NOT A DESCRIPTION. Since S-06 this entity no longer carries its own identity: the
-/// name and description resolve BY REFERENCE through <see cref="ClassType"/>, and the instructor
+/// name and description resolve BY REFERENCE through <see cref="ClassGroup"/>, and the instructor
 /// resolves through <see cref="Instructor"/>. What the occurrence owns is its moment in time and its
 /// own COPIES of the numbers - see <see cref="Capacity"/>.
 /// </para>
@@ -36,8 +36,8 @@ public class Class
     /// (StartsAt + DurationMinutes), which EF translates to DATEADD.
     ///
     /// <para>
-    /// A COPY of <see cref="Scheduling.ClassType.DefaultDurationMinutes"/>, taken when the occurrence
-    /// was created and overridable for this session alone. Never re-read from the type.
+    /// A COPY of <see cref="Scheduling.ClassGroup.DefaultDurationMinutes"/>, taken when the occurrence
+    /// was created and overridable for this session alone. Never re-read from the group.
     /// </para>
     /// </summary>
     public int DurationMinutes { get; set; }
@@ -47,9 +47,9 @@ public class Class
     /// requests - the PRD's headline guardrail.
     ///
     /// <para>
-    /// A COPY of <see cref="Scheduling.ClassType.DefaultCapacity"/>, and the copy semantics matter
-    /// more here than anywhere else in the model (prd-v2 FR-007). Resolving this through the type
-    /// would let a type edit change the capacity of a class that already has bookings - moving the
+    /// A COPY of <see cref="Scheduling.ClassGroup.DefaultCapacity"/>, and the copy semantics matter
+    /// more here than anywhere else in the model (prd-v2 FR-007). Resolving this through the group
+    /// would let a group edit change the capacity of a class that already has bookings - moving the
     /// very value the no-overbooking guarantee is checked against.
     /// </para>
     /// </summary>
@@ -99,36 +99,36 @@ public class Class
     public string ConcurrencyStamp { get; set; } = Guid.NewGuid().ToString();
 
     /// <summary>
-    /// Which <see cref="Scheduling.ClassType"/> this occurrence instantiates (prd-v2 FR-008).
+    /// Which <see cref="Scheduling.ClassGroup"/> this occurrence instantiates (prd-v2 FR-008).
     ///
     /// <para>
     /// REQUIRED since S-06. An occurrence with no definition has no name, so there is no such thing.
-    /// IMMUTABLE once set: the API refuses an edit that changes it (class_type_immutable), which
+    /// IMMUTABLE once set: the API refuses an edit that changes it (class_group_immutable), which
     /// keeps the reference stable and makes a client bug loud rather than silent.
     /// </para>
     /// </summary>
-    public Guid ClassTypeId { get; set; }
+    public Guid ClassGroupId { get; set; }
 
     /// <summary>
     /// The definition this occurrence instantiates. READ SIDE ONLY.
     ///
     /// <para>
     /// READ THIS BEFORE USING IT. S-05 deliberately shipped WITHOUT this navigation, because having
-    /// one invites a write path to reach <see cref="Scheduling.ClassType.DefaultCapacity"/> through
+    /// one invites a write path to reach <see cref="Scheduling.ClassGroup.DefaultCapacity"/> through
     /// it - the exact inversion of FR-007 that the no-overbooking guarantee cannot survive. S-06
-    /// added it so ClassScheduleQuery can project the type's name and description in one statement,
+    /// added it so ClassScheduleQuery can project the group's name and description in one statement,
     /// and that is the ONLY thing it is for.
     /// </para>
     ///
     /// <para>
     /// NO WRITE PATH MAY READ <c>DefaultDurationMinutes</c> OR <c>DefaultCapacity</c> THROUGH THIS.
-    /// Creation copies both numbers from the REQUEST (the client prefilled them from the type and the
-    /// admin may have overridden them); the server loads the type only to check it exists and is
+    /// Creation copies both numbers from the REQUEST (the client prefilled them from the group and the
+    /// admin may have overridden them); the server loads the group only to check it exists and is
     /// active. The compile-time barrier that used to enforce this is gone, so ClassEndpointTests is
     /// what enforces it now - see the copy-semantics tests there before changing anything here.
     /// </para>
     /// </summary>
-    public ClassType ClassType { get; set; } = null!;
+    public ClassGroup ClassGroup { get; set; } = null!;
 
     /// <summary>
     /// Who runs it (prd-v2 FR-009). A member, not a string.
@@ -148,14 +148,14 @@ public class Class
     /// </para>
     ///
     /// <para>
-    /// Unlike <see cref="ClassTypeId"/> this IS mutable — reassigning a class to another trainer is
+    /// Unlike <see cref="ClassGroupId"/> this IS mutable — reassigning a class to another trainer is
     /// ordinary admin work.
     /// </para>
     /// </summary>
     public Guid InstructorMemberId { get; set; }
 
     /// <summary>
-    /// The instructor. READ SIDE ONLY, same contract as <see cref="ClassType"/>: it exists so the
+    /// The instructor. READ SIDE ONLY, same contract as <see cref="ClassGroup"/>: it exists so the
     /// read queries can project <c>DisplayName</c> in one statement. Assignment goes through
     /// <see cref="InstructorMemberId"/> after the endpoint has validated the role and status.
     ///

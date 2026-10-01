@@ -14,15 +14,15 @@ namespace po_prostu_silka.Application.Scheduling;
 ///
 /// <para>
 /// TWO OF THESE FIELDS ARE RESOLVED, NOT STORED (prd-v2 FR-007, FR-010). <see cref="Name"/> and
-/// <see cref="Description"/> come from the occurrence's ClassType and <see cref="Instructor"/> from
+/// <see cref="Description"/> come from the occurrence's ClassGroup and <see cref="Instructor"/> from
 /// the assigned account's display name — the occurrence itself holds none of the three. That is what
-/// makes correcting a typo on the type correct it on every week at once, past occurrences included.
+/// makes correcting a typo on the group correct it on every week at once, past occurrences included.
 /// </para>
 ///
 /// <para>
 /// <see cref="Capacity"/> and <see cref="DurationMinutes"/> are the opposite: COPIES taken at
-/// creation, owned by this occurrence, and never re-read from the type. The asymmetry is deliberate
-/// and load-bearing — capacity resolved through the type would let a type edit move the value the
+/// creation, owned by this occurrence, and never re-read from the group. The asymmetry is deliberate
+/// and load-bearing — capacity resolved through the group would let a group edit move the value the
 /// no-overbooking guarantee is checked against.
 /// </para>
 ///
@@ -51,7 +51,7 @@ namespace po_prostu_silka.Application.Scheduling;
 /// </summary>
 public record ScheduledClass(
     Guid Id,
-    Guid ClassTypeId,
+    Guid ClassGroupId,
     string Name,
     string? Description,
     DateTimeOffset StartsAt,

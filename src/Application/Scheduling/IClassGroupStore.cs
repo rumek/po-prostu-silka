@@ -13,18 +13,18 @@ namespace po_prostu_silka.Application.Scheduling;
 ///
 /// Nothing here saves. The endpoint commits through <see cref="IUnitOfWork"/>.
 /// </summary>
-public interface IClassTypeStore
+public interface IClassGroupStore
 {
-    Task<ClassType?> FindAsync(Guid id, CancellationToken cancellationToken);
+    Task<ClassGroup?> FindAsync(Guid id, CancellationToken cancellationToken);
 
-    void Add(ClassType entity);
+    void Add(ClassGroup entity);
 
     /// <summary>
-    /// Whether another ACTIVE type already holds <paramref name="name"/>. Inactive types are
+    /// Whether another ACTIVE group already holds <paramref name="name"/>. Inactive groups are
     /// invisible here, which is what lets a retired name be reused (FR-006).
     /// </summary>
     /// <param name="excludingId">
-    /// The type being edited or activated, so it does not collide with itself. Null when creating.
+    /// The group being edited or activated, so it does not collide with itself. Null when creating.
     /// </param>
     Task<bool> IsNameTakenAsync(string name, Guid? excludingId, CancellationToken cancellationToken);
 }

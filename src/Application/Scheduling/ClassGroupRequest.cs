@@ -10,11 +10,11 @@ namespace po_prostu_silka.Application.Scheduling;
 ///
 /// <para>
 /// <c>IsActive</c> is deliberately ABSENT. Activation has its own two endpoints, so a careless edit
-/// cannot silently resurrect a type the admin retired — the same reasoning that keeps block/unblock
+/// cannot silently resurrect a group the admin retired — the same reasoning that keeps block/unblock
 /// off the member edit surface.
 /// </para>
 /// </summary>
-public record ClassTypeRequest(
+public record ClassGroupRequest(
     string Name,
     string? Description,
     int DefaultDurationMinutes,

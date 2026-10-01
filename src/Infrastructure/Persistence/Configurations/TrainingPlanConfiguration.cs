@@ -11,7 +11,7 @@ public class TrainingPlanConfiguration : IEntityTypeConfiguration<TrainingPlan>
         builder.ToTable("TrainingPlans");
         builder.HasKey(x => x.Id);
 
-        // 120 is shorter than ClassType.Name's 200 on purpose: this is a heading on a phone, not a
+        // 120 is shorter than ClassGroup.Name's 200 on purpose: this is a heading on a phone, not a
         // catalogue entry. The endpoint's MaxNameLength and the Angular validator mirror it - all
         // three must stay in step, or an over-long value becomes a 500 at the database instead of a
         // 400 on the field.

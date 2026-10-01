@@ -9,14 +9,14 @@ using po_prostu_silka.Infrastructure.Persistence;
 namespace po_prostu_silka.Tests;
 
 /// <summary>
-/// Class occurrences built from class types (prd-v2 US-01, FR-008..FR-013).
+/// Class occurrences built from groups (prd-v2 US-01, FR-008..FR-013).
 ///
 /// <para>
 /// WHY THIS FILE EXISTS. S-05 kept the FR-007 asymmetry safe structurally: <c>Class</c> had no
-/// navigation to <c>ClassType</c>, so no write path could reach <c>DefaultCapacity</c> even by
+/// navigation to <c>ClassGroup</c>, so no write path could reach <c>DefaultCapacity</c> even by
 /// accident. S-06 adds that navigation to make the read joins idiomatic, which removes the
 /// compile-time barrier. The three copy-semantics tests below are the replacement: they are the only
-/// thing standing between a future edit and a type change silently moving the capacity of a class
+/// thing standing between a future edit and a group change silently moving the capacity of a class
 /// that already has bookings.
 /// </para>
 ///
@@ -33,7 +33,7 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
     /// <summary>Mirrors ScheduledClass.</summary>
     private sealed record ClassBody(
         Guid Id,
-        Guid ClassTypeId,
+        Guid ClassGroupId,
         string Name,
         string? Description,
         DateTimeOffset StartsAt,
@@ -44,8 +44,8 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
         int FreeSpots,
         string Status);
 
-    /// <summary>Mirrors ClassTypeSummary — only what these tests read from it.</summary>
-    private sealed record ClassTypeBody(
+    /// <summary>Mirrors ClassGroupSummary — only what these tests read from it.</summary>
+    private sealed record ClassGroupBody(
         Guid Id,
         string Name,
         string? Description,
@@ -68,7 +68,7 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
     private sealed record FailureBody(string Reason);
 
     private const string Endpoint = "/api/admin/classes";
-    private const string TypesEndpoint = "/api/admin/class-types";
+    private const string TypesEndpoint = "/api/admin/class-groups";
 
     /// <summary>
     /// Slot allocator. June 2030 rather than "now + something": a fixed base keeps a failing test
@@ -86,14 +86,14 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
     private static string UniqueName() => $"Joga-{Guid.NewGuid():N}";
 
     private static object Request(
-        Guid classTypeId,
+        Guid classGroupId,
         DateTimeOffset startsAt,
         Guid instructorMemberId,
         int duration = 60,
         int capacity = 12) =>
         new
         {
-            classTypeId,
+            classGroupId,
             startsAt,
             instructorMemberId,
             durationMinutes = duration,
@@ -105,7 +105,7 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
     private async Task<HttpClient> AdminAsync() =>
         await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveAdminEmail);
 
-    private static async Task<ClassTypeBody> CreateTypeAsync(
+    private static async Task<ClassGroupBody> CreateTypeAsync(
         HttpClient admin, int duration = 60, int capacity = 12)
     {
         var response = await admin.PostAsJsonAsync(TypesEndpoint, new
@@ -117,7 +117,7 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
         });
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        return (await response.Content.ReadFromJsonAsync<ClassTypeBody>())!;
+        return (await response.Content.ReadFromJsonAsync<ClassGroupBody>())!;
     }
 
     /// <summary>
@@ -136,8 +136,8 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
     private Task<Guid> CreateTrainerAsync(HttpClient admin, string? displayName = null) =>
         CreateAccountAsync(admin, AccountStatus.Active, ApplicationRoles.Trainer, displayName);
 
-    /// <summary>An admin, an active type and an active trainer — what almost every test below needs.</summary>
-    private async Task<(HttpClient Admin, ClassTypeBody Type, Guid TrainerId)> ArrangeAsync(
+    /// <summary>An admin, an active group and an active trainer — what almost every test below needs.</summary>
+    private async Task<(HttpClient Admin, ClassGroupBody Type, Guid TrainerId)> ArrangeAsync(
         int duration = 60, int capacity = 12)
     {
         var admin = await AdminAsync();
@@ -198,7 +198,7 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
     [Fact]
     public async Task Create_copies_the_capacity_from_the_request_not_the_type()
     {
-        // The type says 12; the admin overrode it to 8 for this session (FR-008).
+        // The group says 12; the admin overrode it to 8 for this session (FR-008).
         var (admin, type, trainerId) = await ArrangeAsync(capacity: 12);
 
         var created = await PostClassAsync(
@@ -216,7 +216,7 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
     [Fact]
     public async Task Editing_the_type_does_not_move_an_existing_occurrences_capacity()
     {
-        // THE ONE THAT MATTERS. Capacity resolved through the type would let this edit change the
+        // THE ONE THAT MATTERS. Capacity resolved through the group would let this edit change the
         // value the no-overbooking guarantee is checked against, on a class that may already have
         // bookings.
         var (admin, type, trainerId) = await ArrangeAsync(capacity: 12);
@@ -242,7 +242,7 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
     public async Task Renaming_the_type_renames_an_existing_occurrence()
     {
         // The other half of the asymmetry: identity DOES resolve by reference, which is the whole
-        // reason class types exist (FR-007, FR-010).
+        // reason groups exist (FR-007, FR-010).
         var (admin, type, trainerId) = await ArrangeAsync();
         var created = await PostClassAsync(admin, type.Id, NextSlot(), trainerId);
 
@@ -275,7 +275,7 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
 
         await PostClassAsync(admin, type.Id, slot, trainerId, duration: 60);
 
-        // A DIFFERENT type and a DIFFERENT trainer: the rule is club-wide, not per-type. Overlapping
+        // A DIFFERENT group and a DIFFERENT trainer: the rule is club-wide, not per-group. Overlapping
         // by 30 minutes rather than starting together, so the interval arithmetic is what refuses it.
         var otherType = await CreateTypeAsync(admin);
         var otherTrainer = await CreateTrainerAsync(admin);
@@ -382,7 +382,7 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
         var admin_list = await admin.GetFromJsonAsync<List<ClassBody>>(
             Endpoint + Range(slot.AddDays(-1), slot.AddDays(29)));
         var copies = admin_list!
-            .Where(c => c.ClassTypeId == type.Id && c.Id != source.Id)
+            .Where(c => c.ClassGroupId == type.Id && c.Id != source.Id)
             .ToList();
 
         // Weeks 1 and 3, plus the collision we planted.
@@ -391,7 +391,7 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
         Assert.All(copies, c => Assert.Equal(source.Capacity, c.Capacity));
     }
 
-    // --- FR-006 / FR-008: the type reference ----------------------------------
+    // --- FR-006 / FR-008: the group reference ----------------------------------
 
     [Fact]
     public async Task Create_refuses_an_unknown_or_inactive_type()
@@ -403,7 +403,7 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
 
         Assert.Equal(HttpStatusCode.BadRequest, unknown.StatusCode);
         Assert.Equal(
-            "unknown_class_type",
+            "unknown_class_group",
             (await unknown.Content.ReadFromJsonAsync<FailureBody>())!.Reason);
 
         var deactivate = await admin.PostAsJsonAsync($"{TypesEndpoint}/{type.Id}/deactivate", new { });
@@ -414,14 +414,14 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
 
         Assert.Equal(HttpStatusCode.BadRequest, inactive.StatusCode);
         Assert.Equal(
-            "inactive_class_type",
+            "inactive_class_group",
             (await inactive.Content.ReadFromJsonAsync<FailureBody>())!.Reason);
     }
 
     [Fact]
     public async Task Editing_an_occurrence_whose_type_was_deactivated_still_works()
     {
-        // FR-006 promises that deactivating a type leaves its existing occurrences intact — and an
+        // FR-006 promises that deactivating a group leaves its existing occurrences intact — and an
         // occurrence the admin can no longer reschedule is not intact.
         var (admin, type, trainerId) = await ArrangeAsync();
         var slot = NextSlot();
@@ -440,9 +440,9 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
     }
 
     [Fact]
-    public async Task Edit_refuses_a_change_of_class_type()
+    public async Task Edit_refuses_a_change_of_class_group()
     {
-        // Refused rather than silently ignored: a client sending a different type has a bug, and a
+        // Refused rather than silently ignored: a client sending a different group has a bug, and a
         // server that quietly discarded it would leave the admin believing they had changed something.
         var (admin, type, trainerId) = await ArrangeAsync();
         var slot = NextSlot();
@@ -455,7 +455,7 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Equal(
-            "class_type_immutable",
+            "class_group_immutable",
             (await response.Content.ReadFromJsonAsync<FailureBody>())!.Reason);
     }
 
@@ -524,7 +524,7 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
     [Fact]
     public async Task Edit_can_reassign_the_instructor()
     {
-        // Unlike the type, the instructor IS mutable — reassigning a class is ordinary admin work.
+        // Unlike the group, the instructor IS mutable — reassigning a class is ordinary admin work.
         var (admin, type, trainerId) = await ArrangeAsync();
         var slot = NextSlot();
 

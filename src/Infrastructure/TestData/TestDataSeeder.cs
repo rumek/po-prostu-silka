@@ -119,7 +119,7 @@ public static class TestDataSeeder
         // club-wide overlap check (HasTimeConflictAsync), and seeded names and e-mails would collide with
         // existing ones. Anything beyond the AdminSeed account's own member row means "reset first".
         if (await db.Members.CountAsync() > 1
-            || await db.ClassTypes.AnyAsync()
+            || await db.ClassGroups.AnyAsync()
             || await db.Classes.AnyAsync()
             || await db.MembershipPasses.AnyAsync()
             || await db.Exercises.AnyAsync()
@@ -171,7 +171,7 @@ public static class TestDataSeeder
 
         db.Members.AddRange(data.Members);
         db.MembershipPasses.AddRange(data.Passes);
-        db.ClassTypes.AddRange(data.ClassTypes);
+        db.ClassGroups.AddRange(data.ClassGroups);
         db.Classes.AddRange(data.Classes);
         db.Bookings.AddRange(data.Bookings);
         db.Exercises.AddRange(data.Exercises);
@@ -231,7 +231,7 @@ public static class TestDataSeeder
             await db.TrainingPlanItems.ExecuteDeleteAsync();
             await db.TrainingPlans.ExecuteDeleteAsync();
             await db.Classes.ExecuteDeleteAsync();
-            await db.ClassTypes.ExecuteDeleteAsync();
+            await db.ClassGroups.ExecuteDeleteAsync();
             await db.MembershipPasses.ExecuteDeleteAsync();
             await db.Exercises.ExecuteDeleteAsync();
             await db.OutboxMessages.ExecuteDeleteAsync();

@@ -17,7 +17,7 @@ public static class ActivateExercise
     /// exercise may have claimed it since. Reactivating blindly would violate
     /// IX_Exercises_Name_Active and surface as an unhandled DbUpdateException — a 500 for what is
     /// really a conflict the admin can resolve. The request carries no name, which is exactly why
-    /// this is easy to miss; it was found in review on the class-type surface, not in planning.
+    /// this is easy to miss; it was found in review on the group surface, not in planning.
     /// </para>
     /// </summary>
     public static async Task<IResult> HandleAsync(

@@ -20,7 +20,7 @@ public class ClassStore(AppDbContext db) : IClassStore
         // display name (prd-v2 FR-007, FR-009, FR-010), so without these that DTO would dereference
         // null.
         //
-        // The WRITE paths do not rely on them. They pass the ClassType and the instructor name their
+        // The WRITE paths do not rely on them. They pass the ClassGroup and the instructor name their
         // own validation already resolved, because after an instructor is reassigned the tracked
         // entity's Instructor navigation still points at the PREVIOUS member - projecting from it
         // would give a correct id beside a stale name.
@@ -29,7 +29,7 @@ public class ClassStore(AppDbContext db) : IClassStore
         // one place in this codebase where Include is the right tool; the read queries next door stay
         // projections.
         await db.Classes
-            .Include(c => c.ClassType)
+            .Include(c => c.ClassGroup)
             .Include(c => c.Instructor)
             .FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
 

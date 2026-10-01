@@ -31,8 +31,8 @@ public class AttendanceEndpointTests(IntegrationTestFixture fixture)
     /// <summary>Mirrors ScheduledClass — only what these tests read from it.</summary>
     private sealed record ClassBody(Guid Id, DateTimeOffset StartsAt);
 
-    /// <summary>Mirrors ClassTypeSummary — only what these tests read from it.</summary>
-    private sealed record ClassTypeBody(Guid Id, string Name);
+    /// <summary>Mirrors ClassGroupSummary — only what these tests read from it.</summary>
+    private sealed record ClassGroupBody(Guid Id, string Name);
 
     /// <summary>Mirrors BookingFailure.</summary>
     private sealed record FailureBody(string Reason);
@@ -69,10 +69,10 @@ public class AttendanceEndpointTests(IntegrationTestFixture fixture)
         return await fixture.FindMemberIdAsync(admin, email);
     }
 
-    /// <summary>A future class, with a fresh type and — unless one is named — a fresh trainer.</summary>
+    /// <summary>A future class, with a fresh group and — unless one is named — a fresh trainer.</summary>
     private async Task<ClassBody> ClassAsync(HttpClient admin, Guid? instructorMemberId = null)
     {
-        var typeResponse = await admin.PostAsJsonAsync("/api/admin/class-types", new
+        var typeResponse = await admin.PostAsJsonAsync("/api/admin/class-groups", new
         {
             name = $"Obecność-{Guid.NewGuid():N}",
             description = (string?)"Opis",
@@ -80,11 +80,11 @@ public class AttendanceEndpointTests(IntegrationTestFixture fixture)
             defaultCapacity = 12,
         });
         Assert.Equal(HttpStatusCode.OK, typeResponse.StatusCode);
-        var type = (await typeResponse.Content.ReadFromJsonAsync<ClassTypeBody>())!;
+        var type = (await typeResponse.Content.ReadFromJsonAsync<ClassGroupBody>())!;
 
         var response = await admin.PostAsJsonAsync("/api/admin/classes", new
         {
-            classTypeId = type.Id,
+            classGroupId = type.Id,
             startsAt = NextSlot(),
             instructorMemberId = instructorMemberId ?? await CreateTrainerAsync(admin),
             durationMinutes = 60,

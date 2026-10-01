@@ -12,9 +12,9 @@ namespace po_prostu_silka.Application.Scheduling;
 /// Shape validation for the occurrence write paths, with the bounds it enforces.
 ///
 /// <para>
-/// THESE FOUR BOUNDS ARE DUPLICATED FROM ClassTypeValidator ON PURPOSE, not shared from it. An
-/// occurrence may legitimately override its type's defaults (prd-v2 FR-008), so it cannot
-/// inherit the type's bounds by reference any more than it inherits its numbers - the whole
+/// THESE FOUR BOUNDS ARE DUPLICATED FROM ClassGroupValidator ON PURPOSE, not shared from it. An
+/// occurrence may legitimately override its group's defaults (prd-v2 FR-008), so it cannot
+/// inherit the group's bounds by reference any more than it inherits its numbers - the whole
 /// point is that the two values are independent after creation. Keep the four constants in
 /// step by hand.
 /// </para>
@@ -25,8 +25,8 @@ internal static class ClassRequestValidator
     /// Bounds on an occurrence's own duration and capacity.
     ///
     /// <para>
-    /// DUPLICATED FROM ClassTypeEndpoints ON PURPOSE, not shared through it. An occurrence may
-    /// legitimately override its type's defaults (prd-v2 FR-008), so it cannot inherit the type's
+    /// DUPLICATED FROM ClassGroupEndpoints ON PURPOSE, not shared through it. An occurrence may
+    /// legitimately override its group's defaults (prd-v2 FR-008), so it cannot inherit the group's
     /// bounds by reference any more than it inherits its numbers — the whole point is that the two
     /// values are independent after creation. Keep the four constants in step by hand.
     /// </para>
@@ -48,7 +48,7 @@ internal static class ClassRequestValidator
     {
         // A reference that is absent, not a field that is blank: the client picks these from two
         // lists, so the only way they arrive empty is a form submitted without a selection.
-        if (request.ClassTypeId == Guid.Empty || request.InstructorMemberId == Guid.Empty)
+        if (request.ClassGroupId == Guid.Empty || request.InstructorMemberId == Guid.Empty)
         {
             return Results.Json(new ClassFailure("missing_field"), statusCode: 400);
         }

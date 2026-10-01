@@ -2,7 +2,7 @@ namespace po_prostu_silka.Infrastructure.TestData;
 
 /// <summary>
 /// The static vocabulary <see cref="TestDataGenerator"/> draws from: Polish names, streets and
-/// cities so the UI reads like a real club, and the exercise and class-type catalogues.
+/// cities so the UI reads like a real club, and the exercise and group catalogues.
 ///
 /// <para>
 /// ORDER IS PART OF THE CONTRACT. The generator picks by index from a fixed-seed Random, so
@@ -59,15 +59,15 @@ internal static class TestDataNames
         ("Gdańsk", "80-001"), ("Piaseczno", "05-500"), ("Pruszków", "05-800"),
     ];
 
-    public sealed record ClassTypeSpec(
+    public sealed record ClassGroupSpec(
         string Name,
         string Description,
         int DurationMinutes,
         int Capacity,
         bool IsActive);
 
-    /// <summary>The last entry is inactive, so the admin's class-type list shows both states.</summary>
-    public static readonly ClassTypeSpec[] ClassTypes =
+    /// <summary>The last entry is inactive, so the admin's group list shows both states.</summary>
+    public static readonly ClassGroupSpec[] ClassGroups =
     [
         new("Joga", "Spokojna praktyka asan i oddechu dla każdego poziomu.", 60, 16, true),
         new("Crossfit", "Intensywny trening funkcjonalny w małej grupie.", 60, 12, true),

@@ -178,7 +178,7 @@ public static class BookingProtocol
                 // window makes the number one too low - never too high - so it can only understate
                 // the spots available, which is the direction that cannot overbook.
                 return Results.Ok(ClassDtoMapping.ToDto(
-                    entity, entity.ClassType, entity.Instructor!.DisplayName, bookedCount + 1));
+                    entity, entity.ClassGroup, entity.Instructor!.DisplayName, bookedCount + 1));
             }
 
             // ConcurrencyConflict: someone else's booking or cancellation rotated the stamp first.

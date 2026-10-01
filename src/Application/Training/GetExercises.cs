@@ -12,7 +12,7 @@ public static class GetExercises
     /// <summary>
     /// Every exercise, active and inactive, active first and then by name.
     ///
-    /// UNFILTERED, deliberately — same reasoning as the class-type list: the screen's "pokaż
+    /// UNFILTERED, deliberately — same reasoning as the group list: the screen's "pokaż
     /// nieaktywne" toggle filters rows it already holds. It is also what makes the form's
     /// muscle-group and difficulty suggestions free: the form reuses this call and derives the
     /// distinct values client-side, so no second endpoint exists to keep in step.

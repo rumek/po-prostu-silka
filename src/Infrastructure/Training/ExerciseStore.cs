@@ -22,7 +22,7 @@ public class ExerciseStore(AppDbContext db) : IExerciseStore
     /// Whether another ACTIVE exercise holds this name.
     ///
     /// <para>
-    /// A plain <c>==</c>, deliberately, exactly as ClassTypeStore documents: SQL Server's default
+    /// A plain <c>==</c>, deliberately, exactly as ClassGroupStore documents: SQL Server's default
     /// collation is case-insensitive, so this already refuses "przysiad" against an active
     /// "Przysiad". Calling ToLower() would express the same intent while making the predicate
     /// non-sargable, so it could no longer use IX_Exercises_Name_Active.

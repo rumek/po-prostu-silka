@@ -21,17 +21,17 @@ namespace po_prostu_silka.Domain.Scheduling;
 /// </para>
 ///
 /// <para>
-/// S-05 defines and manages types. It does NOT yet build occurrences from them - no selector, no
+/// S-05 defines and manages groups. It does NOT yet build occurrences from them - no selector, no
 /// prefill, no name resolution. That is S-06.
 /// </para>
 /// </summary>
-public class ClassType
+public class ClassGroup
 {
     public Guid Id { get; set; }
 
     /// <summary>
-    /// What the member sees, e.g. "Joga dla początkujących". Unique among ACTIVE types only - see
-    /// ClassTypeConfiguration's filtered index. Deactivating a type releases its name.
+    /// What the member sees, e.g. "Joga dla początkujących". Unique among ACTIVE groups only - see
+    /// ClassGroupConfiguration's filtered index. Deactivating a group releases its name.
     /// </summary>
     public string Name { get; set; } = string.Empty;
 
@@ -43,19 +43,19 @@ public class ClassType
     public string? Description { get; set; }
 
     /// <summary>
-    /// How long a class of this type usually runs. A DEFAULT - copied onto the occurrence at
+    /// How long a class of this group usually runs. A DEFAULT - copied onto the occurrence at
     /// creation and overridable there, because a single session legitimately varies.
     /// </summary>
     public int DefaultDurationMinutes { get; set; }
 
     /// <summary>
-    /// How many spots a class of this type usually has. A DEFAULT, and the copy semantics matter
+    /// How many spots a class of this group usually has. A DEFAULT, and the copy semantics matter
     /// more here than anywhere else in the model - see the type-level remarks.
     /// </summary>
     public int DefaultCapacity { get; set; }
 
     /// <summary>
-    /// Whether the type is offered. FR-006 rules out hard deletion: an inactive type disappears from
+    /// Whether the group is offered. FR-006 rules out hard deletion: an inactive group disappears from
     /// every selection while the occurrences that reference it stay intact. A bool rather than an
     /// enum because there are exactly two states and an enum would imply others.
     /// </summary>

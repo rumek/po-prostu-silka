@@ -24,11 +24,11 @@ namespace po_prostu_silka.Api.Endpoints.Scheduling;
 /// </list>
 ///
 /// <para>
-/// THE ONE RULE THIS FILE EXISTS TO PROTECT (prd-v2 FR-007): the class type is loaded to be
+/// THE ONE RULE THIS FILE EXISTS TO PROTECT (prd-v2 FR-007): the group is loaded to be
 /// VALIDATED, never to be read from. <see cref="CreateClass.HandleAsync"/> copies duration and capacity out of
-/// the REQUEST — the client prefilled them from the type and the admin may have overridden them —
-/// and <see cref="UpdateClass.HandleAsync"/> and <see cref="DuplicateClass.HandleAsync"/> never touch the type's defaults at
-/// all. Reading <c>DefaultCapacity</c> here would let a later type edit change the capacity of a
+/// the REQUEST — the client prefilled them from the group and the admin may have overridden them —
+/// and <see cref="UpdateClass.HandleAsync"/> and <see cref="DuplicateClass.HandleAsync"/> never touch the group's defaults at
+/// all. Reading <c>DefaultCapacity</c> here would let a later group edit change the capacity of a
 /// class that already has bookings. ClassEndpointTests pins this; nothing in the compiler does.
 /// </para>
 ///

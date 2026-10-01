@@ -39,7 +39,7 @@ public static class UpdateClass
         // exactly what this needs) so it is read here too, before ClassRequestValidator.ValidateInstructorAsync resolves
         // the new one.
         var previous = new ClassDescription(
-            existing.ClassType.Name,
+            existing.ClassGroup.Name,
             existing.StartsAt,
             existing.DurationMinutes,
             existing.Instructor!.DisplayName);
@@ -53,17 +53,17 @@ public static class UpdateClass
         }
 
         // THE TYPE IS IMMUTABLE. Refused rather than silently ignored: a client sending a different
-        // type has a bug, and a server that quietly discards the field would leave the admin
+        // group has a bug, and a server that quietly discards the field would leave the admin
         // believing they had changed something. Repointing an occurrence is delete-and-recreate.
         //
-        // Because of this, no active-type check runs here - see CreateAsync. An occurrence whose type
+        // Because of this, no active-group check runs here - see CreateAsync. An occurrence whose group
         // was deactivated after it was created stays fully editable, which is what FR-006 promises.
-        if (request.ClassTypeId != existing.ClassTypeId)
+        if (request.ClassGroupId != existing.ClassGroupId)
         {
-            return Results.Json(new ClassFailure("class_type_immutable"), statusCode: 400);
+            return Results.Json(new ClassFailure("class_group_immutable"), statusCode: 400);
         }
 
-        // The instructor, unlike the type, IS mutable - reassigning a class to another trainer is
+        // The instructor, unlike the group, IS mutable - reassigning a class to another trainer is
         // ordinary admin work - so it is re-validated on every edit.
         var (instructorFailure, instructor) =
             await ClassRequestValidator.ValidateInstructorAsync(
@@ -130,7 +130,7 @@ public static class UpdateClass
         // instructor ClassRequestValidator.ValidateInstructorAsync already resolved, never from existing.Instructor, which
         // still points at the previous account.
         var current = new ClassDescription(
-            existing.ClassType.Name,
+            existing.ClassGroup.Name,
             request.StartsAt,
             request.DurationMinutes,
             instructor!.DisplayName);
@@ -167,10 +167,10 @@ public static class UpdateClass
         }
 
         // Projected from what this handler already holds, NOT from a re-read - see CreateAsync for
-        // why the re-read was wrong. The type is immutable on an edit, so existing.ClassType (loaded
+        // why the re-read was wrong. The group is immutable on an edit, so existing.ClassGroup (loaded
         // by FindAsync) is still correct; the instructor may have just changed, which is exactly why
         // the validated account is used rather than the tracked entity's navigation - that one still
         // points at the PREVIOUS account and would render a stale display name.
-        return Results.Ok(ClassDtoMapping.ToDto(existing, existing.ClassType, instructor!.DisplayName, bookedCount));
+        return Results.Ok(ClassDtoMapping.ToDto(existing, existing.ClassGroup, instructor!.DisplayName, bookedCount));
     }
 }

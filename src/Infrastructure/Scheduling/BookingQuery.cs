@@ -18,8 +18,8 @@ public class BookingQuery(AppDbContext db) : IBookingQuery
         // member still has to attend, so chronology means the gym's clock.
         //
         // The name, description and instructor are resolved two navigations deep (Booking -> Class ->
-        // ClassType / Instructor) because a booking stores none of them - the same resolution the
-        // schedule performs, and the same reason: a typo corrected on a class type is corrected here.
+        // ClassGroup / Instructor) because a booking stores none of them - the same resolution the
+        // schedule performs, and the same reason: a typo corrected on a group is corrected here.
         //
         // TWO STATUSES ARE CHECKED, AND THAT IS THE MODEL S-09 CHOSE, NOT AN EXTRA SAFETY NET.
         // Cancelling a class deliberately leaves every Booking row Active — cascading would record
@@ -41,8 +41,8 @@ public class BookingQuery(AppDbContext db) : IBookingQuery
             .Select(b => new MyBooking(
                 b.Id,
                 b.ClassId,
-                b.Class.ClassType.Name,
-                b.Class.ClassType.Description,
+                b.Class.ClassGroup.Name,
+                b.Class.ClassGroup.Description,
                 b.Class.StartsAt,
                 b.Class.DurationMinutes,
                 b.Class.Instructor!.DisplayName,
@@ -97,7 +97,7 @@ public class BookingQuery(AppDbContext db) : IBookingQuery
             .Select(b => new MyAttendanceEntry(
                 b.Id,
                 b.ClassId,
-                b.Class.ClassType.Name,
+                b.Class.ClassGroup.Name,
                 b.Class.StartsAt,
                 b.Class.DurationMinutes,
                 b.Class.Instructor!.DisplayName,

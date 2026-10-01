@@ -34,7 +34,7 @@ public static class GetClass
             ? Results.NotFound()
             : Results.Ok(ClassDtoMapping.ToDto(
                 found,
-                found.ClassType,
+                found.ClassGroup,
                 found.Instructor!.DisplayName,
                 await bookings.CountActiveAsync(id, cancellationToken)));
     }
