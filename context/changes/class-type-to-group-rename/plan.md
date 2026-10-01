@@ -373,7 +373,7 @@ that step in `deploy-plan.md`.
 
 #### Manual
 
-- [ ] 1.6 Migration Up/Down keeps existing local rows
+- [x] 1.6 Migration Up/Down keeps existing local rows
 
 ### Phase 2: SPA, icon and E2E helpers
 
@@ -386,10 +386,10 @@ that step in `deploy-plan.md`.
 
 #### Manual
 
-- [ ] 2.5 Admin Grupy screens work end to end on desktop
-- [ ] 2.6 Class form's Grupa select works
-- [ ] 2.7 Phone app bar shows the new titles
-- [ ] 2.8 The group glyph reads clearly beside members
+- [x] 2.5 Admin Grupy screens work end to end on desktop
+- [x] 2.6 Class form's Grupa select works
+- [x] 2.7 Phone app bar shows the new titles
+- [x] 2.8 The group glyph reads clearly beside members
 
 ### Phase 3: Living docs and the full gate
 
@@ -401,5 +401,5 @@ that step in `deploy-plan.md`.
 
 #### Manual
 
-- [ ] 3.4 Recorded bundle figure matches the build
+- [x] 3.4 Recorded bundle figure matches the build
 - [ ] 3.5 Staging deploy migrates and /health is Healthy
