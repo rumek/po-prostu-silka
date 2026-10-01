@@ -60,7 +60,7 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
     private sealed record FailureBody(string Reason);
 
     private const string Endpoint = "/api/admin/classes";
-    private const string TypesEndpoint = "/api/admin/class-groups";
+    private const string GroupsEndpoint = "/api/admin/class-groups";
 
     private static string CancelOf(Guid classId) => $"{Endpoint}/{classId}/cancel";
 
@@ -82,9 +82,9 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
     /// A group whose name carries a GUID. That name reaches the message subject, which is how
     /// each test finds its own outbox rows in a shared table.
     /// </summary>
-    private static async Task<ClassGroupBody> CreateTypeAsync(HttpClient admin)
+    private static async Task<ClassGroupBody> CreateGroupAsync(HttpClient admin)
     {
-        var response = await admin.PostAsJsonAsync(TypesEndpoint, new
+        var response = await admin.PostAsJsonAsync(GroupsEndpoint, new
         {
             name = $"Joga-{Guid.NewGuid():N}",
             description = (string?)"Opis zajęć",
@@ -112,19 +112,19 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
         return await fixture.FindMemberIdAsync(admin, email);
     }
 
-    private async Task<(HttpClient Admin, ClassGroupBody Type, Guid TrainerId)> ArrangeAsync()
+    private async Task<(HttpClient Admin, ClassGroupBody Group, Guid TrainerId)> ArrangeAsync()
     {
         var admin = await AdminAsync();
 
-        return (admin, await CreateTypeAsync(admin), await CreateTrainerAsync(admin));
+        return (admin, await CreateGroupAsync(admin), await CreateTrainerAsync(admin));
     }
 
     private static async Task<ClassBody> PostClassAsync(
-        HttpClient admin, Guid typeId, Guid trainerId, DateTimeOffset startsAt, int capacity = 12)
+        HttpClient admin, Guid groupId, Guid trainerId, DateTimeOffset startsAt, int capacity = 12)
     {
         var response = await admin.PostAsJsonAsync(Endpoint, new
         {
-            classGroupId = typeId,
+            classGroupId = groupId,
             startsAt,
             instructorMemberId = trainerId,
             durationMinutes = 60,
@@ -142,14 +142,14 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
     private static Task<HttpResponseMessage> PutClassAsync(
         HttpClient admin,
         Guid classId,
-        Guid typeId,
+        Guid groupId,
         Guid trainerId,
         DateTimeOffset startsAt,
         int duration = 60,
         int capacity = 12) =>
         admin.PutAsJsonAsync($"{Endpoint}/{classId}", new
         {
-            classGroupId = typeId,
+            classGroupId = groupId,
             startsAt,
             instructorMemberId = trainerId,
             durationMinutes = duration,
@@ -272,14 +272,14 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
     /// class in the PAST, which <c>starts_in_past</c> refuses at creation.
     /// </summary>
     private async Task<Guid> InsertClassAsync(
-        Guid typeId, Guid trainerId, DateTimeOffset startsAt, ClassStatus status)
+        Guid groupId, Guid trainerId, DateTimeOffset startsAt, ClassStatus status)
     {
         await using var db = NewContext();
 
         var entity = new Class
         {
             Id = Guid.NewGuid(),
-            ClassGroupId = typeId,
+            ClassGroupId = groupId,
             InstructorMemberId = trainerId,
 
             // Both keys, because the legacy column is still NOT NULL and still carries a foreign key.
@@ -310,13 +310,13 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
             .ConvertTime(instant, TimeZoneInfo.FindSystemTimeZoneById("Europe/Warsaw"))
             .ToString("HH:mm");
 
-    private async Task<List<OutboxMessage>> MessagesAboutAsync(string typeName)
+    private async Task<List<OutboxMessage>> MessagesAboutAsync(string groupName)
     {
         await using var db = NewContext();
 
         return await db.OutboxMessages
             .AsNoTracking()
-            .Where(m => m.Subject.Contains(typeName))
+            .Where(m => m.Subject.Contains(groupName))
             .ToListAsync();
     }
 
@@ -371,8 +371,8 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
     [Fact]
     public async Task Cancelling_moves_the_class_to_cancelled_and_leaves_every_booking_active()
     {
-        var (admin, type, trainerId) = await ArrangeAsync();
-        var scheduled = await PostClassAsync(admin, type.Id, trainerId, NextSlot());
+        var (admin, group, trainerId) = await ArrangeAsync();
+        var scheduled = await PostClassAsync(admin, group.Id, trainerId, NextSlot());
 
         var (first, _, _) = await NewMemberAsync();
         var (second, _, _) = await NewMemberAsync();
@@ -401,9 +401,9 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
     [Fact]
     public async Task A_cancelled_class_leaves_both_calendars_but_not_the_database()
     {
-        var (admin, type, trainerId) = await ArrangeAsync();
+        var (admin, group, trainerId) = await ArrangeAsync();
         var startsAt = NextSlot();
-        var scheduled = await PostClassAsync(admin, type.Id, trainerId, startsAt);
+        var scheduled = await PostClassAsync(admin, group.Id, trainerId, startsAt);
 
         var (member, _, _) = await NewMemberAsync();
         await BookAsync(member, scheduled.Id);
@@ -441,25 +441,25 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
     [Fact]
     public async Task Cancelling_a_class_that_has_started_is_class_started()
     {
-        var (admin, type, trainerId) = await ArrangeAsync();
+        var (admin, group, trainerId) = await ArrangeAsync();
 
         // An hour ago. Telling the members who turned up that the class is cancelled is
         // disinformation, and there is no undo — so this is refused rather than merely pointless.
         var classId = await InsertClassAsync(
-            type.Id, trainerId, DateTimeOffset.UtcNow.AddHours(-1), ClassStatus.Scheduled);
+            group.Id, trainerId, DateTimeOffset.UtcNow.AddHours(-1), ClassStatus.Scheduled);
 
         Assert.Equal(
             "class_started", await ReasonAsync(await admin.PostAsync(CancelOf(classId), content: null)));
 
         Assert.Equal(ClassStatus.Scheduled, await StatusOfAsync(classId));
-        Assert.Empty(await MessagesAboutAsync(type.Name));
+        Assert.Empty(await MessagesAboutAsync(group.Name));
     }
 
     [Fact]
     public async Task Cancelling_twice_is_already_cancelled_and_sends_one_round_of_messages()
     {
-        var (admin, type, trainerId) = await ArrangeAsync();
-        var scheduled = await PostClassAsync(admin, type.Id, trainerId, NextSlot());
+        var (admin, group, trainerId) = await ArrangeAsync();
+        var scheduled = await PostClassAsync(admin, group.Id, trainerId, NextSlot());
 
         var (member, _, _) = await NewMemberAsync();
         await BookAsync(member, scheduled.Id);
@@ -473,7 +473,7 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
 
         // THE POINT OF THE REFUSAL. The transition is one-way, and a second round of email to people
         // already told their class is off is the failure it exists to prevent.
-        var messages = await MessagesAboutAsync(type.Name);
+        var messages = await MessagesAboutAsync(group.Name);
         Assert.Single(messages);
     }
 
@@ -482,8 +482,8 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
     [Fact]
     public async Task Cancelling_enqueues_one_email_per_member_and_one_push_per_device()
     {
-        var (admin, type, trainerId) = await ArrangeAsync();
-        var scheduled = await PostClassAsync(admin, type.Id, trainerId, NextSlot());
+        var (admin, group, trainerId) = await ArrangeAsync();
+        var scheduled = await PostClassAsync(admin, group.Id, trainerId, NextSlot());
 
         // Three members: one with no device, one with a phone, one with a phone and a laptop.
         var (plain, _, plainEmail) = await NewMemberAsync();
@@ -500,14 +500,14 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
         await ReleaseAsync(released, scheduled.Id);
 
         // And a member booked on a DIFFERENT class of the same group must not be swept in.
-        var other = await PostClassAsync(admin, type.Id, trainerId, NextSlot());
+        var other = await PostClassAsync(admin, group.Id, trainerId, NextSlot());
         var (bystander, bystanderId, bystanderEmail) = await NewMemberAsync(deviceCount: 1);
         await BookAsync(bystander, other.Id);
 
         Assert.Equal(
             HttpStatusCode.OK, (await admin.PostAsync(CancelOf(scheduled.Id), content: null)).StatusCode);
 
-        var messages = await MessagesAboutAsync(type.Name);
+        var messages = await MessagesAboutAsync(group.Name);
 
         // IDENTITY, NOT COUNTS (testing-notification-fan-out). Counting three emails and three pushes
         // passed for any list of the right SIZE — a recipient query that returned the released member
@@ -541,14 +541,14 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
     [Fact]
     public async Task Cancelling_a_class_nobody_booked_enqueues_nothing()
     {
-        var (admin, type, trainerId) = await ArrangeAsync();
-        var scheduled = await PostClassAsync(admin, type.Id, trainerId, NextSlot());
+        var (admin, group, trainerId) = await ArrangeAsync();
+        var scheduled = await PostClassAsync(admin, group.Id, trainerId, NextSlot());
 
         Assert.Equal(
             HttpStatusCode.OK, (await admin.PostAsync(CancelOf(scheduled.Id), content: null)).StatusCode);
 
         Assert.Equal(ClassStatus.Cancelled, await StatusOfAsync(scheduled.Id));
-        Assert.Empty(await MessagesAboutAsync(type.Name));
+        Assert.Empty(await MessagesAboutAsync(group.Name));
     }
 
     // --- the member shapes S-14 introduced -------------------------------------
@@ -564,8 +564,8 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
     [Fact]
     public async Task A_member_with_no_account_is_emailed_at_the_recorded_address_and_never_pushed()
     {
-        var (admin, type, trainerId) = await ArrangeAsync();
-        var scheduled = await PostClassAsync(admin, type.Id, trainerId, NextSlot());
+        var (admin, group, trainerId) = await ArrangeAsync();
+        var scheduled = await PostClassAsync(admin, group.Id, trainerId, NextSlot());
 
         var address = $"desk-{Guid.NewGuid():N}@test.local";
         var memberId = await fixture.CreateMemberAsync("Bez Konta Z Adresem", email: address);
@@ -575,7 +575,7 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
         Assert.Equal(
             HttpStatusCode.OK, (await admin.PostAsync(CancelOf(scheduled.Id), content: null)).StatusCode);
 
-        var messages = await MessagesAboutAsync(type.Name);
+        var messages = await MessagesAboutAsync(group.Name);
 
         Assert.Equal([address], RecipientsOn(messages, NotificationChannel.Email));
         Assert.Empty(RecipientsOn(messages, NotificationChannel.Push));
@@ -593,8 +593,8 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
     [Fact]
     public async Task A_member_with_no_account_and_no_address_is_skipped_while_the_rest_are_told()
     {
-        var (admin, type, trainerId) = await ArrangeAsync();
-        var scheduled = await PostClassAsync(admin, type.Id, trainerId, NextSlot());
+        var (admin, group, trainerId) = await ArrangeAsync();
+        var scheduled = await PostClassAsync(admin, group.Id, trainerId, NextSlot());
 
         var unreachableId = await fixture.CreateMemberAsync("Bez Konta Bez Adresu");
         await fixture.IssuePassAsync(unreachableId);
@@ -606,7 +606,7 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
         Assert.Equal(
             HttpStatusCode.OK, (await admin.PostAsync(CancelOf(scheduled.Id), content: null)).StatusCode);
 
-        var messages = await MessagesAboutAsync(type.Name);
+        var messages = await MessagesAboutAsync(group.Name);
 
         Assert.Equal([reachableEmail], RecipientsOn(messages, NotificationChannel.Email));
         Assert.Equal(
@@ -632,8 +632,8 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
     [Fact]
     public async Task A_claimed_member_is_told_at_the_recorded_address_not_the_login_address()
     {
-        var (admin, type, trainerId) = await ArrangeAsync();
-        var scheduled = await PostClassAsync(admin, type.Id, trainerId, NextSlot());
+        var (admin, group, trainerId) = await ArrangeAsync();
+        var scheduled = await PostClassAsync(admin, group.Id, trainerId, NextSlot());
 
         var recorded = $"desk-{Guid.NewGuid():N}@test.local";
         var login = $"login-{Guid.NewGuid():N}@test.local";
@@ -653,7 +653,7 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
         Assert.Equal(
             HttpStatusCode.OK, (await admin.PostAsync(CancelOf(scheduled.Id), content: null)).StatusCode);
 
-        var messages = await MessagesAboutAsync(type.Name);
+        var messages = await MessagesAboutAsync(group.Name);
 
         Assert.Equal([recorded], RecipientsOn(messages, NotificationChannel.Email));
         Assert.DoesNotContain(messages, m => m.Recipient == login);
@@ -662,8 +662,8 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
     [Fact]
     public async Task Push_rows_carry_the_subscription_id_so_a_dead_device_can_be_deleted()
     {
-        var (admin, type, trainerId) = await ArrangeAsync();
-        var scheduled = await PostClassAsync(admin, type.Id, trainerId, NextSlot());
+        var (admin, group, trainerId) = await ArrangeAsync();
+        var scheduled = await PostClassAsync(admin, group.Id, trainerId, NextSlot());
 
         var (member, memberId, _) = await NewMemberAsync(deviceCount: 1);
         await BookAsync(member, scheduled.Id);
@@ -675,7 +675,7 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
         var subscription = await db.PushSubscriptions.AsNoTracking()
             .SingleAsync(p => p.UserId == memberId);
 
-        var messages = await MessagesAboutAsync(type.Name);
+        var messages = await MessagesAboutAsync(group.Name);
         var push = Assert.Single(messages, m => m.Channel == NotificationChannel.Push);
 
         // Not the endpoint: the worker looks the row up by id so it can remove it on a 410.
@@ -685,14 +685,14 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
     [Fact]
     public async Task The_message_names_the_class_its_club_local_time_and_its_trainer()
     {
-        var (admin, type, trainerId) = await ArrangeAsync();
+        var (admin, group, trainerId) = await ArrangeAsync();
 
         // 16:00 UTC in June is 18:00 in Warsaw. Asserting on the LOCAL reading is the whole point:
         // an email saying 16:00 sends the member to the gym two hours early.
         var startsAt = new DateTimeOffset(2034, 6, 20, 16, 0, 0, TimeSpan.Zero)
             .AddDays(60 * Interlocked.Increment(ref _slot));
 
-        var scheduled = await PostClassAsync(admin, type.Id, trainerId, startsAt);
+        var scheduled = await PostClassAsync(admin, group.Id, trainerId, startsAt);
 
         var (member, _, _) = await NewMemberAsync();
         await BookAsync(member, scheduled.Id);
@@ -700,10 +700,10 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
         Assert.Equal(
             HttpStatusCode.OK, (await admin.PostAsync(CancelOf(scheduled.Id), content: null)).StatusCode);
 
-        var message = Assert.Single(await MessagesAboutAsync(type.Name));
+        var message = Assert.Single(await MessagesAboutAsync(group.Name));
 
-        Assert.Contains(type.Name, message.Subject);
-        Assert.Contains(type.Name, message.Body);
+        Assert.Contains(group.Name, message.Subject);
+        Assert.Contains(group.Name, message.Body);
         Assert.Contains(ClubWallClockOf(startsAt), message.Body);
         Assert.Contains($"Test {ApplicationRoles.Trainer}", message.Body);
 
@@ -728,7 +728,7 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
         // Exactly the 200 the column allows, unique so it cannot collide with another test's group.
         var longName = $"{Guid.NewGuid():N}{new string('A', 168)}";
 
-        var typeResponse = await admin.PostAsJsonAsync(TypesEndpoint, new
+        var groupResponse = await admin.PostAsJsonAsync(GroupsEndpoint, new
         {
             name = longName,
             description = (string?)"Opis zajęć",
@@ -736,10 +736,10 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
             defaultCapacity = 12,
         });
 
-        Assert.Equal(HttpStatusCode.OK, typeResponse.StatusCode);
-        var type = (await typeResponse.Content.ReadFromJsonAsync<ClassGroupBody>())!;
+        Assert.Equal(HttpStatusCode.OK, groupResponse.StatusCode);
+        var group = (await groupResponse.Content.ReadFromJsonAsync<ClassGroupBody>())!;
 
-        var scheduled = await PostClassAsync(admin, type.Id, trainerId, NextSlot());
+        var scheduled = await PostClassAsync(admin, group.Id, trainerId, NextSlot());
 
         var (member, _, _) = await NewMemberAsync();
         await BookAsync(member, scheduled.Id);
@@ -770,7 +770,7 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
     // --- S-09 phase 2: the edit trigger ---------------------------------------
     //
     // A pure PRODUCT RULE, and one that lives nowhere but a three-field comparison. Nothing in the
-    // type system says capacity is silent while duration is not, so these tests are the only
+    // group system says capacity is silent while duration is not, so these tests are the only
     // statement of it.
 
     /// <summary>
@@ -781,9 +781,9 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
     [Fact]
     public async Task Moving_the_start_time_notifies_every_booked_member()
     {
-        var (admin, type, trainerId) = await ArrangeAsync();
+        var (admin, group, trainerId) = await ArrangeAsync();
         var startsAt = NextSlot();
-        var scheduled = await PostClassAsync(admin, type.Id, trainerId, startsAt);
+        var scheduled = await PostClassAsync(admin, group.Id, trainerId, startsAt);
 
         var (first, _, firstEmail) = await NewMemberAsync();
         var (second, secondId, secondEmail) = await NewMemberAsync(deviceCount: 1);
@@ -794,9 +794,9 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
 
         Assert.Equal(
             HttpStatusCode.OK,
-            (await PutClassAsync(admin, scheduled.Id, type.Id, trainerId, moved)).StatusCode);
+            (await PutClassAsync(admin, scheduled.Id, group.Id, trainerId, moved)).StatusCode);
 
-        var messages = await MessagesAboutAsync(type.Name);
+        var messages = await MessagesAboutAsync(group.Name);
 
         // Two members, one of them with a phone: two emails and one push — addressed to THEM. The edit
         // resolves recipients through the same query the cancel does, and this is what keeps that true.
@@ -819,19 +819,19 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
     [Fact]
     public async Task Changing_the_duration_notifies_every_booked_member()
     {
-        var (admin, type, trainerId) = await ArrangeAsync();
+        var (admin, group, trainerId) = await ArrangeAsync();
         var startsAt = NextSlot();
-        var scheduled = await PostClassAsync(admin, type.Id, trainerId, startsAt);
+        var scheduled = await PostClassAsync(admin, group.Id, trainerId, startsAt);
 
         var (member, _, _) = await NewMemberAsync();
         await BookAsync(member, scheduled.Id);
 
         Assert.Equal(
             HttpStatusCode.OK,
-            (await PutClassAsync(admin, scheduled.Id, type.Id, trainerId, startsAt, duration: 90))
+            (await PutClassAsync(admin, scheduled.Id, group.Id, trainerId, startsAt, duration: 90))
                 .StatusCode);
 
-        var message = Assert.Single(await MessagesAboutAsync(type.Name));
+        var message = Assert.Single(await MessagesAboutAsync(group.Name));
 
         Assert.Contains("60 min", message.Body);
         Assert.Contains("90 min", message.Body);
@@ -841,7 +841,7 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
     public async Task Reassigning_the_trainer_notifies_and_names_both_of_them()
     {
         var admin = await AdminAsync();
-        var type = await CreateTypeAsync(admin);
+        var group = await CreateGroupAsync(admin);
 
         // Named accounts, not two "Test Trainer"s: asserting that the message carries the RIGHT
         // display name is meaningless while both trainers are called the same thing.
@@ -849,16 +849,16 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
         var arriving = await CreateNamedTrainerAsync(admin, "Piotr Nowak");
 
         var startsAt = NextSlot();
-        var scheduled = await PostClassAsync(admin, type.Id, leaving, startsAt);
+        var scheduled = await PostClassAsync(admin, group.Id, leaving, startsAt);
 
         var (member, _, _) = await NewMemberAsync();
         await BookAsync(member, scheduled.Id);
 
         Assert.Equal(
             HttpStatusCode.OK,
-            (await PutClassAsync(admin, scheduled.Id, type.Id, arriving, startsAt)).StatusCode);
+            (await PutClassAsync(admin, scheduled.Id, group.Id, arriving, startsAt)).StatusCode);
 
-        var message = Assert.Single(await MessagesAboutAsync(type.Name));
+        var message = Assert.Single(await MessagesAboutAsync(group.Name));
 
         // The OLD name comes from the tracked entity's navigation and the NEW one from the account
         // the edit validated. Reading both off the entity would print the leaving trainer twice.
@@ -874,9 +874,9 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
     [Fact]
     public async Task Editing_only_the_capacity_or_nothing_at_all_notifies_nobody()
     {
-        var (admin, type, trainerId) = await ArrangeAsync();
+        var (admin, group, trainerId) = await ArrangeAsync();
         var startsAt = NextSlot();
-        var scheduled = await PostClassAsync(admin, type.Id, trainerId, startsAt, capacity: 12);
+        var scheduled = await PostClassAsync(admin, group.Id, trainerId, startsAt, capacity: 12);
 
         var (member, _, _) = await NewMemberAsync(deviceCount: 1);
         await BookAsync(member, scheduled.Id);
@@ -884,18 +884,18 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
         // Capacity 12 -> 20, everything else identical.
         Assert.Equal(
             HttpStatusCode.OK,
-            (await PutClassAsync(admin, scheduled.Id, type.Id, trainerId, startsAt, capacity: 20))
+            (await PutClassAsync(admin, scheduled.Id, group.Id, trainerId, startsAt, capacity: 20))
                 .StatusCode);
 
-        Assert.Empty(await MessagesAboutAsync(type.Name));
+        Assert.Empty(await MessagesAboutAsync(group.Name));
 
         // And a PUT that moves nothing at all - the shape a form submitted without an edit produces.
         Assert.Equal(
             HttpStatusCode.OK,
-            (await PutClassAsync(admin, scheduled.Id, type.Id, trainerId, startsAt, capacity: 20))
+            (await PutClassAsync(admin, scheduled.Id, group.Id, trainerId, startsAt, capacity: 20))
                 .StatusCode);
 
-        Assert.Empty(await MessagesAboutAsync(type.Name));
+        Assert.Empty(await MessagesAboutAsync(group.Name));
     }
 
     /// <summary>
@@ -906,9 +906,9 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
     [Fact]
     public async Task Editing_a_cancelled_class_notifies_nobody()
     {
-        var (admin, type, trainerId) = await ArrangeAsync();
+        var (admin, group, trainerId) = await ArrangeAsync();
         var startsAt = NextSlot();
-        var scheduled = await PostClassAsync(admin, type.Id, trainerId, startsAt);
+        var scheduled = await PostClassAsync(admin, group.Id, trainerId, startsAt);
 
         var (member, _, _) = await NewMemberAsync();
         await BookAsync(member, scheduled.Id);
@@ -917,30 +917,30 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
             HttpStatusCode.OK, (await admin.PostAsync(CancelOf(scheduled.Id), content: null)).StatusCode);
 
         // One message so far: the cancellation.
-        Assert.Single(await MessagesAboutAsync(type.Name));
+        Assert.Single(await MessagesAboutAsync(group.Name));
 
         Assert.Equal(
             HttpStatusCode.OK,
-            (await PutClassAsync(admin, scheduled.Id, type.Id, trainerId, startsAt.AddHours(3)))
+            (await PutClassAsync(admin, scheduled.Id, group.Id, trainerId, startsAt.AddHours(3)))
                 .StatusCode);
 
         // Still one. The edit landed on the record and sent nothing.
-        Assert.Single(await MessagesAboutAsync(type.Name));
+        Assert.Single(await MessagesAboutAsync(group.Name));
     }
 
     [Fact]
     public async Task Editing_a_class_nobody_booked_notifies_nobody()
     {
-        var (admin, type, trainerId) = await ArrangeAsync();
+        var (admin, group, trainerId) = await ArrangeAsync();
         var startsAt = NextSlot();
-        var scheduled = await PostClassAsync(admin, type.Id, trainerId, startsAt);
+        var scheduled = await PostClassAsync(admin, group.Id, trainerId, startsAt);
 
         Assert.Equal(
             HttpStatusCode.OK,
-            (await PutClassAsync(admin, scheduled.Id, type.Id, trainerId, startsAt.AddHours(1)))
+            (await PutClassAsync(admin, scheduled.Id, group.Id, trainerId, startsAt.AddHours(1)))
                 .StatusCode);
 
-        Assert.Empty(await MessagesAboutAsync(type.Name));
+        Assert.Empty(await MessagesAboutAsync(group.Name));
     }
 
     /// <summary>
@@ -963,9 +963,9 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
     [Fact]
     public async Task Moving_a_class_and_moving_it_back_sends_two_rounds_each_in_its_own_direction()
     {
-        var (admin, type, trainerId) = await ArrangeAsync();
+        var (admin, group, trainerId) = await ArrangeAsync();
         var startsAt = NextSlot();
-        var scheduled = await PostClassAsync(admin, type.Id, trainerId, startsAt);
+        var scheduled = await PostClassAsync(admin, group.Id, trainerId, startsAt);
 
         var (member, _, email) = await NewMemberAsync();
         await BookAsync(member, scheduled.Id);
@@ -974,12 +974,12 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
 
         Assert.Equal(
             HttpStatusCode.OK,
-            (await PutClassAsync(admin, scheduled.Id, type.Id, trainerId, moved)).StatusCode);
+            (await PutClassAsync(admin, scheduled.Id, group.Id, trainerId, moved)).StatusCode);
         Assert.Equal(
             HttpStatusCode.OK,
-            (await PutClassAsync(admin, scheduled.Id, type.Id, trainerId, startsAt)).StatusCode);
+            (await PutClassAsync(admin, scheduled.Id, group.Id, trainerId, startsAt)).StatusCode);
 
-        var emails = (await MessagesAboutAsync(type.Name))
+        var emails = (await MessagesAboutAsync(group.Name))
             .Where(m => m.Channel == NotificationChannel.Email)
             .ToList();
 
@@ -1018,9 +1018,9 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
     [Fact]
     public async Task A_cancelled_class_leaves_my_bookings_but_the_row_stays_active()
     {
-        var (admin, type, trainerId) = await ArrangeAsync();
-        var cancelled = await PostClassAsync(admin, type.Id, trainerId, NextSlot());
-        var surviving = await PostClassAsync(admin, type.Id, trainerId, NextSlot());
+        var (admin, group, trainerId) = await ArrangeAsync();
+        var cancelled = await PostClassAsync(admin, group.Id, trainerId, NextSlot());
+        var surviving = await PostClassAsync(admin, group.Id, trainerId, NextSlot());
 
         var (member, _, _) = await NewMemberAsync();
         await BookAsync(member, cancelled.Id);
@@ -1071,8 +1071,8 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
     [Fact]
     public async Task A_cancellation_is_delivered_to_exactly_the_members_owed_it()
     {
-        var (admin, type, trainerId) = await ArrangeAsync();
-        var scheduled = await PostClassAsync(admin, type.Id, trainerId, NextSlot());
+        var (admin, group, trainerId) = await ArrangeAsync();
+        var scheduled = await PostClassAsync(admin, group.Id, trainerId, NextSlot());
 
         var (withDevice, withDeviceId, withDeviceEmail) = await NewMemberAsync(deviceCount: 1);
         var (withoutDevice, _, withoutDeviceEmail) = await NewMemberAsync();
@@ -1103,11 +1103,11 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
         // rows other tests left Pending are delivered to the same fakes.
         Assert.Equal(
             new[] { withDeviceEmail, withoutDeviceEmail, deskAddress }.Order().ToArray(),
-            email.Sent.Where(s => s.Subject.Contains(type.Name)).Select(s => s.To).Order().ToArray());
+            email.Sent.Where(s => s.Subject.Contains(group.Name)).Select(s => s.To).Order().ToArray());
 
         Assert.Equal(
             (await DevicesOfAsync(withDeviceId)).Select(d => d.Endpoint).Order().ToArray(),
-            push.Sent.Where(s => s.Title.Contains(type.Name)).Select(s => s.Endpoint).Order().ToArray());
+            push.Sent.Where(s => s.Title.Contains(group.Name)).Select(s => s.Endpoint).Order().ToArray());
 
         var releasedEndpoints = (await DevicesOfAsync(releasedId)).Select(d => d.Endpoint).ToHashSet();
         Assert.DoesNotContain(email.Sent, s => s.To == releasedEmail);
@@ -1116,7 +1116,7 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
         // AND IN THE DATABASE. A row the pass never claimed would simply be missing from Sent above —
         // which, for a recipient this test forgot to expect, looks exactly like success. Every row the
         // cancellation wrote must have ended Sent.
-        var rows = await MessagesAboutAsync(type.Name);
+        var rows = await MessagesAboutAsync(group.Name);
         Assert.NotEmpty(rows);
         Assert.All(rows, m => Assert.Equal(OutboxStatus.Sent, m.Status));
     }
@@ -1177,12 +1177,12 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
     [Fact]
     public async Task The_flip_and_the_messages_are_never_observable_apart()
     {
-        var (admin, type, trainerId) = await ArrangeAsync();
+        var (admin, group, trainerId) = await ArrangeAsync();
 
         // A class in the past with somebody booked on it — the refusal path, arranged around the API
         // because starts_in_past would refuse to create it and BookAsync would refuse to join it.
         var refusedId = await InsertClassAsync(
-            type.Id, trainerId, DateTimeOffset.UtcNow.AddHours(-2), ClassStatus.Scheduled);
+            group.Id, trainerId, DateTimeOffset.UtcNow.AddHours(-2), ClassStatus.Scheduled);
 
         var (_, bookedId, _) = await NewMemberAsync();
 
@@ -1204,9 +1204,9 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
             "class_started", await ReasonAsync(await admin.PostAsync(CancelOf(refusedId), content: null)));
 
         Assert.Equal(ClassStatus.Scheduled, await StatusOfAsync(refusedId));
-        Assert.Empty(await MessagesAboutAsync(type.Name));
+        Assert.Empty(await MessagesAboutAsync(group.Name));
 
-        var accepted = await PostClassAsync(admin, type.Id, trainerId, NextSlot());
+        var accepted = await PostClassAsync(admin, group.Id, trainerId, NextSlot());
         var (member, _, _) = await NewMemberAsync();
         await BookAsync(member, accepted.Id);
 
@@ -1214,7 +1214,7 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
             HttpStatusCode.OK, (await admin.PostAsync(CancelOf(accepted.Id), content: null)).StatusCode);
 
         Assert.Equal(ClassStatus.Cancelled, await StatusOfAsync(accepted.Id));
-        Assert.Single(await MessagesAboutAsync(type.Name));
+        Assert.Single(await MessagesAboutAsync(group.Name));
     }
 
     /// <summary>
@@ -1241,11 +1241,11 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
     {
         const int Rounds = 6;
 
-        var (admin, type, trainerId) = await ArrangeAsync();
+        var (admin, group, trainerId) = await ArrangeAsync();
 
         for (var round = 0; round < Rounds; round++)
         {
-            var scheduled = await PostClassAsync(admin, type.Id, trainerId, NextSlot(), capacity: 1);
+            var scheduled = await PostClassAsync(admin, group.Id, trainerId, NextSlot(), capacity: 1);
             var (challenger, _, challengerEmail) = await NewMemberAsync();
 
             await Task.WhenAll(
@@ -1263,7 +1263,7 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
                 Assert.Equal(ClassStatus.Scheduled, status);
                 Assert.Equal(1, active);
                 Assert.DoesNotContain(
-                    await MessagesAboutAsync(type.Name), m => m.Recipient == challengerEmail);
+                    await MessagesAboutAsync(group.Name), m => m.Recipient == challengerEmail);
                 continue;
             }
 
@@ -1275,13 +1275,13 @@ public class ClassCancellationTests(IntegrationTestFixture fixture)
             {
                 Assert.Equal(1, active);
                 Assert.Contains(
-                    await MessagesAboutAsync(type.Name), m => m.Recipient == challengerEmail);
+                    await MessagesAboutAsync(group.Name), m => m.Recipient == challengerEmail);
             }
         }
 
         // Whatever the orderings were, no class that ended Cancelled left anybody unnotified: the
         // count of email rows is the count of members who held a spot when the flip committed.
-        var messages = await MessagesAboutAsync(type.Name);
+        var messages = await MessagesAboutAsync(group.Name);
         Assert.All(messages, m => Assert.Equal(OutboxStatus.Pending, m.Status));
     }
 }

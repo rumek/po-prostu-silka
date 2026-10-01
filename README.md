@@ -11,7 +11,7 @@ with instructions and videos in one mobile-first place.
 
 Three roles, each with its own surface:
 
-- **Admin (club owner)** — manages members and their karnety, defines class types and schedules
+- **Admin (club owner)** — manages members and their karnety, defines groups and schedules
   classes from them, books any member into any class, cancels or changes classes, builds the exercise
   library and assigns training plans, and issues invitation codes.
 - **Trainer** — books members into the classes they personally instruct, and builds training plans.

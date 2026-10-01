@@ -359,19 +359,19 @@ public class MembershipPassEndpointTests(IntegrationTestFixture fixture)
         await fixture.CreateUserAsync(trainerEmail, AccountStatus.Active, ApplicationRoles.Trainer);
         var trainerId = await fixture.FindMemberIdAsync(admin, trainerEmail);
 
-        var typeResponse = await admin.PostAsJsonAsync("/api/admin/class-groups", new
+        var groupResponse = await admin.PostAsJsonAsync("/api/admin/class-groups", new
         {
             name = $"Karnet Test {Guid.NewGuid():N}",
             description = (string?)"Opis",
             defaultDurationMinutes = 60,
             defaultCapacity = 12,
         });
-        Assert.Equal(HttpStatusCode.OK, typeResponse.StatusCode);
-        var type = (await typeResponse.Content.ReadFromJsonAsync<CreatedId>())!;
+        Assert.Equal(HttpStatusCode.OK, groupResponse.StatusCode);
+        var group = (await groupResponse.Content.ReadFromJsonAsync<CreatedId>())!;
 
         var classResponse = await admin.PostAsJsonAsync("/api/admin/classes", new
         {
-            classGroupId = type.Id,
+            classGroupId = group.Id,
             startsAt = classStart,
             instructorMemberId = trainerId,
             durationMinutes = 60,
@@ -427,19 +427,19 @@ public class MembershipPassEndpointTests(IntegrationTestFixture fixture)
         await fixture.CreateUserAsync(trainerEmail, AccountStatus.Active, ApplicationRoles.Trainer);
         var trainerId = await fixture.FindMemberIdAsync(admin, trainerEmail);
 
-        var typeResponse = await admin.PostAsJsonAsync("/api/admin/class-groups", new
+        var groupResponse = await admin.PostAsJsonAsync("/api/admin/class-groups", new
         {
             name = $"Karnet Test {Guid.NewGuid():N}",
             description = (string?)"Opis",
             defaultDurationMinutes = 60,
             defaultCapacity = 12,
         });
-        Assert.Equal(HttpStatusCode.OK, typeResponse.StatusCode);
-        var type = (await typeResponse.Content.ReadFromJsonAsync<CreatedId>())!;
+        Assert.Equal(HttpStatusCode.OK, groupResponse.StatusCode);
+        var group = (await groupResponse.Content.ReadFromJsonAsync<CreatedId>())!;
 
         var classResponse = await admin.PostAsJsonAsync("/api/admin/classes", new
         {
-            classGroupId = type.Id,
+            classGroupId = group.Id,
             startsAt = classStart,
             instructorMemberId = trainerId,
             durationMinutes = 60,

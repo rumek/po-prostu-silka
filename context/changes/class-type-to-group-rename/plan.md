@@ -206,6 +206,11 @@ glyph.
 - empty state "Nie zdefiniowano jeszcze żadnej grupy." with `icon="group"`
 - field error "Podaj nazwę grupy."
 
+**Adapted during implementation.** PR #13 restyled `class-type-form.{html,scss}` on `main` while this
+change was open (block titles, a duration/capacity pair). The merge (1136f41) took #13's version of both
+files and re-applied the rename and the copy above to it, so `class-group-form` carries both changes.
+The merged initial bundle is 576.29 kB; S-33 alone measured 574.64 kB (AGENTS.md records both).
+
 #### 3. Class screens that reference groups
 
 **File**: `features/admin/classes/classes.{ts,html}`, `class-form.{ts,html,spec.ts}`, `class-create-overlay.{ts,html,spec.ts}`, `classes.spec.ts`, `class-actions-overlay.spec.ts`
@@ -288,6 +293,12 @@ suite proves that the renamed contract holds end to end.
 **Intent**: Replace "typ zajęć" / "class type" and `/admin/class-types` with "grupa" / "group" and `/admin/class-groups`. Add the `group` glyph to the style guide's icon roles, and state that `repeat` now means only "Powtórzenia".
 
 **Contract**: —
+
+**Adapted during implementation.** The manual test ids `TYPE-NN` in
+`context/testing/04-schedule-bookings-attendance.md` were kept rather than renamed: other cases (for
+example `CLS-03`) and recorded runs refer to them. The section heading reads "Grupy (TYPE)" and carries
+a one-line note saying why. README.md was not in this list and kept "class types" until the review
+follow-up.
 
 #### 2. Roadmap note and deploy log
 
@@ -402,4 +413,4 @@ that step in `deploy-plan.md`.
 #### Manual
 
 - [x] 3.4 Recorded bundle figure matches the build
-- [ ] 3.5 Staging deploy migrates and /health is Healthy
+- [x] 3.5 Staging deploy migrates and /health is Healthy — 288510e

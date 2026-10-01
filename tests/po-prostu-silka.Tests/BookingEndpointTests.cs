@@ -70,7 +70,7 @@ public class BookingEndpointTests(IntegrationTestFixture fixture)
     private sealed record FailureBody(string Reason);
 
     private const string ClassesEndpoint = "/api/admin/classes";
-    private const string TypesEndpoint = "/api/admin/class-groups";
+    private const string GroupsEndpoint = "/api/admin/class-groups";
     private const string MineEndpoint = "/api/bookings/mine";
 
     // BookingsOf and MyBookingOn are GONE with the routes they addressed (S-16, MP-01). The one
@@ -101,9 +101,9 @@ public class BookingEndpointTests(IntegrationTestFixture fixture)
     private Task<HttpClient> AdminAsync() =>
         fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveAdminEmail);
 
-    private static async Task<ClassGroupBody> CreateTypeAsync(HttpClient admin)
+    private static async Task<ClassGroupBody> CreateGroupAsync(HttpClient admin)
     {
-        var response = await admin.PostAsJsonAsync(TypesEndpoint, new
+        var response = await admin.PostAsJsonAsync(GroupsEndpoint, new
         {
             name = $"Joga-{Guid.NewGuid():N}",
             description = (string?)"Opis zajęć",
@@ -147,21 +147,21 @@ public class BookingEndpointTests(IntegrationTestFixture fixture)
     }
 
     /// <summary>An admin, a group and a trainer — the arrangement every class needs.</summary>
-    private async Task<(HttpClient Admin, Guid TypeId, Guid TrainerId)> ArrangeAsync()
+    private async Task<(HttpClient Admin, Guid GroupId, Guid TrainerId)> ArrangeAsync()
     {
         var admin = await AdminAsync();
-        var type = await CreateTypeAsync(admin);
+        var group = await CreateGroupAsync(admin);
         var trainerId = await CreateAccountAsync(admin, AccountStatus.Active, ApplicationRoles.Trainer);
 
-        return (admin, type.Id, trainerId);
+        return (admin, group.Id, trainerId);
     }
 
     private static async Task<ClassBody> PostClassAsync(
-        HttpClient admin, Guid typeId, Guid trainerId, int capacity = 12)
+        HttpClient admin, Guid groupId, Guid trainerId, int capacity = 12)
     {
         var response = await admin.PostAsJsonAsync(ClassesEndpoint, new
         {
-            classGroupId = typeId,
+            classGroupId = groupId,
             startsAt = NextSlot(),
             instructorMemberId = trainerId,
             durationMinutes = 60,
@@ -177,8 +177,8 @@ public class BookingEndpointTests(IntegrationTestFixture fixture)
     /// </summary>
     private async Task<(ClassBody Class, HttpClient Member)> BookableAsync(int capacity = 12)
     {
-        var (admin, typeId, trainerId) = await ArrangeAsync();
-        var created = await PostClassAsync(admin, typeId, trainerId, capacity);
+        var (admin, groupId, trainerId) = await ArrangeAsync();
+        var created = await PostClassAsync(admin, groupId, trainerId, capacity);
 
         return (created, await NewMemberAsync());
     }
@@ -194,14 +194,14 @@ public class BookingEndpointTests(IntegrationTestFixture fixture)
     /// </para>
     /// </summary>
     private async Task<Guid> InsertClassAsync(
-        Guid typeId, Guid trainerId, DateTimeOffset startsAt, ClassStatus status, int capacity = 12)
+        Guid groupId, Guid trainerId, DateTimeOffset startsAt, ClassStatus status, int capacity = 12)
     {
         await using var db = NewContext();
 
         var entity = new Class
         {
             Id = Guid.NewGuid(),
-            ClassGroupId = typeId,
+            ClassGroupId = groupId,
             InstructorMemberId = trainerId,
             StartsAt = startsAt,
             DurationMinutes = 60,
@@ -436,13 +436,13 @@ public class BookingEndpointTests(IntegrationTestFixture fixture)
     [Fact]
     public async Task Booking_a_class_that_has_started_is_class_started()
     {
-        var (_, typeId, trainerId) = await ArrangeAsync();
+        var (_, groupId, trainerId) = await ArrangeAsync();
 
         // An hour ago: past the start, and the class is still running. Booking is refused from the
         // START, not from the end - a class you cannot join from the beginning is not one you may
         // join halfway through.
         var classId = await InsertClassAsync(
-            typeId, trainerId, DateTimeOffset.UtcNow.AddHours(-1), ClassStatus.Scheduled);
+            groupId, trainerId, DateTimeOffset.UtcNow.AddHours(-1), ClassStatus.Scheduled);
 
         var member = await NewMemberAsync();
 
@@ -453,8 +453,8 @@ public class BookingEndpointTests(IntegrationTestFixture fixture)
     [Fact]
     public async Task Booking_a_cancelled_class_is_class_cancelled()
     {
-        var (_, typeId, trainerId) = await ArrangeAsync();
-        var classId = await InsertClassAsync(typeId, trainerId, NextSlot(), ClassStatus.Cancelled);
+        var (_, groupId, trainerId) = await ArrangeAsync();
+        var classId = await InsertClassAsync(groupId, trainerId, NextSlot(), ClassStatus.Cancelled);
 
         var member = await NewMemberAsync();
 
@@ -505,9 +505,9 @@ public class BookingEndpointTests(IntegrationTestFixture fixture)
     [Fact]
     public async Task Mine_lists_the_members_upcoming_bookings_and_nobody_elses()
     {
-        var (admin, typeId, trainerId) = await ArrangeAsync();
-        var first = await PostClassAsync(admin, typeId, trainerId);
-        var second = await PostClassAsync(admin, typeId, trainerId);
+        var (admin, groupId, trainerId) = await ArrangeAsync();
+        var first = await PostClassAsync(admin, groupId, trainerId);
+        var second = await PostClassAsync(admin, groupId, trainerId);
 
         var member = await NewMemberAsync();
         var stranger = await NewMemberAsync();
@@ -542,10 +542,10 @@ public class BookingEndpointTests(IntegrationTestFixture fixture)
     [Fact]
     public async Task Mine_hides_a_class_that_has_already_started()
     {
-        var (admin, typeId, trainerId) = await ArrangeAsync();
-        var upcoming = await PostClassAsync(admin, typeId, trainerId);
+        var (admin, groupId, trainerId) = await ArrangeAsync();
+        var upcoming = await PostClassAsync(admin, groupId, trainerId);
         var past = await InsertClassAsync(
-            typeId, trainerId, DateTimeOffset.UtcNow.AddHours(-3), ClassStatus.Scheduled);
+            groupId, trainerId, DateTimeOffset.UtcNow.AddHours(-3), ClassStatus.Scheduled);
 
         var member = await NewMemberAsync();
         await BookAsync(member, upcoming.Id);
@@ -601,8 +601,8 @@ public class BookingEndpointTests(IntegrationTestFixture fixture)
     {
         const int Capacity = 3;
 
-        var (admin, typeId, trainerId) = await ArrangeAsync();
-        var scheduled = await PostClassAsync(admin, typeId, trainerId, Capacity);
+        var (admin, groupId, trainerId) = await ArrangeAsync();
+        var scheduled = await PostClassAsync(admin, groupId, trainerId, Capacity);
 
         var racers = await Task.WhenAll(
             Enumerable.Range(0, Capacity + 1).Select(_ => NewMemberAsync()));
@@ -636,8 +636,8 @@ public class BookingEndpointTests(IntegrationTestFixture fixture)
     {
         const int Capacity = 1;
 
-        var (admin, typeId, trainerId) = await ArrangeAsync();
-        var scheduled = await PostClassAsync(admin, typeId, trainerId, Capacity);
+        var (admin, groupId, trainerId) = await ArrangeAsync();
+        var scheduled = await PostClassAsync(admin, groupId, trainerId, Capacity);
 
         var holder = await NewMemberAsync();
         var challenger = await NewMemberAsync();
@@ -676,14 +676,14 @@ public class BookingEndpointTests(IntegrationTestFixture fixture)
     [Fact]
     public async Task Lowering_capacity_rotates_the_class_stamp()
     {
-        var (admin, typeId, trainerId) = await ArrangeAsync();
-        var scheduled = await PostClassAsync(admin, typeId, trainerId, capacity: 4);
+        var (admin, groupId, trainerId) = await ArrangeAsync();
+        var scheduled = await PostClassAsync(admin, groupId, trainerId, capacity: 4);
 
         var before = await StampOfAsync(scheduled.Id);
 
         var response = await admin.PutAsJsonAsync($"{ClassesEndpoint}/{scheduled.Id}", new
         {
-            classGroupId = typeId,
+            classGroupId = groupId,
             startsAt = scheduled.StartsAt,
             instructorMemberId = trainerId,
             durationMinutes = scheduled.DurationMinutes,
@@ -703,8 +703,8 @@ public class BookingEndpointTests(IntegrationTestFixture fixture)
     [Fact]
     public async Task A_capacity_shrink_racing_a_booking_never_overbooks()
     {
-        var (admin, typeId, trainerId) = await ArrangeAsync();
-        var scheduled = await PostClassAsync(admin, typeId, trainerId, capacity: 2);
+        var (admin, groupId, trainerId) = await ArrangeAsync();
+        var scheduled = await PostClassAsync(admin, groupId, trainerId, capacity: 2);
 
         // One spot already taken, one left — the spot both writers are reaching for.
         Assert.Equal(HttpStatusCode.OK, (await BookAsync(await NewMemberAsync(), scheduled.Id)).StatusCode);
@@ -714,7 +714,7 @@ public class BookingEndpointTests(IntegrationTestFixture fixture)
         await Task.WhenAll(
             admin.PutAsJsonAsync($"{ClassesEndpoint}/{scheduled.Id}", new
             {
-                classGroupId = typeId,
+                classGroupId = groupId,
                 startsAt = scheduled.StartsAt,
                 instructorMemberId = trainerId,
                 durationMinutes = scheduled.DurationMinutes,
@@ -743,8 +743,8 @@ public class BookingEndpointTests(IntegrationTestFixture fixture)
     [Fact]
     public async Task Free_spots_fall_on_a_booking_and_recover_on_a_cancellation()
     {
-        var (admin, typeId, trainerId) = await ArrangeAsync();
-        var scheduled = await PostClassAsync(admin, typeId, trainerId, capacity: 5);
+        var (admin, groupId, trainerId) = await ArrangeAsync();
+        var scheduled = await PostClassAsync(admin, groupId, trainerId, capacity: 5);
         var member = await NewMemberAsync();
 
         var window = $"?from={Uri.EscapeDataString(scheduled.StartsAt.AddHours(-1).ToString("o"))}"
@@ -809,8 +809,8 @@ public class BookingEndpointTests(IntegrationTestFixture fixture)
     [Fact]
     public async Task Admin_sees_who_signed_up_in_booking_order()
     {
-        var (admin, typeId, trainerId) = await ArrangeAsync();
-        var scheduled = await PostClassAsync(admin, typeId, trainerId);
+        var (admin, groupId, trainerId) = await ArrangeAsync();
+        var scheduled = await PostClassAsync(admin, groupId, trainerId);
 
         Assert.Empty((await admin.GetFromJsonAsync<List<ClassBookingBody>>(
             AdminBookingsOf(scheduled.Id)))!);
@@ -837,8 +837,8 @@ public class BookingEndpointTests(IntegrationTestFixture fixture)
     [Fact]
     public async Task Admin_releasing_a_spot_frees_it()
     {
-        var (admin, typeId, trainerId) = await ArrangeAsync();
-        var scheduled = await PostClassAsync(admin, typeId, trainerId, capacity: 2);
+        var (admin, groupId, trainerId) = await ArrangeAsync();
+        var scheduled = await PostClassAsync(admin, groupId, trainerId, capacity: 2);
         var member = await NewMemberAsync();
         await BookAsync(member, scheduled.Id);
 
@@ -860,9 +860,9 @@ public class BookingEndpointTests(IntegrationTestFixture fixture)
     [Fact]
     public async Task Admin_releasing_a_booking_from_another_class_is_404()
     {
-        var (admin, typeId, trainerId) = await ArrangeAsync();
-        var holding = await PostClassAsync(admin, typeId, trainerId);
-        var other = await PostClassAsync(admin, typeId, trainerId);
+        var (admin, groupId, trainerId) = await ArrangeAsync();
+        var holding = await PostClassAsync(admin, groupId, trainerId);
+        var other = await PostClassAsync(admin, groupId, trainerId);
 
         var member = await NewMemberAsync();
         await BookAsync(member, holding.Id);
@@ -879,8 +879,8 @@ public class BookingEndpointTests(IntegrationTestFixture fixture)
     [Fact]
     public async Task Admin_booking_routes_refuse_a_member()
     {
-        var (admin, typeId, trainerId) = await ArrangeAsync();
-        var scheduled = await PostClassAsync(admin, typeId, trainerId);
+        var (admin, groupId, trainerId) = await ArrangeAsync();
+        var scheduled = await PostClassAsync(admin, groupId, trainerId);
         var member = await NewMemberAsync();
 
         Assert.Equal(
@@ -906,10 +906,10 @@ public class BookingEndpointTests(IntegrationTestFixture fixture)
     [Fact]
     public async Task Blocking_a_member_cancels_their_future_bookings_and_keeps_the_past()
     {
-        var (admin, typeId, trainerId) = await ArrangeAsync();
-        var upcoming = await PostClassAsync(admin, typeId, trainerId, capacity: 3);
+        var (admin, groupId, trainerId) = await ArrangeAsync();
+        var upcoming = await PostClassAsync(admin, groupId, trainerId, capacity: 3);
         var past = await InsertClassAsync(
-            typeId, trainerId, DateTimeOffset.UtcNow.AddDays(-2), ClassStatus.Scheduled);
+            groupId, trainerId, DateTimeOffset.UtcNow.AddDays(-2), ClassStatus.Scheduled);
 
         var email = $"cascade-{Guid.NewGuid():N}@test.local";
         await fixture.CreateUserAsync(email, AccountStatus.Active, ApplicationRoles.User);

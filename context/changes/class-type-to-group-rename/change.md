@@ -1,7 +1,7 @@
 ---
 change_id: class-type-to-group-rename
 title: Class types are called groups, from the screen down to the table
-status: implementing
+status: impl_reviewed
 created: 2026-10-01
 updated: 2026-10-01
 ---

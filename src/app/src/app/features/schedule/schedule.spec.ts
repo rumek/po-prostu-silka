@@ -15,7 +15,7 @@ function at(local: string, over: Partial<ScheduledClass> = {}): ScheduledClass {
   return {
     id: over.id ?? local,
     classGroupId: over.classGroupId ?? 't1',
-    // name, description and instructor arrive RESOLVED from the type and the trainer's account —
+    // name, description and instructor arrive RESOLVED from the group and the trainer's account —
     // the occurrence carries none of the three (prd-v2 FR-007, FR-009, FR-010).
     name: over.name ?? 'Joga',
     description: over.description ?? null,

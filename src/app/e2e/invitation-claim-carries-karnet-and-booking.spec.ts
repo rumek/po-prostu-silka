@@ -7,7 +7,7 @@
  *
  * Creates a member `E2E zaproszenie <ts>` with a 5-entry karnet, and a class (instructed by the E2E
  * trainer) with that member booked. The `club` fixture cancels the class (a booked class is history
- * and cannot be deleted) and deactivates the type; the cancelled class, the member with its karnet
+ * and cannot be deleted) and deactivates the group; the cancelled class, the member with its karnet
  * and its `@example.test` account stay behind.
  */
 import { memberPassword } from './credentials';

@@ -7,7 +7,7 @@
  *
  * Creates a member `E2E zapis <ts>` with an `@example.test` account and a 5-entry karnet, and a class
  * instructed by the E2E trainer. The `club` fixture cancels the (now booked) class and deactivates the
- * type; the cancelled class, the member with its karnet and account stay behind.
+ * group; the cancelled class, the member with its karnet and account stay behind.
  */
 import { memberPassword, trainerCredentials } from './credentials';
 import { uniqueSuffix } from './support/club';

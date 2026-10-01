@@ -47,7 +47,7 @@ public class AdminBookingEndpointTests(IntegrationTestFixture fixture)
     private sealed record FailureBody(string Reason);
 
     private const string ClassesEndpoint = "/api/admin/classes";
-    private const string TypesEndpoint = "/api/admin/class-groups";
+    private const string GroupsEndpoint = "/api/admin/class-groups";
 
     private static string AdminBookingsOf(Guid classId) => $"/api/admin/classes/{classId}/bookings";
 
@@ -66,9 +66,9 @@ public class AdminBookingEndpointTests(IntegrationTestFixture fixture)
     private Task<HttpClient> AdminAsync() =>
         fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveAdminEmail);
 
-    private static async Task<ClassGroupBody> CreateTypeAsync(HttpClient admin)
+    private static async Task<ClassGroupBody> CreateGroupAsync(HttpClient admin)
     {
-        var response = await admin.PostAsJsonAsync(TypesEndpoint, new
+        var response = await admin.PostAsJsonAsync(GroupsEndpoint, new
         {
             name = $"Joga-{Guid.NewGuid():N}",
             description = (string?)"Opis zajęć",
@@ -111,12 +111,12 @@ public class AdminBookingEndpointTests(IntegrationTestFixture fixture)
         Guid? instructorMemberId = null,
         int capacity = 12)
     {
-        var type = await CreateTypeAsync(admin);
+        var group = await CreateGroupAsync(admin);
         var trainerId = instructorMemberId ?? await CreateTrainerAsync(admin);
 
         var response = await admin.PostAsJsonAsync(ClassesEndpoint, new
         {
-            classGroupId = type.Id,
+            classGroupId = group.Id,
             startsAt = NextSlot(),
             instructorMemberId = trainerId,
             durationMinutes = 60,
@@ -193,12 +193,12 @@ public class AdminBookingEndpointTests(IntegrationTestFixture fixture)
     /// </summary>
     private async Task<ClassBody> AnotherClassAsync(HttpClient admin)
     {
-        var type = await CreateTypeAsync(admin);
+        var group = await CreateGroupAsync(admin);
         var trainerId = await CreateTrainerAsync(admin);
 
         var response = await admin.PostAsJsonAsync(ClassesEndpoint, new
         {
-            classGroupId = type.Id,
+            classGroupId = group.Id,
             startsAt = NextSlot(),
             instructorMemberId = trainerId,
             durationMinutes = 60,
@@ -215,12 +215,12 @@ public class AdminBookingEndpointTests(IntegrationTestFixture fixture)
     /// </summary>
     private async Task<ClassBody> ClassAtAsync(HttpClient admin, DateTimeOffset startsAt)
     {
-        var type = await CreateTypeAsync(admin);
+        var group = await CreateGroupAsync(admin);
         var trainerId = await CreateTrainerAsync(admin);
 
         var response = await admin.PostAsJsonAsync(ClassesEndpoint, new
         {
-            classGroupId = type.Id,
+            classGroupId = group.Id,
             startsAt,
             instructorMemberId = trainerId,
             durationMinutes = 60,

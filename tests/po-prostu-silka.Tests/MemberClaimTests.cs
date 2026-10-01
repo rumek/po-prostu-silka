@@ -481,7 +481,7 @@ public class MemberClaimTests(IntegrationTestFixture fixture)
 
     private async Task<Guid> SeedFutureClassAsync(HttpClient admin)
     {
-        var typeResponse = await admin.PostAsJsonAsync(
+        var groupResponse = await admin.PostAsJsonAsync(
             "/api/admin/class-groups",
             new
             {
@@ -491,8 +491,8 @@ public class MemberClaimTests(IntegrationTestFixture fixture)
                 defaultCapacity = 10,
             });
 
-        Assert.Equal(HttpStatusCode.OK, typeResponse.StatusCode);
-        var typeId = (await typeResponse.Content.ReadFromJsonAsync<CreatedBody>())!.Id;
+        Assert.Equal(HttpStatusCode.OK, groupResponse.StatusCode);
+        var groupId = (await groupResponse.Content.ReadFromJsonAsync<CreatedBody>())!.Id;
 
         var trainerId = await fixture.MemberIdOfAsync(
             await UserIdOfAsync(TestUsers.ActiveTrainerEmail));
@@ -506,7 +506,7 @@ public class MemberClaimTests(IntegrationTestFixture fixture)
             "/api/admin/classes",
             new
             {
-                classGroupId = typeId,
+                classGroupId = groupId,
                 startsAt,
                 durationMinutes = 60,
                 capacity = 10,
