@@ -1008,6 +1008,10 @@ rather than in a slice body:
   merge. Second risk: a mechanical rename in the SPA can miss words the lint rule cannot see, such as
   interpolated strings and failure tables. `failure-contract.spec.ts`, `app.routes.spec.ts` and a
   repo-wide search for "typ zaj" in non-archive files are the checks.
+- **Migration:** `20261001070637_RenameClassTypesToClassGroups`, hand-written renames only (table,
+  column, two indexes, PK, FK). The user accepted, once and without precedent, the deploy-window
+  outage and the manual-`Down` rollback this implies on staging, and waived the rehearsal against a
+  copy of real data; the rollback step is in `context/deployment/deploy-plan.md`, "Rollback note".
 - **Status:** in-progress
 
 ## Backlog Handoff

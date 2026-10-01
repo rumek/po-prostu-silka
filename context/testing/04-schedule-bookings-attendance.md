@@ -1,33 +1,36 @@
-# Typy zajęć, grafik, zapisy i obecność
+# Grupy, grafik, zapisy i obecność
 
 Konwencje (priorytety, statusy, format przypadku) i dane testowe: [README](README.md), [środowisko i dane testowe](environment.md).
 
-## Typy zajęć (TYPE)
+## Grupy (TYPE)
 
-### TYPE-01 · Dodanie typu zajęć — P1
+> Identyfikatory `TYPE-NN` zostają bez zmian po zmianie nazwy pojęcia na „grupa” (S-33), bo
+> odwołują się do nich inne przypadki i raporty z przebiegów.
+
+### TYPE-01 · Dodanie grupy — P1
 **Rola:** administrator
-**Kroki:** Typy zajęć → „Dodaj typ” → nazwa, opis, domyślny czas (np. 60), domyślna liczba miejsc
+**Kroki:** Grupy → „Dodaj grupę” → nazwa, opis, domyślny czas (np. 60), domyślna liczba miejsc
 (np. 12) → „Zapisz”.
-**Oczekiwany rezultat:** typ pojawia się na liście z czasem i liczbą miejsc; jest dostępny do wyboru
+**Oczekiwany rezultat:** grupa pojawia się na liście z czasem i liczbą miejsc; jest dostępna do wyboru
 przy tworzeniu zajęć.
 
-### TYPE-02 · Walidacja typu — P2
-**Kroki:** zapisz bez nazwy; z czasem 0 i 481; z liczbą miejsc 0 i 201; z nazwą istniejącego
-aktywnego typu.
-**Oczekiwany rezultat:** „Podaj nazwę typu zajęć.”, „Czas trwania musi mieścić się w zakresie
+### TYPE-02 · Walidacja grupy — P2
+**Kroki:** zapisz bez nazwy; z czasem 0 i 481; z liczbą miejsc 0 i 201; z nazwą istniejącej
+aktywnej grupy.
+**Oczekiwany rezultat:** „Podaj nazwę grupy.”, „Czas trwania musi mieścić się w zakresie
 1–480 minut.”, „Liczba miejsc musi mieścić się w zakresie 1–200.”, „Ta nazwa jest już zajęta przez
-inny aktywny typ zajęć. Wybierz inną.”.
+inną aktywną grupę. Wybierz inną.”.
 
 ### TYPE-03 · Zmiana nazwy działa wstecz, zmiana miejsc nie — P2
-**Kroki:** zmień nazwę typu, który ma zaplanowane zajęcia, oraz jego domyślną liczbę miejsc.
-**Oczekiwany rezultat:** nowa nazwa widnieje przy wszystkich zajęciach tego typu (także przeszłych i
+**Kroki:** zmień nazwę grupy, która ma zaplanowane zajęcia, oraz jej domyślną liczbę miejsc.
+**Oczekiwany rezultat:** nowa nazwa widnieje przy wszystkich zajęciach tej grupy (także przeszłych i
 w historii członków); liczba miejsc już zaplanowanych zajęć **nie** zmienia się.
 
 ### TYPE-04 · Dezaktywacja i aktywacja — P2
-**Kroki:** „Dezaktywuj” przy typie z zaplanowanymi zajęciami; sprawdź listę, formularz nowych
+**Kroki:** „Dezaktywuj” przy grupie z zaplanowanymi zajęciami; sprawdź listę, formularz nowych
 zajęć i grafik; zaznacz „Pokaż nieaktywne”; kliknij „Aktywuj”.
-**Oczekiwany rezultat:** typ znika z listy i z wyboru przy nowych zajęciach, ale zaplanowane zajęcia
-zostają w grafiku. Z „Pokaż nieaktywne” typ widać z oznaczeniem; po aktywacji wraca.
+**Oczekiwany rezultat:** grupa znika z listy i z wyboru przy nowych zajęciach, ale zaplanowane zajęcia
+zostają w grafiku. Z „Pokaż nieaktywne” grupę widać z oznaczeniem „Nieaktywna”; po aktywacji wraca.
 
 ---
 
@@ -43,22 +46,22 @@ tygodniami działa; przy tygodniu przeszłym widać „Ten tydzień już minął
 poprawić obecność.” i nie da się w nim nic przeciągać ani tworzyć.
 
 ### CLS-02 · Dodanie zajęć formularzem — P1
-**Kroki:** „Dodaj zajęcia” → wybierz typ (czas i miejsca uzupełniają się z typu), zmień liczbę
+**Kroki:** „Dodaj zajęcia” → wybierz grupę (czas i miejsca uzupełniają się z grupy), zmień liczbę
 miejsc, podaj początek w przyszłości, wybierz prowadzącego → „Zapisz”.
-**Oczekiwany rezultat:** zajęcia pojawiają się w kalendarzu we właściwym miejscu, z nazwą typu i
+**Oczekiwany rezultat:** zajęcia pojawiają się w kalendarzu we właściwym miejscu, z nazwą grupy i
 zmienioną liczbą miejsc.
 
 ### CLS-03 · Walidacja zajęć — P2
-**Kroki:** spróbuj zapisać: bez typu / prowadzącego; z początkiem w przeszłości; w czasie
+**Kroki:** spróbuj zapisać: bez grupy / prowadzącego; z początkiem w przeszłości; w czasie
 nakładającym się na **dowolne** inne zajęcia w klubie; z czasem 481 min; z 201 miejscami.
-**Oczekiwany rezultat:** „Wybierz typ zajęć.” / „Wybierz prowadzącego.”, „Nie można zaplanować
+**Oczekiwany rezultat:** „Wybierz grupę.” / „Wybierz prowadzącego.”, „Nie można zaplanować
 zajęć w przeszłości.”, „O tej porze są już inne zajęcia. Wybierz inny termin.”, komunikaty o
 zakresach jak w `TYPE-02`.
 
 ### CLS-04 · Tworzenie zajęć przeciągnięciem po pustym czasie — P2
 **Kroki:** przeciągnij myszą po pustym fragmencie dnia w przyszłości.
 **Oczekiwany rezultat:** otwiera się nakładka „Nowe zajęcia” z dniem, godziną i czasem z
-zaznaczenia; po wyborze typu i prowadzącego i kliknięciu „Dodaj zajęcia” zajęcia pojawiają się w
+zaznaczenia; po wyborze grupy i prowadzącego i kliknięciu „Dodaj zajęcia” zajęcia pojawiają się w
 siatce. „Anuluj” lub kliknięcie tła zamyka bez zapisu.
 
 ### CLS-05 · Przesuwanie i zmiana długości przeciągnięciem — P2
@@ -76,7 +79,7 @@ kalendarza.
 
 ### CLS-07 · Edycja zajęć — P2
 **Kroki:** „Edytuj” → zmień godzinę, liczbę miejsc lub prowadzącego → „Zapisz”.
-**Oczekiwany rezultat:** zmiany są widoczne w kalendarzu. Pola typu nie da się zmienić (jest
+**Oczekiwany rezultat:** zmiany są widoczne w kalendarzu. Pola grupy nie da się zmienić (jest
 adnotacja, że trzeba usunąć zajęcia i utworzyć nowe). Zapisani członkowie z prawdziwym e-mailem
 dostają powiadomienie o zmianie (`NOTIF-02`).
 
@@ -104,13 +107,13 @@ widoczne jako odwołane (nie znikają), zapisani je tracą, a ich karnety odzysk
 **Kroki:** otwórz `/admin/classes` na telefonie lub w oknie węższym niż 1024 px.
 **Oczekiwany rezultat:** komunikat „Grafik zajęć edytujesz na komputerze — układanie zajęć w siatce
 wymaga myszy.” z przyciskami „Zobacz grafik zajęć”, „Dodaj zajęcia” (formularz działa na telefonie)
-i linkiem „Typy zajęć”.
+i linkiem „Grupy”.
 
-### CLS-12 · Brak typów lub trenerów — P3
+### CLS-12 · Brak grup lub trenerów — P3
 **Kroki:** (tylko jeśli da się to bezpiecznie przygotować, np. po zgodzie na dezaktywację wszystkich
-typów w środowisku) otwórz „Dodaj zajęcia”.
-**Oczekiwany rezultat:** „Najpierw zdefiniuj typ zajęć — zajęcia powstają z definicji.” z
-przyciskiem „Przejdź do typów zajęć”. Jeżeli przygotowanie wymagałoby psucia wspólnych danych,
+grup w środowisku) otwórz „Dodaj zajęcia”.
+**Oczekiwany rezultat:** „Najpierw zdefiniuj grupę — zajęcia powstają z definicji.” z
+przyciskiem „Przejdź do grup”. Jeżeli przygotowanie wymagałoby psucia wspólnych danych,
 oznacz TC jako **Pominięty**.
 
 ---

@@ -379,10 +379,10 @@ that step in `deploy-plan.md`.
 
 #### Automated
 
-- [x] 2.1 Lint and formatting pass
-- [x] 2.2 SPA specs pass
-- [x] 2.3 Production build succeeds
-- [x] 2.4 No SPA leftovers
+- [x] 2.1 Lint and formatting pass — bd182c0
+- [x] 2.2 SPA specs pass — bd182c0
+- [x] 2.3 Production build succeeds — bd182c0
+- [x] 2.4 No SPA leftovers — bd182c0
 
 #### Manual
 
@@ -395,9 +395,9 @@ that step in `deploy-plan.md`.
 
 #### Automated
 
-- [ ] 3.1 No leftovers in living docs
-- [ ] 3.2 Full backend suite still passes
-- [ ] 3.3 Browser suite passes locally
+- [x] 3.1 No leftovers in living docs
+- [x] 3.2 Full backend suite still passes
+- [x] 3.3 Browser suite passes locally
 
 #### Manual
 

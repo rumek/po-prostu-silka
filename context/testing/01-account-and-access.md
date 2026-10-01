@@ -208,7 +208,7 @@ szerszy niż 480 px).
 **Oczekiwany rezultat:**
 - Członek: Start, Zajęcia, Plan.
 - Trener: Start, Grafik, Członkowie.
-- Administrator: Start, Grafik, Członkowie, Typy zajęć, Ćwiczenia.
+- Administrator: Start, Grafik, Członkowie, Grupy, Ćwiczenia.
 - Każdy ma dostęp do „Moje konto” i „Wyloguj się”.
 
 ### NAV-02 · Menu każdej persony — telefon (dolny pasek) — P1
@@ -216,7 +216,7 @@ szerszy niż 480 px).
 **Oczekiwany rezultat:**
 - Członek: Start, Zajęcia, Plan, Więcej.
 - Trener: Start, Grafik, Członkowie, Więcej.
-- Administrator: Start, Grafik, Członkowie, Ćwiczenia, Więcej; „Typy zajęć” są w „Więcej” w
+- Administrator: Start, Grafik, Członkowie, Ćwiczenia, Więcej; „Grupy” są w „Więcej” w
   sekcji „Panel”.
 - W „Więcej” każda persona ma kartę „Moje konto” (z imieniem i e-mailem) oraz „Wyloguj się”.
 - Nagłówkowe menu i dolny pasek **nigdy** nie są widoczne jednocześnie, również przy
@@ -231,7 +231,7 @@ Start), a dane obsługi nie pojawiają się nawet na chwilę.
 
 ### NAV-04 · Trener nie wejdzie na ekrany członka i administratora — P1
 **Rola:** trener
-**Kroki:** wpisz ręcznie `/my-classes`, `/my-plan`, `/admin/members`, `/admin/class-types`.
+**Kroki:** wpisz ręcznie `/my-classes`, `/my-plan`, `/admin/members`, `/admin/class-groups`.
 **Oczekiwany rezultat:** żaden się nie otwiera.
 
 ### NAV-05 · Administrator nie widzi ekranów członka — P2
