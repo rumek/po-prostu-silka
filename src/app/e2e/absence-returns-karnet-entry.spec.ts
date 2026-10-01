@@ -9,7 +9,7 @@
  * Creates a member `E2E nieobecność <ts>` with an `@example.test` account and a 5-entry karnet valid
  * from a week ago, and a class instructed by the E2E trainer. The class has started, so the API keeps
  * it as attendance history: it stays behind, as do the member, the account and the karnet. The class
- * type is deactivated.
+ * group is deactivated.
  */
 import { memberPassword, trainerCredentials } from './credentials';
 import { uniqueSuffix } from './support/club';

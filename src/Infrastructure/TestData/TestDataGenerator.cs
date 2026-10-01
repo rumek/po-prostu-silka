@@ -375,7 +375,7 @@ public sealed class TestDataGenerator
 
     private void AddClasses()
     {
-        var activeTypes = _classGroups.Where(t => t.IsActive).ToList();
+        var activeGroups = _classGroups.Where(t => t.IsActive).ToList();
 
         for (var day = -WindowDays; day <= WindowDays; day++)
         {
@@ -388,18 +388,18 @@ public sealed class TestDataGenerator
 
             foreach (var slot in slots)
             {
-                var type = Pick(activeTypes);
+                var group = Pick(activeGroups);
 
                 _classes.Add(new Class
                 {
                     Id = NewId(),
                     StartsAt = At(day, slot.Hour, slot.Minute),
-                    DurationMinutes = type.DefaultDurationMinutes,
-                    Capacity = type.DefaultCapacity,
+                    DurationMinutes = group.DefaultDurationMinutes,
+                    Capacity = group.DefaultCapacity,
                     Status = ClassStatus.Scheduled,
                     CreatedAt = At(Math.Min(day - 21, -1), 9, 0),
                     ConcurrencyStamp = NewId().ToString(),
-                    ClassGroupId = type.Id,
+                    ClassGroupId = group.Id,
                     InstructorMemberId = Pick(Instructors).Id,
                 });
             }

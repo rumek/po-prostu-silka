@@ -1,9 +1,10 @@
 ---
 change_id: class-type-to-group-rename
 title: Class types are called groups, from the screen down to the table
-status: implementing
+status: archived
 created: 2026-10-01
 updated: 2026-10-01
+archived_at: 2026-10-01T10:27:27Z
 ---
 
 ## Notes

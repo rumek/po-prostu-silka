@@ -72,19 +72,19 @@ public class AttendanceEndpointTests(IntegrationTestFixture fixture)
     /// <summary>A future class, with a fresh group and — unless one is named — a fresh trainer.</summary>
     private async Task<ClassBody> ClassAsync(HttpClient admin, Guid? instructorMemberId = null)
     {
-        var typeResponse = await admin.PostAsJsonAsync("/api/admin/class-groups", new
+        var groupResponse = await admin.PostAsJsonAsync("/api/admin/class-groups", new
         {
             name = $"Obecność-{Guid.NewGuid():N}",
             description = (string?)"Opis",
             defaultDurationMinutes = 60,
             defaultCapacity = 12,
         });
-        Assert.Equal(HttpStatusCode.OK, typeResponse.StatusCode);
-        var type = (await typeResponse.Content.ReadFromJsonAsync<ClassGroupBody>())!;
+        Assert.Equal(HttpStatusCode.OK, groupResponse.StatusCode);
+        var group = (await groupResponse.Content.ReadFromJsonAsync<ClassGroupBody>())!;
 
         var response = await admin.PostAsJsonAsync("/api/admin/classes", new
         {
-            classGroupId = type.Id,
+            classGroupId = group.Id,
             startsAt = NextSlot(),
             instructorMemberId = instructorMemberId ?? await CreateTrainerAsync(admin),
             durationMinutes = 60,

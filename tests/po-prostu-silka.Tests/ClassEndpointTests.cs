@@ -68,7 +68,7 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
     private sealed record FailureBody(string Reason);
 
     private const string Endpoint = "/api/admin/classes";
-    private const string TypesEndpoint = "/api/admin/class-groups";
+    private const string GroupsEndpoint = "/api/admin/class-groups";
 
     /// <summary>
     /// Slot allocator. June 2030 rather than "now + something": a fixed base keeps a failing test
@@ -105,10 +105,10 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
     private async Task<HttpClient> AdminAsync() =>
         await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveAdminEmail);
 
-    private static async Task<ClassGroupBody> CreateTypeAsync(
+    private static async Task<ClassGroupBody> CreateGroupAsync(
         HttpClient admin, int duration = 60, int capacity = 12)
     {
-        var response = await admin.PostAsJsonAsync(TypesEndpoint, new
+        var response = await admin.PostAsJsonAsync(GroupsEndpoint, new
         {
             name = UniqueName(),
             description = (string?)"Opis",
@@ -137,26 +137,26 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
         CreateAccountAsync(admin, AccountStatus.Active, ApplicationRoles.Trainer, displayName);
 
     /// <summary>An admin, an active group and an active trainer — what almost every test below needs.</summary>
-    private async Task<(HttpClient Admin, ClassGroupBody Type, Guid TrainerId)> ArrangeAsync(
+    private async Task<(HttpClient Admin, ClassGroupBody Group, Guid TrainerId)> ArrangeAsync(
         int duration = 60, int capacity = 12)
     {
         var admin = await AdminAsync();
-        var type = await CreateTypeAsync(admin, duration, capacity);
+        var group = await CreateGroupAsync(admin, duration, capacity);
         var trainerId = await CreateTrainerAsync(admin);
 
-        return (admin, type, trainerId);
+        return (admin, group, trainerId);
     }
 
     private static async Task<ClassBody> PostClassAsync(
         HttpClient admin,
-        Guid typeId,
+        Guid groupId,
         DateTimeOffset startsAt,
         Guid trainerId,
         int duration = 60,
         int capacity = 12)
     {
         var response = await admin.PostAsJsonAsync(
-            Endpoint, Request(typeId, startsAt, trainerId, duration, capacity));
+            Endpoint, Request(groupId, startsAt, trainerId, duration, capacity));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         return (await response.Content.ReadFromJsonAsync<ClassBody>())!;
@@ -196,13 +196,13 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
     // them.
 
     [Fact]
-    public async Task Create_copies_the_capacity_from_the_request_not_the_type()
+    public async Task Create_copies_the_capacity_from_the_request_not_the_group()
     {
         // The group says 12; the admin overrode it to 8 for this session (FR-008).
-        var (admin, type, trainerId) = await ArrangeAsync(capacity: 12);
+        var (admin, group, trainerId) = await ArrangeAsync(capacity: 12);
 
         var created = await PostClassAsync(
-            admin, type.Id, NextSlot(), trainerId, duration: 45, capacity: 8);
+            admin, group.Id, NextSlot(), trainerId, duration: 45, capacity: 8);
 
         Assert.Equal(8, created.Capacity);
         Assert.Equal(45, created.DurationMinutes);
@@ -214,18 +214,18 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
     }
 
     [Fact]
-    public async Task Editing_the_type_does_not_move_an_existing_occurrences_capacity()
+    public async Task Editing_the_group_does_not_move_an_existing_occurrences_capacity()
     {
         // THE ONE THAT MATTERS. Capacity resolved through the group would let this edit change the
         // value the no-overbooking guarantee is checked against, on a class that may already have
         // bookings.
-        var (admin, type, trainerId) = await ArrangeAsync(capacity: 12);
-        var created = await PostClassAsync(admin, type.Id, NextSlot(), trainerId, capacity: 12);
+        var (admin, group, trainerId) = await ArrangeAsync(capacity: 12);
+        var created = await PostClassAsync(admin, group.Id, NextSlot(), trainerId, capacity: 12);
 
-        var edit = await admin.PutAsJsonAsync($"{TypesEndpoint}/{type.Id}", new
+        var edit = await admin.PutAsJsonAsync($"{GroupsEndpoint}/{group.Id}", new
         {
-            name = type.Name,
-            description = type.Description,
+            name = group.Name,
+            description = group.Description,
             defaultDurationMinutes = 90,
             defaultCapacity = 200,
         });
@@ -239,22 +239,22 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
     }
 
     [Fact]
-    public async Task Renaming_the_type_renames_an_existing_occurrence()
+    public async Task Renaming_the_group_renames_an_existing_occurrence()
     {
         // The other half of the asymmetry: identity DOES resolve by reference, which is the whole
         // reason groups exist (FR-007, FR-010).
-        var (admin, type, trainerId) = await ArrangeAsync();
-        var created = await PostClassAsync(admin, type.Id, NextSlot(), trainerId);
+        var (admin, group, trainerId) = await ArrangeAsync();
+        var created = await PostClassAsync(admin, group.Id, NextSlot(), trainerId);
 
-        Assert.Equal(type.Name, created.Name);
+        Assert.Equal(group.Name, created.Name);
 
         var renamed = UniqueName();
-        var edit = await admin.PutAsJsonAsync($"{TypesEndpoint}/{type.Id}", new
+        var edit = await admin.PutAsJsonAsync($"{GroupsEndpoint}/{group.Id}", new
         {
             name = renamed,
             description = (string?)"Nowy opis",
-            defaultDurationMinutes = type.DefaultDurationMinutes,
-            defaultCapacity = type.DefaultCapacity,
+            defaultDurationMinutes = group.DefaultDurationMinutes,
+            defaultCapacity = group.DefaultCapacity,
         });
 
         Assert.Equal(HttpStatusCode.OK, edit.StatusCode);
@@ -270,18 +270,18 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
     [Fact]
     public async Task Create_refuses_a_time_that_overlaps_any_other_class()
     {
-        var (admin, type, trainerId) = await ArrangeAsync();
+        var (admin, group, trainerId) = await ArrangeAsync();
         var slot = NextSlot();
 
-        await PostClassAsync(admin, type.Id, slot, trainerId, duration: 60);
+        await PostClassAsync(admin, group.Id, slot, trainerId, duration: 60);
 
         // A DIFFERENT group and a DIFFERENT trainer: the rule is club-wide, not per-group. Overlapping
         // by 30 minutes rather than starting together, so the interval arithmetic is what refuses it.
-        var otherType = await CreateTypeAsync(admin);
+        var otherGroup = await CreateGroupAsync(admin);
         var otherTrainer = await CreateTrainerAsync(admin);
 
         var response = await admin.PostAsJsonAsync(
-            Endpoint, Request(otherType.Id, slot.AddMinutes(30), otherTrainer));
+            Endpoint, Request(otherGroup.Id, slot.AddMinutes(30), otherTrainer));
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
         Assert.Equal("time_conflict", (await response.Content.ReadFromJsonAsync<FailureBody>())!.Reason);
@@ -292,13 +292,13 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
     {
         // Half-open intervals: a class ending exactly when the next begins is legal, and a club runs
         // its timetable that way.
-        var (admin, type, trainerId) = await ArrangeAsync();
+        var (admin, group, trainerId) = await ArrangeAsync();
         var slot = NextSlot();
 
-        await PostClassAsync(admin, type.Id, slot, trainerId, duration: 60);
+        await PostClassAsync(admin, group.Id, slot, trainerId, duration: 60);
 
         var response = await admin.PostAsJsonAsync(
-            Endpoint, Request(type.Id, slot.AddMinutes(60), trainerId));
+            Endpoint, Request(group.Id, slot.AddMinutes(60), trainerId));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
@@ -306,21 +306,21 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
     [Fact]
     public async Task Edit_refuses_a_time_that_overlaps_but_not_the_classs_own_time()
     {
-        var (admin, type, trainerId) = await ArrangeAsync();
+        var (admin, group, trainerId) = await ArrangeAsync();
         var slot = NextSlot();
 
-        var first = await PostClassAsync(admin, type.Id, slot, trainerId);
-        var second = await PostClassAsync(admin, type.Id, slot.AddHours(3), trainerId);
+        var first = await PostClassAsync(admin, group.Id, slot, trainerId);
+        var second = await PostClassAsync(admin, group.Id, slot.AddHours(3), trainerId);
 
         // Keeping its own time must NOT count as conflicting with itself.
         var unchanged = await admin.PutAsJsonAsync(
-            $"{Endpoint}/{second.Id}", Request(type.Id, slot.AddHours(3), trainerId, capacity: 15));
+            $"{Endpoint}/{second.Id}", Request(group.Id, slot.AddHours(3), trainerId, capacity: 15));
 
         Assert.Equal(HttpStatusCode.OK, unchanged.StatusCode);
 
         // Moving it onto the first one must.
         var moved = await admin.PutAsJsonAsync(
-            $"{Endpoint}/{second.Id}", Request(type.Id, first.StartsAt, trainerId));
+            $"{Endpoint}/{second.Id}", Request(group.Id, first.StartsAt, trainerId));
 
         Assert.Equal(HttpStatusCode.Conflict, moved.StatusCode);
         Assert.Equal("time_conflict", (await moved.Content.ReadFromJsonAsync<FailureBody>())!.Reason);
@@ -342,8 +342,8 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
     [InlineData(9)]
     public async Task The_duplicate_week_count_is_bounded(int weeks)
     {
-        var (admin, type, trainerId) = await ArrangeAsync();
-        var source = await PostClassAsync(admin, type.Id, NextSlot(), trainerId);
+        var (admin, group, trainerId) = await ArrangeAsync();
+        var source = await PostClassAsync(admin, group.Id, NextSlot(), trainerId);
 
         var response = await admin.PostAsJsonAsync(
             $"{Endpoint}/{source.Id}/duplicate", new { weeks });
@@ -358,15 +358,15 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
     [Fact]
     public async Task Duplicate_skips_and_reports_the_colliding_week_and_creates_the_rest()
     {
-        var (admin, type, trainerId) = await ArrangeAsync();
+        var (admin, group, trainerId) = await ArrangeAsync();
         var slot = NextSlot();
 
-        var source = await PostClassAsync(admin, type.Id, slot, trainerId);
+        var source = await PostClassAsync(admin, group.Id, slot, trainerId);
 
         // Plant a collision exactly where week 2 would land - in CLUB-LOCAL days, as the duplicate
         // counts them. slot.AddDays(14) keeps the instant, and lands an hour off whenever the
         // fortnight crosses a DST change, which a slot allocator 60 days apart eventually reaches.
-        await PostClassAsync(admin, type.Id, ClubTime.AddLocalDays(slot, 14), trainerId);
+        await PostClassAsync(admin, group.Id, ClubTime.AddLocalDays(slot, 14), trainerId);
 
         var response = await admin.PostAsJsonAsync($"{Endpoint}/{source.Id}/duplicate", new { weeks = 3 });
 
@@ -382,7 +382,7 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
         var admin_list = await admin.GetFromJsonAsync<List<ClassBody>>(
             Endpoint + Range(slot.AddDays(-1), slot.AddDays(29)));
         var copies = admin_list!
-            .Where(c => c.ClassGroupId == type.Id && c.Id != source.Id)
+            .Where(c => c.ClassGroupId == group.Id && c.Id != source.Id)
             .ToList();
 
         // Weeks 1 and 3, plus the collision we planted.
@@ -394,9 +394,9 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
     // --- FR-006 / FR-008: the group reference ----------------------------------
 
     [Fact]
-    public async Task Create_refuses_an_unknown_or_inactive_type()
+    public async Task Create_refuses_an_unknown_or_inactive_group()
     {
-        var (admin, type, trainerId) = await ArrangeAsync();
+        var (admin, group, trainerId) = await ArrangeAsync();
 
         var unknown = await admin.PostAsJsonAsync(
             Endpoint, Request(Guid.NewGuid(), NextSlot(), trainerId));
@@ -406,11 +406,11 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
             "unknown_class_group",
             (await unknown.Content.ReadFromJsonAsync<FailureBody>())!.Reason);
 
-        var deactivate = await admin.PostAsJsonAsync($"{TypesEndpoint}/{type.Id}/deactivate", new { });
+        var deactivate = await admin.PostAsJsonAsync($"{GroupsEndpoint}/{group.Id}/deactivate", new { });
         Assert.Equal(HttpStatusCode.OK, deactivate.StatusCode);
 
         var inactive = await admin.PostAsJsonAsync(
-            Endpoint, Request(type.Id, NextSlot(), trainerId));
+            Endpoint, Request(group.Id, NextSlot(), trainerId));
 
         Assert.Equal(HttpStatusCode.BadRequest, inactive.StatusCode);
         Assert.Equal(
@@ -419,19 +419,19 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
     }
 
     [Fact]
-    public async Task Editing_an_occurrence_whose_type_was_deactivated_still_works()
+    public async Task Editing_an_occurrence_whose_group_was_deactivated_still_works()
     {
         // FR-006 promises that deactivating a group leaves its existing occurrences intact — and an
         // occurrence the admin can no longer reschedule is not intact.
-        var (admin, type, trainerId) = await ArrangeAsync();
+        var (admin, group, trainerId) = await ArrangeAsync();
         var slot = NextSlot();
 
-        var created = await PostClassAsync(admin, type.Id, slot, trainerId);
+        var created = await PostClassAsync(admin, group.Id, slot, trainerId);
 
-        await admin.PostAsJsonAsync($"{TypesEndpoint}/{type.Id}/deactivate", new { });
+        await admin.PostAsJsonAsync($"{GroupsEndpoint}/{group.Id}/deactivate", new { });
 
         var edit = await admin.PutAsJsonAsync(
-            $"{Endpoint}/{created.Id}", Request(type.Id, slot.AddHours(2), trainerId));
+            $"{Endpoint}/{created.Id}", Request(group.Id, slot.AddHours(2), trainerId));
 
         Assert.Equal(HttpStatusCode.OK, edit.StatusCode);
         Assert.Equal(
@@ -444,14 +444,14 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
     {
         // Refused rather than silently ignored: a client sending a different group has a bug, and a
         // server that quietly discarded it would leave the admin believing they had changed something.
-        var (admin, type, trainerId) = await ArrangeAsync();
+        var (admin, group, trainerId) = await ArrangeAsync();
         var slot = NextSlot();
 
-        var created = await PostClassAsync(admin, type.Id, slot, trainerId);
-        var otherType = await CreateTypeAsync(admin);
+        var created = await PostClassAsync(admin, group.Id, slot, trainerId);
+        var otherGroup = await CreateGroupAsync(admin);
 
         var response = await admin.PutAsJsonAsync(
-            $"{Endpoint}/{created.Id}", Request(otherType.Id, slot, trainerId));
+            $"{Endpoint}/{created.Id}", Request(otherGroup.Id, slot, trainerId));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Equal(
@@ -464,13 +464,13 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
     [Fact]
     public async Task Create_refuses_an_instructor_who_is_not_a_trainer()
     {
-        var (admin, type, _) = await ArrangeAsync();
+        var (admin, group, _) = await ArrangeAsync();
 
         var memberId = await CreateAccountAsync(
             admin, AccountStatus.Active, ApplicationRoles.User);
 
         var response = await admin.PostAsJsonAsync(
-            Endpoint, Request(type.Id, NextSlot(), memberId));
+            Endpoint, Request(group.Id, NextSlot(), memberId));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Equal(
@@ -481,13 +481,13 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
     [Fact]
     public async Task Create_refuses_a_blocked_trainer_and_an_unknown_id()
     {
-        var (admin, type, _) = await ArrangeAsync();
+        var (admin, group, _) = await ArrangeAsync();
 
         var blockedTrainerId = await CreateAccountAsync(
             admin, AccountStatus.Blocked, ApplicationRoles.Trainer);
 
         var blocked = await admin.PostAsJsonAsync(
-            Endpoint, Request(type.Id, NextSlot(), blockedTrainerId));
+            Endpoint, Request(group.Id, NextSlot(), blockedTrainerId));
 
         Assert.Equal(HttpStatusCode.BadRequest, blocked.StatusCode);
 
@@ -499,7 +499,7 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
             (await blocked.Content.ReadFromJsonAsync<FailureBody>())!.Reason);
 
         var unknown = await admin.PostAsJsonAsync(
-            Endpoint, Request(type.Id, NextSlot(), Guid.NewGuid()));
+            Endpoint, Request(group.Id, NextSlot(), Guid.NewGuid()));
 
         Assert.Equal(HttpStatusCode.BadRequest, unknown.StatusCode);
         Assert.Equal(
@@ -510,9 +510,9 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
     [Fact]
     public async Task The_occurrence_resolves_the_instructors_display_name()
     {
-        var (admin, type, trainerId) = await ArrangeAsync();
+        var (admin, group, trainerId) = await ArrangeAsync();
 
-        var created = await PostClassAsync(admin, type.Id, NextSlot(), trainerId);
+        var created = await PostClassAsync(admin, group.Id, NextSlot(), trainerId);
 
         var expected = (await admin.GetFromJsonAsync<MemberBody>($"/api/admin/members/{trainerId}"))!
             .DisplayName;
@@ -525,17 +525,17 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
     public async Task Edit_can_reassign_the_instructor()
     {
         // Unlike the group, the instructor IS mutable — reassigning a class is ordinary admin work.
-        var (admin, type, trainerId) = await ArrangeAsync();
+        var (admin, group, trainerId) = await ArrangeAsync();
         var slot = NextSlot();
 
-        var created = await PostClassAsync(admin, type.Id, slot, trainerId);
+        var created = await PostClassAsync(admin, group.Id, slot, trainerId);
 
         // A distinct display name, or the stale-name assertion below could not tell the two apart -
         // every account the fixture creates is otherwise called "Test Trainer".
         var replacement = await CreateTrainerAsync(admin, $"Zastępstwo-{Guid.NewGuid():N}");
 
         var response = await admin.PutAsJsonAsync(
-            $"{Endpoint}/{created.Id}", Request(type.Id, slot, replacement));
+            $"{Endpoint}/{created.Id}", Request(group.Id, slot, replacement));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
@@ -600,16 +600,16 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
     [Fact]
     public async Task Create_refuses_a_missing_reference()
     {
-        var (admin, type, trainerId) = await ArrangeAsync();
+        var (admin, group, trainerId) = await ArrangeAsync();
 
-        var noType = await admin.PostAsJsonAsync(
+        var noGroup = await admin.PostAsJsonAsync(
             Endpoint, Request(Guid.Empty, NextSlot(), trainerId));
 
-        Assert.Equal(HttpStatusCode.BadRequest, noType.StatusCode);
-        Assert.Equal("missing_field", (await noType.Content.ReadFromJsonAsync<FailureBody>())!.Reason);
+        Assert.Equal(HttpStatusCode.BadRequest, noGroup.StatusCode);
+        Assert.Equal("missing_field", (await noGroup.Content.ReadFromJsonAsync<FailureBody>())!.Reason);
 
         var noInstructor = await admin.PostAsJsonAsync(
-            Endpoint, Request(type.Id, NextSlot(), Guid.Empty));
+            Endpoint, Request(group.Id, NextSlot(), Guid.Empty));
 
         Assert.Equal(HttpStatusCode.BadRequest, noInstructor.StatusCode);
         Assert.Equal(
@@ -624,10 +624,10 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
     [InlineData(60, 201, "invalid_capacity")]
     public async Task Create_enforces_the_numeric_bounds(int duration, int capacity, string reason)
     {
-        var (admin, type, trainerId) = await ArrangeAsync();
+        var (admin, group, trainerId) = await ArrangeAsync();
 
         var response = await admin.PostAsJsonAsync(
-            Endpoint, Request(type.Id, NextSlot(), trainerId, duration, capacity));
+            Endpoint, Request(group.Id, NextSlot(), trainerId, duration, capacity));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Equal(reason, (await response.Content.ReadFromJsonAsync<FailureBody>())!.Reason);
@@ -636,22 +636,22 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
     [Fact]
     public async Task Create_refuses_a_start_in_the_past_but_edit_does_not()
     {
-        var (admin, type, trainerId) = await ArrangeAsync();
+        var (admin, group, trainerId) = await ArrangeAsync();
 
         var past = await admin.PostAsJsonAsync(
             Endpoint,
-            Request(type.Id, DateTimeOffset.UtcNow.AddDays(-1), trainerId));
+            Request(group.Id, DateTimeOffset.UtcNow.AddDays(-1), trainerId));
 
         Assert.Equal(HttpStatusCode.BadRequest, past.StatusCode);
         Assert.Equal("starts_in_past", (await past.Content.ReadFromJsonAsync<FailureBody>())!.Reason);
 
         // Correcting a class that already ran is legitimate; refusing it would leave a wrong record
         // permanently wrong. Slots are 60 days apart, so a past time cannot collide with another test.
-        var created = await PostClassAsync(admin, type.Id, NextSlot(), trainerId);
+        var created = await PostClassAsync(admin, group.Id, NextSlot(), trainerId);
 
         var edit = await admin.PutAsJsonAsync(
             $"{Endpoint}/{created.Id}",
-            Request(type.Id, new DateTimeOffset(2020, 1, 1, 10, 0, 0, TimeSpan.Zero), trainerId));
+            Request(group.Id, new DateTimeOffset(2020, 1, 1, 10, 0, 0, TimeSpan.Zero), trainerId));
 
         Assert.Equal(HttpStatusCode.OK, edit.StatusCode);
     }
@@ -664,17 +664,17 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
         // The member window is a fortnight, so this one class is created near "now" rather than in a
         // 2030 slot — and therefore has to dodge the other tests' classes by using a time no slot
         // covers.
-        var (admin, type, trainerId) = await ArrangeAsync();
+        var (admin, group, trainerId) = await ArrangeAsync();
         var soon = DateTimeOffset.UtcNow.AddDays(3);
 
-        var created = await PostClassAsync(admin, type.Id, soon, trainerId);
+        var created = await PostClassAsync(admin, group.Id, soon, trainerId);
 
         // The admin reads the whole schedule since S-25; a member is refused it.
         var schedule = await admin.GetFromJsonAsync<List<ClassBody>>("/api/classes");
 
         var row = schedule!.Single(c => c.Id == created.Id);
 
-        Assert.Equal(type.Name, row.Name);
+        Assert.Equal(group.Name, row.Name);
         Assert.Equal("Opis", row.Description);
         Assert.NotEmpty(row.Instructor);
 
@@ -704,14 +704,14 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
     private async Task<(HttpClient Admin, (HttpClient Client, Guid Id) Trainer, ClassBody Own, ClassBody Other, ClassBody AdminTaught, string Window)>
         ArrangeInstructedAsync()
     {
-        var (admin, type, otherTrainerId) = await ArrangeAsync();
+        var (admin, group, otherTrainerId) = await ArrangeAsync();
         var trainer = await SignedInTrainerAsync(admin);
         var adminTrainerId = await fixture.FindMemberIdAsync(admin, TestUsers.ActiveAdminTrainerEmail);
         var slot = NextSlot();
 
-        var own = await PostClassAsync(admin, type.Id, slot, trainer.MemberId);
-        var other = await PostClassAsync(admin, type.Id, slot.AddHours(2), otherTrainerId);
-        var adminTaught = await PostClassAsync(admin, type.Id, slot.AddHours(4), adminTrainerId);
+        var own = await PostClassAsync(admin, group.Id, slot, trainer.MemberId);
+        var other = await PostClassAsync(admin, group.Id, slot.AddHours(2), otherTrainerId);
+        var adminTaught = await PostClassAsync(admin, group.Id, slot.AddHours(4), adminTrainerId);
 
         return (admin, (trainer.Client, trainer.MemberId), own, other, adminTaught,
             Range(slot.AddDays(-1), slot.AddDays(1)));
@@ -821,16 +821,16 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
     [Fact]
     public async Task Omitting_the_range_gives_each_endpoint_its_own_default_window()
     {
-        var (admin, type, trainerId) = await ArrangeAsync();
+        var (admin, group, trainerId) = await ArrangeAsync();
 
         // Inside the member fortnight. NextSlot() lives in 2030, so nothing there can collide here.
-        var near = await PostClassAsync(admin, type.Id, DateTimeOffset.UtcNow.AddDays(4), trainerId);
+        var near = await PostClassAsync(admin, group.Id, DateTimeOffset.UtcNow.AddDays(4), trainerId);
 
         // Past the member's fortnight, inside the admin's two months.
-        var mid = await PostClassAsync(admin, type.Id, DateTimeOffset.UtcNow.AddDays(30), trainerId);
+        var mid = await PostClassAsync(admin, group.Id, DateTimeOffset.UtcNow.AddDays(30), trainerId);
 
         // Years out: past both.
-        var far = await PostClassAsync(admin, type.Id, NextSlot(), trainerId);
+        var far = await PostClassAsync(admin, group.Id, NextSlot(), trainerId);
 
         // The admin reads the whole schedule since S-25; a member is refused it.
         var schedule = (await admin.GetFromJsonAsync<List<ClassBody>>("/api/classes"))!;
@@ -849,11 +849,11 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
     [Fact]
     public async Task A_range_returns_only_the_classes_inside_it_on_both_endpoints()
     {
-        var (admin, type, trainerId) = await ArrangeAsync();
+        var (admin, group, trainerId) = await ArrangeAsync();
         var slot = NextSlot();
 
-        var inside = await PostClassAsync(admin, type.Id, slot, trainerId);
-        var outside = await PostClassAsync(admin, type.Id, slot.AddDays(20), trainerId);
+        var inside = await PostClassAsync(admin, group.Id, slot, trainerId);
+        var outside = await PostClassAsync(admin, group.Id, slot.AddDays(20), trainerId);
 
         var window = Range(slot.AddDays(-1), slot.AddDays(1));
 
@@ -877,15 +877,15 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
     [Fact]
     public async Task A_from_in_the_past_returns_past_classes_on_both_endpoints()
     {
-        var (admin, type, trainerId) = await ArrangeAsync();
+        var (admin, group, trainerId) = await ArrangeAsync();
 
         // Created in the future because create refuses the past, then moved back — edit deliberately
         // allows it, so this is the supported way to end up with a class that already happened.
-        var created = await PostClassAsync(admin, type.Id, NextSlot(), trainerId);
+        var created = await PostClassAsync(admin, group.Id, NextSlot(), trainerId);
         var past = new DateTimeOffset(2021, 3, 4, 9, 0, 0, TimeSpan.Zero);
 
         var edit = await admin.PutAsJsonAsync(
-            Endpoint + "/" + created.Id, Request(type.Id, past, trainerId));
+            Endpoint + "/" + created.Id, Request(group.Id, past, trainerId));
         Assert.Equal(HttpStatusCode.OK, edit.StatusCode);
 
         var window = Range(past.AddDays(-1), past.AddDays(1));
@@ -946,10 +946,10 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
     [Fact]
     public async Task A_range_does_not_change_how_either_path_treats_a_cancelled_class()
     {
-        var (admin, type, trainerId) = await ArrangeAsync();
+        var (admin, group, trainerId) = await ArrangeAsync();
         var slot = NextSlot();
 
-        var cancelled = await PostClassAsync(admin, type.Id, slot, trainerId);
+        var cancelled = await PostClassAsync(admin, group.Id, slot, trainerId);
 
         using (var scope = fixture.Factory.Services.CreateScope())
         {
@@ -1029,8 +1029,8 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
     [Fact]
     public async Task Deleting_a_class_with_a_booking_is_refused_and_the_class_survives()
     {
-        var (admin, type, trainerId) = await ArrangeAsync();
-        var created = await PostClassAsync(admin, type.Id, NextSlot(), trainerId);
+        var (admin, group, trainerId) = await ArrangeAsync();
+        var created = await PostClassAsync(admin, group.Id, NextSlot(), trainerId);
 
         var member = await BookAsync(created.Id);
 
@@ -1057,7 +1057,7 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
 
         // A class nobody ever touched is still erasable - the guard is about bookings, not about
         // classes being undeletable.
-        var untouched = await PostClassAsync(admin, type.Id, NextSlot(), trainerId);
+        var untouched = await PostClassAsync(admin, group.Id, NextSlot(), trainerId);
 
         Assert.Equal(
             HttpStatusCode.NoContent,
@@ -1067,15 +1067,15 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
     [Fact]
     public async Task Lowering_capacity_below_the_booked_count_is_refused()
     {
-        var (admin, type, trainerId) = await ArrangeAsync();
+        var (admin, group, trainerId) = await ArrangeAsync();
         var startsAt = NextSlot();
-        var created = await PostClassAsync(admin, type.Id, startsAt, trainerId, capacity: 4);
+        var created = await PostClassAsync(admin, group.Id, startsAt, trainerId, capacity: 4);
 
         await BookAsync(created.Id);
         await BookAsync(created.Id);
 
         var refused = await admin.PutAsJsonAsync(
-            $"{Endpoint}/{created.Id}", Request(type.Id, startsAt, trainerId, capacity: 1));
+            $"{Endpoint}/{created.Id}", Request(group.Id, startsAt, trainerId, capacity: 1));
 
         Assert.Equal(HttpStatusCode.Conflict, refused.StatusCode);
         Assert.Equal(
@@ -1089,7 +1089,7 @@ public class ClassEndpointTests(IntegrationTestFixture fixture)
         // EQUAL IS ALLOWED. Shrinking to exactly the number already signed up is the club saying
         // "no more sign-ups", which is a legitimate move and not a broken invariant.
         var allowed = await admin.PutAsJsonAsync(
-            $"{Endpoint}/{created.Id}", Request(type.Id, startsAt, trainerId, capacity: 2));
+            $"{Endpoint}/{created.Id}", Request(group.Id, startsAt, trainerId, capacity: 2));
 
         Assert.Equal(HttpStatusCode.OK, allowed.StatusCode);
 

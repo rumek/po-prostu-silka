@@ -6,7 +6,7 @@
  * (support/schedule.ts).
  *
  * Creates a member `E2E bez karnetu <ts>` (no account, no karnet) and a class instructed by the E2E
- * trainer. Nothing gets booked, so the `club` fixture deletes the class and deactivates the type; the
+ * trainer. Nothing gets booked, so the `club` fixture deletes the class and deactivates the group; the
  * member stays behind.
  */
 import { trainerCredentials } from './credentials';
