@@ -20,8 +20,13 @@ namespace po_prostu_silka.Application.Scheduling;
 /// </summary>
 /// <param name="MemberId">Who holds the spot.</param>
 /// <param name="Attendance">
-/// <c>"present"</c>, <c>"absent"</c>, or null while nobody recorded it (S-27). Always null before the
-/// class starts, because the marking route refuses until then.
+/// <c>"present"</c>, <c>"makeup"</c>, <c>"forfeited"</c>, the legacy <c>"absent"</c> (S-36), or null
+/// while nobody recorded it (S-27). Always null before the class starts, because the marking route
+/// refuses until then.
+/// </param>
+/// <param name="IsMakeup">
+/// Whether this booking is a makeup of an earlier absence (S-36). Such a row may be marked present or
+/// forfeited, never "makeup".
 /// </param>
 /// <param name="UserId">
 /// Their account, or null when they have none (S-14).
@@ -44,4 +49,5 @@ public record ClassBooking(
     string DisplayName,
     string Email,
     DateTimeOffset BookedAt,
-    string? Attendance);
+    string? Attendance,
+    bool IsMakeup);

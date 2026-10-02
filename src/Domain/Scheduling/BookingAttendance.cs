@@ -14,7 +14,7 @@ namespace po_prostu_silka.Domain.Scheduling;
 ///
 /// <para>
 /// Null on the booking means "not recorded", and that counts as SPENT — see EntryConsumption. The
-/// numeric values are persisted as an int and must not be reordered.
+/// numeric values are persisted as an int and must not be reordered; S-36 appended two and froze one.
 /// </para>
 /// </summary>
 public enum BookingAttendance
@@ -22,6 +22,20 @@ public enum BookingAttendance
     /// <summary>The member came. The entry stays spent.</summary>
     Present = 0,
 
-    /// <summary>The member did not come. The entry goes back to the karnet.</summary>
+    /// <summary>
+    /// LEGACY, READ-ONLY (S-36). Before class-makeups, "did not come" returned the entry, and rows
+    /// recorded then keep that meaning so no member's balance moved on deploy. Nothing writes it any
+    /// more: the attendance PUT refuses <c>"absent"</c>, and re-marking such a row moves it to one of
+    /// the values below, re-spending the entry it returned.
+    /// </summary>
     Absent = 1,
+
+    /// <summary>
+    /// "Nie był – odrobi" (S-36). The entry stays SPENT on this class, and the booking becomes a makeup
+    /// item: the right to ONE free makeup booking within <see cref="MakeupRules.DeadlineDays"/>.
+    /// </summary>
+    Makeup = 2,
+
+    /// <summary>"Nie był – przepada" (S-36). The entry stays spent and nothing is owed.</summary>
+    Forfeited = 3,
 }

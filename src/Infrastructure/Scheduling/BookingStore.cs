@@ -50,6 +50,13 @@ public class BookingStore(AppDbContext db, IMembershipPassStore passes) : IBooki
             .Where(b => b.MembershipPassId == passId)
             .CountAsync(EntryConsumption.ConsumesAnEntry, cancellationToken);
 
+    public Task<bool> HasLiveMakeupAsync(Guid absenceBookingId, CancellationToken cancellationToken) =>
+        db.Bookings.AnyAsync(
+            b => b.MakeupForBookingId == absenceBookingId
+                 && b.Status == BookingStatus.Active
+                 && b.Class.Status != ClassStatus.Cancelled,
+            cancellationToken);
+
     public Task<bool> AnyActiveForPassAsync(Guid passId, CancellationToken cancellationToken) =>
         db.Bookings.AnyAsync(
             b => b.MembershipPassId == passId && b.Status == BookingStatus.Active, cancellationToken);

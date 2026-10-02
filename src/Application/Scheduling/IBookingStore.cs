@@ -73,6 +73,13 @@ public interface IBookingStore
     Task<int> CountConsumingForPassAsync(Guid passId, CancellationToken cancellationToken);
 
     /// <summary>
+    /// Whether the absence <paramref name="absenceBookingId"/> has an ACTIVE makeup booking on a class
+    /// that was not cancelled (S-36) - the state in which the absence's mark is frozen. A makeup on a
+    /// cancelled class does not count: the item is open again.
+    /// </summary>
+    Task<bool> HasLiveMakeupAsync(Guid absenceBookingId, CancellationToken cancellationToken);
+
+    /// <summary>
     /// Whether any ACTIVE booking carries this pass's id, whatever its attendance or its class's
     /// status (S-27).
     ///

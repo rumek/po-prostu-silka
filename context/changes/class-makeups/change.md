@@ -1,7 +1,7 @@
 ---
 change_id: class-makeups
 title: Absence is either made up or forfeited, and staff track the makeups
-status: new
+status: implementing
 created: 2026-10-02
 updated: 2026-10-02
 archived_at: null

@@ -72,8 +72,11 @@ public class BookingQuery(AppDbContext db) : IBookingQuery
                 b.CreatedAt,
                 // Lower-case words rather than the enum's names, the same spelling the PUT accepts.
                 b.Attendance == BookingAttendance.Present ? "present"
+                : b.Attendance == BookingAttendance.Makeup ? "makeup"
+                : b.Attendance == BookingAttendance.Forfeited ? "forfeited"
                 : b.Attendance == BookingAttendance.Absent ? "absent"
-                : null))
+                : null,
+                b.MakeupForBookingId != null))
             .ToListAsync(cancellationToken);
 
     public async Task<IReadOnlyList<MyAttendanceEntry>> GetHistoryForMemberAsync(
@@ -103,8 +106,11 @@ public class BookingQuery(AppDbContext db) : IBookingQuery
                 b.Class.Instructor!.DisplayName,
                 b.Class.Status == ClassStatus.Cancelled ? "cancelled"
                 : b.Attendance == BookingAttendance.Present ? "present"
+                : b.Attendance == BookingAttendance.Makeup ? "makeup"
+                : b.Attendance == BookingAttendance.Forfeited ? "forfeited"
                 : b.Attendance == BookingAttendance.Absent ? "absent"
-                : "unrecorded"))
+                : "unrecorded",
+                b.MakeupForBookingId != null))
             .ToListAsync(cancellationToken);
 
     public Task<DateTimeOffset?> LatestHistoryStartBeforeAsync(
@@ -132,6 +138,10 @@ public class BookingQuery(AppDbContext db) : IBookingQuery
         int CountOf(BookingAttendance? a) => groups.FirstOrDefault(g => g.Attendance == a)?.Count ?? 0;
 
         return new AttendanceCounts(
-            CountOf(BookingAttendance.Present), CountOf(BookingAttendance.Absent), CountOf(null));
+            CountOf(BookingAttendance.Present),
+            CountOf(BookingAttendance.Absent)
+                + CountOf(BookingAttendance.Makeup)
+                + CountOf(BookingAttendance.Forfeited),
+            CountOf(null));
     }
 }

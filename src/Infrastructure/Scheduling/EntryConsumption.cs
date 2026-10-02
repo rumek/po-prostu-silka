@@ -11,9 +11,12 @@ namespace po_prostu_silka.Infrastructure.Scheduling;
 /// was marked absent. That gives three readings of one row:
 /// <list type="bullet">
 /// <item><b>reserved</b> — a future booking, or a past one nobody has marked;</item>
-/// <item><b>spent</b> — marked present, or never marked;</item>
-/// <item><b>returned</b> — marked absent, released, or its class was cancelled.</item>
+/// <item><b>spent</b> — marked present, "odrobi" or "przepada" (S-36), or never marked;</item>
+/// <item><b>returned</b> — marked absent before S-36 (the legacy value), released, or its class was
+/// cancelled.</item>
 /// </list>
+/// A MAKEUP BOOKING (S-36, <c>MakeupForBookingId</c> set) consumes nothing in any state: its entry was
+/// already spent by the absence it makes up.
 /// </para>
 ///
 /// <para>
@@ -40,5 +43,6 @@ public static class EntryConsumption
     public static readonly Expression<Func<Booking, bool>> ConsumesAnEntry = b =>
         b.Status == BookingStatus.Active
         && b.Class.Status != ClassStatus.Cancelled
+        && b.MakeupForBookingId == null
         && b.Attendance != BookingAttendance.Absent;
 }
