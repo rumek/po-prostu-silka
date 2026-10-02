@@ -160,7 +160,8 @@ privacy notice.
 | S-31 | e2e-member-onboarding-and-booking | (dev tooling) a browser-level test proves an invited person lands on the club's record with its karnet and booking, and that a staff booking and a karnet refusal reach both screens they should | S-17, S-25 | none - outside any milestone (test tooling); manual plan REG-01, BOOK-01, BOOK-03 | done |
 | S-32 | e2e-attendance-and-plans | (dev tooling) a browser-level test proves a recorded absence returns the entry on the member's screens, and a plan a trainer builds reaches the member's plan and exercise screens | S-31, S-27 | none - outside any milestone (test tooling); manual plan ATT-01, ATT-02, PLAN-01, MBR-05, MBR-06 | done |
 | S-33 | class-type-to-group-rename | (admin, trainer, member) the club's class definitions are called "grupy" everywhere - every screen, the API, the code and the database - with nothing about how they behave changing | S-05, S-06, S-32 | none - outside any milestone (naming); renames v2 FR-004-FR-007's "class type" | done |
-| S-34 | pass-paid-flag | (admin, trainer, member) staff record that a karnet was paid and on which day, see who owes on the member lists, and a member sees whether their karnet is paid - paying never gates booking | S-16, S-22, S-25 | none - outside any milestone; narrows v1 §Non-Goals "no payments" | in-progress |
+| S-34 | pass-paid-flag | (admin, trainer, member) staff record that a karnet was paid and on which day, see who owes on the member lists, and a member sees whether their karnet is paid - paying never gates booking | S-16, S-22, S-25 | none - outside any milestone; narrows v1 §Non-Goals "no payments" | done |
+| S-35 | expiring-passes-dashboard | (admin) Start lists the members whose karnet ends within 5 days and who have not renewed, and the member list filters to them - the same count on both | S-34 | none - outside any milestone; the club spreadsheet's "KOŃCZY SIĘ" status | done |
 
 ## Streams
 
@@ -1035,7 +1036,25 @@ rather than in a slice body:
 - **Unknowns:** -
 - **Risk:** widening the trainer's reach — a trainer may now write to any non-staff member's karnet
   (payment only, never its dates or entries), which S-16 had kept admin-only.
-- **Status:** in-progress
+- **Status:** done
+
+### S-35: The admin sees whose karnet is about to end
+
+- **Outcome:** (admin) Start opens with a "Klub" section, "Kończą się karnety": up to 5 members whose
+  current karnet ends within today…today+5 club-local days and who hold no karnet starting after it,
+  nearest end first, each with "dziś / jutro / za N dni" and the date, each leading to that member's
+  karnet screen. "Zobacz wszystkich (N)" opens the member list filtered by "Tylko kończące się"
+  (`expiring=1`), whose total is exactly N, because both read one predicate. Renewing a member takes
+  them off both. Blocked members, entries left and already-expired karnets are not part of it.
+- **Change ID:** expiring-passes-dashboard
+- **PRD refs:** none. Requested by the client on 2026-10-02 from the club's spreadsheet
+  (`xlsx/twt.xlsx`, "KOŃCZY SIĘ" five days before a karnet's end). **Delivered outside any milestone.**
+- **Prerequisites:** S-34 (the member list's karnet filter and its URL state, reused here).
+- **Parallel with:** -
+- **Blockers:** -
+- **Unknowns:** -
+- **Risk:** the dashboard is eager; the card's cost lands in the initial bundle.
+- **Status:** done
 
 ## Backlog Handoff
 
@@ -1076,7 +1095,8 @@ rather than in a slice body:
 | S-31       | e2e-member-onboarding-and-booking | E2E: invitation claim lands on the club record; staff booking and karnet refusal reach both screens | yes                   | Outside any milestone. Run `/10x-plan e2e-member-onboarding-and-booking`, then `/10x-e2e` |
 | S-32       | e2e-attendance-and-plans         | E2E: recorded absence returns the entry on the member's screens; a trainer's plan reaches the member | no                    | Needs S-31 (data-setup helpers) |
 | S-33       | class-type-to-group-rename       | Rename class types to groups across UI, API, code and database | no                    | Planned 2026-10-01. Rollback gap accepted once (staging only); run `/10x-implement class-type-to-group-rename phase 1` |
-| S-34       | pass-paid-flag                   | Record that a karnet was paid (and who recorded it); "Nieopłacony" marker and filter; trainer "Karnety" screen | no                    | Outside any milestone. Run `/10x-implement pass-paid-flag` |
+| S-34       | pass-paid-flag                   | Record that a karnet was paid (and who recorded it); "Nieopłacony" marker and filter; trainer "Karnety" screen | no                    | Done — archived 2026-10-02. Outside any milestone |
+| S-35       | expiring-passes-dashboard        | "Kończą się karnety" card on the admin's Start and the matching member-list filter | no                    | Done — archived 2026-10-02. Outside any milestone |
 
 ## Open Roadmap Questions
 
@@ -1363,3 +1383,5 @@ Resolved since the previous roadmap: the sender-domain question that gated F-03 
 - **S-31: (dev tooling) two browser-level specs protect journeys no current test sees end to end. First: an admin creates an accountless member, issues a karnet, books them into a class and copies the invitation link from the member list; an anonymous visitor opens that link, registers, and lands on Start showing that karnet and that booking. Second: staff book a member from the schedule's bookings overlay, the member then sees the class and one entry fewer, and a member with no valid karnet is refused in the overlay with the sentence the real API's reason maps to.** — Archived 2026-09-28 → `context/archive/2026-09-28-e2e-member-onboarding-and-booking/`. Lesson: —.
 - **S-32: (dev tooling) two browser-level specs. First: a trainer marks a booked member absent on a class that has started, and the member sees the class as absent in Historia and the entry back on their karnet. Second: a trainer builds a plan in the plan builder (library search, add, parameters, save), and the member sees it on Mój plan in that order and opens an exercise's detail from it.** — Archived 2026-09-29 → `context/archive/2026-09-28-e2e-attendance-and-plans/`. Lesson: —.
 - **S-33: (naming — no capability changes) what the app has called a "typ zajęć" since S-05 is called a "grupa": the admin's Typy zajęć screen, its form, the class form's picker, the menu and `/more`, route titles, empty states, the failure tables and every spec that asserts those words. The rename goes all the way down: the SPA route (`/admin/class-types` → a group path), the API (`/api/admin/class-types`, its DTOs and its refusal reasons such as `unknown_class_type`, `inactive_class_type`, `class_type_immutable`), the `ClassType` entity and everything named after it in `Domain`, `Application` and `Infrastructure`, the `ClassTypes` table, `Classes.ClassTypeId` and the `IX_ClassTypes_Name_Active` index, the test-data seeder and the E2E `club.ts` helpers. The entity keeps every field and rule it has: a name unique among active groups, a description, a default duration and capacity, deactivation, and immutability once a class is built from it.** — Archived 2026-10-01 → `context/archive/2026-10-01-class-type-to-group-rename/`. Lesson: —.
+- **S-34: (admin, trainer, member) a karnet records whether it was paid and on which club-local day, separately from being issued: the admin can mark it at issue time, and an admin or a trainer marks any non-staff member's karnet paid or unpaid afterwards. Staff see "Nieopłacony" on the member lists — meaning ANY unpaid karnet, because a debt outlives the karnet's validity — and the admin can filter to them; a trainer settles one from a new "Karnety" screen per member. The member sees on Start whether today's karnet is paid. Paying is never a gate: an unpaid karnet books like a paid one.** — Archived 2026-10-02 → `context/archive/2026-10-02-pass-paid-flag/`. Lesson: —.
+- **S-35: (admin) Start opens with a "Klub" section, "Kończą się karnety": up to 5 members whose current karnet ends within today…today+5 club-local days and who hold no karnet starting after it, nearest end first, each with "dziś / jutro / za N dni" and the date, each leading to that member's karnet screen. "Zobacz wszystkich (N)" opens the member list filtered by "Tylko kończące się" (`expiring=1`), whose total is exactly N, because both read one predicate. Renewing a member takes them off both. Blocked members, entries left and already-expired karnets are not part of it.** — Archived 2026-10-02 → `context/archive/2026-10-02-expiring-passes-dashboard/`. Lesson: —.

@@ -1,10 +1,10 @@
 ---
 change_id: pass-paid-flag
 title: Mark a karnet as paid or unpaid
-status: impl_reviewed
+status: archived
 created: 2026-10-02
 updated: 2026-10-02
-archived_at: null
+archived_at: 2026-10-02T17:38:27Z
 ---
 
 ## Notes
