@@ -702,9 +702,9 @@ nothing". It follows `src/app/e2e/CLAUDE.md`: PHONE, role locators, `club` build
 
 #### Automated
 
-- [x] 4.1 SPA specs pass (makeups, picker, routes, navigation)
-- [x] 4.2 quality:check passes
-- [x] 4.3 Eager bundle grows under 1 kB and is recorded in AGENTS.md
+- [x] 4.1 SPA specs pass (makeups, picker, routes, navigation) — e2078ff
+- [x] 4.2 quality:check passes — e2078ff
+- [x] 4.3 Eager bundle grows under 1 kB and is recorded in AGENTS.md — e2078ff
 
 #### Manual
 
@@ -716,8 +716,8 @@ nothing". It follows `src/app/e2e/CLAUDE.md`: PHONE, role locators, `club` build
 
 #### Automated
 
-- [ ] 5.1 Playwright suite passes locally with the new makeup spec
-- [ ] 5.2 dotnet test and npm test still pass
+- [x] 5.1 Playwright suite passes locally with the new makeup spec
+- [x] 5.2 dotnet test and npm test still pass
 
 #### Manual
 

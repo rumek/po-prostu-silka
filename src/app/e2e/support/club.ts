@@ -231,6 +231,34 @@ export class Club {
   }
 
   /**
+   * Closes, after the test, the makeup item (S-36) that `memberId`'s "odrobi" absence on `classId`
+   * opened, so the club's Odrabianie list does not grow by one with every run. A started class stays
+   * behind as history (see createClass), and so would an open item, for thirty days.
+   *
+   * Register it BEFORE creating the class a makeup goes into: cleanup runs in reverse, so that class
+   * is cancelled first, which reopens the item - and only an open item can be closed. If the absence
+   * was never marked "odrobi", there is nothing to close.
+   */
+  closeMakeupAfterwards(classId: string, memberId: string): void {
+    this.cleanup.add(`close makeup of ${memberId}`, async () => {
+      const bookings = await this.api.get(`/api/admin/classes/${classId}/bookings`);
+      if (!bookings.ok()) {
+        return bookings;
+      }
+
+      const rows = (await bookings.json()) as {
+        bookingId: string;
+        memberId: string;
+        attendance: string | null;
+      }[];
+      const absence = rows.find((row) => row.memberId === memberId && row.attendance === 'makeup');
+      if (absence) {
+        return this.api.put(`/api/makeups/${absence.bookingId}/closed`);
+      }
+    });
+  }
+
+  /**
    * A library exercise, retired (deactivated) in cleanup - exercises cannot be deleted, and a plan
    * that prescribes one still reads after it is retired. Give it a unique `E2E …` name: names are
    * unique among active exercises.
