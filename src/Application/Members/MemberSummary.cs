@@ -35,6 +35,13 @@ namespace po_prostu_silka.Application.Members;
 /// pass and a pass that starts next week answer the same question the column asks: "may they train
 /// today". Entries left is derived from bookings, exactly as on the pass screen.
 /// </para>
+///
+/// <para>
+/// <see cref="HasUnpaidPass"/> IS THE EXCEPTION: ANY KARNET, NOT TODAY'S (pass-paid-flag). A debt
+/// outlives the karnet's validity — a month that expired unpaid is still owed, as the club's spreadsheet
+/// "BRAK PŁATNOŚCI" has it — so the marker and the <c>unpaid</c> filter look at every karnet the member
+/// holds.
+/// </para>
 /// </summary>
 public record MemberSummary(
     Guid Id,
@@ -47,4 +54,5 @@ public record MemberSummary(
     bool HasAccessCode,
     DateTimeOffset CreatedAt,
     DateOnly? PassValidTo,
-    int? PassEntriesLeft);
+    int? PassEntriesLeft,
+    bool HasUnpaidPass);

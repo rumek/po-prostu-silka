@@ -38,6 +38,7 @@ public interface IMemberQuery
         MemberListFilter? filter,
         MemberRoleFilter? role,
         string? search,
+        bool unpaidOnly,
         int page,
         int pageSize,
         CancellationToken cancellationToken);

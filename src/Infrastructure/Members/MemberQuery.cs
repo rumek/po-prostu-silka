@@ -56,11 +56,19 @@ public class MemberQuery(AppDbContext db, TimeProvider timeProvider) : IMemberQu
         MemberListFilter? filter,
         MemberRoleFilter? role,
         string? search,
+        bool unpaidOnly,
         int page,
         int pageSize,
         CancellationToken cancellationToken)
     {
         var members = Searched(WithRole(Filtered(db.Members.AsNoTracking(), filter), role), search);
+
+        // pass-paid-flag. ORTHOGONAL to the status filter rather than a fifth MemberListFilter value, so
+        // "active and unpaid" is expressible; applied before the count, so total and paging reflect it.
+        if (unpaidOnly)
+        {
+            members = members.Where(m => db.MembershipPasses.Any(p => p.MemberId == m.Id && p.PaidAt == null));
+        }
 
         // Club-local, as MembershipPassQuery reads it: "valid today" is a question about the gym's
         // calendar, not the UTC date.
@@ -108,6 +116,9 @@ public class MemberQuery(AppDbContext db, TimeProvider timeProvider) : IMemberQu
                         .Count(b => b.MembershipPassId == p.Id)))
                     .FirstOrDefault(),
 
+                // ANY karnet, not today's - see MemberSummary.HasUnpaidPass.
+                HasUnpaidPass = db.MembershipPasses.Any(p => p.MemberId == m.Id && p.PaidAt == null),
+
                 // Roles come back as a correlated collection projection. What this buys is ONE
                 // round-trip: under EF's default SingleQuery behaviour the whole thing is a single
                 // statement. It does NOT avoid a join or a client-side regroup - EF emits a LEFT JOIN
@@ -137,7 +148,8 @@ public class MemberQuery(AppDbContext db, TimeProvider timeProvider) : IMemberQu
                 r.HasAccessCode,
                 r.CreatedAt,
                 r.PassValidTo,
-                r.PassEntriesLeft))
+                r.PassEntriesLeft,
+                r.HasUnpaidPass))
             .ToList();
 
         return new PagedResult<MemberSummary>(items, total, page, pageSize);

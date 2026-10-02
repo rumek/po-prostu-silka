@@ -33,7 +33,8 @@ public class MemberEndpointTests(IntegrationTestFixture fixture)
         bool HasAccessCode,
         DateTimeOffset CreatedAt,
         DateOnly? PassValidTo = null,
-        int? PassEntriesLeft = null);
+        int? PassEntriesLeft = null,
+        bool HasUnpaidPass = false);
 
     private sealed record MemberDetailBody(
         Guid Id,
@@ -601,6 +602,69 @@ public class MemberEndpointTests(IntegrationTestFixture fixture)
             Assert.Null(r.PassEntriesLeft);
         });
         Assert.Equal(2, rows.Count(r => r.Id == expired || r.Id == none));
+    }
+
+    /// <summary>
+    /// "Nieopłacony" means ANY unpaid karnet (pass-paid-flag): a month that expired unpaid beside a
+    /// paid current one still marks the member — the debt outlives the validity.
+    /// </summary>
+    [Fact]
+    public async Task The_list_marks_a_member_with_any_unpaid_karnet()
+    {
+        var admin = await AdminAsync();
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var marker = $"Dług {Guid.NewGuid():N}";
+
+        var owing = await fixture.CreateMemberAsync($"{marker} A");
+        await fixture.IssuePassAsync(owing, validFrom: today.AddDays(-60), validTo: today.AddDays(-31));
+        await fixture.IssuePassAsync(owing, validFrom: today.AddDays(-30), validTo: today.AddDays(10), paidAt: today);
+
+        var settled = await fixture.CreateMemberAsync($"{marker} B");
+        await fixture.IssuePassAsync(settled, validFrom: today.AddDays(-30), validTo: today.AddDays(10), paidAt: today);
+
+        var none = await fixture.CreateMemberAsync($"{marker} C");
+
+        var rows = await ListAsync(admin, $"search={Uri.EscapeDataString(marker)}");
+
+        Assert.True(rows.Single(r => r.Id == owing).HasUnpaidPass);
+        Assert.False(rows.Single(r => r.Id == settled).HasUnpaidPass);
+        Assert.False(rows.Single(r => r.Id == none).HasUnpaidPass);
+    }
+
+    /// <summary>
+    /// The unpaid filter is ORTHOGONAL to the status filter: "active and unpaid" is expressible, and the
+    /// total counts the filtered set.
+    /// </summary>
+    [Fact]
+    public async Task The_unpaid_filter_combines_with_the_status_filter()
+    {
+        var admin = await AdminAsync();
+        var marker = $"Filtr {Guid.NewGuid():N}";
+
+        var activeOwing = await fixture.CreateMemberAsync($"{marker} A");
+        await fixture.IssuePassAsync(activeOwing);
+
+        var blockedOwing = await fixture.CreateMemberAsync($"{marker} B");
+        await fixture.IssuePassAsync(blockedOwing);
+        Assert.Equal(HttpStatusCode.OK, (await admin.PostAsync($"{Endpoint}/{blockedOwing}/block", null)).StatusCode);
+
+        var activePaid = await fixture.CreateMemberAsync($"{marker} C");
+        await fixture.IssuePassAsync(activePaid, paidAt: DateOnly.FromDateTime(DateTime.UtcNow).AddDays(-1));
+
+        var search = $"search={Uri.EscapeDataString(marker)}";
+
+        var unpaid = await admin.GetFromJsonAsync<MemberPageBody<MemberSummaryBody>>($"{Endpoint}?{search}&unpaid=true");
+        Assert.Equal(2, unpaid!.Total);
+        Assert.Equal(
+            new HashSet<Guid> { activeOwing, blockedOwing },
+            unpaid.Items.Select(r => r.Id).ToHashSet());
+
+        var activeUnpaid = await admin.GetFromJsonAsync<MemberPageBody<MemberSummaryBody>>($"{Endpoint}?{search}&unpaid=true&filter=Active");
+        Assert.Equal(activeOwing, Assert.Single(activeUnpaid!.Items).Id);
+        Assert.Equal(1, activeUnpaid.Total);
+
+        var everyone = await admin.GetFromJsonAsync<MemberPageBody<MemberSummaryBody>>($"{Endpoint}?{search}");
+        Assert.Equal(3, everyone!.Total);
     }
 
     private static async Task<List<MemberSummaryBody>> ListAsync(HttpClient admin, string query) =>

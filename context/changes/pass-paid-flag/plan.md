@@ -620,10 +620,10 @@ them.
 
 #### Automated
 
-- [x] 1.1 Solution builds without warnings
-- [x] 1.2 Migration is generated and its Down drops both columns
-- [x] 1.3 Backend tests pass
-- [x] 1.4 The migration applies against the local DB and /health is healthy
+- [x] 1.1 Solution builds without warnings — 353681b
+- [x] 1.2 Migration is generated and its Down drops both columns — 353681b
+- [x] 1.3 Backend tests pass — 353681b
+- [x] 1.4 The migration applies against the local DB and /health is healthy — 353681b
 
 #### Manual
 
@@ -634,8 +634,8 @@ them.
 
 #### Automated
 
-- [ ] 2.1 Solution builds without warnings
-- [ ] 2.2 Backend tests pass
+- [x] 2.1 Solution builds without warnings
+- [x] 2.2 Backend tests pass
 
 #### Manual
 

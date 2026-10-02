@@ -26,7 +26,10 @@ namespace po_prostu_silka.Tests;
 public class TrainerMemberEndpointTests(IntegrationTestFixture fixture)
 {
     /// <summary>Mirrors TrainerMemberSummary.</summary>
-    private sealed record TrainerMemberRow(Guid Id, string DisplayName, bool HasAccount, string? PlanName);
+    private sealed record TrainerMemberRow(Guid Id, string DisplayName, bool HasAccount, string? PlanName, bool HasUnpaidPass);
+
+    /// <summary>Mirrors TrainerMemberPasses.</summary>
+    private sealed record MemberPassesBody(Guid MemberId, string DisplayName, List<MembershipPassView> Passes);
 
     /// <summary>Mirrors AssignableMember.</summary>
     private sealed record MemberBody(Guid Id, string DisplayName, bool HasAccount);
@@ -84,6 +87,7 @@ public class TrainerMemberEndpointTests(IntegrationTestFixture fixture)
     {
         Endpoint,
         $"{Endpoint}/{Guid.Empty}/plan",
+        $"{Endpoint}/{Guid.Empty}/passes",
     };
 
     [Theory]
@@ -398,5 +402,82 @@ public class TrainerMemberEndpointTests(IntegrationTestFixture fixture)
         var response = await trainer.GetAsync($"{Endpoint}/{Guid.NewGuid()}/plan");
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    // --- karnets (pass-paid-flag) -------------------------------------------------
+
+    /// <summary>
+    /// "Unpaid" means ANY karnet: an expired unpaid month beside a paid current one still marks the row.
+    /// </summary>
+    [Fact]
+    public async Task A_row_is_marked_unpaid_when_any_karnet_is_unpaid()
+    {
+        var marker = NewMarker();
+        var owing = await fixture.CreateMemberAsync($"Dłużnik {marker}");
+        var settled = await fixture.CreateMemberAsync($"Rozliczony {marker}");
+        var today = DateOnly.FromDateTime(po_prostu_silka.Domain.Scheduling.ClubTime.ToClubLocal(DateTimeOffset.UtcNow).DateTime);
+
+        await fixture.IssuePassAsync(owing, validFrom: today.AddDays(-60), validTo: today.AddDays(-31));
+        await fixture.IssuePassAsync(owing, validFrom: today.AddDays(-30), validTo: today.AddDays(10), paidAt: today);
+        await fixture.IssuePassAsync(settled, validFrom: today.AddDays(-30), validTo: today.AddDays(10), paidAt: today);
+
+        var page = await PageAsync(await TrainerAsync(), Search(marker));
+
+        Assert.True(page.Items.Single(r => r.Id == owing).HasUnpaidPass);
+        Assert.False(page.Items.Single(r => r.Id == settled).HasUnpaidPass);
+    }
+
+    [Theory]
+    [InlineData(TestUsers.ActiveTrainerEmail)]
+    [InlineData(TestUsers.ActiveAdminEmail)]
+    public async Task Trainer_and_admin_read_a_members_karnets_with_payment(string email)
+    {
+        var memberId = await fixture.CreateMemberAsync($"Karnety {NewMarker()}");
+        var today = DateOnly.FromDateTime(po_prostu_silka.Domain.Scheduling.ClubTime.ToClubLocal(DateTimeOffset.UtcNow).DateTime);
+        await fixture.IssuePassAsync(memberId, validFrom: today.AddDays(-60), validTo: today.AddDays(-31));
+        await fixture.IssuePassAsync(memberId, validFrom: today.AddDays(-30), validTo: today.AddDays(10), paidAt: today);
+
+        var client = await fixture.CreateAuthenticatedClientAsync(email);
+        var body = (await client.GetFromJsonAsync<MemberPassesBody>($"{Endpoint}/{memberId}/passes"))!;
+
+        Assert.Equal(memberId, body.MemberId);
+        Assert.StartsWith("Karnety", body.DisplayName);
+        Assert.Equal(2, body.Passes.Count);
+        Assert.Equal(today, body.Passes[0].PaidAt);
+        Assert.Null(body.Passes[1].PaidAt);
+    }
+
+    /// <summary>Staff hold no karnet (S-25): from a trainer screen they do not exist.</summary>
+    [Fact]
+    public async Task A_staff_members_karnets_are_404()
+    {
+        var admin = await AdminAsync();
+        var staffId = await fixture.FindMemberIdAsync(admin, TestUsers.ActiveTrainerEmail);
+
+        var response = await (await TrainerAsync()).GetAsync($"{Endpoint}/{staffId}/passes");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task An_unknown_members_karnets_are_404()
+    {
+        var response = await (await TrainerAsync()).GetAsync($"{Endpoint}/{Guid.NewGuid()}/passes");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    /// <summary>A blocked member's payment may still be recorded, so their karnets stay readable.</summary>
+    [Fact]
+    public async Task A_blocked_members_karnets_are_readable_by_a_trainer()
+    {
+        var memberId = await fixture.CreateMemberAsync($"Zablokowany z karnetem {NewMarker()}");
+        await fixture.IssuePassAsync(memberId);
+        var blocked = await (await AdminAsync()).PostAsync($"/api/admin/members/{memberId}/block", null);
+        Assert.Equal(HttpStatusCode.OK, blocked.StatusCode);
+
+        var response = await (await TrainerAsync()).GetAsync($"{Endpoint}/{memberId}/passes");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 }

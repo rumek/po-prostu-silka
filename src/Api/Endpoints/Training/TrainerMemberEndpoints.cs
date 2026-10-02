@@ -39,6 +39,10 @@ public static class TrainerMemberEndpoints
         members.MapGet("/", GetTrainerMembers.HandleAsync);
         members.MapGet("/{memberId:guid}/plan", GetMemberPlan.HandleAsync);
 
+        // pass-paid-flag: the karnets behind the trainer's "Karnety" screen. Read-only — the one write
+        // a trainer has on a karnet is PUT /api/passes/{id}/paid.
+        members.MapGet("/{memberId:guid}/passes", GetTrainerMemberPasses.HandleAsync);
+
         return app;
     }
 }

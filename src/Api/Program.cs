@@ -427,6 +427,7 @@ app.MapPushEndpoints();
 app.MapMemberAdminEndpoints();
 app.MapMembershipPassEndpoints();
 app.MapMyPassEndpoints();
+app.MapPassPaymentEndpoints();
 app.MapTrainerEndpoints();
 app.MapClassEndpoints();
 app.MapClassGroupEndpoints();
