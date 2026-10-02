@@ -15,10 +15,22 @@ import { groupByMonth } from '../../shared/class-date/class-date';
 /** The word and glyph for each outcome. The word carries the meaning; colour and glyph repeat it. */
 export const OUTCOME_LABELS: Record<AttendanceOutcome, { word: string; icon: IconName }> = {
   present: { word: 'Obecny', icon: 'present' },
+  // S-36: "odrobi" is owed a class, so it reads as what the member can still do, not as a verdict.
+  makeup: { word: 'Do odrobienia', icon: 'repeat' },
+  forfeited: { word: 'Nieobecny', icon: 'absent' },
+  // The legacy mark (before S-36) reads exactly as "przepada" did to the member: they did not come.
   absent: { word: 'Nieobecny', icon: 'absent' },
   unrecorded: { word: 'Nie odnotowano', icon: 'unrecorded' },
   cancelled: { word: 'Odwołane', icon: 'cancelled' },
 };
+
+/** The outcomes that are a yes or a no — the ones that get a dot and count in the month's tally. */
+const MARKED: ReadonlySet<AttendanceOutcome> = new Set([
+  'present',
+  'makeup',
+  'forfeited',
+  'absent',
+]);
 
 export interface HistoryMonth {
   key: string;
@@ -28,7 +40,9 @@ export interface HistoryMonth {
   /** Classes the member came to. */
   attended: number;
 
-  /** Classes that count: present or absent. Cancelled and unrecorded are neither a yes nor a no. */
+  /**
+   * Classes that count: present or any absence. Cancelled and unrecorded are neither a yes nor a no.
+   */
   counted: number;
 }
 
@@ -62,6 +76,7 @@ export class AttendanceHistory implements OnInit {
   private readonly bookings = inject(BookingService);
 
   protected readonly labels = OUTCOME_LABELS;
+  protected readonly marked = MARKED;
 
   protected readonly items = signal<MyAttendanceEntry[]>([]);
   protected readonly earlierBefore = signal<string | null>(null);
@@ -80,7 +95,7 @@ export class AttendanceHistory implements OnInit {
       key: group.key,
       heading: group.heading,
       entries: group.items,
-      counted: group.items.filter((e) => e.outcome === 'present' || e.outcome === 'absent').length,
+      counted: group.items.filter((e) => MARKED.has(e.outcome)).length,
       attended: group.items.filter((e) => e.outcome === 'present').length,
     })),
   );

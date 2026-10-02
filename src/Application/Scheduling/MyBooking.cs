@@ -32,4 +32,5 @@ public record MyBooking(
     DateTimeOffset StartsAt,
     int DurationMinutes,
     string Instructor,
-    DateTimeOffset BookedAt);
+    DateTimeOffset BookedAt,
+    bool IsMakeup);

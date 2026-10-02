@@ -17,6 +17,20 @@
       </div>
     }
   }
+
+  <!-- S-36: what the member is owed. Its own block, because it holds with no class ahead too; the
+       staff book the makeup, so this only says how many and by when. -->
+  @if (makeups(); as owed) {
+    @if (owed.count > 0 && owed.nearestDeadline) {
+      <div class="hero-panel">
+        <p class="hero-panel-title">Do odrobienia: {{ owed.count }}</p>
+        <p class="hero-panel-meta">
+          <app-icon name="repeat" />
+          <span>Najbliższy termin: {{ deadline(owed.nearestDeadline) }}</span>
+        </p>
+      </div>
+    }
+  }
 </header>
 
 <!-- Two tabs (S-27). The tab is in the URL, so a reload keeps it; switching replaces the history
@@ -101,6 +115,7 @@
                     [startsAt]="row.startsAt"
                     [durationMinutes]="row.durationMinutes"
                     [instructor]="row.instructor"
+                    [makeup]="row.isMakeup"
                   />
                 </li>
               }

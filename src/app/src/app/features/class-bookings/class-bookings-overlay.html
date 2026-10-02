@@ -51,7 +51,12 @@
              It is ticked off at the side of a mat, a phone in one hand, so the booking time — which
              nobody needs once the class has started — goes, and the address shrinks to one line. -->
           <li appRow class="bookings-row" [class.bookings-row--attendance]="marking()">
-            <p class="row-name">{{ booking.displayName }}</p>
+            <p class="row-name">
+              {{ booking.displayName }}
+              @if (booking.isMakeup) {
+                <span class="chip bookings-makeup">Odrabianie</span>
+              }
+            </p>
             <p class="row-meta">{{ booking.email }}</p>
             @if (!marking()) {
               <p class="row-meta">Zapis: {{ booking.bookedAt | date: 'd MMMM, HH:mm' }}</p>
@@ -60,54 +65,44 @@
             @if (cancelled()) {
               <!-- A cancelled class: a read-only list. Nothing to release, nobody to mark. -->
             } @else if (started()) {
-              <!-- Two real buttons with aria-pressed rather than a radio pair: "neither" is a legal
-                 state (not recorded yet), which a radio group cannot show without a third option.
-                 Icon only on screen, so the pair fits beside the name on a phone; the word stays in
-                 the accessibility tree and in the tooltip, and the two glyphs differ in shape, so the
-                 state never rests on colour alone. -->
+              <!-- Real buttons with aria-pressed rather than a radio group: "none" is a legal state
+                 (not recorded yet), which a radio group cannot show without a fourth option. Icon
+                 only on screen, so the three fit beside the name on a phone; the word stays in the
+                 accessibility tree and in the tooltip, and the glyphs differ in shape, so the state
+                 never rests on colour alone. A makeup row offers two: a makeup is one attempt. -->
               <div
                 slot="actions"
                 class="attendance-toggle"
                 role="group"
                 [attr.aria-label]="'Obecność: ' + booking.displayName"
               >
-                <button
-                  type="button"
-                  class="attendance-option attendance-option--present"
-                  [attr.aria-pressed]="booking.attendance === 'present'"
-                  [disabled]="busy.isBusy(booking.bookingId)"
-                  [attr.aria-busy]="pendingMark().get(booking.bookingId) === 'present' || null"
-                  (click)="mark(booking, 'present')"
-                  title="Obecny"
-                >
-                  <!-- The tapped option spins until the server answers; the word stays for a
-                     screen reader, and aria-busy tells it the mark is on its way. -->
-                  @if (pendingMark().get(booking.bookingId) === 'present') {
-                    <span class="attendance-spinner" aria-hidden="true"></span>
-                  } @else {
-                    <app-icon name="present" />
-                  }
-                  <span class="cdk-visually-hidden">Obecny</span>
-                </button>
-                <button
-                  type="button"
-                  class="attendance-option attendance-option--absent"
-                  [attr.aria-pressed]="booking.attendance === 'absent'"
-                  [disabled]="busy.isBusy(booking.bookingId)"
-                  [attr.aria-busy]="pendingMark().get(booking.bookingId) === 'absent' || null"
-                  (click)="mark(booking, 'absent')"
-                  title="Nieobecny"
-                >
-                  <!-- The tapped option spins until the server answers; the word stays for a
-                     screen reader, and aria-busy tells it the mark is on its way. -->
-                  @if (pendingMark().get(booking.bookingId) === 'absent') {
-                    <span class="attendance-spinner" aria-hidden="true"></span>
-                  } @else {
-                    <app-icon name="absent" />
-                  }
-                  <span class="cdk-visually-hidden">Nieobecny</span>
-                </button>
+                @for (option of optionsFor(booking); track option.value) {
+                  <button
+                    type="button"
+                    [class]="'attendance-option attendance-option--' + option.value"
+                    [attr.aria-pressed]="booking.attendance === option.value"
+                    [disabled]="busy.isBusy(booking.bookingId)"
+                    [attr.aria-busy]="pendingMark().get(booking.bookingId) === option.value || null"
+                    (click)="mark(booking, option.value)"
+                    [title]="option.word"
+                  >
+                    <!-- The tapped option spins until the server answers; the word stays for a
+                       screen reader, and aria-busy tells it the mark is on its way. -->
+                    @if (pendingMark().get(booking.bookingId) === option.value) {
+                      <span class="attendance-spinner" aria-hidden="true"></span>
+                    } @else {
+                      <app-icon [name]="option.icon" />
+                    }
+                    <span class="cdk-visually-hidden">{{ option.word }}</span>
+                  </button>
+                }
               </div>
+
+              <!-- A mark recorded before S-36: the one absence that returned its entry. None of the
+                 three buttons is pressed; tapping one re-marks it under today's rule. -->
+              @if (booking.attendance === 'absent') {
+                <p slot="foot" class="row-meta">Nieobecny — wejście zwrócone</p>
+              }
             } @else {
               <button
                 slot="actions"
@@ -212,8 +207,8 @@
   @if (started() && !cancelled() && !loading() && !loadFailed() && rows().length > 0) {
     <div class="overlay-actions attendance-foot">
       <p class="attendance-tally">
-        Obecni: {{ tally().present }} · Nieobecni: {{ tally().absent }} · Nieoznaczeni:
-        {{ tally().unrecorded }}
+        Obecni: {{ tally().present }} · Odrobią: {{ tally().makeup }} · Przepada:
+        {{ tally().forfeited }} · Nieoznaczeni: {{ tally().unrecorded }}
       </p>
 
       <!-- Marks every row present, absences included; whoever did not come is flipped back by hand.

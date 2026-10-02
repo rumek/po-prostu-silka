@@ -17,6 +17,7 @@ function entry(over: Partial<MyAttendanceEntry> = {}): MyAttendanceEntry {
     durationMinutes: 60,
     instructor: over.instructor ?? 'Ola',
     outcome: over.outcome ?? 'present',
+    isMakeup: over.isMakeup ?? false,
   };
 }
 
@@ -130,6 +131,25 @@ describe('AttendanceHistory', () => {
     expect(rows[2].querySelector('.outcome-word')).toBeNull();
     expect(rows[3].querySelector('.outcome-word')!.textContent?.trim()).toBe('Odwołane');
     expect(rows[3].querySelector('.booked-class-struck')!.textContent).toContain('Joga');
+  });
+
+  it('dots the two new absences and labels a makeup class (S-36)', async () => {
+    await respond(
+      page({
+        items: [
+          entry({ bookingId: 'b1', outcome: 'makeup' }),
+          entry({ bookingId: 'b2', outcome: 'forfeited' }),
+          entry({ bookingId: 'b3', outcome: 'present', isMakeup: true }),
+        ],
+      }),
+    );
+
+    const rows = [...element().querySelectorAll<HTMLElement>('li.row')];
+    const titles = rows.map((row) => row.querySelector<HTMLElement>('.outcome')?.title ?? null);
+
+    expect(titles).toEqual(['Do odrobienia', 'Nieobecny', 'Obecny']);
+    expect(rows[2].textContent).toContain('Odrabianie');
+    expect(rows[0].textContent).not.toContain('Odrabianie');
   });
 
   it('keeps the same date line and time as the upcoming tab, with no end time', async () => {

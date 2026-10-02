@@ -46,7 +46,9 @@ public class BookingQuery(AppDbContext db) : IBookingQuery
                 b.Class.StartsAt,
                 b.Class.DurationMinutes,
                 b.Class.Instructor!.DisplayName,
-                b.CreatedAt))
+                b.CreatedAt,
+                // S-36: an upcoming makeup says so, so the member knows this one is the free one.
+                b.MakeupForBookingId != null))
             .ToListAsync(cancellationToken);
 
     public async Task<IReadOnlyList<ClassBooking>> GetForClassAsync(

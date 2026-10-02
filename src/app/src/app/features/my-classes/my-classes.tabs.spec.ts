@@ -32,7 +32,13 @@ describe('MyClasses — tabs', () => {
     await settle();
   }
 
-  afterEach(() => controller.verify());
+  afterEach(() => {
+    // The makeup hint's own load (S-36) — not what these tests are about.
+    for (const request of controller.match('/api/makeups/mine')) {
+      request.flush({ count: 0, nearestDeadline: null });
+    }
+    controller.verify();
+  });
 
   async function settle(): Promise<void> {
     await harness.fixture.whenStable();

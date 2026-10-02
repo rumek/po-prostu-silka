@@ -38,6 +38,9 @@ import { CLOCK, ClassDate } from './class-date';
           <app-icon name="person" />
           <span>{{ instructor() }}</span>
         </p>
+        @if (makeup()) {
+          <span class="chip">Odrabianie</span>
+        }
       </div>
 
       <ng-content />
@@ -60,6 +63,9 @@ export class BookedClass {
 
   /** A cancelled class, crossed out; the caller says why next to it. */
   readonly struck = input(false);
+
+  /** The free makeup of an earlier absence (S-36): a quiet "Odrabianie" under the instructor. */
+  readonly makeup = input(false);
 
   protected readonly start = computed(() => CLOCK.format(new Date(this.startsAt())));
 

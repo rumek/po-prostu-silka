@@ -669,8 +669,8 @@ nothing". It follows `src/app/e2e/CLAUDE.md`: PHONE, role locators, `club` build
 
 #### Automated
 
-- [x] 2.1 MakeupEndpointTests pass
-- [x] 2.2 EndpointAuthorizationTests pass with the new routes
+- [x] 2.1 MakeupEndpointTests pass — 5532dd4
+- [x] 2.2 EndpointAuthorizationTests pass with the new routes — 5532dd4
 
 #### Manual
 
@@ -680,8 +680,8 @@ nothing". It follows `src/app/e2e/CLAUDE.md`: PHONE, role locators, `club` build
 
 #### Automated
 
-- [ ] 3.1 SPA specs pass (roster, history, my-classes, nineteen failure unions)
-- [ ] 3.2 quality:check passes
+- [x] 3.1 SPA specs pass (roster, history, my-classes, nineteen failure unions)
+- [x] 3.2 quality:check passes
 
 #### Manual
 

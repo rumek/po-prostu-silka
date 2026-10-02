@@ -47,9 +47,16 @@
   color: var(--success);
 }
 
-.outcome--absent {
+.outcome--absent,
+.outcome--forfeited {
   background: var(--danger-bg);
   color: var(--danger);
+}
+
+// "Do odrobienia" (S-36): owed a class, not a verdict — the accent, as on the staff roster.
+.outcome--makeup {
+  background: var(--section-warm);
+  color: var(--accent);
 }
 
 .history-month-tally {

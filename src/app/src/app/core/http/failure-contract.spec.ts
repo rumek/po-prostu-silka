@@ -30,6 +30,8 @@ import { bookingFailureMessage } from '../scheduling/booking-failure';
 import { BOOKING_FAILURE_REASONS } from '../scheduling/booking.models';
 import { classFailureMessage } from '../scheduling/class-failure';
 import { classGroupFailureMessage } from '../scheduling/class-group-failure';
+import { makeupFailureMessage } from '../scheduling/makeup-failure';
+import { MAKEUP_FAILURE_REASONS } from '../scheduling/makeup.models';
 import { CLASS_GROUP_FAILURE_REASONS } from '../scheduling/class-group.models';
 import { CLASS_FAILURE_REASONS, SCHEDULE_READ_FAILURE_REASONS } from '../scheduling/class.models';
 import { scheduleReadFailureMessage } from '../scheduling/schedule-read-failure';
@@ -164,6 +166,11 @@ const UNIONS: readonly UnionUnderContract[] = [
     reasons: MEMBER_LIST_FAILURE_REASONS,
     message: memberListFailureMessage,
   },
+  {
+    name: 'MakeupFailure',
+    reasons: MAKEUP_FAILURE_REASONS,
+    message: makeupFailureMessage,
+  },
 ];
 
 describe('the failure-message contract', () => {
@@ -172,9 +179,9 @@ describe('the failure-message contract', () => {
    * would otherwise slip through silently — which is the exact failure mode this whole spec exists
    * to stop, one level up.
    */
-  it('covers all eighteen failure unions', () => {
-    expect(UNIONS).toHaveLength(18);
-    expect(new Set(UNIONS.map((union) => union.name)).size).toBe(18);
+  it('covers all nineteen failure unions', () => {
+    expect(UNIONS).toHaveLength(19);
+    expect(new Set(UNIONS.map((union) => union.name)).size).toBe(19);
   });
 
   describe.each(UNIONS.map((union) => [union.name, union] as const))('%s', (_name, union) => {
