@@ -64,4 +64,19 @@ public class MembershipPassStore(AppDbContext db) : IMembershipPassStore
     }
 
     public void Remove(MembershipPass pass) => db.MembershipPasses.Remove(pass);
+
+    public async Task<bool> SetPaymentAsync(
+        Guid passId,
+        DateOnly? paidAt,
+        string? recordedBy,
+        CancellationToken cancellationToken) =>
+        await db.MembershipPasses
+            .Where(x => x.Id == passId)
+            // Bypasses the change tracker, so the concurrency token is not in the WHERE - see the
+            // interface for why that is the point.
+            .ExecuteUpdateAsync(
+                s => s
+                    .SetProperty(x => x.PaidAt, paidAt)
+                    .SetProperty(x => x.PaidRecordedBy, recordedBy),
+                cancellationToken) > 0;
 }

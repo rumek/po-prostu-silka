@@ -136,10 +136,11 @@ public class PassPaymentEndpointTests(IntegrationTestFixture fixture)
 
     /// <summary>
     /// A member granted Trainer after holding a karnet keeps it, but staff hold no member data — so the
-    /// payment write refuses it, as issuing does.
+    /// payment write refuses it. A 404, like the trainer's read: a pass id must not reveal that its
+    /// holder is staff.
     /// </summary>
     [Fact]
-    public async Task A_staff_holders_karnet_is_refused()
+    public async Task A_staff_holders_karnet_is_not_found()
     {
         var admin = await fixture.CreateAuthenticatedClientAsync(TestUsers.ActiveAdminEmail);
         var staffId = await fixture.FindMemberIdAsync(admin, TestUsers.ActiveTrainerEmail);
@@ -147,8 +148,8 @@ public class PassPaymentEndpointTests(IntegrationTestFixture fixture)
 
         var response = await admin.PutAsJsonAsync(Route(passId), new { paidAt = ClubToday() });
 
-        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
-        Assert.Equal("member_is_staff", await ReasonAsync(response));
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Null((await PassRowAsync(passId)).PaidAt);
     }
 
     /// <summary>Payment is about money, not access: a blocked member's debt can still be settled.</summary>

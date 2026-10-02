@@ -143,6 +143,9 @@ describe('TrainerMemberPasses', () => {
     await settle();
 
     expect(element().textContent).toContain('Nieopłacony');
+    // The cleared day is said once, so it can be re-entered: nothing else keeps it.
+    // Locale-agnostic: the app formats in 'pl', the spec runs with the default locale.
+    expect(toasts.toasts().at(-1)?.message).toMatch(/^Cofnięto płatność z 1 \S+ 2026\.$/);
   });
 
   /** Unknown member or staff: nothing behind it to read, so a screen state, never a toast. */

@@ -182,7 +182,7 @@
             }
             @if (member.hasUnpaidPass) {
               <span class="fact-line">
-                <span class="badge badge-unpaid">Nieopłacony</span>
+                <app-pass-payment-status [paidAt]="null" />
               </span>
             }
             <span class="fact-line">
@@ -213,7 +213,7 @@
               }
             }
             @if (member.hasUnpaidPass) {
-              <span class="badge badge-unpaid">Nieopłacony</span>
+              <app-pass-payment-status [paidAt]="null" />
             }
           </td>
           <td class="members-cell-since" role="cell">{{ member.createdAt | date: 'd MMM y' }}</td>

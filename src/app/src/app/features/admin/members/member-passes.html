@@ -203,13 +203,13 @@
               <button
                 type="button"
                 class="link-button"
-                [disabled]="paymentRows.isBusy(pass.id)"
-                (click)="clearPaid(pass)"
+                [disabled]="payment.rows.isBusy(pass.id)"
+                (click)="payment.clearPaid(pass)"
               >
-                {{ paymentRows.isBusy(pass.id) ? 'Cofam…' : 'Cofnij płatność' }}
+                {{ payment.rows.isBusy(pass.id) ? 'Cofam…' : 'Cofnij płatność' }}
               </button>
             } @else {
-              <button type="button" class="button button--secondary" (click)="openPayment(pass)">
+              <button type="button" class="button button--secondary" (click)="payment.open(pass)">
                 Oznacz jako opłacony
               </button>
             }
@@ -237,12 +237,12 @@
   }
 </section>
 
-@if (paying(); as pass) {
+@if (payment.paying(); as pass) {
   <app-pass-payment-overlay
     [pass]="pass"
-    [busy]="paymentBusy()"
-    [failure]="paymentFailure()"
-    (confirmed)="markPaid($event)"
-    (closed)="closePayment()"
+    [busy]="payment.busy()"
+    [failure]="payment.failure()"
+    (confirmed)="payment.markPaid($event)"
+    (closed)="payment.close()"
   />
 }

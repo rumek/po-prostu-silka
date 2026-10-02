@@ -57,7 +57,7 @@
           }
           <!-- pass-paid-flag: ANY unpaid karnet, not just today's — "Karnety" is where to settle it. -->
           @if (member.hasUnpaidPass) {
-            <span class="badge trainer-members-unpaid">Nieopłacony</span>
+            <app-pass-payment-status class="trainer-members-unpaid" [paidAt]="null" />
           }
         </p>
 

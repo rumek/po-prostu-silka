@@ -1,6 +1,5 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
-using po_prostu_silka.Application.Persistence;
 
 namespace po_prostu_silka.Application.Members;
 
@@ -16,15 +15,18 @@ namespace po_prostu_silka.Application.Members;
 ///
 /// <para>
 /// A BLOCKED MEMBER IS ALLOWED, unlike <see cref="IssuePass"/>. Payment is a fact about money, not
-/// about access: settling a debt after the account was blocked is an ordinary thing to record. STAFF
-/// ARE REFUSED (<c>member_is_staff</c>), because staff hold no member data (S-25) — the same rule the
-/// issue path applies.
+/// about access: settling a debt after the account was blocked is an ordinary thing to record. A STAFF
+/// HOLDER'S KARNET IS A 404, because staff hold no member data (S-25). It is a 404 rather than the issue
+/// path's 409 <c>member_is_staff</c> so that, as with the trainer's read of a member's karnets, staff
+/// "do not exist" from a trainer screen, and a pass id cannot be probed for whose it is.
 /// </para>
 ///
 /// <para>
-/// NO STAMP IS ROTATED. <c>MembershipPass.ConcurrencyStamp</c> guards the entry pool, which payment does
-/// not touch; rotating it would make this write race a concurrent booking for nothing. Concurrent
-/// payment writes are last-writer-wins, and since the value is explicit they converge.
+/// NO STAMP IS ROTATED OR CHECKED. <c>MembershipPass.ConcurrencyStamp</c> guards the entry pool, which
+/// payment does not touch. A tracked save would still put the stamp in its WHERE clause and lose to a
+/// booking landing at the same moment, so the write goes through
+/// <see cref="IMembershipPassStore.SetPaymentAsync"/>, which updates the two payment columns alone.
+/// Concurrent payment writes are last-writer-wins, and since the value is explicit they converge.
 /// </para>
 /// </summary>
 public static class SetPassPaid
@@ -35,7 +37,6 @@ public static class SetPassPaid
         IMemberStore members,
         IMembershipPassStore passes,
         IMembershipPassQuery query,
-        IUnitOfWork unitOfWork,
         TimeProvider timeProvider,
         ClaimsPrincipal principal,
         CancellationToken cancellationToken)
@@ -53,18 +54,22 @@ public static class SetPassPaid
 
         if (await members.IsStaffAsync(pass.MemberId, cancellationToken))
         {
-            return Results.Json(new MembershipPassFailure("member_is_staff"), statusCode: 409);
+            return Results.NotFound();
         }
 
         // Written even when the value does not change: the request is an assertion, and the recorder is
         // whoever made the latest one. Clearing records its author too, so an undo is attributable.
-        pass.PaidAt = request.PaidAt;
-        pass.PaidRecordedBy = principal.FindFirstValue(ClaimTypes.NameIdentifier);
-
-        if (!await unitOfWork.TrySaveChangesAsync(cancellationToken))
+        var recordedBy = principal.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!await passes.SetPaymentAsync(passId, request.PaidAt, recordedBy, cancellationToken))
         {
-            return Results.Json(new MembershipPassFailure("conflict"), statusCode: 409);
+            // Revoked between the read above and the write.
+            return Results.NotFound();
         }
+
+        // Mirrors the committed values onto the instance for the response only. Nothing in this request
+        // saves the unit of work, so the tracked entity is never written back.
+        pass.PaidAt = request.PaidAt;
+        pass.PaidRecordedBy = recordedBy;
 
         var used = await MembershipPassProjection.EntriesUsedAsync(query, pass.MemberId, passId, cancellationToken);
 

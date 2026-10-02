@@ -193,6 +193,10 @@ constructions set it — missing one is the PASS-08 inconsistency.
 paidAt = null)` on the fixture. A generator test asserts the seed holds at least one unpaid current
 and one unpaid expired pass, and no `PaidAt` in the future.
 
+**Adapted during implementation.** The payment draws come from a separate `_paymentRandom` (seeded
+from the same seed), not `_random`, so adding them does not shift every draw the existing seed already
+makes. Paid dates are capped at club-local today.
+
 #### 7. Integration tests
 
 **File**: `tests/po-prostu-silka.Tests/MembershipPassEndpointTests.cs`
@@ -250,6 +254,17 @@ set `PaidRecordedBy` to the caller's id (also when clearing, so the last change 
 a 200, not an error. The route path does not collide with `/api/passes/mine` (different group,
 `{passId:guid}` constraint).
 
+**Adapted during implementation (impl-review F8).** A staff holder's karnet is a **404**, not 409
+`member_is_staff`. As with the trainer read below, staff "do not exist" from a trainer screen, so a
+pass id cannot be probed for whose it is. `member_is_staff` stays the issue path's refusal alone.
+
+**Adapted during implementation (impl-review F1).** A tracked save does not leave the stamp alone. It
+carries `ConcurrencyStamp` in its `WHERE` clause, so the payment write lost to a booking that rotated
+the stamp at the same moment. The write therefore goes through `IMembershipPassStore.SetPaymentAsync`:
+one `ExecuteUpdateAsync` of `PaidAt` / `PaidRecordedBy` that commits on its own, the one committing
+method on that store. A pass revoked between the read and the write is a 404. Nothing here returns
+409 `conflict` any more.
+
 #### 2. The trainer's read of a member's karnets
 
 **Files**: `src/Application/Training/GetTrainerMemberPasses.cs` (new), `src/Application/Training/TrainerMemberPasses.cs` (new), `src/Api/Endpoints/Training/TrainerMemberEndpoints.cs`
@@ -274,6 +289,11 @@ validity (user decision).
 **Contract**: `bool HasUnpaidPass` appended to both summaries, projected as
 `db.MembershipPasses.Any(p => p.MemberId == x.Id && p.PaidAt == null)` after paging, like the existing
 correlated subqueries.
+
+**Adapted during implementation (impl-review F2).** On the admin list, both the marker and the
+`unpaid` filter exclude staff (`StaffPredicate`). A member granted Trainer keeps their karnets, but the
+payment route refuses a staff holder. Without the exclusion they would be a debtor nobody can settle.
+The trainer list already excludes staff.
 
 #### 4. The admin list's unpaid filter
 
@@ -304,6 +324,11 @@ applied as an `EXISTS` predicate before the count, so `total` and paging reflect
 - Trainer list: `HasUnpaidPass` present and correct.
 - The admin pass routes' `..._refuses_a_trainer` theory stays green unchanged.
 - Both new routes are added to the `PersonaAccessTests` and `EndpointAuthorizationTests` inventories.
+
+**Adapted during implementation.** Only `EndpointAuthorizationTests` gained the routes: `KarnetPaymentRoutes`,
+the stale-allowlist check, and a TrainerOrAdmin-only fact. `PersonaAccessTests` inventories MemberOnly
+own-data routes, where staff get 403, and a TrainerOrAdmin route does not fit that shape. Member 403
+is pinned in `PassPaymentEndpointTests` and `TrainerMemberEndpointTests` instead.
 
 ### Success Criteria:
 
@@ -357,6 +382,11 @@ emits the chosen date; its caller performs the request and maps a refusal throug
 into a form banner inside the overlay. The status renders an outlined `.badge` modifier
 "Nieopłacony" or a quiet "Opłacony · dd.MM.yyyy" — word only, no `--danger`, no new glyph.
 
+**Adapted during implementation.** The paid date renders as `d MMM y` ("2 paź 2026"), the app's
+display format elsewhere, not `dd.MM.yyyy`. On the dashboard the date is hidden (`showDate=false`).
+Club-local today comes from a new `core/passes/club-today.ts`: an `Intl` formatter in `CLUB_ZONE`,
+never `toISOString`. It serves the overlay and the issue form.
+
 #### 3. Issue form
 
 **Files**: `src/app/src/app/features/admin/members/member-passes.{ts,html}`
@@ -368,6 +398,9 @@ control (`[checked]` / `(checkedChange)`), and an `app-field` date control `paid
 ticked, defaulting to today. Both added to `form.setValue` and `form.reset` (`member-passes.ts:174-192`);
 submit maps them to `paidAt` (date or null). **In edit mode both are hidden** and `paidAt` is not sent —
 editing never changes payment.
+
+**Adapted during implementation.** The issue form also refuses an empty or future `paidAt` on the
+client, in the form banner with the `invalid_paid_at` words. The server check stays authoritative.
 
 #### 4. Karnet screen — status and actions
 
@@ -390,6 +423,10 @@ immediate `paidAt: null`, success toast "Cofnięto płatność"); failures in ro
 `app-checkbox` "Tylko nieopłacone" in the controls; `unpaid=1` in the URL state (`parse()` whitelist),
 included in `narrowed()` and cleared by `clearFilters`; toggling resets to page 1 like the other
 filters.
+
+**Adapted during implementation.** `app-checkbox` gained an optional `inputId` input (`[attr.id]` on
+the inner box), so `<app-field for="members-unpaid">` can label it. It is still not a
+`ControlValueAccessor`: the binding stays `[checked]` / `(checkedChange)`.
 
 #### 6. Member's dashboard card
 
@@ -419,6 +456,10 @@ rule allows the new markup because only kit components are used in `features/`.
 - SPA unit tests pass: `npm test` (from `src/app/`)
 - Lint and format pass: `npm run quality:check`
 - Production build stays under the bundle warning: `npm run build` — record the initial-bundle figure (expected near-zero eager delta; the overlay is used only by lazy routes)
+
+**Adapted during implementation.** The eager delta was not near zero. It was +4.21 kB in phase 3
+(576.29 → 580.50 kB) and +0.20 kB in phase 4, ending at 580.70 kB. The reason is that `/admin/members`
+and the dashboard are eager. The figure is recorded in AGENTS.md, 19.5 kB under the warning.
 - Backend still green: `dotnet test`
 
 #### Manual Verification:
@@ -677,8 +718,8 @@ them.
 
 #### Automated
 
-- [x] 5.1 E2E suite passes locally
-- [x] 5.2 SPA and backend still green
+- [x] 5.1 E2E suite passes locally — a661fa1
+- [x] 5.2 SPA and backend still green — a661fa1
 
 #### Manual
 

@@ -26,6 +26,7 @@ import { Field } from '../../../shared/forms/field/field';
 import { Select } from '../../../shared/forms/select/select';
 import { Checkbox } from '../../../shared/forms/checkbox/checkbox';
 import { Icon } from '../../../shared/icons/icon';
+import { PassPaymentStatus } from '../../../shared/passes/pass-payment-status';
 
 /** The filter positions, including "everyone". `null` means no filter parameter is sent. */
 type StatusFilter = MemberFilter | null;
@@ -116,7 +117,18 @@ function readState(params: ParamMap): { state: ListState; canonical: boolean } {
  * the admin somewhere else to do the obvious thing.
  */
 @Component({
-  imports: [Checkbox, Empty, Field, Icon, Loading, Select, DatePipe, FormsModule, RouterLink],
+  imports: [
+    Checkbox,
+    Empty,
+    Field,
+    Icon,
+    Loading,
+    PassPaymentStatus,
+    Select,
+    DatePipe,
+    FormsModule,
+    RouterLink,
+  ],
   selector: 'app-members',
   styleUrl: './members.scss',
   templateUrl: './members.html',

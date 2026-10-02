@@ -667,6 +667,32 @@ public class MemberEndpointTests(IntegrationTestFixture fixture)
         Assert.Equal(3, everyone!.Total);
     }
 
+    /// <summary>
+    /// A member granted Trainer keeps their karnets (S-25), but the payment route refuses a staff holder
+    /// - so an unpaid karnet would mark them a debtor nobody can settle. Staff are never unpaid: neither
+    /// the marker nor the filter counts them.
+    /// </summary>
+    [Fact]
+    public async Task A_member_promoted_to_staff_is_neither_marked_nor_filtered_as_unpaid()
+    {
+        var admin = await AdminAsync();
+        var marker = $"Awans {Guid.NewGuid():N}";
+        var email = $"promoted-{Guid.NewGuid():N}@test.local";
+        await fixture.CreateUserAsync(email, AccountStatus.Active, ApplicationRoles.User, displayName: marker);
+        var memberId = await fixture.MemberIdOfAsync(await UserIdOfAsync(email));
+        await fixture.IssuePassAsync(memberId);
+
+        var search = $"search={Uri.EscapeDataString(marker)}";
+        Assert.True((await ListAsync(admin, search)).Single(r => r.Id == memberId).HasUnpaidPass);
+
+        var grant = await admin.PostAsync($"{Endpoint}/{memberId}/roles/trainer", content: null);
+        Assert.Equal(HttpStatusCode.OK, grant.StatusCode);
+
+        Assert.False((await ListAsync(admin, search)).Single(r => r.Id == memberId).HasUnpaidPass);
+        var unpaid = await admin.GetFromJsonAsync<MemberPageBody<MemberSummaryBody>>($"{Endpoint}?{search}&unpaid=true");
+        Assert.Equal(0, unpaid!.Total);
+    }
+
     private static async Task<List<MemberSummaryBody>> ListAsync(HttpClient admin, string query) =>
         (await admin.GetFromJsonAsync<MemberPageBody<MemberSummaryBody>>($"{Endpoint}?{query}&pageSize=100"))!.Items;
 

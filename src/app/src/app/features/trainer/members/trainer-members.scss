@@ -46,9 +46,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-// pass-paid-flag: the outlined word, in ink — the admin list's .badge-unpaid. The .badge base is global.
+// pass-paid-flag: only the gap after "Brak planu" — the badge itself is app-pass-payment-status's.
 .trainer-members-unpaid {
   margin-left: var(--space-1);
-  color: var(--ink);
-  border-color: var(--line-strong);
 }

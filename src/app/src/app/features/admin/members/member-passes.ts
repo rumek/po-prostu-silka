@@ -22,10 +22,9 @@ import { Row } from '../../../shared/list/row';
 import { List } from '../../../shared/list/list';
 import { Icon } from '../../../shared/icons/icon';
 import { Checkbox } from '../../../shared/forms/checkbox/checkbox';
-import { createBusySet } from '../../../shared/forms/busy-set';
 import { PassPaymentOverlay } from '../../../shared/passes/pass-payment-overlay';
 import { PassPaymentStatus } from '../../../shared/passes/pass-payment-status';
-import { PassPaymentService } from '../../../core/passes/pass-payment.service';
+import { createPassPaymentActions } from '../../../shared/passes/pass-payment-actions';
 import { clubToday } from '../../../core/passes/club-today';
 
 /**
@@ -137,15 +136,14 @@ export class MemberPasses implements OnInit {
     paidAt: [''],
   });
 
-  private readonly payments = inject(PassPaymentService);
-
-  /** The karnet whose "Oznacz jako opłacony" overlay is open, or null. */
-  protected readonly paying = signal<MembershipPassView | null>(null);
-  protected readonly paymentBusy = signal(false);
-  protected readonly paymentFailure = signal<string | null>(null);
-
-  /** Rows with a payment write in flight — one slow row does not disable the others. */
-  protected readonly paymentRows = createBusySet();
+  /**
+   * The payment overlay and "Cofnij płatność", shared with the trainer's karnet screen. The returned
+   * row replaces the held one: patching IS safe here, unlike after an issue or an edit, because payment
+   * touches no entry and the view's entry counts were read in the same request.
+   */
+  protected readonly payment = createPassPaymentActions((view) =>
+    this.passes.update((rows) => rows.map((row) => (row.id === view.id ? view : row))),
+  );
 
   protected readonly today = clubToday();
 
@@ -331,62 +329,6 @@ export class MemberPasses implements OnInit {
     } finally {
       this.revokingId.set(null);
     }
-  }
-
-  protected openPayment(pass: MembershipPassView): void {
-    this.paymentFailure.set(null);
-    this.paying.set(pass);
-  }
-
-  protected closePayment(): void {
-    this.paying.set(null);
-    this.paymentFailure.set(null);
-  }
-
-  /**
-   * The overlay's Zapisz. A refusal stays in the overlay as its banner — the date is the thing to
-   * correct, and it is right there.
-   */
-  protected async markPaid(paidAt: string): Promise<void> {
-    const pass = this.paying();
-    if (pass === null) {
-      return;
-    }
-
-    this.paymentBusy.set(true);
-    this.paymentFailure.set(null);
-
-    try {
-      this.replace(await this.payments.setPaid(pass.id, paidAt));
-      this.closePayment();
-      this.toast.success('Karnet oznaczony jako opłacony.');
-    } catch (failure) {
-      this.paymentFailure.set(messageFor(failure));
-    } finally {
-      this.paymentBusy.set(false);
-    }
-  }
-
-  /** "Cofnij płatność" — a row action, so its outcome is a toast (outlet 3). */
-  protected async clearPaid(pass: MembershipPassView): Promise<void> {
-    this.paymentRows.setBusy(pass.id, true);
-
-    try {
-      this.replace(await this.payments.setPaid(pass.id, null));
-      this.toast.success('Cofnięto płatność.');
-    } catch (failure) {
-      this.toast.error(messageFor(failure));
-    } finally {
-      this.paymentRows.setBusy(pass.id, false);
-    }
-  }
-
-  /**
-   * Swaps in the row the payment write returned. Patching IS safe here, unlike after an issue or an
-   * edit: payment touches no entry, and the returned view's entry counts were read in the same request.
-   */
-  private replace(view: MembershipPassView): void {
-    this.passes.update((rows) => rows.map((row) => (row.id === view.id ? view : row)));
   }
 }
 

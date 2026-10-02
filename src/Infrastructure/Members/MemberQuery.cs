@@ -65,9 +65,15 @@ public class MemberQuery(AppDbContext db, TimeProvider timeProvider) : IMemberQu
 
         // pass-paid-flag. ORTHOGONAL to the status filter rather than a fifth MemberListFilter value, so
         // "active and unpaid" is expressible; applied before the count, so total and paging reflect it.
+        // STAFF ARE NEVER UNPAID. A member granted Trainer keeps their karnets (S-25), but the payment
+        // route refuses a staff holder with member_is_staff - so a staff row marked unpaid would be a
+        // debt nobody can settle. Same StaffPredicate as that refusal, so the two cannot disagree.
+        var isStaff = StaffPredicate.IsStaff(db);
         if (unpaidOnly)
         {
-            members = members.Where(m => db.MembershipPasses.Any(p => p.MemberId == m.Id && p.PaidAt == null));
+            members = members
+                .Where(StaffPredicate.IsNotStaff(db))
+                .Where(m => db.MembershipPasses.Any(p => p.MemberId == m.Id && p.PaidAt == null));
         }
 
         // Club-local, as MembershipPassQuery reads it: "valid today" is a question about the gym's
@@ -116,8 +122,9 @@ public class MemberQuery(AppDbContext db, TimeProvider timeProvider) : IMemberQu
                         .Count(b => b.MembershipPassId == p.Id)))
                     .FirstOrDefault(),
 
-                // ANY karnet, not today's - see MemberSummary.HasUnpaidPass.
-                HasUnpaidPass = db.MembershipPasses.Any(p => p.MemberId == m.Id && p.PaidAt == null),
+                // ANY karnet, not today's - see MemberSummary.HasUnpaidPass. Never for staff (above).
+                HasUnpaidPass = db.MembershipPasses.Any(p => p.MemberId == m.Id && p.PaidAt == null)
+                    && !db.Members.Where(isStaff).Any(s => s.Id == m.Id),
 
                 // Roles come back as a correlated collection projection. What this buys is ONE
                 // round-trip: under EF's default SingleQuery behaviour the whole thing is a single

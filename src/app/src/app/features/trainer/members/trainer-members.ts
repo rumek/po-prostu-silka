@@ -12,6 +12,7 @@ import { Loading } from '../../../shared/forms/loading/loading';
 import { Empty } from '../../../shared/forms/empty/empty';
 import { List } from '../../../shared/list/list';
 import { Row } from '../../../shared/list/row';
+import { PassPaymentStatus } from '../../../shared/passes/pass-payment-status';
 
 /** The screen's page. Fixed, as on the admin's list. */
 export const TRAINER_MEMBERS_PAGE_SIZE = 25;
@@ -67,7 +68,7 @@ function readState(params: ParamMap): { state: ListState; canonical: boolean } {
  * names only, so it cannot answer "does anyone's address contain x" either.
  */
 @Component({
-  imports: [Row, List, Empty, Loading, FormsModule, RouterLink],
+  imports: [Row, List, Empty, Loading, PassPaymentStatus, FormsModule, RouterLink],
   selector: 'app-trainer-members',
   styleUrl: './trainer-members.scss',
   templateUrl: './trainer-members.html',
