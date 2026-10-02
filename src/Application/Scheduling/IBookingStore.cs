@@ -80,6 +80,19 @@ public interface IBookingStore
     Task<bool> HasLiveMakeupAsync(Guid absenceBookingId, CancellationToken cancellationToken);
 
     /// <summary>
+    /// The absence's live makeup booking, tracked - the row a release cancels - or null (S-36).
+    /// </summary>
+    Task<Booking?> FindLiveMakeupAsync(Guid absenceBookingId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Cancels, in the tracked graph, every ACTIVE makeup of the absence whose class was cancelled
+    /// (S-36), and says whether there was one. Such a row frees the item but still holds the filtered
+    /// unique index, so it must be saved away before a new makeup is inserted.
+    /// </summary>
+    Task<bool> CancelSupersededMakeupsAsync(
+        Guid absenceBookingId, DateTimeOffset asOf, CancellationToken cancellationToken);
+
+    /// <summary>
     /// Whether any ACTIVE booking carries this pass's id, whatever its attendance or its class's
     /// status (S-27).
     ///

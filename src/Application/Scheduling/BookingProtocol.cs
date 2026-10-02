@@ -68,7 +68,8 @@ public static class BookingProtocol
         IMembershipPassStore passes,
         IUnitOfWork unitOfWork,
         TimeProvider timeProvider,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        MakeupGrant? makeup = null)
     {
         for (var attempt = 1; attempt <= MaxAttempts; attempt++)
         {
@@ -121,6 +122,24 @@ public static class BookingProtocol
             // ------------------------------------------------------------------
             var classDate = DateOnly.FromDateTime(ClubTime.ToClubLocal(entity.StartsAt).DateTime);
 
+            // S-36. A makeup must take place by its deadline, and its absence must still be owed one.
+            // Re-read on every attempt, like everything else here: the attempt that lost to a racing
+            // makeup booking of the same absence must see that booking now.
+            if (makeup is not null)
+            {
+                if (classDate > makeup.Deadline)
+                {
+                    return Refuse("makeup_deadline_passed");
+                }
+
+                if (await bookings.HasLiveMakeupAsync(makeup.AbsenceBookingId, cancellationToken))
+                {
+                    return Refuse("makeup_not_open");
+                }
+            }
+
+            // A makeup still needs a karnet covering ITS OWN date (S-16 holds without exception) -
+            // any karnet, so a renewal does not cancel the right to make up.
             var pass = await passes.FindCoveringAsync(memberId, classDate, cancellationToken);
             if (pass is null)
             {
@@ -130,8 +149,11 @@ public static class BookingProtocol
             // Greater-or-equal for the reason the capacity check is: if the count has somehow passed
             // the issued number the answer is still "none left". Equality would turn a broken
             // invariant into an open door.
-            var entriesUsed = await bookings.CountConsumingForPassAsync(pass.Id, cancellationToken);
-            if (entriesUsed >= pass.EntryCount)
+            //
+            // SKIPPED FOR A MAKEUP (S-36): it consumes no entry - the absence it makes up already spent
+            // one - so there is no pool to check, and none to guard with the pass stamp below.
+            if (makeup is null
+                && await bookings.CountConsumingForPassAsync(pass.Id, cancellationToken) >= pass.EntryCount)
             {
                 return Refuse("no_entries_left");
             }
@@ -147,6 +169,7 @@ public static class BookingProtocol
                 // validity range is later edited - see Booking.MembershipPassId.
                 MembershipPassId = pass.Id,
                 CreatedAt = now,
+                MakeupForBookingId = makeup?.AbsenceBookingId,
             });
 
             // THE GUARANTEE. Read the class doc comment before touching this line: without it the
@@ -158,7 +181,10 @@ public static class BookingProtocol
             // bookings touch two different Class rows, so the class stamp above serializes neither of
             // them against the other. Both stamps rotate in the same SaveChangesAsync below, so one
             // atomic write guards both invariants.
-            pass.ConcurrencyStamp = Guid.NewGuid().ToString();
+            if (makeup is null)
+            {
+                pass.ConcurrencyStamp = Guid.NewGuid().ToString();
+            }
 
             var outcome = await unitOfWork.TrySaveAsync(cancellationToken);
             if (outcome == SaveOutcome.Saved)
@@ -183,7 +209,8 @@ public static class BookingProtocol
 
             // ConcurrencyConflict: someone else's booking or cancellation rotated the stamp first.
             // UniqueViolation: the filtered index caught a double booking the check above missed,
-            // which needs two requests from the SAME member at the same instant. Both mean "re-read
+            // which needs two requests from the SAME member at the same instant - or, for a makeup,
+            // two makeups of one absence (IX_Bookings_MakeupForBookingId_Active). Both mean "re-read
             // and decide again", and both need the tracked graph thrown away first - it still holds
             // the rejected insert and a class whose stamp is stale.
             unitOfWork.DiscardChanges();

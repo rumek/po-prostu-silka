@@ -325,6 +325,7 @@ builder.Services.AddScoped<IClassStore, ClassStore>();
 // guarantee would be nothing but a comment.
 builder.Services.AddScoped<IBookingStore, BookingStore>();
 builder.Services.AddScoped<IBookingQuery, BookingQuery>();
+builder.Services.AddScoped<IMakeupQuery, MakeupQuery>();
 
 // S-05's group definitions (prd-v2 FR-004..FR-007). Scoped for the same reason as the two
 // above - the store must share the request's DbContext with IUnitOfWork, which is what commits it.
@@ -436,6 +437,7 @@ app.MapTrainingPlanEndpoints();
 app.MapTrainerMemberEndpoints();
 app.MapMyPlanEndpoints();
 app.MapBookingEndpoints();
+app.MapMakeupEndpoints();
 
 // Probe endpoints for the ActiveMember and Admin policies, in the "Testing" environment only.
 //

@@ -657,9 +657,9 @@ nothing". It follows `src/app/e2e/CLAUDE.md`: PHONE, role locators, `club` build
 
 #### Automated
 
-- [x] 1.1 Migration applies and reverts cleanly
-- [x] 1.2 Solution builds warning-free
-- [x] 1.3 AttendanceEndpointTests pass with legacy, makeup, forfeited and re-spend cases
+- [x] 1.1 Migration applies and reverts cleanly — 620711f
+- [x] 1.2 Solution builds warning-free — 620711f
+- [x] 1.3 AttendanceEndpointTests pass with legacy, makeup, forfeited and re-spend cases — 620711f
 
 #### Manual
 
@@ -669,8 +669,8 @@ nothing". It follows `src/app/e2e/CLAUDE.md`: PHONE, role locators, `club` build
 
 #### Automated
 
-- [ ] 2.1 MakeupEndpointTests pass
-- [ ] 2.2 EndpointAuthorizationTests pass with the new routes
+- [x] 2.1 MakeupEndpointTests pass
+- [x] 2.2 EndpointAuthorizationTests pass with the new routes
 
 #### Manual
 

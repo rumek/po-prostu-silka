@@ -57,6 +57,31 @@ public class BookingStore(AppDbContext db, IMembershipPassStore passes) : IBooki
                  && b.Class.Status != ClassStatus.Cancelled,
             cancellationToken);
 
+    public Task<Booking?> FindLiveMakeupAsync(Guid absenceBookingId, CancellationToken cancellationToken) =>
+        db.Bookings.FirstOrDefaultAsync(
+            b => b.MakeupForBookingId == absenceBookingId
+                 && b.Status == BookingStatus.Active
+                 && b.Class.Status != ClassStatus.Cancelled,
+            cancellationToken);
+
+    public async Task<bool> CancelSupersededMakeupsAsync(
+        Guid absenceBookingId, DateTimeOffset asOf, CancellationToken cancellationToken)
+    {
+        var superseded = await db.Bookings
+            .Where(b => b.MakeupForBookingId == absenceBookingId
+                        && b.Status == BookingStatus.Active
+                        && b.Class.Status == ClassStatus.Cancelled)
+            .ToListAsync(cancellationToken);
+
+        foreach (var booking in superseded)
+        {
+            booking.Status = BookingStatus.Cancelled;
+            booking.CancelledAt = asOf;
+        }
+
+        return superseded.Count > 0;
+    }
+
     public Task<bool> AnyActiveForPassAsync(Guid passId, CancellationToken cancellationToken) =>
         db.Bookings.AnyAsync(
             b => b.MembershipPassId == passId && b.Status == BookingStatus.Active, cancellationToken);
