@@ -716,8 +716,8 @@ nothing". It follows `src/app/e2e/CLAUDE.md`: PHONE, role locators, `club` build
 
 #### Automated
 
-- [x] 5.1 Playwright suite passes locally with the new makeup spec
-- [x] 5.2 dotnet test and npm test still pass
+- [x] 5.1 Playwright suite passes locally with the new makeup spec — 09ee3b0
+- [x] 5.2 dotnet test and npm test still pass — 09ee3b0
 
 #### Manual
 
