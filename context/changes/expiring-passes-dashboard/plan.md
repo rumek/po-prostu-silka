@@ -362,6 +362,14 @@ card and from the filtered list. The spec cleans up after itself.
 assertion never depends on how many other members happen to be ending in the local DB. It searches
 `/admin/members?expiring=1` for the unique name rather than counting the card.
 
+**Adapted during implementation.** The spec does not click through from the card. Whether this member
+makes the card's club-wide top five depends on every other karnet in the local database, so a
+"the card shows them" step would be conditional. Instead, the "before" is asserted on
+`?q=<name>&expiring=1`, and the renewal opens `/admin/members/:id/passes` directly. The "after" is
+asserted on both surfaces, where absence is exact. A deliberate break (dropping the "no later karnet"
+clause from `ExpiringPassPredicate`) turned the spec red at the list assertion. The card-to-passes
+link is pinned by `dashboard.spec.ts` instead.
+
 ### Success Criteria:
 
 #### Automated Verification:
@@ -449,10 +457,10 @@ None. There is no schema change: "ending" is derived from existing columns.
 
 #### Automated
 
-- [x] 3.1 SPA specs pass
-- [x] 3.2 Lint and format pass
-- [x] 3.3 Production build under the warning, figure recorded in AGENTS.md
-- [x] 3.4 Backend tests still pass
+- [x] 3.1 SPA specs pass — 064023f
+- [x] 3.2 Lint and format pass — 064023f
+- [x] 3.3 Production build under the warning, figure recorded in AGENTS.md — 064023f
+- [x] 3.4 Backend tests still pass — 064023f
 
 #### Manual
 
@@ -464,8 +472,8 @@ None. There is no schema change: "ending" is derived from existing columns.
 
 #### Automated
 
-- [ ] 4.1 New spec passes locally
-- [ ] 4.2 Full E2E suite passes
+- [x] 4.1 New spec passes locally
+- [x] 4.2 Full E2E suite passes
 
 #### Manual
 
