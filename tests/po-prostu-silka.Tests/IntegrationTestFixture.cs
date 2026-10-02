@@ -276,7 +276,8 @@ public class IntegrationTestFixture : IAsyncLifetime
         Guid memberId,
         int entryCount = 1000,
         DateOnly? validFrom = null,
-        DateOnly? validTo = null)
+        DateOnly? validTo = null,
+        DateOnly? paidAt = null)
     {
         using var scope = Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -290,6 +291,7 @@ public class IntegrationTestFixture : IAsyncLifetime
             ValidTo = validTo ?? new DateOnly(2099, 12, 31),
             EntryCount = entryCount,
             IssuedAt = DateTimeOffset.UtcNow,
+            PaidAt = paidAt,
         };
 
         db.MembershipPasses.Add(pass);

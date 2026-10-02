@@ -76,6 +76,9 @@ public static class UpdatePass
         pass.ValidTo = request.ValidTo;
         pass.EntryCount = request.EntryCount;
 
+        // request.PaidAt is IGNORED here, deliberately: editing never changes payment. See
+        // IssuePassRequest — a payment on an existing karnet changes only through SetPassPaid.
+
         // Both stamps: the member's, because the overlap probe above is only atomic against it, and
         // the pass's own, because lowering EntryCount changes the entry pool a concurrent booking may
         // be counting against right now.

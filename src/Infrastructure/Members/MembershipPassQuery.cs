@@ -49,6 +49,7 @@ public class MembershipPassQuery(AppDbContext db, TimeProvider timeProvider) : I
                 p.ValidTo,
                 p.EntryCount,
                 p.IssuedAt,
+                p.PaidAt,
                 EntriesUsed = db.Bookings
                     .Where(EntryConsumption.ConsumesAnEntry)
                     .Count(b => b.MembershipPassId == p.Id),
@@ -65,7 +66,8 @@ public class MembershipPassQuery(AppDbContext db, TimeProvider timeProvider) : I
                 r.EntriesUsed,
                 r.EntryCount - r.EntriesUsed,
                 r.IssuedAt,
-                r.ValidFrom <= today && today <= r.ValidTo))
+                r.ValidFrom <= today && today <= r.ValidTo,
+                r.PaidAt))
             .ToList();
     }
 
@@ -93,6 +95,7 @@ public class MembershipPassQuery(AppDbContext db, TimeProvider timeProvider) : I
                 p.ValidTo,
                 p.EntryCount,
                 p.IssuedAt,
+                p.PaidAt,
                 EntriesUsed = db.Bookings
                     .Where(EntryConsumption.ConsumesAnEntry)
                     .Count(b => b.MembershipPassId == p.Id),
@@ -113,7 +116,8 @@ public class MembershipPassQuery(AppDbContext db, TimeProvider timeProvider) : I
             row.EntriesUsed,
             row.EntryCount - row.EntriesUsed,
             row.IssuedAt,
-            row.ValidFrom <= today && today <= row.ValidTo);
+            row.ValidFrom <= today && today <= row.ValidTo,
+            row.PaidAt);
     }
 
     /// <summary>

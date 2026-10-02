@@ -29,4 +29,16 @@ public class TestDataGeneratorTests
         Assert.All(data.Passes, p => Assert.True(p.IssuedAt >= joined[p.MemberId], "A pass predates its member."));
         Assert.All(data.Bookings, b => Assert.True(b.CreatedAt >= joined[b.MemberId], "A booking predates its member."));
     }
+
+    [Fact]
+    public void The_seed_has_unpaid_karnets_both_current_and_expired_and_no_payment_in_the_future()
+    {
+        var now = new DateTimeOffset(2026, 9, 22, 10, 0, 0, TimeSpan.Zero);
+        var today = DateOnly.FromDateTime(po_prostu_silka.Domain.Scheduling.ClubTime.ToClubLocal(now).DateTime);
+        var data = TestDataGenerator.Generate(TestDataSeeder.Seed, now);
+
+        Assert.Contains(data.Passes, p => p.PaidAt is null && p.ValidFrom <= today && today <= p.ValidTo);
+        Assert.Contains(data.Passes, p => p.PaidAt is null && p.ValidTo < today);
+        Assert.All(data.Passes, p => Assert.True(p.PaidAt is null || p.PaidAt <= today, "A payment is dated in the future."));
+    }
 }

@@ -66,6 +66,29 @@ internal static class MembershipPassProjection
     }
 
     /// <summary>
+    /// Validates a payment date (pass-paid-flag): absent is "unpaid" and always fine; a date must not be
+    /// after the club-local today, nor more than <see cref="MembershipPassRules.MaxPaidAtAgeDays"/>
+    /// before it. Shared by issuing and by <c>SetPassPaid</c>, so the two cannot disagree.
+    /// </summary>
+    public static bool TryReadPaidAt(
+        DateOnly? paidAt,
+        TimeProvider timeProvider,
+        out IResult failure)
+    {
+        var today = ClubToday(timeProvider);
+
+        if (paidAt is { } date
+            && (date > today || date < today.AddDays(-MembershipPassRules.MaxPaidAtAgeDays)))
+        {
+            failure = Results.Json(new MembershipPassFailure("invalid_paid_at"), statusCode: 400);
+            return false;
+        }
+
+        failure = Results.Empty;
+        return true;
+    }
+
+    /// <summary>
     /// How many entries this pass has already spent, read through the same projection the screen
     /// reads — so the number the handler refuses on and the number the admin is looking at cannot
     /// disagree.
@@ -89,10 +112,7 @@ internal static class MembershipPassProjection
         int entriesUsed,
         TimeProvider timeProvider)
     {
-        // Club-local, not UTC and not the server's clock: "does this pass cover today" is a question
-        // about the day at the gym. Same reasoning the booking gate uses for the class's date.
-        var today = DateOnly.FromDateTime(
-            Domain.Scheduling.ClubTime.ToClubLocal(timeProvider.GetUtcNow()).DateTime);
+        var today = ClubToday(timeProvider);
 
         return Task.FromResult(new MembershipPassView(
             pass.Id,
@@ -103,6 +123,13 @@ internal static class MembershipPassProjection
             entriesUsed,
             pass.EntryCount - entriesUsed,
             pass.IssuedAt,
-            pass.ValidFrom <= today && today <= pass.ValidTo));
+            pass.ValidFrom <= today && today <= pass.ValidTo,
+            pass.PaidAt));
     }
+
+    // Club-local, not UTC and not the server's clock: "does this pass cover today" and "is this
+    // payment in the future" are questions about the day at the gym. Same reasoning the booking gate
+    // uses for the class's date.
+    private static DateOnly ClubToday(TimeProvider timeProvider) =>
+        DateOnly.FromDateTime(Domain.Scheduling.ClubTime.ToClubLocal(timeProvider.GetUtcNow()).DateTime);
 }

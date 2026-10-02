@@ -82,6 +82,14 @@ public sealed class TestDataGenerator
     private static readonly int[] RestSeconds = [60, 90, 120];
 
     private readonly Random _random;
+
+    /// <summary>
+    /// Draws for karnet payment only (pass-paid-flag). A SEPARATE stream, so adding the payment draw did
+    /// not shift <see cref="_random"/>'s sequence — and with it every booking, exercise and plan generated
+    /// after the passes.
+    /// </summary>
+    private readonly Random _paymentRandom;
+
     private readonly DateOnly _today;
     private readonly TimeZoneInfo _zone = ClubTime.Zone;
 
@@ -114,6 +122,7 @@ public sealed class TestDataGenerator
     private TestDataGenerator(int seed, DateTimeOffset now)
     {
         _random = new Random(seed);
+        _paymentRandom = new Random(unchecked(seed * 31 + 7));
         _today = DateOnly.FromDateTime(ClubTime.ToClubLocal(now).DateTime);
         _endOfToday = At(1, 0, 0);
     }
@@ -338,6 +347,13 @@ public sealed class TestDataGenerator
             ValidTo = validFrom.AddDays(29),
             EntryCount = type.Entries,
             IssuedAt = At(Math.Min(validFrom.DayNumber - _today.DayNumber - _random.Next(0, 4), -1), 10, 30),
+            // Mostly paid on the first valid day — never later than today, since a payment is never
+            // dated in the future — and about one in eight unpaid, current and expired alike, so the
+            // "Nieopłacony" marker and the unpaid filter have hits on staging. No recorder: nobody
+            // marked these through the app.
+            PaidAt = _paymentRandom.Next(100) < 12
+                ? null
+                : validFrom > _today ? _today : validFrom,
             ConcurrencyStamp = NewId().ToString(),
         };
 

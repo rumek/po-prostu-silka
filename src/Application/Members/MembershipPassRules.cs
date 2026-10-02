@@ -50,4 +50,15 @@ public static class MembershipPassRules
     /// </para>
     /// </summary>
     public const int MaxValidityDays = 400;
+
+    /// <summary>
+    /// How far back, in days before the club-local today, a payment may be dated (pass-paid-flag).
+    ///
+    /// <para>
+    /// Same purpose as <see cref="MaxValidityDays"/>: a sanity ceiling that catches a slipped digit in
+    /// the year field, not a product rule. A payment may never be dated in the future at all — it is a
+    /// record of money already handed over.
+    /// </para>
+    /// </summary>
+    public const int MaxPaidAtAgeDays = 400;
 }
