@@ -161,6 +161,7 @@ privacy notice.
 | S-32 | e2e-attendance-and-plans | (dev tooling) a browser-level test proves a recorded absence returns the entry on the member's screens, and a plan a trainer builds reaches the member's plan and exercise screens | S-31, S-27 | none - outside any milestone (test tooling); manual plan ATT-01, ATT-02, PLAN-01, MBR-05, MBR-06 | done |
 | S-33 | class-type-to-group-rename | (admin, trainer, member) the club's class definitions are called "grupy" everywhere - every screen, the API, the code and the database - with nothing about how they behave changing | S-05, S-06, S-32 | none - outside any milestone (naming); renames v2 FR-004-FR-007's "class type" | done |
 | S-34 | pass-paid-flag | (admin, trainer, member) staff record that a karnet was paid and on which day, see who owes on the member lists, and a member sees whether their karnet is paid - paying never gates booking | S-16, S-22, S-25 | none - outside any milestone; narrows v1 §Non-Goals "no payments" | in-progress |
+| S-35 | expiring-passes-dashboard | (admin) Start lists the members whose karnet ends within 5 days and who have not renewed, and the member list filters to them - the same count on both | S-34 | none - outside any milestone; the club spreadsheet's "KOŃCZY SIĘ" status | in-progress |
 
 ## Streams
 
@@ -1037,6 +1038,24 @@ rather than in a slice body:
   (payment only, never its dates or entries), which S-16 had kept admin-only.
 - **Status:** in-progress
 
+### S-35: The admin sees whose karnet is about to end
+
+- **Outcome:** (admin) Start opens with a "Klub" section, "Kończą się karnety": up to 5 members whose
+  current karnet ends within today…today+5 club-local days and who hold no karnet starting after it,
+  nearest end first, each with "dziś / jutro / za N dni" and the date, each leading to that member's
+  karnet screen. "Zobacz wszystkich (N)" opens the member list filtered by "Tylko kończące się"
+  (`expiring=1`), whose total is exactly N, because both read one predicate. Renewing a member takes
+  them off both. Blocked members, entries left and already-expired karnets are not part of it.
+- **Change ID:** expiring-passes-dashboard
+- **PRD refs:** none. Requested by the client on 2026-10-02 from the club's spreadsheet
+  (`xlsx/twt.xlsx`, "KOŃCZY SIĘ" five days before a karnet's end). **Delivered outside any milestone.**
+- **Prerequisites:** S-34 (the member list's karnet filter and its URL state, reused here).
+- **Parallel with:** -
+- **Blockers:** -
+- **Unknowns:** -
+- **Risk:** the dashboard is eager; the card's cost lands in the initial bundle.
+- **Status:** in-progress
+
 ## Backlog Handoff
 
 | Roadmap ID | Change ID                        | Suggested issue title                                        | Ready for `/10x-plan` | Notes                                              |
@@ -1076,7 +1095,8 @@ rather than in a slice body:
 | S-31       | e2e-member-onboarding-and-booking | E2E: invitation claim lands on the club record; staff booking and karnet refusal reach both screens | yes                   | Outside any milestone. Run `/10x-plan e2e-member-onboarding-and-booking`, then `/10x-e2e` |
 | S-32       | e2e-attendance-and-plans         | E2E: recorded absence returns the entry on the member's screens; a trainer's plan reaches the member | no                    | Needs S-31 (data-setup helpers) |
 | S-33       | class-type-to-group-rename       | Rename class types to groups across UI, API, code and database | no                    | Planned 2026-10-01. Rollback gap accepted once (staging only); run `/10x-implement class-type-to-group-rename phase 1` |
-| S-34       | pass-paid-flag                   | Record that a karnet was paid (and who recorded it); "Nieopłacony" marker and filter; trainer "Karnety" screen | no                    | Outside any milestone. Run `/10x-implement pass-paid-flag` |
+| S-34       | pass-paid-flag                   | Record that a karnet was paid (and who recorded it); "Nieopłacony" marker and filter; trainer "Karnety" screen | no                    | Done — archived 2026-10-02. Outside any milestone |
+| S-35       | expiring-passes-dashboard        | "Kończą się karnety" card on the admin's Start and the matching member-list filter | no                    | Done — archived 2026-10-02. Outside any milestone |
 
 ## Open Roadmap Questions
 
