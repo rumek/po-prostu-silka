@@ -646,10 +646,10 @@ them.
 
 #### Automated
 
-- [x] 3.1 SPA unit tests pass
-- [x] 3.2 Lint and format pass
-- [x] 3.3 Production build under the bundle warning, figure recorded
-- [x] 3.4 Backend still green
+- [x] 3.1 SPA unit tests pass — face33b
+- [x] 3.2 Lint and format pass — face33b
+- [x] 3.3 Production build under the bundle warning, figure recorded — face33b
+- [x] 3.4 Backend still green — face33b
 
 #### Manual
 
@@ -663,9 +663,9 @@ them.
 
 #### Automated
 
-- [ ] 4.1 SPA unit tests pass
-- [ ] 4.2 Lint and format pass
-- [ ] 4.3 Production build passes, bundle figure recorded
+- [x] 4.1 SPA unit tests pass
+- [x] 4.2 Lint and format pass
+- [x] 4.3 Production build passes, bundle figure recorded
 
 #### Manual
 

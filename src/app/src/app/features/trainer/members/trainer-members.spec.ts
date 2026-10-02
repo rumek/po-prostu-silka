@@ -10,6 +10,7 @@ const ANNA: TrainerMember = {
   displayName: 'Anna Kowalska',
   hasAccount: true,
   planName: 'Masa - jesień',
+  hasUnpaidPass: false,
 };
 
 /** A person the club recorded who never registered (S-14), with no plan yet. */
@@ -18,6 +19,7 @@ const PIOTR: TrainerMember = {
   displayName: 'Piotr Nowak',
   hasAccount: false,
   planName: null,
+  hasUnpaidPass: true,
 };
 
 /** The first page, unsearched — what the screen asks for on a plain visit. */
@@ -116,6 +118,21 @@ describe('TrainerMembers', () => {
 
     const links = rows().map((row) => row.querySelector('a')!.getAttribute('href'));
     expect(links).toEqual(['/trainer/members/m1/plan', '/trainer/members/m2/plan']);
+  });
+
+  /** pass-paid-flag: every row also opens the member's karnets, and an unpaid one is marked. */
+  it('links each row to its karnets and marks an unpaid one', async () => {
+    await createWith([ANNA, PIOTR]);
+
+    const karnety = rows().map((row) =>
+      Array.from(row.querySelectorAll('a'))
+        .find((a) => a.textContent?.includes('Karnety'))
+        ?.getAttribute('href'),
+    );
+    expect(karnety).toEqual(['/trainer/members/m1/passes', '/trainer/members/m2/passes']);
+
+    expect(rows()[0].textContent).not.toContain('Nieopłacony');
+    expect(rows()[1].textContent).toContain('Nieopłacony');
   });
 
   /**

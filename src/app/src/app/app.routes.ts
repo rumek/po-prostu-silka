@@ -250,6 +250,17 @@ export const routes: Routes = [
     loadComponent: () => import('./features/trainer/plans/plan-builder').then((m) => m.PlanBuilder),
     canActivate: [authGuard, trainerGuard],
   },
+  // A member's karnets for the trainer (pass-paid-flag): read-only, plus marking one paid or unpaid.
+  // trainerGuard, as the API's TrainerOrAdmin (S-25). No menu entry — reached from a member row, like
+  // the plan builder beside it. LAZY, by the habit that keeps the eager bundle viable.
+  {
+    path: 'trainer/members/:id/passes',
+    title: 'Karnety',
+    data: { level: 'child', parent: '/trainer/members' } satisfies ScreenData,
+    loadComponent: () =>
+      import('./features/trainer/passes/trainer-member-passes').then((m) => m.TrainerMemberPasses),
+    canActivate: [authGuard, trainerGuard],
+  },
   // The member's own plan. memberGuard since S-25, which reversed "every approved account has a plan
   // surface, the trainer's own included": trainers and admins hold no plan, and the API applies
   // MemberOnly at this group.

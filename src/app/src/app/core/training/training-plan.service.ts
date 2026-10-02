@@ -4,6 +4,7 @@ import { firstValueFrom } from 'rxjs';
 import { ExerciseSummary } from './exercise.models';
 import {
   MemberPlan,
+  TrainerMemberPasses,
   TrainerMemberPage,
   TrainerMemberQuery,
   TrainingPlanDetail,
@@ -65,6 +66,18 @@ export class TrainingPlanService {
   getMemberPlan(memberId: string): Promise<MemberPlan> {
     return firstValueFrom(
       this.http.get<MemberPlan>(`/api/trainer/members/${encodeURIComponent(memberId)}/plan`),
+    );
+  }
+
+  /**
+   * A member's karnets for the trainer (pass-paid-flag), newest first, with payment. A 404 means the
+   * member does not exist — or is staff, who hold no karnet.
+   */
+  getMemberPasses(memberId: string): Promise<TrainerMemberPasses> {
+    return firstValueFrom(
+      this.http.get<TrainerMemberPasses>(
+        `/api/trainer/members/${encodeURIComponent(memberId)}/passes`,
+      ),
     );
   }
 

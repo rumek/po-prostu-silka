@@ -128,6 +128,11 @@ export class TrainerMembers {
     return ['/trainer/members', member.id, 'plan'];
   }
 
+  /** A member's karnets (pass-paid-flag) — where a trainer marks one paid. */
+  protected passesLink(member: TrainerMember): unknown[] {
+    return ['/trainer/members', member.id, 'passes'];
+  }
+
   /**
    * Every URL change lands here. A URL that is not canonical is rewritten first — replacing the
    * entry, so Back does not return to the junk one — and the rewrite's own emission is what loads.

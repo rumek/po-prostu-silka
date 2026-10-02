@@ -1,0 +1,77 @@
+<h1 class="screen-title">Karnety{{ displayName() ? ' — ' + displayName() : '' }}</h1>
+
+<p class="trainer-passes-back up-link">
+  <a class="link-button" [appUp]="membersLink">Wróć do listy członków</a>
+</p>
+
+@if (state.loading()) {
+  <app-loading />
+} @else if (notFound(); as missing) {
+  <p class="alert" role="alert">{{ missing }}</p>
+} @else if (state.loadFailed()) {
+  <p class="alert" role="alert">
+    Nie udało się wczytać karnetów.
+    <button type="button" class="link-button" (click)="load()">Spróbuj ponownie</button>
+  </p>
+} @else if (passes().length === 0) {
+  <app-empty icon="ticket">Ta osoba nie ma jeszcze żadnego karnetu.</app-empty>
+} @else {
+  <!-- Read-only history: issuing, editing and revoking stay on the admin's screen. -->
+  <app-list>
+    @for (pass of passes(); track pass.id) {
+      <li
+        appRow
+        class="card trainer-passes-row"
+        [class.trainer-passes-row--current]="pass.coversToday"
+      >
+        <p class="row-name">
+          {{ pass.typeName }}
+          @if (pass.coversToday) {
+            <span class="badge trainer-passes-badge">Aktywny</span>
+          }
+        </p>
+
+        <p class="trainer-passes-meta">
+          <app-icon name="calendar" />
+          <span>{{ pass.validFrom | date: 'd MMM y' }} – {{ pass.validTo | date: 'd MMM y' }}</span>
+        </p>
+
+        <p class="trainer-passes-meta">
+          <app-icon name="ticket" />
+          <span>Zostało {{ pass.entriesLeft }} z {{ pass.entryCount }} wejść</span>
+        </p>
+
+        <p class="trainer-passes-meta">
+          <app-pass-payment-status [paidAt]="pass.paidAt" />
+        </p>
+
+        <div slot="actions" class="row-actions">
+          @if (pass.paidAt) {
+            <button
+              type="button"
+              class="link-button"
+              [disabled]="paymentRows.isBusy(pass.id)"
+              (click)="clearPaid(pass)"
+            >
+              {{ paymentRows.isBusy(pass.id) ? 'Cofam…' : 'Cofnij płatność' }}
+            </button>
+          } @else {
+            <button type="button" class="button button--secondary" (click)="openPayment(pass)">
+              Oznacz jako opłacony
+            </button>
+          }
+        </div>
+      </li>
+    }
+  </app-list>
+}
+
+@if (paying(); as pass) {
+  <app-pass-payment-overlay
+    [pass]="pass"
+    [busy]="paymentBusy()"
+    [failure]="paymentFailure()"
+    (confirmed)="markPaid($event)"
+    (closed)="closePayment()"
+  />
+}

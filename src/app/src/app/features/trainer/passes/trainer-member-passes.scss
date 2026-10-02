@@ -1,0 +1,41 @@
+// Layout only — .card/.button/.alert/.badge and the row classes come from src/styles.scss. The admin
+// karnet screen's row look (member-passes.scss), trimmed to what a read-only list shows; a copy
+// rather than a shared class because emulated encapsulation keeps each to its own template.
+
+.trainer-passes-back {
+  margin: calc(-1 * var(--space-3)) 0 var(--space-4);
+}
+
+// The karnet covering today: the calendar tile's left bar AND the word, never the bar alone.
+.trainer-passes-row--current {
+  border-left: 3px solid var(--accent2);
+}
+
+.trainer-passes-badge {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+// On the projected paragraphs, which carry this screen's scope.
+.trainer-passes-row p:not(:last-child) {
+  margin: 0 0 var(--space-1);
+}
+
+.trainer-passes-row p:last-child {
+  margin: 0;
+}
+
+.trainer-passes-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+
+  app-icon {
+    flex: none;
+    color: var(--accent2);
+    font-size: 0.75rem;
+  }
+}
