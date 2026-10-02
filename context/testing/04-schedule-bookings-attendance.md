@@ -251,7 +251,7 @@ S-36 class-makeups. Lista „Odrabianie” jest wspólna dla administratora i tr
 **Rola:** trener
 **Warunki wstępne:** członek z karnetem i nieobecnością oznaczoną „Odrobi” na zajęciach z ostatnich
 dni; nadchodzące zajęcia INNEGO trenera z wolnym miejscem w ciągu 30 dni.
-**Kroki:** otwórz „Odrabianie”, przy członku „Zapisz na odrabianie”, wybierz zajęcia innego trenera i
+**Kroki:** otwórz „Odrabianie”, przy członku „Zapisz”, wybierz zajęcia innego trenera i
 „Zapisz”. Jako tamten trener oznacz członka na tych zajęciach „Obecny”.
 **Oczekiwany rezultat:** pozycja przechodzi „Do odrobienia” → „Zaplanowane” → „Odrobione”; w rosterze
 zajęć odrabiających członek ma etykietę „Odrabianie” i tylko dwa przyciski (bez „Odrobi”); liczba
@@ -270,7 +270,7 @@ odrabiające jako administrator.
 ponownie.
 
 ### MAKEUP-04 · Zamknięcie i ponowne otwarcie — P2
-**Kroki:** przy pozycji „Do odrobienia” kliknij „Zamknij”, zaznacz „Pokaż zamknięte”, kliknij
+**Kroki:** przy pozycji „Do odrobienia” kliknij „Nie odrobi”, zaznacz „Pokaż zamknięte”, kliknij
 „Otwórz ponownie”.
 **Oczekiwany rezultat:** po zamknięciu pozycja znika z listy roboczej i jest widoczna jako „Nie
 odrobione · Zamknięte ręcznie”; po otwarciu wraca jako „Do odrobienia”. Po upływie terminu przycisku

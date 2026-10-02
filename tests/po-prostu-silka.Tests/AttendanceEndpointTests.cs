@@ -147,6 +147,16 @@ public class AttendanceEndpointTests(IntegrationTestFixture fixture)
         return passes!.Single(p => p.Id == passId).EntriesLeft;
     }
 
+    /// <summary>The member list's figure (MemberQuery) - the fourth read of EntryConsumption.</summary>
+    private static async Task<int?> EntriesLeftOnMemberListAsync(HttpClient admin, string email, Guid memberId)
+    {
+        var page = await admin.GetFromJsonAsync<MemberPageBody<MemberListRow>>(
+            $"/api/admin/members?search={Uri.EscapeDataString(email)}");
+        return page!.Items.Single(m => m.Id == memberId).PassEntriesLeft;
+    }
+
+    private sealed record MemberListRow(Guid Id, int? PassEntriesLeft);
+
     private static async Task<int> EntriesLeftForMemberAsync(HttpClient member) =>
         (await member.GetFromJsonAsync<MembershipPassView>("/api/passes/mine"))!.EntriesLeft;
 
@@ -216,8 +226,9 @@ public class AttendanceEndpointTests(IntegrationTestFixture fixture)
     }
 
     /// <summary>
-    /// "ODROBI" AND "PRZEPADA" KEEP THE ENTRY SPENT (S-36), on all three sites: the club's spreadsheet
-    /// charges both, and the makeup that "odrobi" earns is free instead.
+    /// "ODROBI" AND "PRZEPADA" KEEP THE ENTRY SPENT (S-36), on all four sites: the admin's karnet list,
+    /// the member list, the member's card and the gate. The club's spreadsheet charges both, and the
+    /// makeup that "odrobi" earns is free instead.
     /// </summary>
     [Theory]
     [InlineData("makeup", BookingAttendance.Makeup)]
@@ -225,7 +236,10 @@ public class AttendanceEndpointTests(IntegrationTestFixture fixture)
     public async Task A_new_absence_keeps_its_entry_spent(string mark, BookingAttendance stored)
     {
         var admin = await AdminAsync();
-        var (member, memberId) = await MemberWithAccountAsync(admin);
+        var email = $"att-member-{Guid.NewGuid():N}@test.local";
+        await fixture.CreateUserAsync(email, AccountStatus.Active, ApplicationRoles.User);
+        var memberId = await fixture.FindMemberIdAsync(admin, email);
+        var member = await fixture.CreateAuthenticatedClientAsync(email);
         var passId = await fixture.IssuePassAsync(memberId, entryCount: 1);
 
         var past = await ClassAsync(admin);
@@ -237,6 +251,7 @@ public class AttendanceEndpointTests(IntegrationTestFixture fixture)
         Assert.Equal(stored, (await BookingByIdAsync(booking.Id)).Attendance);
 
         Assert.Equal(0, await EntriesLeftForAdminAsync(admin, memberId, passId));
+        Assert.Equal(0, await EntriesLeftOnMemberListAsync(admin, email, memberId));
         Assert.Equal(0, await EntriesLeftForMemberAsync(member));
 
         var next = await ClassAsync(admin);

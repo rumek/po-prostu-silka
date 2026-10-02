@@ -16,6 +16,7 @@ import { List } from '../../shared/list/list';
 import { Row } from '../../shared/list/row';
 import { ToastService } from '../../shared/toast/toast.service';
 import { CLUB_ZONE } from '../../shared/class-date/class-date';
+import { Icon } from '../../shared/icons/icon';
 import { MakeupClassPicker } from './makeup-class-picker';
 import { STATUS_WORDS, clubDay, instantDay, instantWhen } from './makeup-format';
 
@@ -70,7 +71,7 @@ function clubToday(): string {
  * the server's answer. A list that could not load is outlet 4. The picker keeps its own banner.
  */
 @Component({
-  imports: [Row, List, Empty, Loading, Field, Checkbox, MakeupClassPicker],
+  imports: [Row, List, Empty, Loading, Field, Checkbox, Icon, MakeupClassPicker],
   selector: 'app-makeups',
   styleUrl: './makeups.scss',
   templateUrl: './makeups.html',
@@ -210,6 +211,16 @@ export class Makeups {
         ? `Zapisano odrabianie: ${item.makeup.name}, ${instantWhen(item.makeup.startsAt)}.`
         : 'Zapisano odrabianie.',
     );
+  }
+
+  /**
+   * The picker found its item no longer open: the row on screen is out of date. Shut the picker, say
+   * why, and reload — a recovered conflict, so `info` rather than `error` (S-19).
+   */
+  protected onStale(message: string): void {
+    this.picking.set(null);
+    this.toast.info(message);
+    void this.load();
   }
 
   protected release(item: MakeupItem): Promise<void> {

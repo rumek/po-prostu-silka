@@ -15,9 +15,13 @@ namespace po_prostu_silka.Infrastructure.Scheduling;
 /// STATUS IS DERIVED IN MEMORY, AFTER ONE PROJECTION. An item's deadline is its absence's CLUB-LOCAL
 /// date plus thirty days, and the club-local date is a time-zone conversion SQL Server would have to be
 /// taught; <see cref="MakeupRules.StateOf"/> is then the one definition every caller reads. That loads
-/// every "odrobi" absence the club has - a handful a week for a club of dozens - which is cheaper than
-/// a second definition of the rule in SQL drifting from the first. Revisit with a measured plan, not a
-/// guess, if the list ever grows slow.
+/// every "odrobi" absence the club has for the closed view - a handful a week for a club of dozens -
+/// which is cheaper than a second definition of the rule in SQL drifting from the first.
+/// </para>
+///
+/// <para>
+/// The DEFAULT view - the one staff open every day - is bounded in time first by
+/// <see cref="PossiblyOpen"/>, a SQL superset of "open or planned"; StateOf still decides.
 /// </para>
 /// </summary>
 public class MakeupQuery(AppDbContext db, TimeProvider timeProvider) : IMakeupQuery
@@ -41,7 +45,8 @@ public class MakeupQuery(AppDbContext db, TimeProvider timeProvider) : IMakeupQu
         bool includeClosed, int page, int pageSize, CancellationToken cancellationToken)
     {
         var today = ClubToday();
-        var items = (await RowsAsync(Absences(), cancellationToken))
+        var absences = includeClosed ? Absences() : PossiblyOpen(Absences(), today);
+        var items = (await RowsAsync(absences, cancellationToken))
             .Select(r => ToItem(r, today))
             .Where(i => includeClosed || i.Status is "open" or "planned")
             // Nearest deadline first: the list is a to-do list. The absence's start breaks a tie, then
@@ -145,6 +150,27 @@ public class MakeupQuery(AppDbContext db, TimeProvider timeProvider) : IMakeupQu
                         && b.Status == BookingStatus.Active
                         && b.Class.Status != ClassStatus.Cancelled)
             .Where(b => db.Members.Where(notStaff).Any(m => m.Id == b.MemberId));
+    }
+
+    /// <summary>
+    /// A SUPERSET of the items <see cref="MakeupRules.StateOf"/> reads as open or planned, cut in SQL so
+    /// the default list does not materialize the club's whole history. Not closed by hand, and either
+    /// still within its deadline (the absence's club-local date is no earlier than today minus
+    /// <see cref="MakeupRules.DeadlineDays"/>) or holding a live makeup not yet marked present or
+    /// forfeited - the planned item that outlives its deadline. Every row it lets through still goes
+    /// through StateOf, so it may be loose, never tight: keep it in step if StateOf's order changes.
+    /// </summary>
+    private IQueryable<Booking> PossiblyOpen(IQueryable<Booking> absences, DateOnly today)
+    {
+        var earliestOpenStart = ClubTime.StartOfLocalDay(today.AddDays(-MakeupRules.DeadlineDays));
+
+        return absences.Where(b => b.MakeupClosedAt == null
+                                   && (b.Class.StartsAt >= earliestOpenStart
+                                       || db.Bookings.Any(m => m.MakeupForBookingId == b.Id
+                                                               && m.Status == BookingStatus.Active
+                                                               && m.Class.Status != ClassStatus.Cancelled
+                                                               && m.Attendance != BookingAttendance.Present
+                                                               && m.Attendance != BookingAttendance.Forfeited)));
     }
 
     private async Task<List<Row>> RowsAsync(IQueryable<Booking> absences, CancellationToken cancellationToken) =>

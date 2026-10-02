@@ -164,6 +164,15 @@ export class ClassBookingsOverlay implements OnInit {
     };
   });
 
+  /**
+   * The rows "Wszyscy obecni" may touch: unmarked ones and legacy absences. Never an "Odrobi" or
+   * "Przepada" mark (S-36) — those are deliberate decisions, and an "Odrobi" grants a makeup that a
+   * bulk tap must not take back.
+   */
+  protected readonly bulkMarkable = computed(() =>
+    this.rows().filter((r) => r.attendance === null || r.attendance === 'absent'),
+  );
+
   /** The toggle's options for one row: a makeup row is never offered "Odrobi". */
   protected optionsFor(booking: ClassBooking): readonly AttendanceOption[] {
     return booking.isMakeup ? MAKEUP_OPTIONS : ATTENDANCE_OPTIONS;
@@ -410,15 +419,14 @@ export class ClassBookingsOverlay implements OnInit {
   protected readonly markingAll = signal(false);
 
   /**
-   * Marks everybody present — absences included: the common case is a full room, and whoever did
-   * not come is then flipped back one row at a time. An absent → present flip can be refused
+   * Marks every unmarked row present (and every legacy absence): the common case is a full room, and
+   * whoever did not come is then flipped one row at a time. Rows already marked Odrobi or Przepada are
+   * left alone — see {@link bulkMarkable}. A legacy absent → present flip can be refused
    * `no_entries_left` like a single tap; the rows go out together, each through the same path as a
    * single tap, so a refusal still lands on its own row.
    */
   protected async markAllPresent(): Promise<void> {
-    const pending = this.rows().filter(
-      (booking) => booking.attendance !== 'present' && !this.busy.isBusy(booking.bookingId),
-    );
+    const pending = this.bulkMarkable().filter((booking) => !this.busy.isBusy(booking.bookingId));
     if (pending.length === 0 || this.markingAll()) {
       return;
     }

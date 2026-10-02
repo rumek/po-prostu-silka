@@ -1,6 +1,7 @@
 using po_prostu_silka.Application.Members;
 using po_prostu_silka.Application.Persistence;
 using po_prostu_silka.Domain.Members;
+using po_prostu_silka.Domain.Scheduling;
 
 namespace po_prostu_silka.Application.Scheduling;
 
@@ -12,6 +13,42 @@ public record MakeupBookingRequest(Guid ClassId);
 /// makes up, and the last club-local date its class may take place on.
 /// </summary>
 public sealed record MakeupGrant(Guid AbsenceBookingId, DateOnly Deadline);
+
+/// <summary>
+/// The one concurrency token every writer of a makeup item rotates (S-36).
+///
+/// <para>
+/// Booking the makeup, re-marking the absence and closing or reopening the item each write a
+/// DIFFERENT row - the makeup's class, the absence, the absence again without a stamp - so without a
+/// shared token two of them can both read "open" and both commit: a free makeup for an absence that is
+/// no longer "odrobi", or a live makeup on an item closed by hand. The token is the absence's karnet
+/// stamp, which <see cref="RecordAttendance"/> already rotates on every mark; an absence no karnet paid
+/// for (pre-S-16) falls back to its class's stamp, which RecordAttendance then rotates instead.
+/// </para>
+/// </summary>
+public static class MakeupClaim
+{
+    public static async Task RotateAsync(
+        Booking absence, IMembershipPassStore passes, IClassStore classes, CancellationToken cancellationToken)
+    {
+        if (absence.MembershipPassId is { } passId)
+        {
+            var pass = await passes.FindAsync(passId, cancellationToken);
+            if (pass is not null)
+            {
+                pass.ConcurrencyStamp = Guid.NewGuid().ToString();
+            }
+
+            return;
+        }
+
+        var absenceClass = await classes.FindAsync(absence.ClassId, cancellationToken);
+        if (absenceClass is not null)
+        {
+            absenceClass.ConcurrencyStamp = Guid.NewGuid().ToString();
+        }
+    }
+}
 
 /// <summary>
 /// Staff book the one free makeup an "odrobi" absence earned (S-36).
@@ -80,9 +117,12 @@ public static class BookMakeup
         if (await bookings.CancelSupersededMakeupsAsync(
                 absenceBookingId, timeProvider.GetUtcNow(), cancellationToken))
         {
+            // Lost to a racing write: the row still holds the index, so every insert below would fail
+            // too. Say so now rather than after ten doomed attempts.
             if (await unitOfWork.TrySaveAsync(cancellationToken) != SaveOutcome.Saved)
             {
                 unitOfWork.DiscardChanges();
+                return MakeupFailure.Refuse("conflict");
             }
         }
 

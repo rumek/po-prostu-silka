@@ -126,10 +126,13 @@ public class BookingQuery(AppDbContext db) : IBookingQuery
     public async Task<AttendanceCounts> CountAttendanceForPassAsync(
         Guid passId, DateTimeOffset now, CancellationToken cancellationToken)
     {
-        // One grouped statement rather than three counts. A pass holds tens of rows.
+        // One grouped statement rather than three counts. A pass holds tens of rows. A makeup booking
+        // (S-36) carries the pass id but spends no entry - its absence already did - so it is left out:
+        // one mark per entry, as MyAttendanceSummary promises.
         var groups = await db.Bookings
             .AsNoTracking()
             .Where(b => b.MembershipPassId == passId
+                        && b.MakeupForBookingId == null
                         && b.Status == BookingStatus.Active
                         && b.Class.Status != ClassStatus.Cancelled
                         && b.Class.StartsAt <= now)

@@ -212,9 +212,9 @@
         {{ tally().forfeited }} · Nieoznaczeni: {{ tally().unrecorded }}
       </p>
 
-      <!-- Marks every row present, absences included; whoever did not come is flipped back by hand.
-           Hidden rather than disabled once everyone is present — there is nothing left for it to do. -->
-      @if (tally().present < rows().length) {
+      <!-- Marks every unmarked row present (legacy absences too); Odrobi and Przepada marks are left
+           alone. Hidden rather than disabled once nothing is unmarked — there is nothing left for it to do. -->
+      @if (bulkMarkable().length > 0) {
         <button
           type="button"
           class="button attendance-all"

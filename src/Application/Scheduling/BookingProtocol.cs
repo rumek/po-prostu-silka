@@ -124,7 +124,8 @@ public static class BookingProtocol
 
             // S-36. A makeup must take place by its deadline, and its absence must still be owed one.
             // Re-read on every attempt, like everything else here: the attempt that lost to a racing
-            // makeup booking of the same absence must see that booking now.
+            // makeup booking, re-mark or hand close of the same absence must see that write now - and
+            // rotating the item's token below is what makes those writers lose to each other.
             if (makeup is not null)
             {
                 if (classDate > makeup.Deadline)
@@ -132,10 +133,15 @@ public static class BookingProtocol
                     return Refuse("makeup_deadline_passed");
                 }
 
-                if (await bookings.HasLiveMakeupAsync(makeup.AbsenceBookingId, cancellationToken))
+                var absence = await bookings.FindByIdAsync(makeup.AbsenceBookingId, cancellationToken);
+                if (absence is not
+                        { Status: BookingStatus.Active, Attendance: BookingAttendance.Makeup, MakeupClosedAt: null }
+                    || await bookings.HasLiveMakeupAsync(makeup.AbsenceBookingId, cancellationToken))
                 {
                     return Refuse("makeup_not_open");
                 }
+
+                await MakeupClaim.RotateAsync(absence, passes, classes, cancellationToken);
             }
 
             // A makeup still needs a karnet covering ITS OWN date (S-16 holds without exception) -

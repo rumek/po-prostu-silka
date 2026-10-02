@@ -261,6 +261,13 @@ and the booking gate all read it.
 - **`GetOpenForMemberAsync(memberId)`** returns `{ Count, NearestDeadline? }`, counting `open` items
   only.
 
+**Adapted during implementation.** The status predicate is `MakeupRules.StateOf` in
+`src/Domain/Scheduling/MakeupRules.cs`, not a new `Infrastructure/Scheduling/MakeupStatus.cs`. It is a
+pure function over the projected row, so Domain can hold it and every reader shares one definition.
+`MakeupQuery` projects the rows (a live makeup is `Active` on a non-cancelled class) and applies
+`StateOf` in memory. The member method is `GetForMemberAsync`, returning `MyMakeups(Count,
+NearestDeadline)`. `MakeupClass` also carries the makeup's `BookingId`.
+
 #### 2. Eligible classes
 
 **File**: new `src/Application/Scheduling/GetMakeupClasses.cs`
@@ -277,6 +284,10 @@ lost race, not a normal outcome.
 
 It returns 404 for an unknown absence and 409 `makeup_not_open` when the item is not `open`. Results
 are ordered by `StartsAt`, from any instructor. The DTO reuses `ScheduledClass`'s shape where possible.
+
+**Adapted during implementation.** There is no `GetMakeupClasses.cs`: the list, the eligible classes
+and `mine` share `src/Application/Scheduling/GetMakeups.cs`. The filter runs in
+`MakeupQuery.GetEligibleClassesAsync`.
 
 #### 3. Booking and releasing a makeup
 
@@ -303,6 +314,18 @@ makeup into any class.
 - **`DELETE /api/makeups/{absenceBookingId}/booking`** releases the linked makeup:
   - allowed before its class starts, otherwise `class_started`;
   - rotates the class stamp, as `ReleaseBooking` does.
+
+**Adapted during implementation.**
+- **Superseded makeup.** A makeup on a cancelled class is cancelled in its OWN save, before the loop,
+  not in the same save as the insert. EF does not guarantee the update runs before the insert, so the
+  filtered unique index could refuse the insert.
+- **One token per item (`MakeupClaim`, added in the implementation review, F1).** The makeup branch
+  re-reads the absence on every attempt: it must be `Active`, `Makeup`, not closed by hand, and have
+  no live makeup.
+  - It rotates the absence's karnet stamp; for an absence with no karnet (pre-S-16) it rotates the
+    absence class's stamp instead.
+  - `CloseMakeup` rotates the same token, and `RecordAttendance` already rotates it, so booking,
+    re-marking and closing cannot all commit against the same "open" item.
 
 #### 4. Close and reopen
 
@@ -332,6 +355,10 @@ allows.
   - `no_valid_pass`, `member_blocked`, `member_is_staff`, `conflict`.
 - `BookingFailure` gains `makeup_booked` and `makeup_not_allowed`, from Phase 1.
 - Add the new routes to the authorization inventories.
+
+**Adapted during implementation.** `MakeupFailure` and its `Refuse` live at the foot of
+`src/Application/Scheduling/MakeupItem.cs`, not in their own file. Refusals coming out of
+`BookingProtocol` are emitted as `BookingFailure` records, which have the same `{ reason }` wire shape.
 
 ### Success Criteria:
 
@@ -441,7 +468,8 @@ same row-error outlet.
 **Adapted during implementation.** The upcoming list needed `isMakeup` on `MyBooking`, which no
 backend phase had added. It was added to `src/Application/Scheduling/MyBooking.cs` and its
 `BookingQuery` projection in this phase. The chip renders through a new `makeup` input on
-`shared/class-date/booked-class.ts`, shared by both tabs.
+`shared/class-date/booked-class.ts`, shared by both tabs. The hero hint reads "Do odrobienia: N" with
+"Najbliższy termin: {date}" on its own line, not "· do {date}".
 
 ### Success Criteria:
 
@@ -510,6 +538,9 @@ one load fence, the presentational kit only.
 - **Empty states:** `app-empty icon="repeat"`, with a different sentence for the open-only view and
   the closed view.
 
+**Adapted during implementation.** The deadline line reads "Termin: do {date}" only. There is no "za N
+dni" variant.
+
 #### 3. The class picker overlay
 
 **File**: new `src/app/src/app/features/makeups/makeup-class-picker.{ts,html,scss,spec.ts}`
@@ -529,7 +560,9 @@ then `.overlay-body`, then `.overlay-actions`, with `useOverlayFocus`.
 **Adapted during implementation.** One tap per class instead of select-then-confirm. Each row books
 with its own "Zapisz" button, and the overlay has no `.overlay-actions` foot, because there is
 nothing to confirm (AGENTS.md "omitted when there is nothing to confirm"). A refusal still lands as
-the in-overlay `.alert` banner, and the list reloads.
+the in-overlay `.alert` banner, and the list reloads. The classes are listed flat, by start, each row
+carrying its date. They are not grouped by day. The empty sentence is "Brak zajęć z wolnym miejscem w
+terminie odrabiania".
 
 ### Success Criteria:
 
@@ -576,6 +609,10 @@ nothing". It follows `src/app/e2e/CLAUDE.md`: PHONE, role locators, `club` build
 2. **Mark Odrobi:** the trainer marks Odrobi in the roster. The member's Start still reads `4 z 5`.
 3. **Book the makeup:** the trainer opens Odrabianie and books the future class from the picker.
 4. **Member view:** the member sees "Odrabianie" on Moje zajęcia, and the karnet still reads `4 z 5`.
+
+**Adapted during implementation.** Both classes belong to the E2E trainer. Booking into another
+trainer's class is covered by `MakeupEndpointTests` and by manual case 4.4, not by the browser spec.
+Cleanup goes through a new `club.closeMakeupAfterwards` builder.
 
 #### 2. Docs
 

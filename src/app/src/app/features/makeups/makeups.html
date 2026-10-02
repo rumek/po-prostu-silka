@@ -2,8 +2,7 @@
   <h1 class="screen-title">Odrabianie</h1>
 </div>
 <p class="hint">
-  Nieobecności „odrobi” z ostatnich 30 dni. Zapisz osobę na dowolne zajęcia w terminie — odrabianie
-  nie zużywa wejścia.
+  Nieobecności „odrobi” — 30 dni na odrobienie od dnia zajęć. Odrabianie nie zużywa wejścia.
 </p>
 
 <div class="makeups-controls">
@@ -77,7 +76,8 @@
               [disabled]="busy.isBusy(item.absenceBookingId)"
               (click)="openPicker(item)"
             >
-              Zapisz na odrabianie
+              <app-icon name="booking" />
+              Zapisz
             </button>
             <button
               type="button"
@@ -85,7 +85,8 @@
               [disabled]="busy.isBusy(item.absenceBookingId)"
               (click)="close(item)"
             >
-              Zamknij
+              <app-icon name="absent" />
+              Nie odrobi
             </button>
           } @else if (releasable(item)) {
             <button
@@ -94,6 +95,7 @@
               [disabled]="busy.isBusy(item.absenceBookingId)"
               (click)="release(item)"
             >
+              <app-icon name="cancelled" />
               Zwolnij
             </button>
           } @else if (reopenable(item)) {
@@ -103,6 +105,7 @@
               [disabled]="busy.isBusy(item.absenceBookingId)"
               (click)="reopen(item)"
             >
+              <app-icon name="repeat" />
               Otwórz ponownie
             </button>
           }
@@ -134,5 +137,10 @@
 }
 
 @if (picking(); as item) {
-  <app-makeup-class-picker [item]="item" (booked)="onBooked($event)" (closed)="closePicker()" />
+  <app-makeup-class-picker
+    [item]="item"
+    (booked)="onBooked($event)"
+    (stale)="onStale($event)"
+    (closed)="closePicker()"
+  />
 }

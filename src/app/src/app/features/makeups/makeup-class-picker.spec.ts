@@ -115,6 +115,26 @@ describe('MakeupClassPicker', () => {
     await settle();
   });
 
+  it('hands an item that stopped being open back to the list, without a banner or a reload', async () => {
+    controller.expectOne('/api/makeups/a1/classes').flush([PILATES]);
+    await settle();
+
+    const stale = vi.fn();
+    fixture.componentInstance.stale.subscribe(stale);
+
+    buttonWith('Zapisz')!.click();
+    await settle();
+
+    controller
+      .expectOne('/api/makeups/a1/booking')
+      .flush({ reason: 'makeup_not_open' }, { status: 409, statusText: 'Conflict' });
+    await settle();
+
+    expect(stale).toHaveBeenCalledWith(expect.stringContaining('lista była nieaktualna'));
+    expect(root().querySelector('.alert')).toBeNull();
+    controller.expectNone('/api/makeups/a1/classes');
+  });
+
   it('says so when no class fits the deadline', async () => {
     controller.expectOne('/api/makeups/a1/classes').flush([]);
     await settle();

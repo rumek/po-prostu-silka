@@ -693,19 +693,19 @@ describe('ClassBookingsOverlay — attendance', () => {
     controller.expectNone('/api/admin/classes/c1/bookings/b1/attendance');
   });
 
-  it('marks every row present at once, absences included', async () => {
+  it('marks every unmarked row present at once, leaving Odrobi and Przepada alone', async () => {
     open(STARTED);
     await respond([
       signup({ attendance: 'forfeited' }),
       signup({ bookingId: 'b2', memberId: 'm2', displayName: 'Jan Nowak' }),
-      signup({ bookingId: 'b3', memberId: 'm3', displayName: 'Ewa Lis' }),
+      signup({ bookingId: 'b3', memberId: 'm3', displayName: 'Ewa Lis', attendance: 'absent' }),
+      signup({ bookingId: 'b4', memberId: 'm4', displayName: 'Olek Wójcik', attendance: 'makeup' }),
     ]);
 
     buttonWith('Wszyscy obecni')!.click();
     await settle();
 
     for (const [bookingId, memberId, displayName] of [
-      ['b1', 'm1', 'Ala Kowalska'],
       ['b2', 'm2', 'Jan Nowak'],
       ['b3', 'm3', 'Ewa Lis'],
     ]) {
@@ -715,10 +715,12 @@ describe('ClassBookingsOverlay — attendance', () => {
       expect(request.request.body).toEqual({ attendance: 'present' });
       request.flush(signup({ bookingId, memberId, displayName, attendance: 'present' }));
     }
+    controller.expectNone('/api/admin/classes/c1/bookings/b1/attendance');
+    controller.expectNone('/api/admin/classes/c1/bookings/b4/attendance');
     await settle();
 
     expect(element().textContent).toContain(
-      'Obecni: 3 · Odrobią: 0 · Przepada: 0 · Nieoznaczeni: 0',
+      'Obecni: 2 · Odrobią: 1 · Przepada: 1 · Nieoznaczeni: 0',
     );
     expect(buttonWith('Wszyscy obecni')).toBeUndefined();
   });

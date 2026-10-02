@@ -64,7 +64,7 @@ test('an absence marked odrobi keeps its entry spent, and the makeup booked for 
     // Trainer: book the makeup from Odrabianie into the class ahead.
     await page.goto('/makeups');
     const row = page.getByRole('listitem').filter({ hasText: name });
-    await row.getByRole('button', { name: 'Zapisz na odrabianie' }).click();
+    await row.getByRole('button', { name: 'Zapisz', exact: true }).click();
     const picker = page.getByRole('dialog', { name: `Odrabianie: ${name}` });
     await picker
       .getByRole('listitem')

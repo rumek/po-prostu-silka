@@ -611,6 +611,19 @@ public class MakeupEndpointTests(IntegrationTestFixture fixture) : IAsyncLifetim
         var target = await ClassAtAsync(admin, AtClubTime(ClubToday().AddDays(2), 23));
         Assert.Equal(HttpStatusCode.OK, (await BookMakeupAsync(admin, planned, target)).StatusCode);
 
+        // Closed by hand: not open, so not counted.
+        var closedClass = await BookedClassAtAsync(admin, memberId, AtClubTime(ClubToday().AddDays(-2), 9));
+        var closed = await BookingIdAsync(closedClass, memberId);
+        await MarkAsync(closed, BookingAttendance.Makeup);
+        Assert.Equal(
+            HttpStatusCode.OK,
+            (await admin.PutAsync($"/api/makeups/{closed}/closed", content: null)).StatusCode);
+
+        // Past its deadline: not counted, and its (earlier) deadline must not become the nearest one.
+        var expiredClass = await BookedClassAtAsync(
+            admin, memberId, AtClubTime(ClubToday().AddDays(-(MakeupRules.DeadlineDays + 1)), 9));
+        await MarkAsync(await BookingIdAsync(expiredClass, memberId), BookingAttendance.Makeup);
+
         var mine = (await member.GetFromJsonAsync<MineBody>("/api/makeups/mine"))!;
 
         Assert.Equal(2, mine.Count);

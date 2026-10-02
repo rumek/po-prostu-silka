@@ -158,6 +158,12 @@ public static class RecordAttendance
                     pass.ConcurrencyStamp = Guid.NewGuid().ToString();
                 }
             }
+            else
+            {
+                // No karnet paid for it (pre-S-16): its class's stamp stands in as the makeup item's
+                // token, the one BookMakeup and CloseMakeup rotate for such an absence (MakeupClaim).
+                entity.ConcurrencyStamp = Guid.NewGuid().ToString();
+            }
 
             booking.Attendance = attendance;
             booking.AttendanceRecordedAt = now;

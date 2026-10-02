@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using po_prostu_silka.Application.Members;
 using po_prostu_silka.Application.Persistence;
 using po_prostu_silka.Domain.Scheduling;
 
@@ -19,6 +20,8 @@ public static class CloseMakeup
         ClaimsPrincipal principal,
         IMakeupQuery query,
         IBookingStore bookings,
+        IMembershipPassStore passes,
+        IClassStore classes,
         IUnitOfWork unitOfWork,
         TimeProvider timeProvider,
         CancellationToken cancellationToken)
@@ -42,6 +45,7 @@ public static class CloseMakeup
         var absence = await bookings.FindByIdAsync(absenceBookingId, cancellationToken);
         absence!.MakeupClosedAt = timeProvider.GetUtcNow();
         absence.MakeupClosedBy = principal.FindFirstValue(ClaimTypes.NameIdentifier);
+        await MakeupClaim.RotateAsync(absence, passes, classes, cancellationToken);
 
         return await SaveAsync(absenceBookingId, query, unitOfWork, cancellationToken);
     }
@@ -55,6 +59,8 @@ public static class CloseMakeup
         Guid absenceBookingId,
         IMakeupQuery query,
         IBookingStore bookings,
+        IMembershipPassStore passes,
+        IClassStore classes,
         IUnitOfWork unitOfWork,
         TimeProvider timeProvider,
         CancellationToken cancellationToken)
@@ -79,13 +85,15 @@ public static class CloseMakeup
         var absence = await bookings.FindByIdAsync(absenceBookingId, cancellationToken);
         absence!.MakeupClosedAt = null;
         absence.MakeupClosedBy = null;
+        await MakeupClaim.RotateAsync(absence, passes, classes, cancellationToken);
 
         return await SaveAsync(absenceBookingId, query, unitOfWork, cancellationToken);
     }
 
     /// <summary>
-    /// One save, no retry loop: the close fields guard no pool, and the only concurrent writer of the
-    /// row - a re-mark - clears them, which is the outcome a lost race would leave anyway.
+    /// One save, no retry loop. The item's token (<see cref="MakeupClaim"/>) was rotated with the close
+    /// fields, so a racing makeup booking or re-mark makes this save lose rather than both commit, and
+    /// staff simply try again on <c>conflict</c>.
     /// </summary>
     private static async Task<IResult> SaveAsync(
         Guid absenceBookingId, IMakeupQuery query, IUnitOfWork unitOfWork, CancellationToken cancellationToken)

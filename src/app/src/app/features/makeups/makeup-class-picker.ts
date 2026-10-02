@@ -23,7 +23,8 @@ import { clubDay, instantWhen } from './makeup-format';
  * The list comes from the server already narrowed — upcoming, by the deadline, with a free spot,
  * without the member, on a day one of their karnets covers, from ANY trainer — so a refusal here is
  * a lost race rather than a normal outcome. It still happens, and stays in the overlay as a banner
- * (S-19 outlet 2: the submission as a whole failed), with the list reloaded under it.
+ * (S-19 outlet 2: the submission as a whole failed), with the list reloaded under it — unless the
+ * ITEM stopped being open, when there is nothing left to choose: see {@link stale}.
  *
  * <h2>One tap per class, no confirm foot</h2>
  *
@@ -47,6 +48,13 @@ export class MakeupClassPicker implements OnInit {
   /** The makeup was booked; carries the item as the server now reports it. */
   readonly booked = output<MakeupItem>();
   readonly closed = output<void>();
+
+  /**
+   * The item stopped being open while the picker was up (`makeup_not_open`): someone else booked or
+   * closed it. Nothing here can be chosen any more, so the picker hands the refusal's words to the
+   * list, which closes it and reloads.
+   */
+  readonly stale = output<string>();
 
   protected readonly classes = signal<ScheduledClass[]>([]);
   protected readonly loading = signal(true);
@@ -108,6 +116,11 @@ export class MakeupClassPicker implements OnInit {
       this.booked.emit(await this.makeups.book(this.item().absenceBookingId, target.id));
     } catch (error) {
       const info = classifyFailure(error);
+      if (info.kind === 'business' && info.reason === 'makeup_not_open') {
+        this.stale.emit(makeupFailureMessage(info.reason));
+        return;
+      }
+
       this.failure.set(transportMessage(info) ?? makeupFailureMessage(info.reason));
       void this.load();
     } finally {

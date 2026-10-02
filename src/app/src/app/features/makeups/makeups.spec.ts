@@ -85,8 +85,8 @@ describe('Makeups', () => {
     expect(row.textContent).toContain('Do odrobienia');
     expect(row.textContent).toContain('Joga');
     expect(row.textContent).toContain('Termin: do 31 grudnia');
-    expect(buttonWith('Zapisz na odrabianie', row)).toBeDefined();
-    expect(buttonWith('Zamknij', row)).toBeDefined();
+    expect(buttonWith('Zapisz', row)).toBeDefined();
+    expect(buttonWith('Nie odrobi', row)).toBeDefined();
   });
 
   it('shows a planned makeup and offers its release before the start', async () => {
@@ -107,7 +107,7 @@ describe('Makeups', () => {
     expect(row.textContent).toContain('Zaplanowane');
     expect(row.textContent).toContain('Pilates');
     expect(buttonWith('Zwolnij', row)).toBeDefined();
-    expect(buttonWith('Zapisz na odrabianie', row)).toBeUndefined();
+    expect(buttonWith('Zapisz', row)).toBeUndefined();
   });
 
   it('reads the closed view from the URL and offers a reopen within the deadline', async () => {
@@ -142,7 +142,7 @@ describe('Makeups', () => {
   it('closes an item and replaces the row with the server answer', async () => {
     await createWith([item()]);
 
-    buttonWith('Zamknij', rowOf('Anna Kowalska'))!.click();
+    buttonWith('Nie odrobi', rowOf('Anna Kowalska'))!.click();
     await settle();
 
     const request = controller.expectOne('/api/makeups/a1/closed');
@@ -156,7 +156,7 @@ describe('Makeups', () => {
   it('opens the class picker for an open item', async () => {
     await createWith([item()]);
 
-    buttonWith('Zapisz na odrabianie', rowOf('Anna Kowalska'))!.click();
+    buttonWith('Zapisz', rowOf('Anna Kowalska'))!.click();
     await settle();
 
     expect(root().querySelector('app-makeup-class-picker')).not.toBeNull();
@@ -168,6 +168,13 @@ describe('Makeups', () => {
     await createWith([]);
 
     expect(root().textContent).toContain('Nikt nie czeka na odrobienie zajęć.');
+  });
+
+  it('says there has been nothing to make up when the closed view is empty', async () => {
+    await createWith([], '/?zamkniete=1', CLOSED_LIST);
+
+    expect(root().textContent).toContain('Nikt jeszcze nie miał nieobecności do odrobienia.');
+    expect(root().textContent).not.toContain('Nikt nie czeka na odrobienie zajęć.');
   });
 
   it('keeps the screen state on a failed load, with a retry', async () => {

@@ -87,6 +87,15 @@ describe('MyClasses', () => {
     expect(element().textContent).not.toContain('Do odrobienia');
   });
 
+  it('skips the makeup hint, and still shows the screen, when its own load fails', async () => {
+    controller.expectOne('/api/makeups/mine').error(new ProgressEvent('failed'));
+    await respond([booking()]);
+
+    expect(element().textContent).not.toContain('Do odrobienia');
+    expect(element().querySelector('[role="alert"]')).toBeNull();
+    expect(rows().length).toBe(1);
+  });
+
   it('labels an upcoming makeup', async () => {
     await respond([booking({ isMakeup: true })]);
 
