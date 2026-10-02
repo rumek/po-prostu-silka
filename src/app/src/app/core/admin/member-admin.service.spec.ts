@@ -12,6 +12,7 @@ const FULL_MEMBER: Member = {
   createdAt: '2026-09-01T08:00:00+00:00',
   passValidTo: null,
   passEntriesLeft: null,
+  hasUnpaidPass: false,
   membershipStatus: 'Active',
   accountStatus: 'Active',
   roles: ['User'],
@@ -72,6 +73,55 @@ describe('MemberAdminService', () => {
     request.flush({ items: [], total: 0, page: 3, pageSize: 25 });
 
     await members;
+  });
+
+  /** pass-paid-flag: `unpaid` goes out only when set — absent already means "everyone". */
+  it('sends unpaid only when it is set', async () => {
+    const unpaid = service.getMembers({ filter: 'Active', unpaid: true });
+    const narrowed = await vi.waitFor(() =>
+      controller.expectOne('/api/admin/members?filter=Active&unpaid=true'),
+    );
+    narrowed.flush({ items: [], total: 0, page: 1, pageSize: 25 });
+    await unpaid;
+
+    const everyone = service.getMembers({ unpaid: false });
+    const plain = await vi.waitFor(() => controller.expectOne('/api/admin/members'));
+    expect(plain.request.params.keys()).toEqual([]);
+    plain.flush({ items: [], total: 0, page: 1, pageSize: 25 });
+    await everyone;
+  });
+
+  /** expiring-passes-dashboard: `expiring` goes out only when set, like `unpaid`. */
+  it('sends expiring only when it is set', async () => {
+    const expiring = service.getMembers({ expiring: true });
+    const narrowed = await vi.waitFor(() =>
+      controller.expectOne('/api/admin/members?expiring=true'),
+    );
+    narrowed.flush({ items: [], total: 0, page: 1, pageSize: 25 });
+    await expiring;
+
+    const everyone = service.getMembers({ expiring: false });
+    const plain = await vi.waitFor(() => controller.expectOne('/api/admin/members'));
+    expect(plain.request.params.keys()).toEqual([]);
+    plain.flush({ items: [], total: 0, page: 1, pageSize: 25 });
+    await everyone;
+  });
+
+  it('reads the Start card from its own route', async () => {
+    const card = service.getExpiringPasses();
+    const request = await vi.waitFor(() =>
+      controller.expectOne('/api/admin/members/expiring-passes'),
+    );
+    expect(request.request.method).toBe('GET');
+    request.flush({
+      items: [{ memberId: 'm1', displayName: 'Anna', validTo: '2026-10-04', daysLeft: 2 }],
+      total: 1,
+    });
+
+    expect(await card).toEqual({
+      items: [{ memberId: 'm1', displayName: 'Anna', validTo: '2026-10-04', daysLeft: 2 }],
+      total: 1,
+    });
   });
 
   /**

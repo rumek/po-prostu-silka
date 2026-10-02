@@ -12,6 +12,9 @@ Konwencje (priorytety, statusy, format przypadku) i dane testowe: [README](READM
   prowadzącego. Przy większej liczbie zapisów jest link „Zobacz wszystkie” do „Moje zajęcia”.
 - Karta „Twój karnet” pokazuje nazwę karnetu, liczbę „Pozostałe wejścia” w formie „X z Y”, datę
   „ważny do …” i wizualizację wejść (kratki przy małej liczbie wejść, pasek przy dużej, np. OPEN 30).
+- Na karcie „Twój karnet” jest słowo „Opłacony” albo znacznik „Nieopłacony” — zgodnie z tym, co
+  administrator widzi przy bieżącym karnecie tej osoby (`PASS-09`, `PASS-11`). Dotyczy tylko
+  dzisiejszego karnetu: wcześniejszy nieopłacony karnet nie jest tu pokazany.
 - Liczby zgadzają się z tym, co administrator widzi w „Karnety” tej osoby.
 
 ### DASH-02 · Start członka bez karnetu i bez zapisów — P2

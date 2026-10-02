@@ -21,6 +21,11 @@ import { Empty } from '../../../shared/forms/empty/empty';
 import { Row } from '../../../shared/list/row';
 import { List } from '../../../shared/list/list';
 import { Icon } from '../../../shared/icons/icon';
+import { Checkbox } from '../../../shared/forms/checkbox/checkbox';
+import { PassPaymentOverlay } from '../../../shared/passes/pass-payment-overlay';
+import { PassPaymentStatus } from '../../../shared/passes/pass-payment-status';
+import { createPassPaymentActions } from '../../../shared/passes/pass-payment-actions';
+import { clubToday } from '../../../core/passes/club-today';
 
 /**
  * Bounds mirrored from MembershipPassRules (src/Application/Members/MembershipPassRules.cs).
@@ -57,7 +62,20 @@ const MAX_VALIDITY_DAYS = 400;
  * </p>
  */
 @Component({
-  imports: [List, Row, Icon, Empty, Loading, Field, DatePipe, ReactiveFormsModule, RouterLink],
+  imports: [
+    List,
+    Row,
+    Icon,
+    Empty,
+    Loading,
+    Field,
+    Checkbox,
+    PassPaymentOverlay,
+    PassPaymentStatus,
+    DatePipe,
+    ReactiveFormsModule,
+    RouterLink,
+  ],
   selector: 'app-member-passes',
   styleUrl: './member-passes.scss',
   templateUrl: './member-passes.html',
@@ -109,7 +127,25 @@ export class MemberPasses implements OnInit {
       10,
       [Validators.required, Validators.min(MIN_ENTRY_COUNT), Validators.max(MAX_ENTRY_COUNT)],
     ],
+
+    // pass-paid-flag. ISSUE ONLY — hidden while editing, and never sent on an edit: payment on an
+    // existing karnet changes through the row actions below. Unchecked by default, as the club's
+    // spreadsheet leaves the cell empty. `app-checkbox` has no ControlValueAccessor, so the box is
+    // bound to `paid` by hand (`togglePaid`).
+    paid: [false],
+    paidAt: [''],
   });
+
+  /**
+   * The payment overlay and "Cofnij płatność", shared with the trainer's karnet screen. The returned
+   * row replaces the held one: patching IS safe here, unlike after an issue or an edit, because payment
+   * touches no entry and the view's entry counts were read in the same request.
+   */
+  protected readonly payment = createPassPaymentActions((view) =>
+    this.passes.update((rows) => rows.map((row) => (row.id === view.id ? view : row))),
+  );
+
+  protected readonly today = clubToday();
 
   async ngOnInit(): Promise<void> {
     const id = this.route.snapshot.paramMap.get('id');
@@ -176,6 +212,8 @@ export class MemberPasses implements OnInit {
       validFrom: pass.validFrom,
       validTo: pass.validTo,
       entryCount: pass.entryCount,
+      paid: false,
+      paidAt: '',
     });
 
     // The form sits ABOVE the history, so on a phone the row the admin tapped and the form it filled
@@ -189,7 +227,21 @@ export class MemberPasses implements OnInit {
   protected cancelEdit(): void {
     this.editingId.set(null);
     this.state.error.set(null);
-    this.form.reset({ typeName: '', validFrom: '', validTo: '', entryCount: 10 });
+    this.form.reset({
+      typeName: '',
+      validFrom: '',
+      validTo: '',
+      entryCount: 10,
+      paid: false,
+      paidAt: '',
+    });
+  }
+
+  /** Ticking "Opłacony" fills the day with today, so the common case is one tap. */
+  protected togglePaid(): void {
+    const paid = !this.form.controls.paid.value;
+
+    this.form.patchValue({ paid, paidAt: paid ? this.today : '' });
   }
 
   protected async submit(): Promise<void> {
@@ -218,11 +270,25 @@ export class MemberPasses implements OnInit {
       return;
     }
 
+    const { typeName, entryCount, paid, paidAt } = this.form.getRawValue();
+    const passId = this.editingId();
+
+    // The same bound the server enforces (invalid_paid_at): a payment is never dated in the future.
+    // The 400-day floor stays the server's alone — nobody slips that far by accident in a date picker.
+    if (passId === null && paid && (!paidAt || paidAt > this.today)) {
+      this.state.error.set(membershipPassFailureMessage('invalid_paid_at'));
+      return;
+    }
+
     this.state.submitting.set(true);
     this.state.error.set(null);
 
-    const request: IssuePassRequest = this.form.getRawValue();
-    const passId = this.editingId();
+    // Built field by field rather than from getRawValue(): `paid` is a form-only control, and an EDIT
+    // must not carry `paidAt` at all — editing never changes payment.
+    const request: IssuePassRequest = { typeName, validFrom, validTo, entryCount };
+    if (passId === null) {
+      request.paidAt = paid ? paidAt : null;
+    }
 
     try {
       if (passId === null) {

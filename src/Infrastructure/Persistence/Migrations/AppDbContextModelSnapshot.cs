@@ -343,6 +343,13 @@ namespace po_prostu_silka.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("MemberId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<DateOnly?>("PaidAt")
+                        .HasColumnType("date");
+
+                    b.Property<string>("PaidRecordedBy")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
                     b.Property<string>("TypeName")
                         .IsRequired()
                         .HasMaxLength(100)

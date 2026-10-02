@@ -3,7 +3,7 @@ project: "Po Prostu Siłka"
 version: 7
 status: draft
 created: 2026-08-31
-updated: 2026-10-01
+updated: 2026-10-02
 prd_version: 1, 2
 main_goal: quality
 top_blocker: external
@@ -160,6 +160,7 @@ privacy notice.
 | S-31 | e2e-member-onboarding-and-booking | (dev tooling) a browser-level test proves an invited person lands on the club's record with its karnet and booking, and that a staff booking and a karnet refusal reach both screens they should | S-17, S-25 | none - outside any milestone (test tooling); manual plan REG-01, BOOK-01, BOOK-03 | done |
 | S-32 | e2e-attendance-and-plans | (dev tooling) a browser-level test proves a recorded absence returns the entry on the member's screens, and a plan a trainer builds reaches the member's plan and exercise screens | S-31, S-27 | none - outside any milestone (test tooling); manual plan ATT-01, ATT-02, PLAN-01, MBR-05, MBR-06 | done |
 | S-33 | class-type-to-group-rename | (admin, trainer, member) the club's class definitions are called "grupy" everywhere - every screen, the API, the code and the database - with nothing about how they behave changing | S-05, S-06, S-32 | none - outside any milestone (naming); renames v2 FR-004-FR-007's "class type" | done |
+| S-34 | pass-paid-flag | (admin, trainer, member) staff record that a karnet was paid and on which day, see who owes on the member lists, and a member sees whether their karnet is paid - paying never gates booking | S-16, S-22, S-25 | none - outside any milestone; narrows v1 §Non-Goals "no payments" | in-progress |
 
 ## Streams
 
@@ -1014,6 +1015,28 @@ rather than in a slice body:
   copy of real data; the rollback step is in `context/deployment/deploy-plan.md`, "Rollback note".
 - **Status:** done
 
+### S-34: Staff record that a karnet was paid, and see who owes
+
+- **Outcome:** (admin, trainer, member) a karnet records whether it was paid and on which club-local
+  day, separately from being issued: the admin can mark it at issue time, and an admin or a trainer
+  marks any non-staff member's karnet paid or unpaid afterwards. Staff see "Nieopłacony" on the member
+  lists — meaning ANY unpaid karnet, because a debt outlives the karnet's validity — and the admin can
+  filter to them; a trainer settles one from a new "Karnety" screen per member. The member sees on
+  Start whether today's karnet is paid. Paying is never a gate: an unpaid karnet books like a paid one.
+- **Change ID:** pass-paid-flag
+- **PRD refs:** narrows v1 §Non-Goals "No pass/membership sales, payments, subscriptions, or
+  invoices" — the app records THAT a karnet was paid; it never takes a payment or stores an amount.
+  Requested by the client on 2026-10-02 as the one must-have from the club's spreadsheet
+  ("Zapłacono?", "BRAK PŁATNOŚCI"). **Delivered outside any milestone.**
+- **Prerequisites:** S-16 (the karnet), S-22 (the trainer's member list it hangs off), S-25 (the
+  persona rule its trainer route follows).
+- **Parallel with:** S-29 only if neither touches the karnet screens.
+- **Blockers:** -
+- **Unknowns:** -
+- **Risk:** widening the trainer's reach — a trainer may now write to any non-staff member's karnet
+  (payment only, never its dates or entries), which S-16 had kept admin-only.
+- **Status:** in-progress
+
 ## Backlog Handoff
 
 | Roadmap ID | Change ID                        | Suggested issue title                                        | Ready for `/10x-plan` | Notes                                              |
@@ -1053,6 +1076,7 @@ rather than in a slice body:
 | S-31       | e2e-member-onboarding-and-booking | E2E: invitation claim lands on the club record; staff booking and karnet refusal reach both screens | yes                   | Outside any milestone. Run `/10x-plan e2e-member-onboarding-and-booking`, then `/10x-e2e` |
 | S-32       | e2e-attendance-and-plans         | E2E: recorded absence returns the entry on the member's screens; a trainer's plan reaches the member | no                    | Needs S-31 (data-setup helpers) |
 | S-33       | class-type-to-group-rename       | Rename class types to groups across UI, API, code and database | no                    | Planned 2026-10-01. Rollback gap accepted once (staging only); run `/10x-implement class-type-to-group-rename phase 1` |
+| S-34       | pass-paid-flag                   | Record that a karnet was paid (and who recorded it); "Nieopłacony" marker and filter; trainer "Karnety" screen | no                    | Outside any milestone. Run `/10x-implement pass-paid-flag` |
 
 ## Open Roadmap Questions
 
@@ -1084,7 +1108,7 @@ Resolved since the previous roadmap: the sender-domain question that gated F-03 
 - **Standalone exercise library browsing** — Why parked: v1 §Non-Goals; exercises are reached from the plan only.
 - **Plan history / versioning UI** — Why parked: v1 §Non-Goals; one active plan per member.
 - **Account rejection status** — Why parked: v1 §Non-Goals; lifecycle is pending / active / blocked.
-- **Payments, subscriptions, invoices** — Why parked: v1 §Non-Goals; the app manages participation, not money. **Passes are no longer parked** — M-4 makes the karnet the thing that decides who trains — but the money half stands: a karnet is issued by an admin, never bought, and carries no price.
+- **Payments, subscriptions, invoices** — Why parked: v1 §Non-Goals; the app manages participation, not money. **Passes are no longer parked** — M-4 makes the karnet the thing that decides who trains — but the money half stands: a karnet is issued by an admin, never bought, and carries no price. **Narrowed 2026-10-02 → S-34** (`pass-paid-flag`): staff record that a karnet was paid and on which day; it is still never bought in the app and carries no price or amount.
 - **Waitlist for full classes** — Why parked: v1 §Non-Goals.
 - **Full recurring-series management** — Why parked: v1 §Non-Goals; weekly duplication stands in, and v2 explicitly declined to reopen it.
 - **Chat / social features; health-app integrations; native mobile apps; self-hosted video; advanced statistics; automatic weight progression** — Why parked: v1 §Non-Goals.

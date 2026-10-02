@@ -1,0 +1,12 @@
+// The .badge base lives in src/styles.scss. Outlined in ink, like the member list's .badge-active —
+// the word carries the state; this is only the second channel.
+.pass-unpaid {
+  color: var(--ink);
+  border-color: var(--line-strong);
+}
+
+.pass-paid {
+  color: var(--muted);
+  font-size: 0.875rem;
+  white-space: nowrap;
+}

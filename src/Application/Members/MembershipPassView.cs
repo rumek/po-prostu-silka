@@ -23,6 +23,13 @@ namespace po_prostu_silka.Application.Members;
 /// other timestamp in this app is a UTC instant; this one deliberately is not, because a karnet valid
 /// "to the 30th" means the whole 30th wherever the reader is standing.
 /// </para>
+///
+/// <para>
+/// <see cref="PaidAt"/> (pass-paid-flag) is the club-local day the karnet was paid, or <c>null</c> for
+/// unpaid. Built in three places — the projection and both <c>MembershipPassQuery</c> reads — and all
+/// three must set it, or one screen reads "paid" where another reads "unpaid". Who recorded it is
+/// stored but deliberately not on the wire.
+/// </para>
 /// </summary>
 public record MembershipPassView(
     Guid Id,
@@ -33,4 +40,5 @@ public record MembershipPassView(
     int EntriesUsed,
     int EntriesLeft,
     DateTimeOffset IssuedAt,
-    bool CoversToday);
+    bool CoversToday,
+    DateOnly? PaidAt);

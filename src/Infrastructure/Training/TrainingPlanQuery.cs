@@ -81,7 +81,8 @@ public class TrainingPlanQuery(AppDbContext db) : ITrainingPlanQuery
                 db.TrainingPlans
                     .Where(p => p.MemberId == x.Id && p.Status == TrainingPlanStatus.Active)
                     .Select(p => p.Name)
-                    .FirstOrDefault()))
+                    .FirstOrDefault(),
+                db.MembershipPasses.Any(p => p.MemberId == x.Id && p.PaidAt == null)))
             .ToListAsync(cancellationToken);
 
         return new PagedResult<TrainerMemberSummary>(items, total, page, pageSize);

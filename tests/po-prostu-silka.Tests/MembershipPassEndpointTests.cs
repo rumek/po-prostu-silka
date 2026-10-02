@@ -64,6 +64,143 @@ public class MembershipPassEndpointTests(IntegrationTestFixture fixture)
         // Freshly issued: nothing can have consumed an entry, and "left" is the derivation of that.
         Assert.Equal(0, view.EntriesUsed);
         Assert.Equal(8, view.EntriesLeft);
+
+        // No paidAt on the wire: unpaid, the issue form's default.
+        Assert.Null(view.PaidAt);
+    }
+
+    private static DateOnly ClubToday() =>
+        DateOnly.FromDateTime(po_prostu_silka.Domain.Scheduling.ClubTime.ToClubLocal(DateTimeOffset.UtcNow).DateTime);
+
+    private async Task<MembershipPass> PassRowAsync(Guid passId)
+    {
+        using var scope = fixture.Factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        return await db.MembershipPasses.AsNoTracking().SingleAsync(p => p.Id == passId);
+    }
+
+    private async Task<string> UserIdAsync(string email)
+    {
+        using var scope = fixture.Factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        return await db.Users.AsNoTracking().Where(u => u.Email == email).Select(u => u.Id).SingleAsync();
+    }
+
+    [Fact]
+    public async Task Issuing_a_paid_pass_stores_the_date_and_who_recorded_it()
+    {
+        var admin = await AdminAsync();
+        var memberId = await fixture.CreateMemberAsync("Paid At Issue");
+        var today = ClubToday();
+
+        var response = await admin.PostAsJsonAsync(
+            $"/api/admin/members/{memberId}/passes",
+            new { typeName = "Karnet", validFrom = Anchor, validTo = Anchor.AddDays(9), entryCount = 4, paidAt = today });
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var view = await response.Content.ReadFromJsonAsync<MembershipPassView>();
+        Assert.NotNull(view);
+        Assert.Equal(today, view.PaidAt);
+
+        var row = await PassRowAsync(view.Id);
+        Assert.Equal(today, row.PaidAt);
+        Assert.Equal(await UserIdAsync(TestUsers.ActiveAdminEmail), row.PaidRecordedBy);
+    }
+
+    [Fact]
+    public async Task Issuing_an_unpaid_pass_records_nobody()
+    {
+        var admin = await AdminAsync();
+        var memberId = await fixture.CreateMemberAsync("Unpaid At Issue");
+
+        var response = await admin.PostAsJsonAsync(
+            $"/api/admin/members/{memberId}/passes", Request(Anchor, Anchor.AddDays(9)));
+        var view = await response.Content.ReadFromJsonAsync<MembershipPassView>();
+        Assert.NotNull(view);
+
+        var row = await PassRowAsync(view.Id);
+        Assert.Null(row.PaidAt);
+        Assert.Null(row.PaidRecordedBy);
+    }
+
+    /// <summary>
+    /// Tomorrow is the future; 401 days ago is past the sanity ceiling. Today and exactly
+    /// <see cref="MembershipPassRules.MaxPaidAtAgeDays"/> ago are both inside.
+    /// </summary>
+    [Theory]
+    [InlineData(1, false)]
+    [InlineData(0, true)]
+    [InlineData(-MembershipPassRules.MaxPaidAtAgeDays, true)]
+    [InlineData(-MembershipPassRules.MaxPaidAtAgeDays - 1, false)]
+    public async Task A_payment_date_in_the_future_or_too_old_is_refused(int offsetDays, bool accepted)
+    {
+        var admin = await AdminAsync();
+        var memberId = await fixture.CreateMemberAsync($"Paid Bounds {offsetDays}");
+
+        var response = await admin.PostAsJsonAsync(
+            $"/api/admin/members/{memberId}/passes",
+            new { typeName = "Karnet", validFrom = Anchor, validTo = Anchor.AddDays(9), entryCount = 4, paidAt = ClubToday().AddDays(offsetDays) });
+
+        if (accepted)
+        {
+            Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        }
+        else
+        {
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+            Assert.Equal("invalid_paid_at", await ReasonAsync(response));
+            Assert.Equal(0, await PassCountAsync(memberId));
+        }
+    }
+
+    /// <summary>
+    /// THE REASON PAYMENT HAS ITS OWN ROUTE. The edit body has four fields; a client that sends only
+    /// those — the E2E helper, an older SPA — must not wipe a recorded payment.
+    /// </summary>
+    [Fact]
+    public async Task Editing_a_paid_pass_with_a_four_field_body_keeps_the_payment()
+    {
+        var admin = await AdminAsync();
+        var memberId = await fixture.CreateMemberAsync("Edit Keeps Payment");
+        var today = ClubToday();
+
+        var created = await admin.PostAsJsonAsync(
+            $"/api/admin/members/{memberId}/passes",
+            new { typeName = "Karnet", validFrom = Anchor, validTo = Anchor.AddDays(9), entryCount = 4, paidAt = today });
+        var pass = await created.Content.ReadFromJsonAsync<MembershipPassView>();
+        Assert.NotNull(pass);
+
+        var response = await admin.PutAsJsonAsync(
+            $"/api/admin/members/{memberId}/passes/{pass.Id}",
+            Request(Anchor, Anchor.AddDays(20), entries: 6));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var updated = await response.Content.ReadFromJsonAsync<MembershipPassView>();
+        Assert.NotNull(updated);
+        Assert.Equal(today, updated.PaidAt);
+        Assert.Equal(today, (await PassRowAsync(pass.Id)).PaidAt);
+    }
+
+    /// <summary>Not even an explicit paidAt on the edit changes it — payment has one write path.</summary>
+    [Fact]
+    public async Task Editing_a_pass_ignores_a_paid_at_in_the_body()
+    {
+        var admin = await AdminAsync();
+        var memberId = await fixture.CreateMemberAsync("Edit Ignores Payment");
+
+        var created = await admin.PostAsJsonAsync(
+            $"/api/admin/members/{memberId}/passes", Request(Anchor, Anchor.AddDays(9)));
+        var pass = await created.Content.ReadFromJsonAsync<MembershipPassView>();
+        Assert.NotNull(pass);
+
+        var response = await admin.PutAsJsonAsync(
+            $"/api/admin/members/{memberId}/passes/{pass.Id}",
+            new { typeName = "Karnet", validFrom = Anchor, validTo = Anchor.AddDays(9), entryCount = 4, paidAt = ClubToday() });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Null((await PassRowAsync(pass.Id)).PaidAt);
     }
 
     /// <summary>
@@ -275,8 +412,10 @@ public class MembershipPassEndpointTests(IntegrationTestFixture fixture)
         var admin = await AdminAsync();
         var memberId = await fixture.CreateMemberAsync("History Order");
 
+        var paid = ClubToday();
         await admin.PostAsJsonAsync(
-            $"/api/admin/members/{memberId}/passes", Request(Anchor, Anchor.AddDays(30)));
+            $"/api/admin/members/{memberId}/passes",
+            new { typeName = "Karnet", validFrom = Anchor, validTo = Anchor.AddDays(30), entryCount = 4, paidAt = paid });
         await admin.PostAsJsonAsync(
             $"/api/admin/members/{memberId}/passes", Request(Anchor.AddDays(31), Anchor.AddDays(60)));
 
@@ -287,6 +426,10 @@ public class MembershipPassEndpointTests(IntegrationTestFixture fixture)
         Assert.Equal(2, history.Count);
         Assert.Equal(Anchor.AddDays(31), history[0].ValidFrom);
         Assert.Equal(Anchor, history[1].ValidFrom);
+
+        // The history builder carries payment per row.
+        Assert.Null(history[0].PaidAt);
+        Assert.Equal(paid, history[1].PaidAt);
     }
 
     /// <summary>
@@ -636,7 +779,7 @@ public class MembershipPassEndpointTests(IntegrationTestFixture fixture)
 
         await admin.PostAsJsonAsync(
             $"/api/admin/members/{memberId}/passes",
-            Request(today.AddDays(-1), today.AddDays(20), entries: 6, name: "Karnet 6 wejść"));
+            new { typeName = "Karnet 6 wejść", validFrom = today.AddDays(-1), validTo = today.AddDays(20), entryCount = 6, paidAt = today.AddDays(-1) });
 
         var member = await fixture.CreateAuthenticatedClientAsync(email);
         var response = await member.GetAsync("/api/passes/mine");
@@ -648,6 +791,9 @@ public class MembershipPassEndpointTests(IntegrationTestFixture fixture)
         Assert.Equal("Karnet 6 wejść", view.TypeName);
         Assert.Equal(6, view.EntriesLeft);
         Assert.True(view.CoversToday);
+
+        // The member sees the payment too — the third view builder carries it.
+        Assert.Equal(today.AddDays(-1), view.PaidAt);
     }
 
     /// <summary>

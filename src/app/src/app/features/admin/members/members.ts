@@ -24,7 +24,9 @@ import { Loading } from '../../../shared/forms/loading/loading';
 import { Empty } from '../../../shared/forms/empty/empty';
 import { Field } from '../../../shared/forms/field/field';
 import { Select } from '../../../shared/forms/select/select';
+import { Checkbox } from '../../../shared/forms/checkbox/checkbox';
 import { Icon } from '../../../shared/icons/icon';
+import { PassPaymentStatus } from '../../../shared/passes/pass-payment-status';
 
 /** The filter positions, including "everyone". `null` means no filter parameter is sent. */
 type StatusFilter = MemberFilter | null;
@@ -56,6 +58,13 @@ interface ListState {
   q: string;
   filter: StatusFilter;
   role: RoleFilter;
+  /** Only members holding an unpaid karnet (pass-paid-flag) — `unpaid=1` in the URL. */
+  unpaid: boolean;
+  /**
+   * Only members whose karnet is ending (expiring-passes-dashboard) — `expiring=1` in the URL. The
+   * Start card's "Zobacz wszystkich (N)" lands here, and the server counts it with the card's predicate.
+   */
+  expiring: boolean;
   page: number;
 }
 
@@ -69,19 +78,25 @@ function readState(params: ParamMap): { state: ListState; canonical: boolean } {
   const rawFilter = params.get('filter');
   const rawRole = params.get('role');
   const rawPage = params.get('page');
+  const rawUnpaid = params.get('unpaid');
+  const rawExpiring = params.get('expiring');
 
   const q = (rawQ ?? '').trim().slice(0, MAX_SEARCH_LENGTH);
   const filter = FILTERS.find((f) => f === rawFilter) ?? null;
   const role = ROLE_FILTERS.find((r) => r === rawRole) ?? null;
+  const unpaid = rawUnpaid === '1';
+  const expiring = rawExpiring === '1';
   const page = rawPage !== null && /^[1-9]\d{0,5}$/.test(rawPage) ? Number(rawPage) : 1;
 
   const canonical =
     (rawQ === null || (q !== '' && rawQ === q)) &&
     (rawFilter === null || rawFilter === filter) &&
     (rawRole === null || rawRole === role) &&
+    (rawUnpaid === null || rawUnpaid === '1') &&
+    (rawExpiring === null || rawExpiring === '1') &&
     (rawPage === null || (page > 1 && rawPage === String(page)));
 
-  return { state: { q, filter, role, page }, canonical };
+  return { state: { q, filter, role, unpaid, expiring, page }, canonical };
 }
 
 /**
@@ -98,7 +113,7 @@ function readState(params: ParamMap): { state: ListState; canonical: boolean } {
  *
  * <h2>The URL is the list's state</h2>
  *
- * `q`, `filter` and `page` live in the query string, and ONLY the `queryParamMap` subscription
+ * `q`, `filter`, `role`, `unpaid`, `expiring` and `page` live in the query string, and ONLY the `queryParamMap` subscription
  * loads a new view: chips, the pager and the debounced search box navigate, they never call
  * `load()`. That is what makes "Edytuj dane" and Back, or a reload, land on the same page with the
  * same phrase — and it leaves the out-of-order case to the load fence rather than inventing a second
@@ -110,7 +125,18 @@ function readState(params: ParamMap): { state: ListState; canonical: boolean } {
  * the admin somewhere else to do the obvious thing.
  */
 @Component({
-  imports: [Empty, Field, Icon, Loading, Select, DatePipe, FormsModule, RouterLink],
+  imports: [
+    Checkbox,
+    Empty,
+    Field,
+    Icon,
+    Loading,
+    PassPaymentStatus,
+    Select,
+    DatePipe,
+    FormsModule,
+    RouterLink,
+  ],
   selector: 'app-members',
   styleUrl: './members.scss',
   templateUrl: './members.html',
@@ -130,6 +156,8 @@ export class Members {
   /** The state the rows on screen were ASKED for — mirrored from the URL, never set directly. */
   protected readonly filter = signal<StatusFilter>(null);
   protected readonly role = signal<RoleFilter>(null);
+  protected readonly unpaid = signal(false);
+  protected readonly expiring = signal(false);
   protected readonly query = signal('');
   protected readonly page = signal(1);
 
@@ -231,6 +259,8 @@ export class Members {
 
     this.filter.set(state.filter);
     this.role.set(state.role);
+    this.unpaid.set(state.unpaid);
+    this.expiring.set(state.expiring);
     this.query.set(state.q);
     this.page.set(state.page);
 
@@ -256,6 +286,8 @@ export class Members {
       const result = await this.members.getMembers({
         filter: this.filter() ?? undefined,
         role: this.role() ?? undefined,
+        unpaid: this.unpaid() || undefined,
+        expiring: this.expiring() || undefined,
         search: this.query() || undefined,
 
         // Page 1 is the API's default, so it is left off — the request for the first page looks the
@@ -327,6 +359,22 @@ export class Members {
     }
   }
 
+  /**
+   * "Tylko nieopłacone" (pass-paid-flag) — orthogonal to the status and role selects, so it combines
+   * with them; navigates like they do.
+   */
+  protected async toggleUnpaid(): Promise<void> {
+    await this.refilter({ unpaid: !this.unpaid() });
+  }
+
+  /**
+   * "Tylko kończące się" (expiring-passes-dashboard) — orthogonal like "Tylko nieopłacone", and the
+   * same predicate as the Start card, so the count here is the card's N.
+   */
+  protected async toggleExpiring(): Promise<void> {
+    await this.refilter({ expiring: !this.expiring() });
+  }
+
   /** A `<select>`'s value as a filter position; the "everyone" option carries the empty string. */
   protected onStatusChange(event: Event): Promise<void> {
     const value = (event.target as HTMLSelectElement).value;
@@ -340,7 +388,12 @@ export class Members {
 
   /** Whether anything narrows the list — what offers "Wyczyść filtry". */
   protected readonly narrowed = computed(
-    () => this.filter() !== null || this.role() !== null || this.query() !== '',
+    () =>
+      this.filter() !== null ||
+      this.role() !== null ||
+      this.unpaid() ||
+      this.expiring() ||
+      this.query() !== '',
   );
 
   /** "1 osoba", "3 osoby", "12 osób" — the count's noun in the Polish plural it takes. */
@@ -372,7 +425,7 @@ export class Members {
   /** Back to the whole club: no phrase, no filter, page 1. */
   protected async clearFilters(): Promise<void> {
     this.searchInput.set('');
-    await this.refilter({ q: '', filter: null, role: null });
+    await this.refilter({ q: '', filter: null, role: null, unpaid: false, expiring: false });
   }
 
   private async refilter(change: Partial<ListState>): Promise<void> {
@@ -395,7 +448,14 @@ export class Members {
 
   /** The state the URL carries now. */
   private current(): ListState {
-    return { q: this.query(), filter: this.filter(), role: this.role(), page: this.page() };
+    return {
+      q: this.query(),
+      filter: this.filter(),
+      role: this.role(),
+      unpaid: this.unpaid(),
+      expiring: this.expiring(),
+      page: this.page(),
+    };
   }
 
   /** The search box's every keystroke. Searches only once typing pauses. */
@@ -468,6 +528,8 @@ export class Members {
         q: state.q || null,
         filter: state.filter,
         role: state.role,
+        unpaid: state.unpaid ? 1 : null,
+        expiring: state.expiring ? 1 : null,
         page: state.page > 1 ? state.page : null,
       },
       replaceUrl,

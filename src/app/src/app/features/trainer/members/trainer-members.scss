@@ -45,3 +45,8 @@
   font-size: 0.875rem;
   font-variant-numeric: tabular-nums;
 }
+
+// pass-paid-flag: only the gap after "Brak planu" — the badge itself is app-pass-payment-status's.
+.trainer-members-unpaid {
+  margin-left: var(--space-1);
+}

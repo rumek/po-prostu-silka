@@ -1,0 +1,23 @@
+@use 'breakpoints' as bp;
+
+// Layout only — .card/.button/.alert and the .overlay-* classes come from src/styles.scss. The fixed
+// layer is the host's, as in every other overlay: a global class cannot reach it.
+
+:host {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-overlay);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+
+  @include bp.narrow {
+    align-items: flex-end;
+    padding: 0;
+  }
+}
+
+.overlay-when {
+  margin-bottom: var(--space-4);
+}

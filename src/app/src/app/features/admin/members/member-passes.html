@@ -31,6 +31,9 @@
               <app-icon name="calendar" />
               <span>ważny do {{ live.validTo | date: 'd MMMM y' }}</span>
             </p>
+            <p class="passes-meta">
+              <app-pass-payment-status [paidAt]="live.paidAt" />
+            </p>
           </div>
         </div>
 
@@ -117,6 +120,20 @@
         }
       </app-field>
 
+      <!-- pass-paid-flag. ISSUE ONLY: an edit never changes payment, so these hide while editing;
+           a payment on an existing karnet changes through the row actions in the history. -->
+      @if (!editing()) {
+        <app-checkbox [checked]="form.controls.paid.value" (checkedChange)="togglePaid()">
+          Opłacony
+        </app-checkbox>
+
+        @if (form.controls.paid.value) {
+          <app-field label="Data płatności" for="paidAt">
+            <input id="paidAt" type="date" formControlName="paidAt" [max]="today" />
+          </app-field>
+        }
+      }
+
       <div class="form-actions passes-actions">
         <button type="submit" class="button" [disabled]="state.submitting()">
           {{ state.submitting() ? 'Zapisuję…' : editing() ? 'Zapisz zmiany' : 'Wystaw karnet' }}
@@ -177,7 +194,25 @@
 
           <p class="passes-issued">Wystawiony {{ pass.issuedAt | date: 'd MMMM y' }}</p>
 
+          <p class="passes-meta">
+            <app-pass-payment-status [paidAt]="pass.paidAt" />
+          </p>
+
           <div slot="actions" class="row-actions">
+            @if (pass.paidAt) {
+              <button
+                type="button"
+                class="link-button"
+                [disabled]="payment.rows.isBusy(pass.id)"
+                (click)="payment.clearPaid(pass)"
+              >
+                {{ payment.rows.isBusy(pass.id) ? 'Cofam…' : 'Cofnij płatność' }}
+              </button>
+            } @else {
+              <button type="button" class="button button--secondary" (click)="payment.open(pass)">
+                Oznacz jako opłacony
+              </button>
+            }
             <button
               type="button"
               class="button button--secondary"
@@ -201,3 +236,13 @@
     </app-list>
   }
 </section>
+
+@if (payment.paying(); as pass) {
+  <app-pass-payment-overlay
+    [pass]="pass"
+    [busy]="payment.busy()"
+    [failure]="payment.failure()"
+    (confirmed)="payment.markPaid($event)"
+    (closed)="payment.close()"
+  />
+}

@@ -11,12 +11,15 @@ import { BookingService } from '../../core/scheduling/booking.service';
 import { ClassService } from '../../core/scheduling/class.service';
 import { MyBooking } from '../../core/scheduling/booking.models';
 import { ScheduledClass } from '../../core/scheduling/class.models';
-import { MembershipPassView } from '../../core/admin/member-admin.models';
+import { ExpiringPass, MembershipPassView } from '../../core/admin/member-admin.models';
 import { BookedClass } from '../../shared/class-date/booked-class';
 import { Icon } from '../../shared/icons/icon';
 import { createLoadFence } from '../../shared/forms/load-fence';
 import { Loading } from '../../shared/forms/loading/loading';
 import { Empty } from '../../shared/forms/empty/empty';
+import { List } from '../../shared/list/list';
+import { Row } from '../../shared/list/row';
+import { PassPaymentStatus } from '../../shared/passes/pass-payment-status';
 
 /** Days past today the staff "upcoming" card looks ahead. Well inside the API's 62-day cap. */
 const UPCOMING_DAYS = 7;
@@ -37,7 +40,10 @@ const PUNCH_LIMIT = 20;
  * - a MEMBER gets their nearest booking and their karnet. Not their plan: it has its own tab, and a
  *   card that only named it was a link with extra steps;
  * - STAFF (trainer or admin) get "Twoje zajęcia" — the classes they instruct, today and the next
- *   week, with how full each is — and nothing of the member's: staff hold no bookings or karnet.
+ *   week, with how full each is — and nothing of the member's: staff hold no bookings or karnet;
+ * - an ADMIN also gets "Klub" above that: the karnets ending within five days
+ *   (expiring-passes-dashboard), each a link to the renewal. A trainer never requests it — the
+ *   endpoint is the admin's, and so is the member list it links to.
  *
  * NOT FIRED, NOT MERELY HIDDEN. Staff never request the `/mine` routes (MemberOnly would refuse them) and
  * a member never requests the feed (TrainerOrAdmin would refuse them); the spec pins both with
@@ -54,7 +60,18 @@ const PUNCH_LIMIT = 20;
  * It must not import date-fns — see `todayWindow()`.
  */
 @Component({
-  imports: [BookedClass, DatePipe, Empty, Icon, Loading, NgTemplateOutlet, RouterLink],
+  imports: [
+    BookedClass,
+    DatePipe,
+    Empty,
+    Icon,
+    List,
+    Loading,
+    NgTemplateOutlet,
+    PassPaymentStatus,
+    RouterLink,
+    Row,
+  ],
   selector: 'app-dashboard',
   styleUrl: './dashboard.scss',
   templateUrl: './dashboard.html',
@@ -71,6 +88,7 @@ export class Dashboard implements OnInit {
   protected readonly persona = computed(() => personaOf(this.auth.user()));
   protected readonly isMember = computed(() => this.persona() === 'member');
   protected readonly isStaff = computed(() => isStaff(this.persona()));
+  protected readonly isAdmin = computed(() => this.persona() === 'admin');
 
   private readonly desk = mediaQuerySignal(DESK_MEDIA_QUERY, true);
 
@@ -136,6 +154,37 @@ export class Dashboard implements OnInit {
   protected readonly classesFailed = signal(false);
   private readonly classesFence = createLoadFence();
 
+  // --- Admin: karnets ending (expiring-passes-dashboard) -----------------------------------------
+
+  /** The server's few nearest ends, in the server's order: end date, then name. */
+  protected readonly expiring = signal<ExpiringPass[]>([]);
+
+  /** How many are ending in all — the member list's total under `expiring=1`. */
+  protected readonly expiringTotal = signal(0);
+  protected readonly expiringLoading = signal(true);
+  protected readonly expiringFailed = signal(false);
+  private readonly expiringFence = createLoadFence();
+
+  /** "Zobacz wszystkich (N)" only when the card is actually hiding someone. */
+  protected readonly hasMoreExpiring = computed(
+    () => this.expiringTotal() > this.expiring().length,
+  );
+
+  /** Where "Zobacz wszystkich" lands: the member list, narrowed by the card's own predicate. */
+  protected readonly expiringQuery = { expiring: 1 };
+
+  /**
+   * "dziś" / "jutro" / "za N dni" from the SERVER's count — never from the browser's date, which can
+   * sit on the other side of midnight from the club's. Every N the card can show (2…5) takes "dni".
+   */
+  protected daysLabel(daysLeft: number): string {
+    if (daysLeft <= 0) {
+      return 'dziś';
+    }
+
+    return daysLeft === 1 ? 'jutro' : `za ${daysLeft} dni`;
+  }
+
   ngOnInit(): void {
     // Each branch fires only what its persona's API policy admits — see the class comment.
     if (this.isMember()) {
@@ -146,6 +195,41 @@ export class Dashboard implements OnInit {
       void this.loadPass();
     } else if (this.isStaff()) {
       void this.loadClasses();
+
+      // In parallel, for the same reason as the member's two cards.
+      if (this.isAdmin()) {
+        void this.loadExpiring();
+      }
+    }
+  }
+
+  protected async loadExpiring(): Promise<void> {
+    const generation = this.expiringFence.begin();
+
+    this.expiringLoading.set(true);
+    this.expiringFailed.set(false);
+
+    try {
+      const card = await this.members.getExpiringPasses();
+
+      if (!this.expiringFence.isCurrent(generation)) {
+        return;
+      }
+
+      this.expiring.set(card.items);
+      this.expiringTotal.set(card.total);
+    } catch {
+      if (!this.expiringFence.isCurrent(generation)) {
+        return;
+      }
+
+      this.expiring.set([]);
+      this.expiringTotal.set(0);
+      this.expiringFailed.set(true);
+    } finally {
+      if (this.expiringFence.isCurrent(generation)) {
+        this.expiringLoading.set(false);
+      }
     }
   }
 

@@ -3,6 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import {
   AccessCodeView,
+  ExpiringPasses,
   IssuePassRequest,
   MemberDetail,
   MemberPage,
@@ -61,6 +62,16 @@ export class MemberAdminService {
       params = params.set('search', search);
     }
 
+    // Sent only when set: absent is "everyone", which is what `unpaid=false` would mean anyway.
+    if (query.unpaid) {
+      params = params.set('unpaid', true);
+    }
+
+    // The same: absent is "everyone".
+    if (query.expiring) {
+      params = params.set('expiring', true);
+    }
+
     if (query.page !== undefined) {
       params = params.set('page', query.page);
     }
@@ -95,6 +106,14 @@ export class MemberAdminService {
     await firstValueFrom(
       this.http.put<void>(`/api/admin/members/${encodeURIComponent(id)}`, request),
     );
+  }
+
+  /**
+   * The admin's Start card "Kończą się karnety" (expiring-passes-dashboard): the nearest few ends,
+   * ordered by the server, and the total the member list counts under `expiring`.
+   */
+  getExpiringPasses(): Promise<ExpiringPasses> {
+    return firstValueFrom(this.http.get<ExpiringPasses>('/api/admin/members/expiring-passes'));
   }
 
   /**

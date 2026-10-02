@@ -45,6 +45,28 @@
       </select>
     </app-select>
   </app-field>
+
+  <!-- pass-paid-flag. A toggle beside the selects, not a fifth status: "Aktywni + nieopłaceni" is the
+       combination the desk asks for. "Nieopłacone" means ANY unpaid karnet, not just today's. In an
+       app-field like the selects, so it takes the grid's next cell and the field's bottom margin with
+       no stylesheet of its own, and is named by the same kind of label. -->
+  <app-field class="members-unpaid" label="Płatność" for="members-unpaid">
+    <app-checkbox inputId="members-unpaid" [checked]="unpaid()" (checkedChange)="toggleUnpaid()">
+      Tylko nieopłacone
+    </app-checkbox>
+  </app-field>
+
+  <!-- expiring-passes-dashboard. The Start card's "Zobacz wszystkich (N)" lands with this ticked; the
+       server counts it with the card's predicate, so the total below is the card's N. -->
+  <app-field class="members-expiring" label="Ważność" for="members-expiring">
+    <app-checkbox
+      inputId="members-expiring"
+      [checked]="expiring()"
+      (checkedChange)="toggleExpiring()"
+    >
+      Tylko kończące się
+    </app-checkbox>
+  </app-field>
 </div>
 
 <!-- How many the view holds, and the way back to the whole club. Shown once there is a count. -->
@@ -170,6 +192,11 @@
                 </span>
               }
             }
+            @if (member.hasUnpaidPass) {
+              <span class="fact-line">
+                <app-pass-payment-status [paidAt]="null" />
+              </span>
+            }
             <span class="fact-line">
               <app-icon name="role" />
               <span>{{ personaLabel(member) }}</span>
@@ -196,6 +223,9 @@
               @case ('none') {
                 <span class="members-role-plain">Brak ważnego</span>
               }
+            }
+            @if (member.hasUnpaidPass) {
+              <app-pass-payment-status [paidAt]="null" />
             }
           </td>
           <td class="members-cell-since" role="cell">{{ member.createdAt | date: 'd MMM y' }}</td>

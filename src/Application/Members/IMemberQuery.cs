@@ -32,15 +32,28 @@ public interface IMemberQuery
     /// A substring of the display name or e-mail, already trimmed; null for no search. Matched
     /// case- and accent-insensitively, <c>ł</c> included.
     /// </param>
+    /// <param name="unpaidOnly">Only members holding an unpaid karnet (pass-paid-flag).</param>
+    /// <param name="expiringOnly">
+    /// Only members whose karnet is ending (expiring-passes-dashboard) — the Start card's predicate.
+    /// </param>
     /// <param name="page">1-based; validated by the caller.</param>
     /// <param name="pageSize">Validated by the caller.</param>
     Task<PagedResult<MemberSummary>> GetMembersAsync(
         MemberListFilter? filter,
         MemberRoleFilter? role,
         string? search,
+        bool unpaidOnly,
+        bool expiringOnly,
         int page,
         int pageSize,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    /// The admin's Start card (expiring-passes-dashboard): up to <paramref name="take"/> members whose
+    /// karnet is ending, ordered by the karnet's last day, then name, then id, and the total — counted
+    /// from the same predicate the list's <c>expiringOnly</c> applies.
+    /// </summary>
+    Task<ExpiringPasses> GetExpiringPassesAsync(int take, CancellationToken cancellationToken);
 
     /// <summary>One member with the fields the edit form needs, or null.</summary>
     Task<MemberDetail?> FindDetailAsync(Guid memberId, CancellationToken cancellationToken);

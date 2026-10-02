@@ -101,6 +101,17 @@ public class EndpointAuthorizationTests(IntegrationTestFixture fixture)
     /// </summary>
     private static readonly (string Method, string Pattern) ScheduleRoute = ("GET", "/api/classes");
 
+    /// <summary>
+    /// The karnet-payment surface (pass-paid-flag): a trainer may record that a karnet was paid and read
+    /// a member's karnets for it, so these are TrainerOrAdmin — never Admin, which would lock the
+    /// trainer out, and never the admin pass group's full edit.
+    /// </summary>
+    private static readonly (string Method, string Pattern)[] KarnetPaymentRoutes =
+    [
+        ("PUT", "/api/passes/{passId:guid}/paid"),
+        ("GET", "/api/trainer/members/{memberId:guid}/passes"),
+    ];
+
     private IReadOnlyList<Route> Routes()
     {
         var source = fixture.Factory.Services.GetRequiredService<EndpointDataSource>();
@@ -143,7 +154,7 @@ public class EndpointAuthorizationTests(IntegrationTestFixture fixture)
         // Without this, renaming /api/auth/login would leave the allowlist pointing at nothing and every
         // rule below would still pass. The same trap MemberAdminEndpointTests documents for a policy
         // test left pointing at a deleted route.
-        foreach (var entry in AnonymousApiRoutes.Concat(TrainerAdminRoutes).Concat(MemberOnlyRoutes).Append(ScheduleRoute))
+        foreach (var entry in AnonymousApiRoutes.Concat(TrainerAdminRoutes).Concat(MemberOnlyRoutes).Concat(KarnetPaymentRoutes).Append(ScheduleRoute))
         {
             Assert.True(
                 routes.Any(r => Matches(r, entry)),
@@ -232,6 +243,25 @@ public class EndpointAuthorizationTests(IntegrationTestFixture fixture)
             offenders.Count == 0,
             $"Own-data routes not under {AuthorizationPolicyNames.MemberOnly} (S-25):\n"
             + string.Join("\n", offenders));
+    }
+
+    [Fact]
+    public void The_karnet_payment_routes_require_the_trainer_or_admin_policy_only()
+    {
+        var routes = Routes();
+
+        foreach (var entry in KarnetPaymentRoutes)
+        {
+            var matched = routes.Where(r => Matches(r, entry)).ToList();
+
+            Assert.NotEmpty(matched);
+            Assert.All(matched, r =>
+            {
+                Assert.Contains(AuthorizationPolicyNames.TrainerOrAdmin, r.Policies);
+                Assert.DoesNotContain(AuthorizationPolicyNames.Admin, r.Policies);
+                Assert.DoesNotContain(AuthorizationPolicyNames.MemberOnly, r.Policies);
+            });
+        }
     }
 
     [Fact]

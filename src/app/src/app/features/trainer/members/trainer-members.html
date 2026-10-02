@@ -2,7 +2,8 @@
   <h1 class="screen-title">Członkowie</h1>
 </div>
 <p class="hint">
-  Aktywni członkowie klubu. Otwórz osobę, żeby ułożyć jej plan albo zmienić ten, który ma.
+  Aktywni członkowie klubu. Otwórz osobę, żeby ułożyć jej plan albo zmienić ten, który ma, a w
+  „Karnetach” zapisz wpłatę za karnet.
 </p>
 
 <div class="trainer-members-controls">
@@ -54,7 +55,15 @@
           } @else {
             Brak planu
           }
+          <!-- pass-paid-flag: ANY unpaid karnet, not just today's — "Karnety" is where to settle it. -->
+          @if (member.hasUnpaidPass) {
+            <app-pass-payment-status class="trainer-members-unpaid" [paidAt]="null" />
+          }
         </p>
+
+        <div slot="actions" class="row-actions">
+          <a class="link-button" [routerLink]="passesLink(member)">Karnety</a>
+        </div>
       </li>
     }
   </app-list>

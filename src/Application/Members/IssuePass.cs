@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using po_prostu_silka.Application.Persistence;
 using po_prostu_silka.Domain;
@@ -26,6 +27,7 @@ public static class IssuePass
         IMembershipPassStore passes,
         IUnitOfWork unitOfWork,
         TimeProvider timeProvider,
+        ClaimsPrincipal principal,
         CancellationToken cancellationToken)
     {
         var member = await members.FindAsync(memberId, cancellationToken);
@@ -35,6 +37,11 @@ public static class IssuePass
         }
 
         if (!MembershipPassProjection.TryRead(request, out var typeName, out var failure))
+        {
+            return failure;
+        }
+
+        if (!MembershipPassProjection.TryReadPaidAt(request.PaidAt, timeProvider, out failure))
         {
             return failure;
         }
@@ -76,6 +83,10 @@ public static class IssuePass
             ValidTo = request.ValidTo,
             EntryCount = request.EntryCount,
             IssuedAt = timeProvider.GetUtcNow(),
+            // Recorded only when there is something to attribute: an unpaid karnet has no payment, so
+            // nobody recorded one.
+            PaidAt = request.PaidAt,
+            PaidRecordedBy = request.PaidAt is null ? null : principal.FindFirstValue(ClaimTypes.NameIdentifier),
         };
 
         passes.Add(pass);

@@ -84,4 +84,22 @@ public interface IMembershipPassStore
 
     /// <summary>Stages a delete. Commits nothing; the caller decides what else lands with it.</summary>
     void Remove(MembershipPass pass);
+
+    /// <summary>
+    /// Writes the payment fact of one pass, IMMEDIATELY, and reports whether the pass still existed.
+    ///
+    /// <para>
+    /// THE ONE METHOD HERE THAT COMMITS, and deliberately so (pass-paid-flag). A tracked update of a
+    /// pass carries <see cref="MembershipPass.ConcurrencyStamp"/> in its WHERE clause, and the booking
+    /// paths rotate that stamp, so a payment written through the unit of work lost to any booking landing
+    /// at the same moment. This is a single UPDATE of <c>PaidAt</c> and <c>PaidRecordedBy</c> alone:
+    /// the stamp is in neither its SET nor its WHERE, so payment and the entry pool cannot race, and
+    /// concurrent payment writes are genuinely last-writer-wins.
+    /// </para>
+    /// </summary>
+    Task<bool> SetPaymentAsync(
+        Guid passId,
+        DateOnly? paidAt,
+        string? recordedBy,
+        CancellationToken cancellationToken);
 }

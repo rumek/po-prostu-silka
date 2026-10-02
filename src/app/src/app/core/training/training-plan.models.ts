@@ -1,3 +1,5 @@
+import { MembershipPassView } from '../admin/member-admin.models';
+
 /**
  * Mirrors the API's training-plan records (src/Application/Training/TrainingPlanEndpoints.cs).
  * Keep the two in step — this is a contract, not a convenience type.
@@ -91,6 +93,12 @@ export interface TrainerMember {
 
   /** The ACTIVE plan's name, or null when the member has none. */
   planName: string | null;
+
+  /**
+   * Whether ANY of the member's karnets is unpaid (pass-paid-flag) — not just today's. The row's
+   * "Nieopłacony" marker; the karnets themselves are on the member's "Karnety" screen.
+   */
+  hasUnpaidPass: boolean;
 }
 
 /**
@@ -235,3 +243,14 @@ export const TRAINING_PLAN_FAILURE_REASONS = Object.keys({
   TrainingPlanFailure['reason'],
   true
 >) as readonly TrainingPlanFailure['reason'][];
+
+/**
+ * Mirrors TrainerMemberPasses (pass-paid-flag): the trainer's "Karnety" screen — the member's name
+ * and their karnet history, newest first. The karnets are the admin's `MembershipPassView` unchanged;
+ * nothing about the member beyond the name.
+ */
+export interface TrainerMemberPasses {
+  memberId: string;
+  displayName: string;
+  passes: MembershipPassView[];
+}

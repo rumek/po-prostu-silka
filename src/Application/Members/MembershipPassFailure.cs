@@ -21,6 +21,8 @@ namespace po_prostu_silka.Application.Members;
 /// <see cref="MembershipPassRules.MaxValidityDays"/>.</item>
 /// <item><c>invalid_entry_count</c> — outside
 /// <see cref="MembershipPassRules.MinEntryCount"/>..<see cref="MembershipPassRules.MaxEntryCount"/>.</item>
+/// <item><c>invalid_paid_at</c> — a payment date after the club-local today, or more than
+/// <see cref="MembershipPassRules.MaxPaidAtAgeDays"/> before it (pass-paid-flag).</item>
 /// <item><c>overlapping_pass</c> — another pass of this member already covers part of the range.
 /// Passes are a HISTORY, not a stack.</item>
 /// <item><c>has_active_bookings</c> — the pass paid for bookings that still hold spots, so it cannot

@@ -169,6 +169,14 @@ the only environment is still staging; it is not a precedent. Two consequences:
 
   Then run `rollback.yml`. The `Down` is renames only, so no row is lost either way.
 
+**Lossy Down, pass-paid-flag (S-34, 2026-10-02).** `AddMembershipPassPayment` is additive, so no
+rollback needs its `Down`: the old artifact simply ignores the two columns. Running the `Down` anyway
+drops `PaidAt` and `PaidRecordedBy`, and with them every record of which karnet was paid. The next
+`Up` then re-runs the backfill and marks **every** karnet as paid on its issue day. That includes the
+ones that were really unpaid, which silently clears the debtor list. So: roll back the artifact and
+leave this migration applied. If the `Down` must run, first export `Id, PaidAt, PaidRecordedBy` from
+`MembershipPasses` and restore those values after the re-applied `Up`.
+
 ## Notification delivery foundation (F-03) — 2026-08-31, Phase 1
 
 ### Azure CLI upgraded

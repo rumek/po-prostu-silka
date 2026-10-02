@@ -36,6 +36,13 @@ public class MembershipPassConfiguration : IEntityTypeConfiguration<MembershipPa
 
         builder.Property(x => x.IssuedAt).IsRequired();
 
+        // pass-paid-flag. A day, not an instant — the same explicit "date" as the range above, for the
+        // same reason. Nullable: null is "unpaid".
+        builder.Property(x => x.PaidAt).HasColumnType("date");
+
+        // The Identity key length. No FK - see MembershipPass.PaidRecordedBy.
+        builder.Property(x => x.PaidRecordedBy).HasMaxLength(450);
+
         // 36 is a Guid's string form, matching MemberConfiguration's stamp.
         builder.Property(x => x.ConcurrencyStamp)
             .IsRequired()

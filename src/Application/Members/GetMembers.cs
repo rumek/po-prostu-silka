@@ -43,6 +43,8 @@ public static class GetMembers
         MemberListFilter? filter,
         MemberRoleFilter? role,
         string? search,
+        bool? unpaid,
+        bool? expiring,
         int? page,
         int? pageSize,
         IMemberQuery query,
@@ -55,6 +57,6 @@ public static class GetMembers
         }
 
         return Results.Ok(await query.GetMembersAsync(
-            filter, role, request.Term, request.Page, request.PageSize, cancellationToken));
+            filter, role, request.Term, unpaid == true, expiring == true, request.Page, request.PageSize, cancellationToken));
     }
 }

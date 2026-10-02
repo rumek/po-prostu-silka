@@ -82,6 +82,32 @@ public class MembershipPass
     public DateTimeOffset IssuedAt { get; set; }
 
     /// <summary>
+    /// The club-local day the karnet was paid; <c>null</c> means unpaid (pass-paid-flag).
+    ///
+    /// <para>
+    /// THE ONE STORED FACT ON A PASS THAT CANNOT BE DERIVED. Entries left are counted from bookings;
+    /// "paid" is a statement staff make about money handed over outside the app, so there is nothing
+    /// to count it from. It is NOT a gate: an unpaid karnet books exactly like a paid one, as in the
+    /// club's spreadsheet, where issuing and paying are separate columns.
+    /// </para>
+    ///
+    /// <para>
+    /// OUTSIDE <see cref="ConcurrencyStamp"/>. The stamp guards the entry pool, which payment does not
+    /// touch — rotating it on a payment write would make the payment race a concurrent booking for no
+    /// reason.
+    /// </para>
+    /// </summary>
+    public DateOnly? PaidAt { get; set; }
+
+    /// <summary>
+    /// The user id of whoever last changed <see cref="PaidAt"/> — set when marking paid AND when
+    /// clearing, so the latest change is always attributable. No foreign key, for the reason
+    /// <see cref="Scheduling.Booking.AttendanceRecordedBy"/> gives: staff may have no Member row, and an
+    /// audit field must survive the account it names. Null on passes backfilled by the migration.
+    /// </summary>
+    public string? PaidRecordedBy { get; set; }
+
+    /// <summary>
     /// Optimistic concurrency token, guarding the entry pool.
     ///
     /// <para>

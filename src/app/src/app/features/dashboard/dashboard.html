@@ -100,6 +100,11 @@
                 <app-icon name="calendar" />
                 <span>ważny do {{ karnet.validTo | date: 'd MMMM y' }}</span>
               </p>
+              <!-- pass-paid-flag: whether THIS karnet is paid. Only today's — an older unpaid one is a
+                   conversation at the desk, not a line on the member's Start. -->
+              <p class="dashboard-meta">
+                <app-pass-payment-status [paidAt]="karnet.paidAt" [showDate]="false" />
+              </p>
             </div>
           </div>
 
@@ -125,6 +130,79 @@
             Nie masz aktywnego karnetu. Bez niego klub nie zapisze Cię na zajęcia — odezwij się w
             recepcji.
           </app-empty>
+        }
+      </article>
+    </div>
+  </section>
+}
+
+<!-- The admin's club block (expiring-passes-dashboard), ABOVE the classes: renewing a karnet is the
+     admin's action for today, and it is the one thing on Start no trainer sees. Admin only — a
+     trainer has no member list with karnets to link to, and never requests this. -->
+@if (isAdmin()) {
+  <section class="dashboard-cards" aria-label="Klub">
+    <h2 class="dashboard-section-title">Klub</h2>
+
+    <div class="dashboard-block">
+      <div class="dashboard-card-header">
+        <h3 class="dashboard-card-title">Kończą się karnety</h3>
+        @if (hasMoreExpiring()) {
+          <a
+            class="dashboard-header-action"
+            routerLink="/admin/members"
+            [queryParams]="expiringQuery"
+          >
+            Zobacz wszystkich ({{ expiringTotal() }})
+            <app-icon name="chevron-right" />
+          </a>
+        }
+      </div>
+
+      <article class="card dashboard-card">
+        @if (expiringLoading()) {
+          <app-loading />
+        } @else if (expiringFailed()) {
+          <p class="alert" role="alert">
+            Nie udało się wczytać karnetów.
+            <button type="button" class="link-button" (click)="loadExpiring()">
+              Spróbuj ponownie
+            </button>
+          </p>
+        } @else if (expiring().length === 0) {
+          <app-empty icon="ticket" compact>Żaden karnet nie kończy się w ciągu 5 dni.</app-empty>
+        } @else {
+          <!-- The server's order — nearest end, then name — never re-sorted here. Each row is the way
+               to the renewal: that member's karnet screen. -->
+          <app-list class="dashboard-expiring">
+            @for (row of expiring(); track row.memberId) {
+              <li appRow>
+                <a class="row-name" [routerLink]="['/admin/members', row.memberId, 'passes']">
+                  {{ row.displayName }}
+                </a>
+                <p class="row-meta dashboard-meta">
+                  <app-icon name="calendar" />
+                  <span>do {{ row.validTo | date: 'd MMMM' }}</span>
+                </p>
+
+                <span
+                  slot="actions"
+                  class="dashboard-expiring-days"
+                  [class.dashboard-expiring-days--soon]="row.daysLeft <= 1"
+                >
+                  {{ daysLabel(row.daysLeft) }}
+                </span>
+              </li>
+            }
+          </app-list>
+
+          @if (hasMoreExpiring()) {
+            <a
+              class="dashboard-more dashboard-more--wide"
+              routerLink="/admin/members"
+              [queryParams]="expiringQuery"
+              >Zobacz wszystkich ({{ expiringTotal() }})</a
+            >
+          }
         }
       </article>
     </div>

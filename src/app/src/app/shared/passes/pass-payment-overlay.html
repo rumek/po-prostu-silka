@@ -1,0 +1,46 @@
+<button
+  type="button"
+  class="overlay-backdrop"
+  aria-label="Zamknij oznaczanie płatności"
+  (click)="close()"
+></button>
+
+<div
+  class="card overlay-panel"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="pass-payment-title"
+>
+  <app-overlay-head (closed)="close()">
+    <h2 id="pass-payment-title" class="overlay-title">Oznacz jako opłacony</h2>
+  </app-overlay-head>
+
+  <form class="overlay-body" id="pass-payment-form" (ngSubmit)="confirm()">
+    <p class="overlay-when">
+      {{ pass().typeName }} · {{ pass().validFrom | date: 'd MMM' }} –
+      {{ pass().validTo | date: 'd MMM y' }}
+    </p>
+
+    @if (failure(); as message) {
+      <p class="alert" role="alert">{{ message }}</p>
+    }
+
+    <app-field label="Data płatności" for="pass-payment-date">
+      <input
+        id="pass-payment-date"
+        name="paidAt"
+        type="date"
+        required
+        [max]="today"
+        [ngModel]="paidAt()"
+        (ngModelChange)="paidAt.set($event)"
+      />
+    </app-field>
+  </form>
+
+  <div class="overlay-actions">
+    <button type="submit" form="pass-payment-form" class="button" [disabled]="busy() || !paidAt()">
+      {{ busy() ? 'Zapisuję…' : 'Zapisz' }}
+    </button>
+  </div>
+</div>
