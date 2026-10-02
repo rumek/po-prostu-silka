@@ -128,6 +128,11 @@ via `StaffPredicate.IsNotStaff`, current karnet ending within `today..today+Wind
 later karnet), and an expression or helper the card uses to project that current karnet's `ValidTo`.
 Built as one expression tree so EF translates it as correlated `EXISTS` subqueries.
 
+**Adapted during implementation.** There is no projection helper. EF cannot compose an
+`Expression<Func<Member, DateOnly?>>` inside an anonymous projection without an expression expander, so
+`MemberQuery.GetExpiringPassesAsync` writes the "covering today, first by `ValidFrom`" subquery inline,
+beside the list's own `PassValidTo`. `ExpiringPassPredicate` carries only `IsExpiring` and `WindowDays`.
+
 #### 2. The list filter
 
 **Files**: `src/Infrastructure/Members/MemberQuery.cs`, `src/Application/Members/IMemberQuery.cs`,
@@ -472,8 +477,8 @@ None. There is no schema change: "ending" is derived from existing columns.
 
 #### Automated
 
-- [x] 4.1 New spec passes locally
-- [x] 4.2 Full E2E suite passes
+- [x] 4.1 New spec passes locally — 1a912b9
+- [x] 4.2 Full E2E suite passes — 1a912b9
 
 #### Manual
 

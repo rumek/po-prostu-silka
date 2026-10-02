@@ -1,7 +1,7 @@
 ---
 change_id: expiring-passes-dashboard
 title: Admin dashboard card listing karnets that end within 5 days
-status: implementing
+status: impl_reviewed
 created: 2026-10-02
 updated: 2026-10-02
 archived_at: null

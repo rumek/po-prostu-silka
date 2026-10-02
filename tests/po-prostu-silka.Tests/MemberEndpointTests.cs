@@ -839,6 +839,18 @@ public class MemberEndpointTests(IntegrationTestFixture fixture)
         (await ListAsync(admin, $"search={Uri.EscapeDataString(marker)}&expiring=true")).Select(r => r.Id).ToList();
 
     /// <summary>
+    /// Slot allocator for <see cref="SpendAnEntryAsync"/>, 2045 rather than "now + something": the
+    /// no-overlap rule is club-wide and this container is shared, so a near-now class could refuse
+    /// another file's with time_conflict depending on execution order. ClassEndpointTests (2030) and
+    /// BookingEndpointTests (2032) keep bases of their own for the same reason. The class's date does
+    /// not matter to entry consumption.
+    /// </summary>
+    private static int _spendSlot;
+
+    private static DateTimeOffset NextSpendSlot() =>
+        new DateTimeOffset(2045, 1, 1, 10, 0, 0, TimeSpan.Zero).AddDays(Interlocked.Increment(ref _spendSlot));
+
+    /// <summary>
     /// An active booking carrying the karnet, so its one entry is used. Written directly: the booking
     /// route's own rules are not what this suite tests. The member instructs their own class only
     /// because the instructor foreign key needs somebody.
@@ -860,7 +872,7 @@ public class MemberEndpointTests(IntegrationTestFixture fixture)
             Id = Guid.NewGuid(),
             ClassGroupId = group.Id,
             InstructorMemberId = memberId,
-            StartsAt = DateTimeOffset.UtcNow.AddHours(2),
+            StartsAt = NextSpendSlot(),
             DurationMinutes = 60,
             Capacity = 5,
             CreatedAt = DateTimeOffset.UtcNow,
