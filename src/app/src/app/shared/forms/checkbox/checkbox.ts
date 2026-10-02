@@ -30,7 +30,12 @@ import { Component, input, output } from '@angular/core';
   styleUrl: './checkbox.scss',
   template: `
     <label class="checkbox">
-      <input type="checkbox" [checked]="checked()" (change)="toggle()" />
+      <input
+        type="checkbox"
+        [attr.id]="inputId() ?? null"
+        [checked]="checked()"
+        (change)="toggle()"
+      />
       <ng-content />
     </label>
   `,
@@ -38,6 +43,13 @@ import { Component, input, output } from '@angular/core';
 export class Checkbox {
   /** Whether the box is ticked. Owned by the caller; this component never writes it. */
   readonly checked = input.required<boolean>();
+
+  /**
+   * An `id` for the box, for the one case its own wrapping label is not the only one: a toggle in a
+   * row of labelled controls sits in an `app-field` whose `for` points here, so the field's label
+   * ("Płatność") names it too (pass-paid-flag, the member list). Optional; no other caller needs it.
+   */
+  readonly inputId = input<string>();
 
   /**
    * Raised on every change. It carries no payload on purpose — the caller already knows what the

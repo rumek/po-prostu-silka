@@ -42,6 +42,7 @@ const PASS: MembershipPassView = {
   entriesLeft: 5,
   issuedAt: new Date('2026-09-01T10:00').toISOString(),
   coversToday: true,
+  paidAt: null,
 };
 
 function booking(over: Partial<MyBooking> = {}): MyBooking {
@@ -327,6 +328,26 @@ describe('Dashboard', () => {
 
     // READ-ONLY. Nothing on this card is a control — a member neither buys nor extends a karnet here.
     expect(card.querySelectorAll('button').length).toBe(0);
+
+    // pass-paid-flag: the member sees whether this karnet is paid.
+    expect(card.textContent).toContain('Nieopłacony');
+    controller.verify();
+  });
+
+  it('says a paid karnet is paid, without the day', async () => {
+    configure(MEMBER);
+
+    controller.expectOne(BOOKINGS_URL).flush([]);
+    flushPass({ ...PASS, paidAt: '2026-09-02' });
+    await settle();
+
+    const card = [...element().querySelectorAll('.dashboard-card')].find((c) =>
+      c.textContent?.includes('Karnet 8 wejść'),
+    )!;
+
+    expect(card.textContent).toContain('Opłacony');
+    expect(card.textContent).not.toContain('Nieopłacony');
+    expect(card.textContent).not.toContain('Opłacony ·');
     controller.verify();
   });
 

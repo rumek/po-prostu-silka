@@ -61,6 +61,11 @@ export class MemberAdminService {
       params = params.set('search', search);
     }
 
+    // Sent only when set: absent is "everyone", which is what `unpaid=false` would mean anyway.
+    if (query.unpaid) {
+      params = params.set('unpaid', true);
+    }
+
     if (query.page !== undefined) {
       params = params.set('page', query.page);
     }

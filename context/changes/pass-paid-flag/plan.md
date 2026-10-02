@@ -634,8 +634,8 @@ them.
 
 #### Automated
 
-- [x] 2.1 Solution builds without warnings
-- [x] 2.2 Backend tests pass
+- [x] 2.1 Solution builds without warnings — a96bb13
+- [x] 2.2 Backend tests pass — a96bb13
 
 #### Manual
 
@@ -646,10 +646,10 @@ them.
 
 #### Automated
 
-- [ ] 3.1 SPA unit tests pass
-- [ ] 3.2 Lint and format pass
-- [ ] 3.3 Production build under the bundle warning, figure recorded
-- [ ] 3.4 Backend still green
+- [x] 3.1 SPA unit tests pass
+- [x] 3.2 Lint and format pass
+- [x] 3.3 Production build under the bundle warning, figure recorded
+- [x] 3.4 Backend still green
 
 #### Manual
 

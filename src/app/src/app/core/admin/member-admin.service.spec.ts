@@ -12,6 +12,7 @@ const FULL_MEMBER: Member = {
   createdAt: '2026-09-01T08:00:00+00:00',
   passValidTo: null,
   passEntriesLeft: null,
+  hasUnpaidPass: false,
   membershipStatus: 'Active',
   accountStatus: 'Active',
   roles: ['User'],
@@ -72,6 +73,22 @@ describe('MemberAdminService', () => {
     request.flush({ items: [], total: 0, page: 3, pageSize: 25 });
 
     await members;
+  });
+
+  /** pass-paid-flag: `unpaid` goes out only when set — absent already means "everyone". */
+  it('sends unpaid only when it is set', async () => {
+    const unpaid = service.getMembers({ filter: 'Active', unpaid: true });
+    const narrowed = await vi.waitFor(() =>
+      controller.expectOne('/api/admin/members?filter=Active&unpaid=true'),
+    );
+    narrowed.flush({ items: [], total: 0, page: 1, pageSize: 25 });
+    await unpaid;
+
+    const everyone = service.getMembers({ unpaid: false });
+    const plain = await vi.waitFor(() => controller.expectOne('/api/admin/members'));
+    expect(plain.request.params.keys()).toEqual([]);
+    plain.flush({ items: [], total: 0, page: 1, pageSize: 25 });
+    await everyone;
   });
 
   /**

@@ -53,6 +53,7 @@ function member(over: Partial<Member> = {}): Member {
     createdAt: '2026-09-01T08:00:00+00:00',
     passValidTo: null,
     passEntriesLeft: null,
+    hasUnpaidPass: false,
   };
 }
 

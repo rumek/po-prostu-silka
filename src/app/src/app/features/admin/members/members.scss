@@ -259,7 +259,10 @@
 
 // Per-state badge modifiers — the .badge base lives in src/styles.scss. The word always carries the
 // state; colour and fill are the second channel.
-.badge-active {
+// .badge-unpaid (pass-paid-flag): a member holding ANY unpaid karnet. The same ink outline — the word
+// carries the state, and --danger is kept for errors and "Brak miejsc", which this is neither.
+.badge-active,
+.badge-unpaid {
   color: var(--ink);
   border-color: var(--line-strong);
 }

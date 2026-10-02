@@ -21,6 +21,12 @@ import { Empty } from '../../../shared/forms/empty/empty';
 import { Row } from '../../../shared/list/row';
 import { List } from '../../../shared/list/list';
 import { Icon } from '../../../shared/icons/icon';
+import { Checkbox } from '../../../shared/forms/checkbox/checkbox';
+import { createBusySet } from '../../../shared/forms/busy-set';
+import { PassPaymentOverlay } from '../../../shared/passes/pass-payment-overlay';
+import { PassPaymentStatus } from '../../../shared/passes/pass-payment-status';
+import { PassPaymentService } from '../../../core/passes/pass-payment.service';
+import { clubToday } from '../../../core/passes/club-today';
 
 /**
  * Bounds mirrored from MembershipPassRules (src/Application/Members/MembershipPassRules.cs).
@@ -57,7 +63,20 @@ const MAX_VALIDITY_DAYS = 400;
  * </p>
  */
 @Component({
-  imports: [List, Row, Icon, Empty, Loading, Field, DatePipe, ReactiveFormsModule, RouterLink],
+  imports: [
+    List,
+    Row,
+    Icon,
+    Empty,
+    Loading,
+    Field,
+    Checkbox,
+    PassPaymentOverlay,
+    PassPaymentStatus,
+    DatePipe,
+    ReactiveFormsModule,
+    RouterLink,
+  ],
   selector: 'app-member-passes',
   styleUrl: './member-passes.scss',
   templateUrl: './member-passes.html',
@@ -109,7 +128,26 @@ export class MemberPasses implements OnInit {
       10,
       [Validators.required, Validators.min(MIN_ENTRY_COUNT), Validators.max(MAX_ENTRY_COUNT)],
     ],
+
+    // pass-paid-flag. ISSUE ONLY — hidden while editing, and never sent on an edit: payment on an
+    // existing karnet changes through the row actions below. Unchecked by default, as the club's
+    // spreadsheet leaves the cell empty. `app-checkbox` has no ControlValueAccessor, so the box is
+    // bound to `paid` by hand (`togglePaid`).
+    paid: [false],
+    paidAt: [''],
   });
+
+  private readonly payments = inject(PassPaymentService);
+
+  /** The karnet whose "Oznacz jako opłacony" overlay is open, or null. */
+  protected readonly paying = signal<MembershipPassView | null>(null);
+  protected readonly paymentBusy = signal(false);
+  protected readonly paymentFailure = signal<string | null>(null);
+
+  /** Rows with a payment write in flight — one slow row does not disable the others. */
+  protected readonly paymentRows = createBusySet();
+
+  protected readonly today = clubToday();
 
   async ngOnInit(): Promise<void> {
     const id = this.route.snapshot.paramMap.get('id');
@@ -176,6 +214,8 @@ export class MemberPasses implements OnInit {
       validFrom: pass.validFrom,
       validTo: pass.validTo,
       entryCount: pass.entryCount,
+      paid: false,
+      paidAt: '',
     });
 
     // The form sits ABOVE the history, so on a phone the row the admin tapped and the form it filled
@@ -189,7 +229,21 @@ export class MemberPasses implements OnInit {
   protected cancelEdit(): void {
     this.editingId.set(null);
     this.state.error.set(null);
-    this.form.reset({ typeName: '', validFrom: '', validTo: '', entryCount: 10 });
+    this.form.reset({
+      typeName: '',
+      validFrom: '',
+      validTo: '',
+      entryCount: 10,
+      paid: false,
+      paidAt: '',
+    });
+  }
+
+  /** Ticking "Opłacony" fills the day with today, so the common case is one tap. */
+  protected togglePaid(): void {
+    const paid = !this.form.controls.paid.value;
+
+    this.form.patchValue({ paid, paidAt: paid ? this.today : '' });
   }
 
   protected async submit(): Promise<void> {
@@ -218,11 +272,25 @@ export class MemberPasses implements OnInit {
       return;
     }
 
+    const { typeName, entryCount, paid, paidAt } = this.form.getRawValue();
+    const passId = this.editingId();
+
+    // The same bound the server enforces (invalid_paid_at): a payment is never dated in the future.
+    // The 400-day floor stays the server's alone — nobody slips that far by accident in a date picker.
+    if (passId === null && paid && (!paidAt || paidAt > this.today)) {
+      this.state.error.set(membershipPassFailureMessage('invalid_paid_at'));
+      return;
+    }
+
     this.state.submitting.set(true);
     this.state.error.set(null);
 
-    const request: IssuePassRequest = this.form.getRawValue();
-    const passId = this.editingId();
+    // Built field by field rather than from getRawValue(): `paid` is a form-only control, and an EDIT
+    // must not carry `paidAt` at all — editing never changes payment.
+    const request: IssuePassRequest = { typeName, validFrom, validTo, entryCount };
+    if (passId === null) {
+      request.paidAt = paid ? paidAt : null;
+    }
 
     try {
       if (passId === null) {
@@ -263,6 +331,62 @@ export class MemberPasses implements OnInit {
     } finally {
       this.revokingId.set(null);
     }
+  }
+
+  protected openPayment(pass: MembershipPassView): void {
+    this.paymentFailure.set(null);
+    this.paying.set(pass);
+  }
+
+  protected closePayment(): void {
+    this.paying.set(null);
+    this.paymentFailure.set(null);
+  }
+
+  /**
+   * The overlay's Zapisz. A refusal stays in the overlay as its banner — the date is the thing to
+   * correct, and it is right there.
+   */
+  protected async markPaid(paidAt: string): Promise<void> {
+    const pass = this.paying();
+    if (pass === null) {
+      return;
+    }
+
+    this.paymentBusy.set(true);
+    this.paymentFailure.set(null);
+
+    try {
+      this.replace(await this.payments.setPaid(pass.id, paidAt));
+      this.closePayment();
+      this.toast.success('Karnet oznaczony jako opłacony.');
+    } catch (failure) {
+      this.paymentFailure.set(messageFor(failure));
+    } finally {
+      this.paymentBusy.set(false);
+    }
+  }
+
+  /** "Cofnij płatność" — a row action, so its outcome is a toast (outlet 3). */
+  protected async clearPaid(pass: MembershipPassView): Promise<void> {
+    this.paymentRows.setBusy(pass.id, true);
+
+    try {
+      this.replace(await this.payments.setPaid(pass.id, null));
+      this.toast.success('Cofnięto płatność.');
+    } catch (failure) {
+      this.toast.error(messageFor(failure));
+    } finally {
+      this.paymentRows.setBusy(pass.id, false);
+    }
+  }
+
+  /**
+   * Swaps in the row the payment write returned. Patching IS safe here, unlike after an issue or an
+   * edit: payment touches no entry, and the returned view's entry counts were read in the same request.
+   */
+  private replace(view: MembershipPassView): void {
+    this.passes.update((rows) => rows.map((row) => (row.id === view.id ? view : row)));
   }
 }
 

@@ -82,6 +82,12 @@ export interface Member {
 
   /** Entries left on that same karnet, derived from bookings; null exactly when `passValidTo` is. */
   passEntriesLeft: number | null;
+
+  /**
+   * Whether ANY of the member's karnets is unpaid (pass-paid-flag) — not just today's: a debt
+   * outlives the karnet's validity. Drives the "Nieopłacony" marker and the `unpaid` filter.
+   */
+  hasUnpaidPass: boolean;
 }
 
 /**
@@ -106,6 +112,8 @@ export interface MemberQuery {
   filter?: MemberFilter;
   role?: MemberRoleFilter;
   search?: string;
+  /** Only members holding an unpaid karnet (pass-paid-flag). Orthogonal to `filter`. */
+  unpaid?: boolean;
   page?: number;
   pageSize?: number;
 }
@@ -283,14 +291,26 @@ export interface MembershipPassView {
 
   /** Whether this is the pass covering today, by the CLUB's calendar rather than the browser's. */
   coversToday: boolean;
+
+  /**
+   * The club-local day it was paid, as `YYYY-MM-DD`, or null for unpaid (pass-paid-flag). A DATE,
+   * same rule as `validFrom`.
+   */
+  paidAt: string | null;
 }
 
-/** Mirrors IssuePassRequest — what the admin submits to issue or correct a karnet. */
+/**
+ * Mirrors IssuePassRequest — what the admin submits to issue or correct a karnet.
+ *
+ * `paidAt` is read by the ISSUE only; the API ignores it on an edit, and the edit form never sends it.
+ * Payment on an existing karnet changes through `PassPaymentService.setPaid`.
+ */
 export interface IssuePassRequest {
   typeName: string;
   validFrom: string;
   validTo: string;
   entryCount: number;
+  paidAt?: string | null;
 }
 
 /** Mirrors MembershipPassFailure. See that record for what each reason means. */
@@ -301,6 +321,7 @@ export interface MembershipPassFailure {
     | 'invalid_type_name'
     | 'invalid_range'
     | 'invalid_entry_count'
+    | 'invalid_paid_at'
     | 'overlapping_pass'
     | 'has_active_bookings'
     | 'has_booking_history'
@@ -318,6 +339,7 @@ export const MEMBERSHIP_PASS_FAILURE_REASONS = Object.keys({
   invalid_type_name: true,
   invalid_range: true,
   invalid_entry_count: true,
+  invalid_paid_at: true,
   overlapping_pass: true,
   has_active_bookings: true,
   has_booking_history: true,

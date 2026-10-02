@@ -18,6 +18,7 @@ const ANNA: Member = {
   createdAt: '2026-09-01T08:00:00+00:00',
   passValidTo: null,
   passEntriesLeft: null,
+  hasUnpaidPass: false,
 };
 
 const BARTEK: Member = {
@@ -32,6 +33,7 @@ const BARTEK: Member = {
   createdAt: '2026-09-01T09:00:00+00:00',
   passValidTo: null,
   passEntriesLeft: null,
+  hasUnpaidPass: false,
 };
 
 const CELINA: Member = {
@@ -46,6 +48,7 @@ const CELINA: Member = {
   createdAt: '2026-09-01T10:00:00+00:00',
   passValidTo: null,
   passEntriesLeft: null,
+  hasUnpaidPass: false,
 };
 
 /** An active member who already holds the Trainer role — the revoke direction. */
@@ -61,6 +64,7 @@ const DOROTA: Member = {
   createdAt: '2026-09-01T11:00:00+00:00',
   passValidTo: null,
   passEntriesLeft: null,
+  hasUnpaidPass: false,
 };
 
 /** The club's admin. S-04 stopped excluding admins from this list so FR-003's grant can reach them. */
@@ -76,6 +80,7 @@ const EWA: Member = {
   createdAt: '2026-09-01T12:00:00+00:00',
   passValidTo: null,
   passEntriesLeft: null,
+  hasUnpaidPass: false,
 };
 
 /** A person the club recorded who has never registered — the case S-14 exists for. */
@@ -91,6 +96,7 @@ const FILIP: Member = {
   createdAt: '2026-09-01T13:00:00+00:00',
   passValidTo: null,
   passEntriesLeft: null,
+  hasUnpaidPass: false,
 };
 
 /** An accountless member who already has a code outstanding — the reveal and revoke directions. */
@@ -106,6 +112,7 @@ const GRAZYNA: Member = {
   createdAt: '2026-09-01T14:00:00+00:00',
   passValidTo: null,
   passEntriesLeft: null,
+  hasUnpaidPass: false,
 };
 
 /** The first page, unfiltered and unsearched — what the screen asks for on a plain visit. */
@@ -698,6 +705,54 @@ describe('Members', () => {
     await createWith([ANNA], '/?role=Owner');
     expect(router.url).toBe('/');
     expect(picked(roleSelect())).toBe('Wszystkie');
+  });
+
+  /**
+   * pass-paid-flag: the unpaid toggle is orthogonal to the status select — it combines with it, keeps
+   * the phrase, drops the page, and lives in the URL as `unpaid=1`.
+   */
+  it('narrows to unpaid karnets alongside the status filter', async () => {
+    await createWith(
+      page([ANNA], 30, 2),
+      '/?q=kow&filter=Active&page=2',
+      '/api/admin/members?filter=Active&search=kow&page=2&pageSize=10',
+    );
+
+    (fixture.nativeElement as HTMLElement)
+      .querySelector<HTMLInputElement>('.members-unpaid input[type="checkbox"]')!
+      .click();
+
+    (
+      await vi.waitFor(() =>
+        controller.expectOne('/api/admin/members?filter=Active&search=kow&unpaid=true&pageSize=10'),
+      )
+    ).flush(page([ANNA]));
+    await settle();
+
+    expect(router.url).toBe('/?q=kow&filter=Active&unpaid=1');
+  });
+
+  it('restores the unpaid toggle from the URL and drops a junk value', async () => {
+    await createWith([ANNA], '/?unpaid=1', '/api/admin/members?unpaid=true&pageSize=10');
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>(
+        '.members-unpaid input[type="checkbox"]',
+      )!.checked,
+    ).toBe(true);
+
+    TestBed.resetTestingModule();
+    await createWith([ANNA], '/?unpaid=yes');
+    expect(router.url).toBe('/');
+  });
+
+  /** "Nieopłacony" marks a member with ANY unpaid karnet — the server decides which, this only says it. */
+  it('marks a member holding an unpaid karnet', async () => {
+    await createWith([{ ...ANNA, hasUnpaidPass: true }, BARTEK]);
+
+    const pass = (row: HTMLElement) => row.querySelector('.members-cell-pass')!.textContent ?? '';
+
+    expect(pass(rows()[0])).toContain('Nieopłacony');
+    expect(pass(rows()[1])).not.toContain('Nieopłacony');
   });
 
   it('clears every filter at once', async () => {

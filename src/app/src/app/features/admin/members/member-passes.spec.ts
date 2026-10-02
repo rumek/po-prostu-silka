@@ -4,6 +4,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, provideRouter } from '@angular/router';
 import { MemberDetail, MembershipPassView } from '../../../core/admin/member-admin.models';
 import { ToastService } from '../../../shared/toast/toast.service';
+import { clubToday } from '../../../core/passes/club-today';
 import { MemberPasses } from './member-passes';
 
 const MEMBER: MemberDetail = {
@@ -32,6 +33,7 @@ const PASS: MembershipPassView = {
   entriesLeft: 7,
   issuedAt: '2026-09-01T08:00:00+00:00',
   coversToday: true,
+  paidAt: null,
 };
 
 /**
@@ -101,6 +103,8 @@ describe('MemberPasses', () => {
       validFrom: '2026-10-01',
       validTo: '2026-10-31',
       entryCount: 10,
+      paid: false,
+      paidAt: '',
     });
     fixture.detectChanges();
   }
@@ -204,5 +208,134 @@ describe('MemberPasses', () => {
 
     expect(toastText()).toContain('usunięty');
     expect(toastTone()).toBe('success');
+  });
+
+  // --- payment (pass-paid-flag) ------------------------------------------------------
+
+  function click(text: string) {
+    const button = Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('button'),
+    ).find((candidate) => candidate.textContent?.trim().startsWith(text));
+
+    expect(button, `no button reading "${text}"`).toBeDefined();
+    button!.click();
+    fixture.detectChanges();
+  }
+
+  function paidBox(): HTMLInputElement {
+    return (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>(
+      'app-checkbox input[type="checkbox"]',
+    )!;
+  }
+
+  it('issues an unpaid karnet by default', async () => {
+    await create();
+    fillForm();
+    submit();
+
+    const request = await vi.waitFor(() => controller.expectOne('/api/admin/members/m1/passes'));
+    expect(request.request.body.paidAt).toBeNull();
+    request.flush(PASS);
+    await settle();
+    (await vi.waitFor(() => controller.expectOne('/api/admin/members/m1/passes'))).flush([PASS]);
+    await settle();
+  });
+
+  it('issues a paid karnet dated today when the box is ticked', async () => {
+    await create();
+    fillForm();
+    paidBox().click();
+    fixture.detectChanges();
+
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>('#paidAt')!.value,
+    ).toBe(clubToday());
+
+    submit();
+
+    const request = await vi.waitFor(() => controller.expectOne('/api/admin/members/m1/passes'));
+    expect(request.request.body.paidAt).toBe(clubToday());
+    request.flush({ ...PASS, paidAt: clubToday() });
+    await settle();
+    (await vi.waitFor(() => controller.expectOne('/api/admin/members/m1/passes'))).flush([PASS]);
+    await settle();
+  });
+
+  /** Editing never changes payment, so the edit neither shows the box nor sends `paidAt`. */
+  it('sends no payment on an edit', async () => {
+    await create();
+    click('Edytuj');
+
+    expect(paidBox()).toBeNull();
+
+    submit();
+
+    const request = await vi.waitFor(() => controller.expectOne('/api/admin/members/m1/passes/p1'));
+    expect(request.request.method).toBe('PUT');
+    expect('paidAt' in request.request.body).toBe(false);
+    request.flush(PASS);
+    await settle();
+    (await vi.waitFor(() => controller.expectOne('/api/admin/members/m1/passes'))).flush([PASS]);
+    await settle();
+  });
+
+  it('marks a karnet paid through the overlay and replaces the row', async () => {
+    await create();
+    click('Oznacz jako opłacony');
+
+    const overlay = (fixture.nativeElement as HTMLElement).querySelector(
+      'app-pass-payment-overlay',
+    );
+    expect(overlay).not.toBeNull();
+    expect(overlay!.querySelector<HTMLInputElement>('input[type="date"]')!.max).toBe(clubToday());
+
+    overlay!.querySelector('form')!.dispatchEvent(new Event('submit'));
+    fixture.detectChanges();
+
+    const request = await vi.waitFor(() => controller.expectOne('/api/passes/p1/paid'));
+    expect(request.request.method).toBe('PUT');
+    expect(request.request.body).toEqual({ paidAt: clubToday() });
+    request.flush({ ...PASS, paidAt: clubToday() });
+    await settle();
+
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector('app-pass-payment-overlay'),
+    ).toBeNull();
+    expect(toastTone()).toBe('success');
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Cofnij płatność');
+  });
+
+  /** A refusal in the overlay stays in the overlay, as its banner — the date is right there. */
+  it('banners a refused payment inside the overlay', async () => {
+    await create();
+    click('Oznacz jako opłacony');
+
+    const overlay = (fixture.nativeElement as HTMLElement).querySelector(
+      'app-pass-payment-overlay',
+    )!;
+    overlay.querySelector('form')!.dispatchEvent(new Event('submit'));
+    fixture.detectChanges();
+
+    (await vi.waitFor(() => controller.expectOne('/api/passes/p1/paid'))).flush(
+      { reason: 'invalid_paid_at' },
+      { status: 400, statusText: 'Bad Request' },
+    );
+    await settle();
+
+    expect(overlay.querySelector('.alert')?.textContent).toContain('Data płatności');
+    expect(toasts.toasts()).toHaveLength(0);
+  });
+
+  it('clears a payment with an explicit null and a toast', async () => {
+    await create([{ ...PASS, paidAt: '2026-09-02' }]);
+    click('Cofnij płatność');
+
+    const request = await vi.waitFor(() => controller.expectOne('/api/passes/p1/paid'));
+    expect(request.request.body).toEqual({ paidAt: null });
+    request.flush(PASS);
+    await settle();
+
+    expect(toastText()).toContain('Cofnięto');
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Nieopłacony');
   });
 });

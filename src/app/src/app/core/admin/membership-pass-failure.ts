@@ -19,11 +19,14 @@ import { MembershipPassFailure } from './member-admin.models';
 const MESSAGES: Record<MembershipPassFailure['reason'], string> = {
   member_blocked: 'Ta osoba jest zablokowana — najpierw ją odblokuj, potem wystaw karnet.',
   // S-25: staff hold no karnet. Reachable only by a typed URL — the member list hides the action.
-  member_is_staff: 'Karnetu nie wystawia się trenerom ani administratorom.',
+  member_is_staff:
+    'Trenerzy i administratorzy nie mają karnetów — tej osobie nie wystawia się ani nie rozlicza karnetu.',
   invalid_type_name: 'Podaj nazwę karnetu (maksymalnie 100 znaków).',
   invalid_range: 'Nieprawidłowy zakres dat — data końca nie może być wcześniejsza niż data startu.',
   invalid_entry_count:
     'Nieprawidłowa liczba wejść. Karnet musi mieć co najmniej jedno wejście i nie może mieć ich mniej, niż już wykorzystano.',
+  // pass-paid-flag: a payment is a record of money already handed over, and 400 days is the sanity bound.
+  invalid_paid_at: 'Data płatności nie może być w przyszłości ani starsza niż 400 dni.',
   overlapping_pass:
     'Ta osoba ma już karnet obejmujący część tego okresu. Karnety nie mogą się nakładać.',
   has_active_bookings:

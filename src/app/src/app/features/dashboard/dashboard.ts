@@ -17,6 +17,7 @@ import { Icon } from '../../shared/icons/icon';
 import { createLoadFence } from '../../shared/forms/load-fence';
 import { Loading } from '../../shared/forms/loading/loading';
 import { Empty } from '../../shared/forms/empty/empty';
+import { PassPaymentStatus } from '../../shared/passes/pass-payment-status';
 
 /** Days past today the staff "upcoming" card looks ahead. Well inside the API's 62-day cap. */
 const UPCOMING_DAYS = 7;
@@ -54,7 +55,16 @@ const PUNCH_LIMIT = 20;
  * It must not import date-fns — see `todayWindow()`.
  */
 @Component({
-  imports: [BookedClass, DatePipe, Empty, Icon, Loading, NgTemplateOutlet, RouterLink],
+  imports: [
+    BookedClass,
+    DatePipe,
+    Empty,
+    Icon,
+    Loading,
+    NgTemplateOutlet,
+    PassPaymentStatus,
+    RouterLink,
+  ],
   selector: 'app-dashboard',
   styleUrl: './dashboard.scss',
   templateUrl: './dashboard.html',

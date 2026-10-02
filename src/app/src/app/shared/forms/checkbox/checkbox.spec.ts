@@ -39,6 +39,10 @@ describe('Checkbox', () => {
     fixture.detectChanges();
   });
 
+  it('carries no id unless given one', () => {
+    expect(box().hasAttribute('id')).toBe(false);
+  });
+
   /**
    * THE REASON THIS EXISTS. Both copies it replaces were the only controls in the app with no
    * shared class — a bare input rendering in the browser's default blue, beside text that had to be
@@ -78,5 +82,24 @@ describe('Checkbox', () => {
     await fixture.whenStable();
 
     expect(fixture.componentInstance.toggles()).toBe(1);
+  });
+});
+
+@Component({
+  imports: [Checkbox],
+  template: `<app-checkbox inputId="named-box" [checked]="false">Tylko nieopłacone</app-checkbox>`,
+})
+class NamedHost {}
+
+describe('Checkbox with an inputId', () => {
+  /** So an outer `<label for>` — an `app-field`'s — can name the box as well as its own words. */
+  it('puts the id on the box itself', async () => {
+    TestBed.configureTestingModule({ imports: [NamedHost] });
+    const fixture = TestBed.createComponent(NamedHost);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const box = (fixture.nativeElement as HTMLElement).querySelector('input[type=checkbox]');
+    expect(box?.id).toBe('named-box');
   });
 });
