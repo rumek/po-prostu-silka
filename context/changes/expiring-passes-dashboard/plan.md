@@ -436,9 +436,9 @@ None. There is no schema change: "ending" is derived from existing columns.
 
 #### Automated
 
-- [x] 2.1 SPA specs pass
-- [x] 2.2 Lint and format pass
-- [x] 2.3 Production build succeeds, bundle measured and recorded
+- [x] 2.1 SPA specs pass — e7cfdea
+- [x] 2.2 Lint and format pass — e7cfdea
+- [x] 2.3 Production build succeeds, bundle measured and recorded — e7cfdea
 
 #### Manual
 
@@ -449,10 +449,10 @@ None. There is no schema change: "ending" is derived from existing columns.
 
 #### Automated
 
-- [ ] 3.1 SPA specs pass
-- [ ] 3.2 Lint and format pass
-- [ ] 3.3 Production build under the warning, figure recorded in AGENTS.md
-- [ ] 3.4 Backend tests still pass
+- [x] 3.1 SPA specs pass
+- [x] 3.2 Lint and format pass
+- [x] 3.3 Production build under the warning, figure recorded in AGENTS.md
+- [x] 3.4 Backend tests still pass
 
 #### Manual
 

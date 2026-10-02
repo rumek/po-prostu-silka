@@ -4,7 +4,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import { CurrentUser } from '../../core/auth/auth.models';
-import { MembershipPassView } from '../../core/admin/member-admin.models';
+import { ExpiringPass, MembershipPassView } from '../../core/admin/member-admin.models';
 import { MyBooking } from '../../core/scheduling/booking.models';
 import { ScheduledClass } from '../../core/scheduling/class.models';
 import { Dashboard } from './dashboard';
@@ -13,6 +13,11 @@ const BOOKINGS_URL = '/api/bookings/mine';
 const PLAN_URL = '/api/plans/mine';
 const PASS_URL = '/api/passes/mine';
 const FEED_URL = '/api/trainer/classes';
+const EXPIRING_URL = '/api/admin/members/expiring-passes';
+
+function ending(over: Partial<ExpiringPass> = {}): ExpiringPass {
+  return { memberId: 'e1', displayName: 'Ewa Nowak', validTo: '2026-10-04', daysLeft: 2, ...over };
+}
 
 // The seeded admin's shape: Admin alone, no User.
 const ADMIN: CurrentUser = {
@@ -250,6 +255,9 @@ describe('Dashboard', () => {
     configure(user);
 
     controller.expectOne((r) => r.url === FEED_URL).flush([]);
+    if (user === ADMIN) {
+      controller.expectOne(EXPIRING_URL).flush({ items: [], total: 0 });
+    }
     await settle();
 
     expect(text()).toContain('Twoje zajęcia');
@@ -403,6 +411,114 @@ describe('Dashboard', () => {
     expect(text()).toContain('Joga');
     // The karnet card was not asked again.
     controller.expectNone(PASS_URL);
+    controller.verify();
+  });
+  // --- Admin: karnets ending (expiring-passes-dashboard) -------------------------------------------
+
+  /** S-25: the card is the admin persona's. A trainer and a member never even ask for it. */
+  it.each([
+    ['a trainer', TRAINER],
+    ['a member', MEMBER],
+  ])('never requests the expiring karnets for %s', async (_, user) => {
+    configure(user);
+
+    if (user === TRAINER) {
+      controller.expectOne((r) => r.url === FEED_URL).flush([]);
+    } else {
+      controller.expectOne(BOOKINGS_URL).flush([]);
+      flushPass();
+    }
+    await settle();
+
+    controller.expectNone(EXPIRING_URL);
+    expect(text()).not.toContain('Kończą się karnety');
+    controller.verify();
+  });
+
+  it("puts the admin's club card above the classes, in the server's order", async () => {
+    configure(ADMIN);
+
+    controller.expectOne((r) => r.url === FEED_URL).flush([]);
+    controller.expectOne(EXPIRING_URL).flush({
+      items: [
+        ending({ memberId: 'a', displayName: 'Anna Dziś', daysLeft: 0, validTo: '2026-10-02' }),
+        ending({ memberId: 'b', displayName: 'Bartek Jutro', daysLeft: 1, validTo: '2026-10-03' }),
+        ending({ memberId: 'c', displayName: 'Celina Cztery', daysLeft: 4, validTo: '2026-10-06' }),
+      ],
+      total: 3,
+    });
+    await settle();
+
+    const page = text();
+    expect(page.indexOf('Kończą się karnety')).toBeLessThan(page.indexOf('Twoje zajęcia'));
+
+    const rows = Array.from(element().querySelectorAll<HTMLElement>('.dashboard-expiring li'));
+    expect(rows.map((row) => row.querySelector('.row-name')!.textContent!.trim())).toEqual([
+      'Anna Dziś',
+      'Bartek Jutro',
+      'Celina Cztery',
+    ]);
+    expect(
+      rows.map((row) => row.querySelector('.dashboard-expiring-days')!.textContent!.trim()),
+    ).toEqual(['dziś', 'jutro', 'za 4 dni']);
+
+    // Each row is the way to the renewal: that member's karnet screen.
+    expect(rows[1].querySelector('a')!.getAttribute('href')).toBe('/admin/members/b/passes');
+
+    // Nothing hidden, so no "see all".
+    expect(page).not.toContain('Zobacz wszystkich');
+    controller.verify();
+  });
+
+  it('offers "Zobacz wszystkich (N)" only when the card hides someone', async () => {
+    configure(ADMIN);
+
+    controller.expectOne((r) => r.url === FEED_URL).flush([]);
+    controller.expectOne(EXPIRING_URL).flush({
+      items: ['a', 'b', 'c', 'd', 'e'].map((id) => ending({ memberId: id })),
+      total: 7,
+    });
+    await settle();
+
+    const links = Array.from(element().querySelectorAll<HTMLAnchorElement>('a')).filter((a) =>
+      (a.textContent ?? '').includes('Zobacz wszystkich (7)'),
+    );
+    // Two placements of one link — the header's on a phone, the card's bottom edge above it.
+    expect(links.length).toBe(2);
+    for (const link of links) {
+      expect(link.getAttribute('href')).toBe('/admin/members?expiring=1');
+    }
+    controller.verify();
+  });
+
+  it('keeps the card with an empty state when nothing is ending', async () => {
+    configure(ADMIN);
+
+    controller.expectOne((r) => r.url === FEED_URL).flush([]);
+    controller.expectOne(EXPIRING_URL).flush({ items: [], total: 0 });
+    await settle();
+
+    expect(text()).toContain('Kończą się karnety');
+    expect(text()).toContain('Żaden karnet nie kończy się w ciągu 5 dni.');
+    controller.verify();
+  });
+
+  it('shows a failed card with a retry that reloads only that card', async () => {
+    configure(ADMIN);
+
+    controller.expectOne((r) => r.url === FEED_URL).flush([]);
+    controller.expectOne(EXPIRING_URL).error(new ProgressEvent('failed'));
+    await settle();
+
+    expect(text()).toContain('Nie udało się wczytać karnetów.');
+    element().querySelector<HTMLButtonElement>('[role="alert"] .link-button')!.click();
+    fixture.detectChanges();
+
+    controller.expectOne(EXPIRING_URL).flush({ items: [ending()], total: 1 });
+    await settle();
+
+    expect(text()).toContain('Ewa Nowak');
+    controller.expectNone((r) => r.url === FEED_URL);
     controller.verify();
   });
 });

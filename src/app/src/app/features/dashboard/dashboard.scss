@@ -151,6 +151,37 @@
   }
 }
 
+// --- Karnets ending (expiring-passes-dashboard) ------------------------------------------------------
+// The kit's rows (app-list / li[appRow]), sitting INSIDE the card rather than being cards: the host
+// li carries this component's scope, so its padding and wrap are ours to set; the list's own gap and
+// the identity's layout stay the kit's. A hairline between rows, like the class rows above. The
+// countdown — what the admin scans for — rides the actions slot at the far end and never wraps under.
+
+.dashboard-expiring li[appRow] {
+  flex-wrap: nowrap;
+  padding: 0;
+
+  + li[appRow] {
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--line);
+  }
+}
+
+.dashboard-expiring-days {
+  flex: 0 0 auto;
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+// Today and tomorrow: the renewal is due now, not this week.
+.dashboard-expiring-days--soon {
+  color: var(--danger);
+}
+
 // How full a class the trainer leads is, at the row's far end.
 .dashboard-occupancy {
   display: flex;
