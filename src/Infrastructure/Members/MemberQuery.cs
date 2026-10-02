@@ -57,11 +57,16 @@ public class MemberQuery(AppDbContext db, TimeProvider timeProvider) : IMemberQu
         MemberRoleFilter? role,
         string? search,
         bool unpaidOnly,
+        bool expiringOnly,
         int page,
         int pageSize,
         CancellationToken cancellationToken)
     {
         var members = Searched(WithRole(Filtered(db.Members.AsNoTracking(), filter), role), search);
+
+        // Club-local, as MembershipPassQuery reads it: "valid today" is a question about the gym's
+        // calendar, not the UTC date. One value for the expiring filter and the projection below.
+        var today = ClubToday();
 
         // pass-paid-flag. ORTHOGONAL to the status filter rather than a fifth MemberListFilter value, so
         // "active and unpaid" is expressible; applied before the count, so total and paging reflect it.
@@ -76,9 +81,12 @@ public class MemberQuery(AppDbContext db, TimeProvider timeProvider) : IMemberQu
                 .Where(m => db.MembershipPasses.Any(p => p.MemberId == m.Id && p.PaidAt == null));
         }
 
-        // Club-local, as MembershipPassQuery reads it: "valid today" is a question about the gym's
-        // calendar, not the UTC date.
-        var today = DateOnly.FromDateTime(ClubTime.ToClubLocal(timeProvider.GetUtcNow()).DateTime);
+        // expiring-passes-dashboard. Orthogonal like unpaidOnly, and applied before the count, so the
+        // total is the Start card's N — the same predicate, see GetExpiringPassesAsync.
+        if (expiringOnly)
+        {
+            members = members.Where(ExpiringPassPredicate.IsExpiring(db, today));
+        }
 
         var total = await members.CountAsync(cancellationToken);
 
@@ -162,6 +170,47 @@ public class MemberQuery(AppDbContext db, TimeProvider timeProvider) : IMemberQu
         return new PagedResult<MemberSummary>(items, total, page, pageSize);
     }
 
+    /// <summary>
+    /// Counts and pages ONE queryable, so the card's total is the list's total under the same filter.
+    /// Ordered by urgency, then name, then id — the id because two members called "Anna Nowak" ending
+    /// the same day would otherwise sit on either side of the cut differently on each visit.
+    /// </summary>
+    public async Task<ExpiringPasses> GetExpiringPassesAsync(int take, CancellationToken cancellationToken)
+    {
+        // ONE today for the predicate and DaysLeft, so the label always agrees with the filter.
+        var today = ClubToday();
+
+        var members = db.Members.AsNoTracking().Where(ExpiringPassPredicate.IsExpiring(db, today));
+
+        var total = await members.CountAsync(cancellationToken);
+
+        var rows = await members
+            .Select(m => new
+            {
+                m.Id,
+                m.DisplayName,
+
+                // The karnet covering today — the one the predicate found ending. Same "first by
+                // ValidFrom" rule as the list's PassValidTo; never null here, the predicate demands it.
+                ValidTo = db.MembershipPasses
+                    .Where(p => p.MemberId == m.Id && p.ValidFrom <= today && today <= p.ValidTo)
+                    .OrderBy(p => p.ValidFrom)
+                    .Select(p => p.ValidTo)
+                    .First(),
+            })
+            .OrderBy(r => r.ValidTo)
+            .ThenBy(r => r.DisplayName)
+            .ThenBy(r => r.Id)
+            .Take(take)
+            .ToListAsync(cancellationToken);
+
+        var items = rows
+            .Select(r => new ExpiringPass(r.Id, r.DisplayName, r.ValidTo, r.ValidTo.DayNumber - today.DayNumber))
+            .ToList();
+
+        return new ExpiringPasses(items, total);
+    }
+
     public async Task<MemberDetail?> FindDetailAsync(Guid memberId, CancellationToken cancellationToken)
     {
         var row = await db.Members
@@ -237,6 +286,9 @@ public class MemberQuery(AppDbContext db, TimeProvider timeProvider) : IMemberQu
                      || !db.Members.Any(m => m.Id == exceptMemberId && m.UserId == u.Id)),
             cancellationToken);
     }
+
+    private DateOnly ClubToday() =>
+        DateOnly.FromDateTime(ClubTime.ToClubLocal(timeProvider.GetUtcNow()).DateTime);
 
     /// <summary>
     /// Turns a filter position into a predicate. The positions are the admin's vocabulary, not a

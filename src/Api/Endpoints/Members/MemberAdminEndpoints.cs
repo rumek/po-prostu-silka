@@ -62,6 +62,10 @@ public static class MemberAdminEndpoints
         // anything: registration produces an Active account, and what decides whether somebody may
         // train is the karnet. Blocking is untouched and remains the admin's lever.
         group.MapGet("/", GetMembers.HandleAsync);
+
+        // The admin's Start card (expiring-passes-dashboard). A literal segment, so it never competes
+        // with /{memberId:guid}; Admin, as the group is — the card is the admin persona's alone.
+        group.MapGet("/expiring-passes", GetExpiringPasses.HandleAsync);
         group.MapGet("/{memberId:guid}", GetMember.HandleAsync);
         group.MapPost("/", CreateMember.HandleAsync);
         group.MapPut("/{memberId:guid}", UpdateMember.HandleAsync);

@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using po_prostu_silka.Domain;
 using po_prostu_silka.Domain.Members;
+using po_prostu_silka.Domain.Scheduling;
 using po_prostu_silka.Infrastructure.Persistence;
 
 namespace po_prostu_silka.Tests;
@@ -691,6 +692,191 @@ public class MemberEndpointTests(IntegrationTestFixture fixture)
         Assert.False((await ListAsync(admin, search)).Single(r => r.Id == memberId).HasUnpaidPass);
         var unpaid = await admin.GetFromJsonAsync<MemberPageBody<MemberSummaryBody>>($"{Endpoint}?{search}&unpaid=true");
         Assert.Equal(0, unpaid!.Total);
+    }
+
+    // --- expiring karnets (expiring-passes-dashboard) ---------------------------
+
+    /// <summary>
+    /// The window is the club spreadsheet's: last day between today and today + 5, BOTH inclusive.
+    /// Yesterday's end is expired, not ending; today + 6 is not yet ending.
+    /// </summary>
+    [Fact]
+    public async Task The_expiring_filter_takes_ends_from_today_to_today_plus_five_inclusive()
+    {
+        var admin = await AdminAsync();
+        var today = ClubToday();
+        var marker = $"Okno {Guid.NewGuid():N}";
+
+        var endsToday = await MemberWithPassAsync($"{marker} A", today.AddDays(-29), today);
+        var endsInFive = await MemberWithPassAsync($"{marker} B", today.AddDays(-20), today.AddDays(5));
+        var endsInSix = await MemberWithPassAsync($"{marker} C", today.AddDays(-20), today.AddDays(6));
+        var endedYesterday = await MemberWithPassAsync($"{marker} D", today.AddDays(-30), today.AddDays(-1));
+
+        var expiring = await ExpiringIdsAsync(admin, marker);
+
+        Assert.Contains(endsToday, expiring);
+        Assert.Contains(endsInFive, expiring);
+        Assert.DoesNotContain(endsInSix, expiring);
+        Assert.DoesNotContain(endedYesterday, expiring);
+    }
+
+    /// <summary>
+    /// A renewal issued in advance is what the app knows and the spreadsheet cannot: ANY later karnet
+    /// takes the member off — back-to-back or after a gap.
+    /// </summary>
+    [Fact]
+    public async Task A_member_holding_a_later_karnet_is_not_expiring()
+    {
+        var admin = await AdminAsync();
+        var today = ClubToday();
+        var marker = $"Odnowa {Guid.NewGuid():N}";
+
+        var backToBack = await MemberWithPassAsync($"{marker} A", today.AddDays(-25), today.AddDays(2));
+        await fixture.IssuePassAsync(backToBack, validFrom: today.AddDays(3), validTo: today.AddDays(32));
+
+        var afterGap = await MemberWithPassAsync($"{marker} B", today.AddDays(-25), today.AddDays(2));
+        await fixture.IssuePassAsync(afterGap, validFrom: today.AddDays(20), validTo: today.AddDays(49));
+
+        var notRenewed = await MemberWithPassAsync($"{marker} C", today.AddDays(-25), today.AddDays(2));
+
+        Assert.Equal([notRenewed], await ExpiringIdsAsync(admin, marker));
+    }
+
+    /// <summary>
+    /// Tied to the end date ONLY: an unpaid karnet is still ending (unpaid is pass-paid-flag's filter),
+    /// and so is one with no entries left. A karnet that has not started is never ending — there is
+    /// nothing current to renew.
+    /// </summary>
+    [Fact]
+    public async Task Payment_and_entries_do_not_matter_and_a_future_karnet_is_not_expiring()
+    {
+        var admin = await AdminAsync();
+        var today = ClubToday();
+        var marker = $"Oś {Guid.NewGuid():N}";
+
+        var unpaid = await MemberWithPassAsync($"{marker} A", today.AddDays(-25), today.AddDays(3));
+
+        var spent = await fixture.CreateMemberAsync($"{marker} B");
+        var spentPass = await fixture.IssuePassAsync(
+            spent, entryCount: 1, validFrom: today.AddDays(-25), validTo: today.AddDays(3), paidAt: today.AddDays(-25));
+        await SpendAnEntryAsync(spent, spentPass);
+
+        var futureOnly = await fixture.CreateMemberAsync($"{marker} C");
+        await fixture.IssuePassAsync(futureOnly, validFrom: today.AddDays(1), validTo: today.AddDays(3));
+
+        var expiring = await ExpiringIdsAsync(admin, marker);
+
+        Assert.Contains(unpaid, expiring);
+        Assert.Contains(spent, expiring);
+        Assert.DoesNotContain(futureOnly, expiring);
+
+        // The spent one really is spent — otherwise this test proves nothing about entries.
+        var rows = await ListAsync(admin, $"search={Uri.EscapeDataString(marker)}");
+        Assert.Equal(0, rows.Single(r => r.Id == spent).PassEntriesLeft);
+    }
+
+    /// <summary>
+    /// The card means "to renew": a blocked member is not, and neither is staff — the pass routes refuse
+    /// a staff holder, so it would be a renewal nobody could issue.
+    /// </summary>
+    [Fact]
+    public async Task Blocked_members_and_staff_are_not_expiring()
+    {
+        var admin = await AdminAsync();
+        var today = ClubToday();
+        var marker = $"Wyjątek {Guid.NewGuid():N}";
+
+        var blocked = await MemberWithPassAsync($"{marker} A", today.AddDays(-25), today.AddDays(1));
+        Assert.Equal(HttpStatusCode.OK, (await admin.PostAsync($"{Endpoint}/{blocked}/block", null)).StatusCode);
+
+        var email = $"expiring-staff-{Guid.NewGuid():N}@test.local";
+        await fixture.CreateUserAsync(email, AccountStatus.Active, ApplicationRoles.User, displayName: $"{marker} B");
+        var promoted = await fixture.MemberIdOfAsync(await UserIdOfAsync(email));
+        await fixture.IssuePassAsync(promoted, validFrom: today.AddDays(-25), validTo: today.AddDays(1));
+        Assert.Equal([promoted], await ExpiringIdsAsync(admin, marker));
+
+        Assert.Equal(HttpStatusCode.OK, (await admin.PostAsync($"{Endpoint}/{promoted}/roles/trainer", null)).StatusCode);
+
+        Assert.Empty(await ExpiringIdsAsync(admin, marker));
+    }
+
+    /// <summary>Orthogonal to the other filters, and the total counts the filtered set.</summary>
+    [Fact]
+    public async Task The_expiring_filter_combines_with_the_unpaid_and_status_filters()
+    {
+        var admin = await AdminAsync();
+        var today = ClubToday();
+        var marker = $"Kombi {Guid.NewGuid():N}";
+
+        var unpaid = await MemberWithPassAsync($"{marker} A", today.AddDays(-25), today.AddDays(4));
+        var paid = await fixture.CreateMemberAsync($"{marker} B");
+        await fixture.IssuePassAsync(paid, validFrom: today.AddDays(-25), validTo: today.AddDays(4), paidAt: today.AddDays(-25));
+        await MemberWithPassAsync($"{marker} C", today.AddDays(-5), today.AddDays(25));
+
+        var search = $"search={Uri.EscapeDataString(marker)}";
+
+        var expiring = await admin.GetFromJsonAsync<MemberPageBody<MemberSummaryBody>>($"{Endpoint}?{search}&expiring=true");
+        Assert.Equal(2, expiring!.Total);
+
+        var expiringUnpaid = await admin.GetFromJsonAsync<MemberPageBody<MemberSummaryBody>>(
+            $"{Endpoint}?{search}&expiring=true&unpaid=true&filter=Active");
+        Assert.Equal(unpaid, Assert.Single(expiringUnpaid!.Items).Id);
+        Assert.Equal(1, expiringUnpaid.Total);
+    }
+
+    /// <summary>Club-local, as MemberQuery reads it.</summary>
+    private static DateOnly ClubToday() =>
+        DateOnly.FromDateTime(ClubTime.ToClubLocal(DateTimeOffset.UtcNow).DateTime);
+
+    private async Task<Guid> MemberWithPassAsync(string name, DateOnly validFrom, DateOnly validTo)
+    {
+        var id = await fixture.CreateMemberAsync(name);
+        await fixture.IssuePassAsync(id, validFrom: validFrom, validTo: validTo);
+        return id;
+    }
+
+    private async Task<List<Guid>> ExpiringIdsAsync(HttpClient admin, string marker) =>
+        (await ListAsync(admin, $"search={Uri.EscapeDataString(marker)}&expiring=true")).Select(r => r.Id).ToList();
+
+    /// <summary>
+    /// An active booking carrying the karnet, so its one entry is used. Written directly: the booking
+    /// route's own rules are not what this suite tests. The member instructs their own class only
+    /// because the instructor foreign key needs somebody.
+    /// </summary>
+    private async Task SpendAnEntryAsync(Guid memberId, Guid passId)
+    {
+        await using var db = NewContext();
+
+        var group = new ClassGroup
+        {
+            Id = Guid.NewGuid(),
+            Name = $"Expiring {Guid.NewGuid():N}",
+            DefaultDurationMinutes = 60,
+            DefaultCapacity = 5,
+            CreatedAt = DateTimeOffset.UtcNow,
+        };
+        var cls = new Class
+        {
+            Id = Guid.NewGuid(),
+            ClassGroupId = group.Id,
+            InstructorMemberId = memberId,
+            StartsAt = DateTimeOffset.UtcNow.AddHours(2),
+            DurationMinutes = 60,
+            Capacity = 5,
+            CreatedAt = DateTimeOffset.UtcNow,
+        };
+
+        db.ClassGroups.Add(group);
+        db.Classes.Add(cls);
+        db.Bookings.Add(new Booking
+        {
+            Id = Guid.NewGuid(),
+            ClassId = cls.Id,
+            MemberId = memberId,
+            MembershipPassId = passId,
+            CreatedAt = DateTimeOffset.UtcNow,
+        });
+        await db.SaveChangesAsync();
     }
 
     private static async Task<List<MemberSummaryBody>> ListAsync(HttpClient admin, string query) =>
