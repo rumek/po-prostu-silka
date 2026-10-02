@@ -200,6 +200,10 @@ Locked during shaping:
 Carried over from the seed ("Poza MVP"):
 
 - No pass/membership sales, payments, subscriptions, or invoices — the app manages participation, not money.
+
+  > **Narrowed by pass-paid-flag (roadmap S-34), 2026-10-02.** The app records that a karnet was paid
+  > and on which day, and who recorded it; it never takes a payment, sells a karnet, or stores an
+  > amount. An unpaid karnet does not gate booking.
 - No waitlist for full classes.
 - No full recurring-series management — weekly duplication stands in for it.
 - No Trainer role — User and Admin only.

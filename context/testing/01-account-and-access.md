@@ -231,8 +231,11 @@ Start), a dane obsługi nie pojawiają się nawet na chwilę.
 
 ### NAV-04 · Trener nie wejdzie na ekrany członka i administratora — P1
 **Rola:** trener
-**Kroki:** wpisz ręcznie `/my-classes`, `/my-plan`, `/admin/members`, `/admin/class-groups`.
-**Oczekiwany rezultat:** żaden się nie otwiera.
+**Kroki:** wpisz ręcznie `/my-classes`, `/my-plan`, `/admin/members`, `/admin/class-groups`,
+`/admin/members/<id członka>/passes`. Potem `/trainer/members/<id członka>/passes`.
+**Oczekiwany rezultat:** żaden z pierwszych pięciu się nie otwiera — karnety administratora (wystawianie,
+edycja, usuwanie) zostają tylko jego. Ostatni się otwiera: to ekran „Karnety” trenera, na którym
+może jedynie oznaczyć płatność (`PASS-14`).
 
 ### NAV-05 · Administrator nie widzi ekranów członka — P2
 **Rola:** administrator

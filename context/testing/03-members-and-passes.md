@@ -136,10 +136,53 @@ tych zajęć, potem usuń karnet.”. Drugi znika z historii.
 `/admin/members/<id trenera>/passes` (id skopiuj z linku „Edytuj dane” trenera) i spróbuj wystawić
 karnet.
 **Oczekiwany rezultat:** „Ta osoba jest zablokowana — najpierw ją odblokuj, potem wystaw karnet.”
-oraz „Karnetu nie wystawia się trenerom ani administratorom.”.
+oraz „Trenerzy i administratorzy nie mają karnetów — tej osobie nie wystawia się ani nie rozlicza
+karnetu.”.
 
 ### PASS-08 · Pozostałe wejścia liczą się z zapisów i obecności — P1
 **Kroki:** osobie z karnetem 8/8 zrób 2 zapisy (`BOOK-01`); sprawdź karnet. Wypisz ją z jednego
 (`BOOK-04`); sprawdź karnet. Po zajęciach oznacz ją jako nieobecną (`ATT-02`) i sprawdź ponownie.
 **Oczekiwany rezultat:** po dwóch zapisach zostaje 6; po wypisaniu 7; oznaczenie nieobecności
 zwraca wejście. Stan jest spójny na Starcie członka, w „Karnety” i w kolumnie „Karnet” na liście.
+
+### PASS-09 · Wystawienie karnetu opłaconego i nieopłaconego — P1
+**Rola:** administrator
+**Kroki:** wystaw karnet bez zaznaczania „Opłacony”. Wystaw drugi (innej osobie), zaznacz
+„Opłacony” — pole „Data płatności” pokazuje dzisiejszą datę — i zapisz.
+**Oczekiwany rezultat:** pierwszy karnet ma znacznik „Nieopłacony”, drugi „Opłacony · <dziś>” — na
+karcie „Aktywny karnet” i w „Historii karnetów”. Na liście członków pierwsza osoba ma znacznik
+„Nieopłacony”, druga nie.
+
+### PASS-10 · Edycja nie zmienia płatności — P1
+**Kroki:** „Edytuj” przy opłaconym karnecie; zmień datę końca i zapisz.
+**Oczekiwany rezultat:** w trybie edycji nie ma pola „Opłacony”; po zapisie karnet nadal jest
+„Opłacony” z tą samą datą.
+
+### PASS-11 · Oznaczenie płatności z datą wsteczną i jej cofnięcie — P1
+**Kroki:** przy nieopłaconym karnecie „Oznacz jako opłacony” → w nakładce ustaw datę sprzed tygodnia
+→ „Zapisz”. Potem „Cofnij płatność”. Spróbuj też wpisać jutrzejszą datę (z klawiatury, jeśli
+kalendarz jej nie podaje).
+**Oczekiwany rezultat:** po zapisie nakładka się zamyka, toast „Karnet oznaczony jako opłacony.”,
+wiersz pokazuje „Opłacony · <data sprzed tygodnia>”. „Cofnij płatność” daje toast „Cofnięto
+płatność.” i znacznik „Nieopłacony”. Jutrzejsza data: w nakładce komunikat „Data płatności nie może
+być w przyszłości ani starsza niż 400 dni.”.
+
+### PASS-12 · Dług po wygasłym karnecie i filtr „Tylko nieopłacone” — P1
+**Kroki:** osoba ma wygasły nieopłacony karnet i bieżący opłacony. Otwórz listę członków; zaznacz
+„Tylko nieopłacone”, potem dodatkowo ustaw „Status: Aktywni”; odśwież stronę.
+**Oczekiwany rezultat:** osoba ma znacznik „Nieopłacony”, choć jej bieżący karnet jest opłacony.
+Filtr pokazuje tylko osoby z jakimkolwiek nieopłaconym karnetem i łączy się ze statusem; po
+odświeżeniu oba filtry zostają (adres zawiera `unpaid=1`). „Wyczyść filtry” zdejmuje oba.
+
+### PASS-13 · Płatność zablokowanej osoby — P2
+**Kroki:** zablokuj osobę z nieopłaconym karnetem; w jej „Karnetach” oznacz go jako opłacony.
+**Oczekiwany rezultat:** zapis się udaje — blokada konta nie przeszkadza w rozliczeniu długu.
+
+### PASS-14 · Trener rozlicza karnet — P1
+**Rola:** trener
+**Kroki:** „Członkowie” → przy osobie ze znacznikiem „Nieopłacony” „Karnety” → przy wygasłym
+nieopłaconym karnecie „Oznacz jako opłacony” → „Zapisz”. Potem „Cofnij płatność” i oznacz ponownie.
+**Oczekiwany rezultat:** ekran „Karnety” pokazuje wszystkie karnety osoby, bez „Wystaw”, „Edytuj” i
+„Usuń”. Po oznaczeniu znacznik znika z wiersza i z listy członków trenera; administrator widzi tę
+samą płatność w swoich „Karnetach”. Na telefonie pasek u góry ma nazwę „Karnety” i strzałkę wstecz
+zamiast dolnego menu; strzałka wraca do listy.

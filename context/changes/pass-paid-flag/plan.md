@@ -663,9 +663,9 @@ them.
 
 #### Automated
 
-- [x] 4.1 SPA unit tests pass
-- [x] 4.2 Lint and format pass
-- [x] 4.3 Production build passes, bundle figure recorded
+- [x] 4.1 SPA unit tests pass — 5c6e99c
+- [x] 4.2 Lint and format pass — 5c6e99c
+- [x] 4.3 Production build passes, bundle figure recorded — 5c6e99c
 
 #### Manual
 
@@ -677,8 +677,8 @@ them.
 
 #### Automated
 
-- [ ] 5.1 E2E suite passes locally
-- [ ] 5.2 SPA and backend still green
+- [x] 5.1 E2E suite passes locally
+- [x] 5.2 SPA and backend still green
 
 #### Manual
 
