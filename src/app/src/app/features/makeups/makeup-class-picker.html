@@ -1,0 +1,65 @@
+<button
+  type="button"
+  class="overlay-backdrop"
+  aria-label="Zamknij wybór zajęć"
+  (click)="close()"
+></button>
+
+<div
+  class="card overlay-panel overlay-panel--full"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="makeup-picker-title"
+>
+  <app-overlay-head (closed)="close()">
+    <h2 id="makeup-picker-title" class="overlay-title">Odrabianie: {{ item().displayName }}</h2>
+  </app-overlay-head>
+
+  <div class="overlay-body">
+    <p class="overlay-when">
+      Za „{{ item().className }}” · termin do {{ clubDay(item().deadline) }}
+    </p>
+
+    @if (failure()) {
+      <p class="alert" role="alert">{{ failure() }}</p>
+    }
+
+    @if (loading() && classes().length === 0) {
+      <app-loading />
+    } @else if (loadFailed()) {
+      <p class="alert" role="alert">
+        {{ loadMessage() ?? 'Nie udało się wczytać zajęć do wyboru.' }}
+        <button type="button" class="link-button" (click)="load()">Spróbuj ponownie</button>
+      </p>
+    } @else if (classes().length === 0) {
+      <app-empty icon="calendar" compact>
+        Brak zajęć z wolnym miejscem w terminie odrabiania.
+      </app-empty>
+    } @else {
+      <app-list [attr.aria-busy]="loading()">
+        @for (option of classes(); track option.id) {
+          <li appRow class="picker-row">
+            <p class="row-name">{{ option.name }}</p>
+            <p class="row-meta">{{ when(option.startsAt) }}</p>
+            <p class="row-meta picker-facts">
+              <app-icon name="person" />
+              <span>{{ option.instructor }}</span>
+              <span aria-hidden="true">·</span>
+              <span>wolne: {{ option.freeSpots }}</span>
+            </p>
+
+            <button
+              slot="actions"
+              type="button"
+              class="button button--secondary"
+              [disabled]="booking() !== null"
+              (click)="book(option)"
+            >
+              {{ booking() === option.id ? 'Zapisuję…' : 'Zapisz' }}
+            </button>
+          </li>
+        }
+      </app-list>
+    }
+  </div>
+</div>

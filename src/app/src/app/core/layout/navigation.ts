@@ -41,6 +41,9 @@ const TRAINER_MEMBERS: NavLink = {
   exact: false,
 };
 
+// S-36. Both staff personas: any trainer arranges any member's makeup, so the list is the club's.
+const MAKEUPS: NavLink = { route: '/makeups', label: 'Odrabianie', icon: 'repeat', exact: false };
+
 const ADMIN_CLASSES: NavLink = { ...SCHEDULE, route: '/admin/classes' };
 const ADMIN_MEMBERS: NavLink = { ...TRAINER_MEMBERS, route: '/admin/members' };
 const CLASS_GROUPS: NavLink = {
@@ -65,7 +68,7 @@ const NONE: Navigation = { header: [], bar: [MORE], more: [] };
  * drift — and each link's persona is its route's guard by construction:
  *
  * - member — `/my-classes` and `/my-plan` are behind memberGuard;
- * - trainer — `/schedule` behind staffGuard, `/trainer/members` behind trainerGuard;
+ * - trainer — `/schedule` and `/makeups` behind staffGuard, `/trainer/members` behind trainerGuard;
  * - admin — `/schedule` or `/admin/classes`, and the admin lists, behind staffGuard / adminGuard.
  *
  * Moje konto and logout are NOT in the table: the shell and /more render them for every
@@ -77,9 +80,9 @@ const NONE: Navigation = { header: [], bar: [MORE], more: [] };
  * bookings overlay, on a screen that works on a phone. `desk` comes from the caller's
  * `mediaQuerySignal(DESK_MEDIA_QUERY, true)` so this stays a pure function.
  *
- * Only the admin needs /more for a destination (Grupy — the sixth link does not fit a
- * five-slot bar). Member and trainer still get the Więcej tab: it is where the phone reaches Moje
- * konto and logout.
+ * Only the admin needs /more for a destination (Grupy and Odrabianie — the sixth and seventh links
+ * do not fit a five-slot bar). Member and trainer still get the Więcej tab: it is where the phone
+ * reaches Moje konto and logout. The trainer's bar is full since S-36.
  */
 export function navigationFor(persona: Persona | null, desk: boolean): Navigation {
   switch (persona) {
@@ -91,16 +94,16 @@ export function navigationFor(persona: Persona | null, desk: boolean): Navigatio
       };
     case 'trainer':
       return {
-        header: [START, SCHEDULE, TRAINER_MEMBERS],
-        bar: [START, SCHEDULE, TRAINER_MEMBERS, MORE],
+        header: [START, SCHEDULE, TRAINER_MEMBERS, MAKEUPS],
+        bar: [START, SCHEDULE, TRAINER_MEMBERS, MAKEUPS, MORE],
         more: [],
       };
     case 'admin': {
       const grafik = desk ? ADMIN_CLASSES : SCHEDULE;
       return {
-        header: [START, grafik, ADMIN_MEMBERS, CLASS_GROUPS, EXERCISES],
+        header: [START, grafik, ADMIN_MEMBERS, CLASS_GROUPS, EXERCISES, MAKEUPS],
         bar: [START, grafik, ADMIN_MEMBERS, EXERCISES, MORE],
-        more: [CLASS_GROUPS],
+        more: [CLASS_GROUPS, MAKEUPS],
       };
     }
     default:

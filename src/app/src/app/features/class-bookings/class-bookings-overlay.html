@@ -97,12 +97,6 @@
                   </button>
                 }
               </div>
-
-              <!-- A mark recorded before S-36: the one absence that returned its entry. None of the
-                 three buttons is pressed; tapping one re-marks it under today's rule. -->
-              @if (booking.attendance === 'absent') {
-                <p slot="foot" class="row-meta">Nieobecny — wejście zwrócone</p>
-              }
             } @else {
               <button
                 slot="actions"
@@ -113,6 +107,13 @@
               >
                 {{ busy.isBusy(booking.bookingId) ? 'Zwalnianie…' : 'Zwolnij miejsce' }}
               </button>
+            }
+
+            <!-- A mark recorded before S-36: the one absence that returned its entry. None of the
+               three buttons is pressed; tapping one re-marks it under today's rule. Outside the
+               if-chain above, so the toggle stays that branch's only node and lands in its slot. -->
+            @if (marking() && booking.attendance === 'absent') {
+              <p slot="foot" class="row-meta">Nieobecny — wejście zwrócone</p>
             }
 
             @if (failedId() === booking.bookingId) {

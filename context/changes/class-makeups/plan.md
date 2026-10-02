@@ -438,6 +438,11 @@ same row-error outlet.
 - **Hero hint:** `GET /api/makeups/mine` adds "Do odrobienia: N · do {date}" when `count > 0`,
   behind its own load fence. If that request fails, the hint is skipped; the screen still shows.
 
+**Adapted during implementation.** The upcoming list needed `isMakeup` on `MyBooking`, which no
+backend phase had added. It was added to `src/Application/Scheduling/MyBooking.cs` and its
+`BookingQuery` projection in this phase. The chip renders through a new `makeup` input on
+`shared/class-date/booked-class.ts`, shared by both tabs.
+
 ### Success Criteria:
 
 #### Automated Verification:
@@ -520,6 +525,11 @@ then `.overlay-body`, then `.overlay-actions`, with `useOverlayFocus`.
   - On success the overlay closes, a toast confirms and the row refreshes.
   - A refusal stays in the overlay as an `.alert` banner (outlet 2), and the list reloads.
 - **Empty:** `app-empty compact` "Brak zajęć w terminie odrabiania".
+
+**Adapted during implementation.** One tap per class instead of select-then-confirm. Each row books
+with its own "Zapisz" button, and the overlay has no `.overlay-actions` foot, because there is
+nothing to confirm (AGENTS.md "omitted when there is nothing to confirm"). A refusal still lands as
+the in-overlay `.alert` banner, and the list reloads.
 
 ### Success Criteria:
 
@@ -680,8 +690,8 @@ nothing". It follows `src/app/e2e/CLAUDE.md`: PHONE, role locators, `club` build
 
 #### Automated
 
-- [x] 3.1 SPA specs pass (roster, history, my-classes, nineteen failure unions)
-- [x] 3.2 quality:check passes
+- [x] 3.1 SPA specs pass (roster, history, my-classes, nineteen failure unions) — fee34a8
+- [x] 3.2 quality:check passes — fee34a8
 
 #### Manual
 
@@ -692,9 +702,9 @@ nothing". It follows `src/app/e2e/CLAUDE.md`: PHONE, role locators, `club` build
 
 #### Automated
 
-- [ ] 4.1 SPA specs pass (makeups, picker, routes, navigation)
-- [ ] 4.2 quality:check passes
-- [ ] 4.3 Eager bundle grows under 1 kB and is recorded in AGENTS.md
+- [x] 4.1 SPA specs pass (makeups, picker, routes, navigation)
+- [x] 4.2 quality:check passes
+- [x] 4.3 Eager bundle grows under 1 kB and is recorded in AGENTS.md
 
 #### Manual
 

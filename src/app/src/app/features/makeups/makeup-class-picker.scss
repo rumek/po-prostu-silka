@@ -1,0 +1,34 @@
+// Layout only — .card/.alert/.overlay-* and the row classes come from src/styles.scss.
+
+@use 'breakpoints' as bp;
+
+// The overlay's fixed layer stays the component's own :host, as on every overlay (AGENTS.md).
+:host {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-overlay);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+
+  @include bp.narrow {
+    align-items: flex-end;
+    padding: 0;
+  }
+}
+
+.overlay-panel {
+  max-width: 32rem;
+}
+
+.picker-facts {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+
+  app-icon {
+    color: var(--accent2);
+    font-size: 0.8rem;
+  }
+}

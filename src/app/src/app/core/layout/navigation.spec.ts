@@ -16,15 +16,15 @@ describe('navigationFor', () => {
     expect(nav.more).toEqual([]);
   });
 
-  it('gives a trainer the schedule and their member list, and no plan or classes of their own', () => {
+  it('gives a trainer the schedule, their member list and Odrabianie, and no plan or classes of their own', () => {
     const nav = navigationFor('trainer', true);
 
-    expect(routes(nav.header)).toEqual(['/', '/schedule', '/trainer/members']);
-    expect(routes(nav.bar)).toEqual(['/', '/schedule', '/trainer/members', '/more']);
+    expect(routes(nav.header)).toEqual(['/', '/schedule', '/trainer/members', '/makeups']);
+    expect(routes(nav.bar)).toEqual(['/', '/schedule', '/trainer/members', '/makeups', '/more']);
     expect(nav.more).toEqual([]);
   });
 
-  it('gives an admin at desk width the calendar, the admin lists and Grupy under Więcej', () => {
+  it('gives an admin at desk width the calendar, the admin lists, and Grupy and Odrabianie under Więcej', () => {
     const nav = navigationFor('admin', true);
 
     expect(routes(nav.header)).toEqual([
@@ -33,6 +33,7 @@ describe('navigationFor', () => {
       '/admin/members',
       '/admin/class-groups',
       '/admin/exercises',
+      '/makeups',
     ]);
     expect(routes(nav.bar)).toEqual([
       '/',
@@ -41,7 +42,7 @@ describe('navigationFor', () => {
       '/admin/exercises',
       '/more',
     ]);
-    expect(routes(nav.more)).toEqual(['/admin/class-groups']);
+    expect(routes(nav.more)).toEqual(['/admin/class-groups', '/makeups']);
   });
 
   /** UX-01: below desk the calendar refuses to render, so Grafik is the schedule there. */
