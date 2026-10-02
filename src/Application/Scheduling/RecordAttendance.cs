@@ -7,14 +7,17 @@ using po_prostu_silka.Domain.Scheduling;
 namespace po_prostu_silka.Application.Scheduling;
 
 /// <summary>
-/// The body of the attendance PUT: <c>"present"</c> or <c>"absent"</c>. A string rather than the enum,
+/// The body of the attendance PUT: <c>"present"</c>, <c>"makeup"</c> ("nie był – odrobi") or
+/// <c>"forfeited"</c> ("nie był – przepada") since S-36. <c>"absent"</c> is no longer accepted - it is
+/// the legacy value, read but never written. A string rather than the enum,
 /// because the API serialises no enum as a string anywhere else and this one value is not worth a
 /// global converter.
 /// </summary>
 public record AttendanceRequest(string? Attendance);
 
 /// <summary>
-/// Staff mark one booked member present or absent, and correct the mark later (S-27, AT-01–AT-03).
+/// Staff mark one booked member present, absent with a makeup, or absent forfeited, and correct the
+/// mark later (S-27 AT-01–AT-03, amended by S-36).
 /// </summary>
 public static class RecordAttendance
 {
@@ -35,6 +38,14 @@ public static class RecordAttendance
     /// <see cref="BookingProtocol.TryBookAsync"/> — present → absent returns an entry, which is exactly
     /// the kind of change a concurrent booker is racing for. The CLASS stamp is not rotated: attendance
     /// changes no capacity.
+    /// </para>
+    ///
+    /// <para>
+    /// S-36 RULES. A makeup booking may be marked present or forfeited, never "makeup" - one right is
+    /// one attempt (<c>makeup_not_allowed</c>). An absence marked "makeup" whose makeup is booked on a
+    /// class that still stands cannot be re-marked until that makeup is released
+    /// (<c>makeup_booked</c>): nothing disappears silently. Every new outcome spends the entry, so the
+    /// only re-spend left is leaving the legacy <see cref="BookingAttendance.Absent"/>.
     /// </para>
     ///
     /// <para>
@@ -61,13 +72,16 @@ public static class RecordAttendance
             case "present":
                 attendance = BookingAttendance.Present;
                 break;
-            case "absent":
-                attendance = BookingAttendance.Absent;
+            case "makeup":
+                attendance = BookingAttendance.Makeup;
+                break;
+            case "forfeited":
+                attendance = BookingAttendance.Forfeited;
                 break;
             default:
                 return Results.ValidationProblem(new Dictionary<string, string[]>
                 {
-                    ["attendance"] = ["Expected \"present\" or \"absent\"."],
+                    ["attendance"] = ["Expected \"present\", \"makeup\" or \"forfeited\"."],
                 });
         }
 
@@ -111,15 +125,27 @@ public static class RecordAttendance
                 return await RowAsync(query, classId, bookingId, cancellationToken);
             }
 
+            if (attendance == BookingAttendance.Makeup && booking.MakeupForBookingId is not null)
+            {
+                return BookingProtocol.Refuse("makeup_not_allowed");
+            }
+
+            if (booking.Attendance == BookingAttendance.Makeup
+                && await bookings.HasLiveMakeupAsync(booking.Id, cancellationToken))
+            {
+                return BookingProtocol.Refuse("makeup_booked");
+            }
+
             if (booking.MembershipPassId is { } passId)
             {
                 var pass = await passes.FindAsync(passId, cancellationToken);
                 if (pass is not null)
                 {
-                    // Only absent → present moves a booking back into the pool; unrecorded already
-                    // counts as spent, so unrecorded → present spends nothing new.
-                    var respends = attendance == BookingAttendance.Present
-                                   && booking.Attendance == BookingAttendance.Absent;
+                    // Only leaving the legacy absent moves a booking back into the pool: every value
+                    // written since S-36 spends, and unrecorded already counts as spent. A makeup
+                    // booking never consumes, whatever its mark.
+                    var respends = booking.Attendance == BookingAttendance.Absent
+                                   && booking.MakeupForBookingId is null;
 
                     // Greater-or-equal, as in TryBookAsync. The count excludes this booking, since
                     // it is absent right now.
@@ -132,10 +158,21 @@ public static class RecordAttendance
                     pass.ConcurrencyStamp = Guid.NewGuid().ToString();
                 }
             }
+            else
+            {
+                // No karnet paid for it (pre-S-16): its class's stamp stands in as the makeup item's
+                // token, the one BookMakeup and CloseMakeup rotate for such an absence (MakeupClaim).
+                entity.ConcurrencyStamp = Guid.NewGuid().ToString();
+            }
 
             booking.Attendance = attendance;
             booking.AttendanceRecordedAt = now;
             booking.AttendanceRecordedBy = principal.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            // A hand close belongs to the makeup item this mark created or ended; a new mark starts
+            // from a clean item rather than inheriting a close somebody made about the old one.
+            booking.MakeupClosedAt = null;
+            booking.MakeupClosedBy = null;
 
             if (await unitOfWork.TrySaveAsync(cancellationToken) == SaveOutcome.Saved)
             {

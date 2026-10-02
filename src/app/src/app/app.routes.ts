@@ -139,6 +139,15 @@ export const routes: Routes = [
     loadComponent: () => import('./features/schedule/schedule').then((m) => m.Schedule),
     canActivate: [authGuard, staffGuard],
   },
+  // S-36 class-makeups. staffGuard, as the API's TrainerOrAdmin: any trainer arranges any member's
+  // makeup, so admin and trainer share one list. A tab in both staff menus. LAZY, like every list.
+  {
+    path: 'makeups',
+    title: 'Odrabianie',
+    data: { level: 'tab' } satisfies ScreenData,
+    loadComponent: () => import('./features/makeups/makeups').then((m) => m.Makeups),
+    canActivate: [authGuard, staffGuard],
+  },
   // LAZY TOO, but for the opposite reason: /my-classes must not pull the calendar in, and loading it
   // eagerly beside routes that do is how it eventually would. It is a plain list by design (FR-010).
   // memberGuard (S-25): staff are never booked as participants, and /api/bookings/mine refuses them.

@@ -109,10 +109,10 @@ describe('App', () => {
     expect(hrefs).not.toContain('/schedule');
   });
 
-  it('gives a trainer the schedule and their member list, and no plan of their own', async () => {
+  it('gives a trainer the schedule, their member list and Odrabianie, and no plan of their own', async () => {
     const hrefs = headerHrefs(await render(TRAINER));
 
-    expect(hrefs).toEqual(['/', '/schedule', '/trainer/members', '/profile']);
+    expect(hrefs).toEqual(['/', '/schedule', '/trainer/members', '/makeups', '/profile']);
     expect(hrefs).not.toContain('/my-plan');
     expect(hrefs).not.toContain('/my-classes');
   });

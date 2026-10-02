@@ -74,15 +74,19 @@ describe('More', () => {
     expect(element.querySelector('button')!.textContent).toContain('Wyloguj');
   });
 
-  it('gives an admin Grupy as the only panel entry', () => {
+  it('gives an admin Grupy and Odrabianie as the panel entries', () => {
     const element = createWith(ADMIN);
 
     expect(element.textContent).toContain('Panel');
-    expect(hrefs(element)).toEqual(['/profile', '/admin/class-groups']);
+    expect(hrefs(element)).toEqual(['/profile', '/admin/class-groups', '/makeups']);
   });
 
   it('gives an admin who also trains the same panel as an admin', () => {
-    expect(hrefs(createWith(ADMIN_TRAINER))).toEqual(['/profile', '/admin/class-groups']);
+    expect(hrefs(createWith(ADMIN_TRAINER))).toEqual([
+      '/profile',
+      '/admin/class-groups',
+      '/makeups',
+    ]);
   });
 
   it.each([

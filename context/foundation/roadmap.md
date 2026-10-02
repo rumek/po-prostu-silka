@@ -162,6 +162,7 @@ privacy notice.
 | S-33 | class-type-to-group-rename | (admin, trainer, member) the club's class definitions are called "grupy" everywhere - every screen, the API, the code and the database - with nothing about how they behave changing | S-05, S-06, S-32 | none - outside any milestone (naming); renames v2 FR-004-FR-007's "class type" | done |
 | S-34 | pass-paid-flag | (admin, trainer, member) staff record that a karnet was paid and on which day, see who owes on the member lists, and a member sees whether their karnet is paid - paying never gates booking | S-16, S-22, S-25 | none - outside any milestone; narrows v1 §Non-Goals "no payments" | done |
 | S-35 | expiring-passes-dashboard | (admin) Start lists the members whose karnet ends within 5 days and who have not renewed, and the member list filters to them - the same count on both | S-34 | none - outside any milestone; the club spreadsheet's "KOŃCZY SIĘ" status | done |
+| S-36 | class-makeups | (trainer, admin, member) staff mark an absence "odrobi" or "przepada" - both spend the entry - and an "odrobi" earns one free makeup that any trainer books into any class within 30 days from a shared "Odrabianie" list; the member sees what they are owed | S-27, S-34 | none - outside any milestone; the club's attendance spreadsheet; amends S-27 AT-03 | in-progress |
 
 ## Streams
 
@@ -755,6 +756,10 @@ rather than in a slice body:
 
 ### S-27: Staff record who came, and the karnet counts attendance
 
+> **Amended by S-36 (class-makeups, 2026-10-02).** AT-03's "a recorded absence gives the entry
+> back" now holds only for absences recorded before S-36. Staff record "odrobi" or "przepada"
+> instead, and both keep the entry spent; an "odrobi" earns one free makeup booking.
+
 > Numbered S-27, not S-26: `S-26` is already used informally in `AGENTS.md` and the
 > mobile-native-feel plan for the routed-screen slide, which never received a roadmap entry.
 
@@ -1056,6 +1061,30 @@ rather than in a slice body:
 - **Risk:** the dashboard is eager; the card's cost lands in the initial bundle.
 - **Status:** done
 
+### S-36: An absence is made up or forfeited, as the club counts it
+
+- **Outcome:** (trainer, admin, member) on a started class's roster, staff mark each member "Obecny",
+  "Odrobi" or "Przepada"; all three spend the entry, as the club's spreadsheet counts. An "Odrobi"
+  opens an item on a shared "Odrabianie" list (admin and every trainer), where staff book its ONE
+  free makeup into any upcoming class, from any trainer, taking place within 30 club-local days, with
+  a free spot and on a day a karnet of the member covers. The makeup consumes no entry; attending it
+  makes the item "odrobione", forfeiting it or passing the deadline "nie odrobione"; staff may
+  release a planned makeup and close or reopen an item by hand. The member sees on Moje zajęcia how
+  many classes they are owed and by when, and a makeup is labelled on their lists. Absences recorded
+  before S-36 keep their returned entry.
+- **Change ID:** class-makeups
+- **PRD refs:** none. Requested by the client on 2026-10-02 from the club's attendance spreadsheet
+  (`xlsx/treningi.xlsx`, statuses "Był / Nie był – odrobi / Nie był – przepada" and the shared
+  "Odrabianie" sheet). Amends S-27 AT-03. **Delivered outside any milestone.**
+- **Prerequisites:** S-27 (attendance and the one consumption rule), S-34 (the trainer's reach into
+  karnets this follows).
+- **Parallel with:** -
+- **Blockers:** -
+- **Unknowns:** -
+- **Risk:** the entry rule is the risk again: `EntryConsumption.ConsumesAnEntry` changes, and a
+  trainer may now book a makeup into a class they do not instruct (persona-gated, makeup only).
+- **Status:** in-progress
+
 ## Backlog Handoff
 
 | Roadmap ID | Change ID                        | Suggested issue title                                        | Ready for `/10x-plan` | Notes                                              |
@@ -1097,6 +1126,7 @@ rather than in a slice body:
 | S-33       | class-type-to-group-rename       | Rename class types to groups across UI, API, code and database | no                    | Planned 2026-10-01. Rollback gap accepted once (staging only); run `/10x-implement class-type-to-group-rename phase 1` |
 | S-34       | pass-paid-flag                   | Record that a karnet was paid (and who recorded it); "Nieopłacony" marker and filter; trainer "Karnety" screen | no                    | Done — archived 2026-10-02. Outside any milestone |
 | S-35       | expiring-passes-dashboard        | "Kończą się karnety" card on the admin's Start and the matching member-list filter | no                    | Done — archived 2026-10-02. Outside any milestone |
+| S-36       | class-makeups                    | Three attendance outcomes, free makeups within 30 days, and the staff "Odrabianie" list | no                    | Outside any milestone. Implemented 2026-10-02 |
 
 ## Open Roadmap Questions
 

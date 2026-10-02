@@ -101,6 +101,13 @@
   }
 }
 
+// "Odrabianie" beside the name (S-36): inline in the name line, so a makeup row is no taller.
+.bookings-makeup {
+  display: inline-block;
+  margin-left: var(--space-1);
+  vertical-align: middle;
+}
+
 // Takes the whole row, beneath both the person and the action it belongs to.
 .bookings-error {
   grid-column: 1 / -1;
@@ -252,7 +259,14 @@
   color: var(--success);
 }
 
-.attendance-option--absent[aria-pressed='true'] {
+// "Odrobi" (S-36) is not a failure — the member is owed a class — so it takes the accent rather than
+// either verdict colour.
+.attendance-option--makeup[aria-pressed='true'] {
+  background: var(--section-warm);
+  color: var(--accent);
+}
+
+.attendance-option--forfeited[aria-pressed='true'] {
   background: var(--danger-bg);
   color: var(--danger);
 }

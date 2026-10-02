@@ -117,4 +117,25 @@ public class Booking
     /// have no Member row, and an audit field must survive the account it names.
     /// </summary>
     public string? AttendanceRecordedBy { get; set; }
+
+    /// <summary>
+    /// Set ONLY on a makeup booking: the absence booking (<see cref="BookingAttendance.Makeup"/>) it
+    /// makes up (S-36). A makeup booking consumes no entry — see EntryConsumption — but still needs a
+    /// karnet covering its own date, so <see cref="MembershipPassId"/> is set on it as on any booking.
+    ///
+    /// <para>
+    /// At most one ACTIVE makeup per absence, enforced by a filtered unique index. Releasing a makeup
+    /// cancels its row, which frees the absence for another attempt.
+    /// </para>
+    /// </summary>
+    public Guid? MakeupForBookingId { get; set; }
+
+    /// <summary>
+    /// Set ONLY on an absence booking whose makeup item staff closed by hand as "nie odrobił" (S-36).
+    /// Cleared again by a reopen within the deadline.
+    /// </summary>
+    public DateTimeOffset? MakeupClosedAt { get; set; }
+
+    /// <summary>The user id that closed the item by hand. No FK, like <see cref="AttendanceRecordedBy"/>.</summary>
+    public string? MakeupClosedBy { get; set; }
 }

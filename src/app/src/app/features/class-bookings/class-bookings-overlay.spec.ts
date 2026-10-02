@@ -37,6 +37,7 @@ function signup(over: Partial<ClassBooking> = {}): ClassBooking {
     email: over.email ?? 'ala@example.test',
     bookedAt: over.bookedAt ?? new Date().toISOString(),
     attendance: over.attendance ?? null,
+    isMakeup: over.isMakeup ?? false,
   };
 }
 
@@ -569,42 +570,46 @@ describe('ClassBookingsOverlay — attendance', () => {
 
     const ala = rowOf('Ala Kowalska');
     expect(buttonWith('Obecny', ala)!.getAttribute('aria-pressed')).toBe('true');
-    expect(buttonWith('Nieobecny', ala)!.getAttribute('aria-pressed')).toBe('false');
+    expect(buttonWith('Odrobi', ala)!.getAttribute('aria-pressed')).toBe('false');
+    expect(buttonWith('Przepada', ala)!.getAttribute('aria-pressed')).toBe('false');
 
     const jan = rowOf('Jan Nowak');
-    expect(buttonWith('Obecny', jan)!.getAttribute('aria-pressed')).toBe('false');
-    expect(buttonWith('Nieobecny', jan)!.getAttribute('aria-pressed')).toBe('false');
+    for (const word of ['Obecny', 'Odrobi', 'Przepada']) {
+      expect(buttonWith(word, jan)!.getAttribute('aria-pressed')).toBe('false');
+    }
 
-    expect(element().textContent).toContain('Obecni: 1 · Nieobecni: 0 · Nieoznaczeni: 1');
+    expect(element().textContent).toContain(
+      'Obecni: 1 · Odrobią: 0 · Przepada: 0 · Nieoznaczeni: 1',
+    );
   });
 
   it('marks a row, replaces it with the server row and updates the tally', async () => {
     open(STARTED);
     await respond([signup()]);
 
-    buttonWith('Nieobecny', rowOf('Ala Kowalska'))!.click();
+    buttonWith('Odrobi', rowOf('Ala Kowalska'))!.click();
     await settle();
 
     const request = controller.expectOne('/api/admin/classes/c1/bookings/b1/attendance');
     expect(request.request.method).toBe('PUT');
-    expect(request.request.body).toEqual({ attendance: 'absent' });
-    request.flush(signup({ attendance: 'absent' }));
+    expect(request.request.body).toEqual({ attendance: 'makeup' });
+    request.flush(signup({ attendance: 'makeup' }));
     await settle();
 
-    expect(buttonWith('Nieobecny', rowOf('Ala Kowalska'))!.getAttribute('aria-pressed')).toBe(
-      'true',
+    expect(buttonWith('Odrobi', rowOf('Ala Kowalska'))!.getAttribute('aria-pressed')).toBe('true');
+    expect(element().textContent).toContain(
+      'Obecni: 0 · Odrobią: 1 · Przepada: 0 · Nieoznaczeni: 0',
     );
-    expect(element().textContent).toContain('Obecni: 0 · Nieobecni: 1 · Nieoznaczeni: 0');
   });
 
   it('spins the tapped option — and only that one — until the server answers', async () => {
     open(STARTED);
     await respond([signup()]);
 
-    buttonWith('Nieobecny', rowOf('Ala Kowalska'))!.click();
+    buttonWith('Przepada', rowOf('Ala Kowalska'))!.click();
     await settle();
 
-    const absent = buttonWith('Nieobecny', rowOf('Ala Kowalska'))!;
+    const absent = buttonWith('Przepada', rowOf('Ala Kowalska'))!;
     const present = buttonWith('Obecny', rowOf('Ala Kowalska'))!;
     expect(absent.querySelector('.attendance-spinner')).not.toBeNull();
     expect(absent.getAttribute('aria-busy')).toBe('true');
@@ -613,11 +618,51 @@ describe('ClassBookingsOverlay — attendance', () => {
 
     controller
       .expectOne('/api/admin/classes/c1/bookings/b1/attendance')
-      .flush(signup({ attendance: 'absent' }));
+      .flush(signup({ attendance: 'forfeited' }));
     await settle();
 
     expect(element().querySelector('.attendance-spinner')).toBeNull();
-    expect(buttonWith('Nieobecny', rowOf('Ala Kowalska'))!.hasAttribute('aria-busy')).toBe(false);
+    expect(buttonWith('Przepada', rowOf('Ala Kowalska'))!.hasAttribute('aria-busy')).toBe(false);
+  });
+
+  it('shows a legacy absence as read-only text with no option pressed', async () => {
+    open(STARTED);
+    await respond([signup({ attendance: 'absent' })]);
+
+    const ala = rowOf('Ala Kowalska');
+    expect(ala.textContent).toContain('Nieobecny — wejście zwrócone');
+    for (const word of ['Obecny', 'Odrobi', 'Przepada']) {
+      expect(buttonWith(word, ala)!.getAttribute('aria-pressed')).toBe('false');
+    }
+  });
+
+  it('offers a makeup row only present and forfeited, and labels it', async () => {
+    open(STARTED);
+    await respond([signup({ isMakeup: true })]);
+
+    const ala = rowOf('Ala Kowalska');
+    expect(ala.textContent).toContain('Odrabianie');
+    expect(buttonWith('Obecny', ala)).toBeDefined();
+    expect(buttonWith('Przepada', ala)).toBeDefined();
+    expect(buttonWith('Odrobi', ala)).toBeUndefined();
+  });
+
+  it('shows the makeup-booked refusal on the row', async () => {
+    open(STARTED);
+    await respond([signup({ attendance: 'makeup' })]);
+
+    buttonWith('Obecny', rowOf('Ala Kowalska'))!.click();
+    await settle();
+
+    controller
+      .expectOne('/api/admin/classes/c1/bookings/b1/attendance')
+      .flush({ reason: 'makeup_booked' }, { status: 409, statusText: 'Conflict' });
+    await settle();
+
+    expect(element().querySelector('.bookings-error')!.textContent).toContain(
+      'ma już zapisane odrabianie',
+    );
+    expect(buttonWith('Odrobi', rowOf('Ala Kowalska'))!.getAttribute('aria-pressed')).toBe('true');
   });
 
   it('shows the no-entries refusal on the row and keeps the old mark', async () => {
@@ -635,9 +680,7 @@ describe('ClassBookingsOverlay — attendance', () => {
     expect(element().querySelector('.bookings-error')!.textContent).toContain(
       'Karnet tej osoby nie ma już wolnych wejść',
     );
-    expect(buttonWith('Nieobecny', rowOf('Ala Kowalska'))!.getAttribute('aria-pressed')).toBe(
-      'true',
-    );
+    expect(rowOf('Ala Kowalska').textContent).toContain('Nieobecny — wejście zwrócone');
   });
 
   it('sends nothing when the pressed state is pressed again', async () => {
@@ -650,19 +693,19 @@ describe('ClassBookingsOverlay — attendance', () => {
     controller.expectNone('/api/admin/classes/c1/bookings/b1/attendance');
   });
 
-  it('marks every row present at once, absences included', async () => {
+  it('marks every unmarked row present at once, leaving Odrobi and Przepada alone', async () => {
     open(STARTED);
     await respond([
-      signup({ attendance: 'absent' }),
+      signup({ attendance: 'forfeited' }),
       signup({ bookingId: 'b2', memberId: 'm2', displayName: 'Jan Nowak' }),
-      signup({ bookingId: 'b3', memberId: 'm3', displayName: 'Ewa Lis' }),
+      signup({ bookingId: 'b3', memberId: 'm3', displayName: 'Ewa Lis', attendance: 'absent' }),
+      signup({ bookingId: 'b4', memberId: 'm4', displayName: 'Olek Wójcik', attendance: 'makeup' }),
     ]);
 
     buttonWith('Wszyscy obecni')!.click();
     await settle();
 
     for (const [bookingId, memberId, displayName] of [
-      ['b1', 'm1', 'Ala Kowalska'],
       ['b2', 'm2', 'Jan Nowak'],
       ['b3', 'm3', 'Ewa Lis'],
     ]) {
@@ -672,9 +715,13 @@ describe('ClassBookingsOverlay — attendance', () => {
       expect(request.request.body).toEqual({ attendance: 'present' });
       request.flush(signup({ bookingId, memberId, displayName, attendance: 'present' }));
     }
+    controller.expectNone('/api/admin/classes/c1/bookings/b1/attendance');
+    controller.expectNone('/api/admin/classes/c1/bookings/b4/attendance');
     await settle();
 
-    expect(element().textContent).toContain('Obecni: 3 · Nieobecni: 0 · Nieoznaczeni: 0');
+    expect(element().textContent).toContain(
+      'Obecni: 2 · Odrobią: 1 · Przepada: 1 · Nieoznaczeni: 0',
+    );
     expect(buttonWith('Wszyscy obecni')).toBeUndefined();
   });
 

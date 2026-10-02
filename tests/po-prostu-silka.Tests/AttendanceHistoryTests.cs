@@ -24,7 +24,8 @@ public class AttendanceHistoryTests(IntegrationTestFixture fixture)
 
     private sealed record ClassGroupBody(Guid Id, string Name);
 
-    private sealed record Entry(Guid BookingId, Guid ClassId, string Name, DateTimeOffset StartsAt, string Outcome);
+    private sealed record Entry(
+        Guid BookingId, Guid ClassId, string Name, DateTimeOffset StartsAt, string Outcome, bool IsMakeup);
 
     private sealed record Summary(
         string TypeName, DateOnly ValidFrom, DateOnly ValidTo, int EntryCount, int Present, int Absent, int Unrecorded);
@@ -181,6 +182,42 @@ public class AttendanceHistoryTests(IntegrationTestFixture fixture)
         Assert.Equal(
             ["present", "absent", "unrecorded", "cancelled"],
             history.Items.Select(i => i.Outcome).ToArray());
+    }
+
+    /// <summary>
+    /// S-36: the two new absence kinds read as themselves, beside the legacy one, and a makeup booking
+    /// says it is one.
+    /// </summary>
+    [Fact]
+    public async Task History_reads_makeup_forfeited_and_makeup_bookings()
+    {
+        var admin = await AdminAsync();
+        var (member, memberId) = await MemberAsync(admin);
+        var now = DateTimeOffset.UtcNow;
+
+        var (_, owed) = await PastClassAsync(admin, memberId, now.AddHours(-1));
+        var (_, forfeited) = await PastClassAsync(admin, memberId, now.AddHours(-2));
+        var (_, legacy) = await PastClassAsync(admin, memberId, now.AddHours(-3));
+        var (_, madeUp) = await PastClassAsync(admin, memberId, now.AddHours(-4));
+
+        await MarkAsync(owed, BookingAttendance.Makeup);
+        await MarkAsync(forfeited, BookingAttendance.Forfeited);
+        await MarkAsync(legacy, BookingAttendance.Absent);
+        await MarkAsync(madeUp, BookingAttendance.Present);
+        await using (var db = NewContext())
+        {
+            await db.Bookings.Where(b => b.Id == madeUp)
+                .ExecuteUpdateAsync(s => s.SetProperty(b => b.MakeupForBookingId, owed));
+        }
+
+        var items = (await HistoryAsync(member)).Items;
+
+        Assert.Equal(
+            ["makeup", "forfeited", "absent", "present"],
+            items.Select(i => i.Outcome).ToArray());
+        Assert.Equal(
+            [false, false, false, true],
+            items.Select(i => i.IsMakeup).ToArray());
     }
 
     [Fact]

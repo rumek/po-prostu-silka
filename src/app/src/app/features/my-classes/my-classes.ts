@@ -4,6 +4,8 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { map } from 'rxjs';
 import { BookingService } from '../../core/scheduling/booking.service';
 import { MyBooking } from '../../core/scheduling/booking.models';
+import { MakeupService } from '../../core/scheduling/makeup.service';
+import { MyMakeups } from '../../core/scheduling/makeup.models';
 import { classifyFailure } from '../../core/http/failure';
 import { transportMessage } from '../../core/http/transport-messages';
 import { createLoadFence } from '../../shared/forms/load-fence';
@@ -140,8 +142,37 @@ export class MyClasses implements OnInit {
    */
   private readonly fence = createLoadFence();
 
+  private readonly makeupService = inject(MakeupService);
+
+  /**
+   * The member's open makeups (S-36), or null until known. ITS OWN LOAD AND ITS OWN FENCE: it is
+   * independent of the list, and a failure here only costs the hint — the screen stays whole.
+   */
+  protected readonly makeups = signal<MyMakeups | null>(null);
+  private readonly makeupFence = createLoadFence();
+
+  /** "Do odrobienia: 2 · do czwartku, 10 września"-style deadline, in the club's calendar. */
+  protected deadline(isoDate: string): string {
+    // Noon UTC on the club-local date lands on that date in Warsaw whatever the season.
+    return LONG_DATE.format(new Date(`${isoDate}T12:00:00Z`));
+  }
+
   ngOnInit(): void {
     void this.load();
+    void this.loadMakeups();
+  }
+
+  private async loadMakeups(): Promise<void> {
+    const generation = this.makeupFence.begin();
+
+    try {
+      const mine = await this.makeupService.mine();
+      if (this.makeupFence.isCurrent(generation)) {
+        this.makeups.set(mine);
+      }
+    } catch {
+      // Deliberately silent: the hint is an extra, and outlet 4 belongs to the list, not to it.
+    }
   }
 
   /** Selects a tab by rewriting the URL in place — no new history entry. */

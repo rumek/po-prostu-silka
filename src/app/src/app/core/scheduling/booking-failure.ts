@@ -34,6 +34,10 @@ const MESSAGES: Record<BookingFailure['reason'], string> = {
   // S-27. Only the attendance route produces it; the overlay offers no toggle before the start, so
   // this reaches a screen only when its clock and the server's disagree.
   class_not_started: 'Obecność można zaznaczyć dopiero po rozpoczęciu zajęć.',
+  // S-36. Both from the attendance route. The first names the way out: release the makeup first.
+  makeup_booked:
+    'Ta osoba ma już zapisane odrabianie tych zajęć. Zwolnij je w „Odrabianiu”, aby zmienić obecność.',
+  makeup_not_allowed: 'To są zajęcia odrabiające — można je tylko zaliczyć albo przepaść.',
   // Not a product rule: the server lost an optimistic race on every attempt. Trying again is
   // genuinely the right advice, and it is what the message says.
   conflict: 'Ktoś właśnie zmienił zapisy na te zajęcia. Spróbuj ponownie.',

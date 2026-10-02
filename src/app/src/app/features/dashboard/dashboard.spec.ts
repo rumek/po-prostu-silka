@@ -60,6 +60,7 @@ function booking(over: Partial<MyBooking> = {}): MyBooking {
     durationMinutes: over.durationMinutes ?? 60,
     instructor: over.instructor ?? 'Ola',
     bookedAt: new Date().toISOString(),
+    isMakeup: over.isMakeup ?? false,
   };
 }
 

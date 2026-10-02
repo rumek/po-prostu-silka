@@ -1,0 +1,146 @@
+<div class="page-header">
+  <h1 class="screen-title">Odrabianie</h1>
+</div>
+<p class="hint">
+  Nieobecności „odrobi” — 30 dni na odrobienie od dnia zajęć. Odrabianie nie zużywa wejścia.
+</p>
+
+<div class="makeups-controls">
+  <app-field label="Widok" for="makeups-closed">
+    <app-checkbox inputId="makeups-closed" [checked]="closed()" (checkedChange)="toggleClosed()">
+      Pokaż zamknięte
+    </app-checkbox>
+  </app-field>
+</div>
+
+@if (loadFailed()) {
+  <p class="alert" role="alert">
+    {{ loadMessage() ?? 'Nie udało się wczytać listy odrabiania.' }}
+    <button type="button" class="link-button" (click)="load()">Spróbuj ponownie</button>
+  </p>
+} @else if (rows().length === 0) {
+  @if (loading()) {
+    <app-loading />
+  } @else {
+    <app-empty icon="repeat">
+      @if (closed()) {
+        Nikt jeszcze nie miał nieobecności do odrobienia.
+      } @else {
+        Nikt nie czeka na odrobienie zajęć.
+      }
+    </app-empty>
+  }
+} @else {
+  <app-list [attr.aria-busy]="loading()">
+    @for (item of rows(); track item.absenceBookingId) {
+      <li appRow class="card">
+        <p class="row-name">
+          {{ item.displayName }}
+          <span [class]="'badge makeups-status makeups-status--' + item.status">
+            {{ words[item.status] }}
+          </span>
+        </p>
+        <p class="row-meta">
+          {{ item.className }} · {{ instantDay(item.absenceStartsAt) }} · {{ item.instructor }}
+        </p>
+
+        @switch (item.status) {
+          @case ('open') {
+            <p class="row-meta">Termin: do {{ clubDay(item.deadline) }}</p>
+          }
+          @case ('planned') {
+            <p class="row-meta">
+              Odrabianie: {{ item.makeup?.name }}, {{ when(item.makeup!.startsAt) }} ·
+              {{ item.makeup?.instructor }}
+            </p>
+          }
+          @case ('made_up') {
+            <p class="row-meta">
+              Odrobione: {{ item.makeup?.name }}, {{ when(item.makeup!.startsAt) }}
+            </p>
+          }
+          @default {
+            <p class="row-meta">
+              {{
+                item.closedByHand ? 'Zamknięte ręcznie' : 'Termin minął ' + clubDay(item.deadline)
+              }}
+            </p>
+          }
+        }
+
+        <div slot="actions" class="row-actions">
+          @if (item.status === 'open') {
+            <button
+              type="button"
+              class="button button--secondary"
+              [disabled]="busy.isBusy(item.absenceBookingId)"
+              (click)="openPicker(item)"
+            >
+              <app-icon name="booking" />
+              Zapisz
+            </button>
+            <button
+              type="button"
+              class="link-button"
+              [disabled]="busy.isBusy(item.absenceBookingId)"
+              (click)="close(item)"
+            >
+              <app-icon name="absent" />
+              Nie odrobi
+            </button>
+          } @else if (releasable(item)) {
+            <button
+              type="button"
+              class="link-button"
+              [disabled]="busy.isBusy(item.absenceBookingId)"
+              (click)="release(item)"
+            >
+              <app-icon name="cancelled" />
+              Zwolnij
+            </button>
+          } @else if (reopenable(item)) {
+            <button
+              type="button"
+              class="link-button"
+              [disabled]="busy.isBusy(item.absenceBookingId)"
+              (click)="reopen(item)"
+            >
+              <app-icon name="repeat" />
+              Otwórz ponownie
+            </button>
+          }
+        </div>
+      </li>
+    }
+  </app-list>
+
+  @if (paged()) {
+    <nav class="makeups-pager" aria-label="Strony listy odrabiania">
+      <button
+        type="button"
+        class="button button--secondary"
+        [disabled]="!hasPrevious()"
+        (click)="previousPage()"
+      >
+        Poprzednia
+      </button>
+      <button
+        type="button"
+        class="button button--secondary"
+        [disabled]="!hasNext()"
+        (click)="nextPage()"
+      >
+        Następna
+      </button>
+    </nav>
+  }
+}
+
+@if (picking(); as item) {
+  <app-makeup-class-picker
+    [item]="item"
+    (booked)="onBooked($event)"
+    (stale)="onStale($event)"
+    (closed)="closePicker()"
+  />
+}

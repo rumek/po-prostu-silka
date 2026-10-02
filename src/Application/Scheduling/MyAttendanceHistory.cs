@@ -4,7 +4,8 @@ namespace po_prostu_silka.Application.Scheduling;
 /// One past class of the member's, as their history shows it (S-27, AT-04).
 /// </summary>
 /// <param name="Outcome">
-/// <c>present</c>, <c>absent</c>, <c>unrecorded</c> or <c>cancelled</c>. <c>cancelled</c> wins over any
+/// <c>present</c>, <c>makeup</c>, <c>forfeited</c>, <c>absent</c> (legacy, before S-36), <c>unrecorded</c>
+/// or <c>cancelled</c>. <c>cancelled</c> wins over any
 /// mark: nobody attends a cancelled class, and the member is owed the reason their entry came back.
 /// </param>
 public record MyAttendanceEntry(
@@ -14,7 +15,8 @@ public record MyAttendanceEntry(
     DateTimeOffset StartsAt,
     int DurationMinutes,
     string Instructor,
-    string Outcome);
+    string Outcome,
+    bool IsMakeup);
 
 /// <summary>
 /// The member's current karnet, read as attendance rather than as a balance: of the classes it has
@@ -43,5 +45,8 @@ public record MyAttendanceHistory(
     IReadOnlyList<MyAttendanceEntry> Items,
     DateOnly? EarlierBefore);
 
-/// <summary>The three attendance counts of one karnet's started, non-cancelled bookings.</summary>
+/// <summary>
+/// The three attendance counts of one karnet's started, non-cancelled bookings. <c>Absent</c> sums
+/// every kind of absence - legacy, "odrobi" and "przepada" (S-36).
+/// </summary>
 public record AttendanceCounts(int Present, int Absent, int Unrecorded);

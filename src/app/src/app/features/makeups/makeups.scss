@@ -1,0 +1,43 @@
+// Layout only — .card/.badge/.alert/.hint and the row classes come from src/styles.scss.
+
+.makeups-controls {
+  margin-bottom: var(--space-5);
+}
+
+// The status pill sits in the name line, after the name, so a row stays two lines on a phone.
+.makeups-status {
+  margin-left: var(--space-2);
+  vertical-align: middle;
+}
+
+// One colour per state, after the words: the word carries the meaning, the colour repeats it.
+.makeups-status--open {
+  color: var(--accent);
+}
+
+.makeups-status--planned {
+  color: var(--ink);
+}
+
+.makeups-status--made_up {
+  color: var(--success);
+}
+
+.makeups-status--not_made_up {
+  color: var(--danger);
+}
+
+.makeups-pager {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-top: var(--space-5);
+}
+
+// Row actions lead with their icon (the roster's "Wszyscy obecni" shape); the word stays for clarity.
+.row-actions .button,
+.row-actions .link-button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}

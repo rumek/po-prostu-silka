@@ -93,6 +93,22 @@ public class EndpointAuthorizationTests(IntegrationTestFixture fixture)
         ("GET", "/api/plans/mine/exercises/{exerciseId:guid}"),
         ("GET", "/api/bookings/mine"),
         ("GET", "/api/bookings/history"),
+        ("GET", "/api/makeups/mine"),
+    ];
+
+    /// <summary>
+    /// The staff makeup surface (S-36): TrainerOrAdmin, never Admin, and with no per-class narrowing -
+    /// any trainer arranges any member's makeup in any class. Outside /api/admin on purpose, so the
+    /// admin-group rule above cannot be satisfied by accident.
+    /// </summary>
+    private static readonly (string Method, string Pattern)[] MakeupRoutes =
+    [
+        ("GET", "/api/makeups"),
+        ("GET", "/api/makeups/{absenceBookingId:guid}/classes"),
+        ("POST", "/api/makeups/{absenceBookingId:guid}/booking"),
+        ("DELETE", "/api/makeups/{absenceBookingId:guid}/booking"),
+        ("PUT", "/api/makeups/{absenceBookingId:guid}/closed"),
+        ("DELETE", "/api/makeups/{absenceBookingId:guid}/closed"),
     ];
 
     /// <summary>
@@ -154,7 +170,7 @@ public class EndpointAuthorizationTests(IntegrationTestFixture fixture)
         // Without this, renaming /api/auth/login would leave the allowlist pointing at nothing and every
         // rule below would still pass. The same trap MemberAdminEndpointTests documents for a policy
         // test left pointing at a deleted route.
-        foreach (var entry in AnonymousApiRoutes.Concat(TrainerAdminRoutes).Concat(MemberOnlyRoutes).Concat(KarnetPaymentRoutes).Append(ScheduleRoute))
+        foreach (var entry in AnonymousApiRoutes.Concat(TrainerAdminRoutes).Concat(MemberOnlyRoutes).Concat(KarnetPaymentRoutes).Concat(MakeupRoutes).Append(ScheduleRoute))
         {
             Assert.True(
                 routes.Any(r => Matches(r, entry)),
@@ -251,6 +267,25 @@ public class EndpointAuthorizationTests(IntegrationTestFixture fixture)
         var routes = Routes();
 
         foreach (var entry in KarnetPaymentRoutes)
+        {
+            var matched = routes.Where(r => Matches(r, entry)).ToList();
+
+            Assert.NotEmpty(matched);
+            Assert.All(matched, r =>
+            {
+                Assert.Contains(AuthorizationPolicyNames.TrainerOrAdmin, r.Policies);
+                Assert.DoesNotContain(AuthorizationPolicyNames.Admin, r.Policies);
+                Assert.DoesNotContain(AuthorizationPolicyNames.MemberOnly, r.Policies);
+            });
+        }
+    }
+
+    [Fact]
+    public void The_makeup_routes_require_the_trainer_or_admin_policy_only()
+    {
+        var routes = Routes();
+
+        foreach (var entry in MakeupRoutes)
         {
             var matched = routes.Where(r => Matches(r, entry)).ToList();
 

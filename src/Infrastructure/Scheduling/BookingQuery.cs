@@ -46,7 +46,9 @@ public class BookingQuery(AppDbContext db) : IBookingQuery
                 b.Class.StartsAt,
                 b.Class.DurationMinutes,
                 b.Class.Instructor!.DisplayName,
-                b.CreatedAt))
+                b.CreatedAt,
+                // S-36: an upcoming makeup says so, so the member knows this one is the free one.
+                b.MakeupForBookingId != null))
             .ToListAsync(cancellationToken);
 
     public async Task<IReadOnlyList<ClassBooking>> GetForClassAsync(
@@ -72,8 +74,11 @@ public class BookingQuery(AppDbContext db) : IBookingQuery
                 b.CreatedAt,
                 // Lower-case words rather than the enum's names, the same spelling the PUT accepts.
                 b.Attendance == BookingAttendance.Present ? "present"
+                : b.Attendance == BookingAttendance.Makeup ? "makeup"
+                : b.Attendance == BookingAttendance.Forfeited ? "forfeited"
                 : b.Attendance == BookingAttendance.Absent ? "absent"
-                : null))
+                : null,
+                b.MakeupForBookingId != null))
             .ToListAsync(cancellationToken);
 
     public async Task<IReadOnlyList<MyAttendanceEntry>> GetHistoryForMemberAsync(
@@ -103,8 +108,11 @@ public class BookingQuery(AppDbContext db) : IBookingQuery
                 b.Class.Instructor!.DisplayName,
                 b.Class.Status == ClassStatus.Cancelled ? "cancelled"
                 : b.Attendance == BookingAttendance.Present ? "present"
+                : b.Attendance == BookingAttendance.Makeup ? "makeup"
+                : b.Attendance == BookingAttendance.Forfeited ? "forfeited"
                 : b.Attendance == BookingAttendance.Absent ? "absent"
-                : "unrecorded"))
+                : "unrecorded",
+                b.MakeupForBookingId != null))
             .ToListAsync(cancellationToken);
 
     public Task<DateTimeOffset?> LatestHistoryStartBeforeAsync(
@@ -118,10 +126,13 @@ public class BookingQuery(AppDbContext db) : IBookingQuery
     public async Task<AttendanceCounts> CountAttendanceForPassAsync(
         Guid passId, DateTimeOffset now, CancellationToken cancellationToken)
     {
-        // One grouped statement rather than three counts. A pass holds tens of rows.
+        // One grouped statement rather than three counts. A pass holds tens of rows. A makeup booking
+        // (S-36) carries the pass id but spends no entry - its absence already did - so it is left out:
+        // one mark per entry, as MyAttendanceSummary promises.
         var groups = await db.Bookings
             .AsNoTracking()
             .Where(b => b.MembershipPassId == passId
+                        && b.MakeupForBookingId == null
                         && b.Status == BookingStatus.Active
                         && b.Class.Status != ClassStatus.Cancelled
                         && b.Class.StartsAt <= now)
@@ -132,6 +143,10 @@ public class BookingQuery(AppDbContext db) : IBookingQuery
         int CountOf(BookingAttendance? a) => groups.FirstOrDefault(g => g.Attendance == a)?.Count ?? 0;
 
         return new AttendanceCounts(
-            CountOf(BookingAttendance.Present), CountOf(BookingAttendance.Absent), CountOf(null));
+            CountOf(BookingAttendance.Present),
+            CountOf(BookingAttendance.Absent)
+                + CountOf(BookingAttendance.Makeup)
+                + CountOf(BookingAttendance.Forfeited),
+            CountOf(null));
     }
 }

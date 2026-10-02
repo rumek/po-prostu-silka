@@ -203,22 +203,25 @@ pasujących — zawęź wyszukiwanie.”.
 ### ATT-01 · Oznaczanie obecności — P1
 **Rola:** trener (swoje zajęcia) lub administrator
 **Warunki wstępne:** zajęcia, które już się rozpoczęły, z zapisanymi osobami.
-**Kroki:** w nakładce zapisanych kliknij „Obecny” przy jednej osobie i „Nieobecny” przy drugiej.
-**Oczekiwany rezultat:** oznaczenia są widoczne od razu; licznik „Obecni: X · Nieobecni: Y ·
-Nieoznaczeni: Z” się aktualizuje; po zamknięciu i ponownym otwarciu stan jest zachowany. Członek
-widzi wynik w „Historia” (`MBR-02`).
+**Kroki:** w nakładce zapisanych kliknij „Obecny” przy jednej osobie, „Odrobi” przy drugiej i
+„Przepada” przy trzeciej.
+**Oczekiwany rezultat:** oznaczenia są widoczne od razu; licznik „Obecni: X · Odrobią: Y · Przepada:
+Z · Nieoznaczeni: W” się aktualizuje; po zamknięciu i ponownym otwarciu stan jest zachowany. Członek
+widzi wynik w „Historia” (`MBR-02`): „Obecny”, „Do odrobienia”, „Nieobecny”.
 
-### ATT-02 · Nieobecność zwraca wejście, obecność je zużywa — P1
-**Kroki:** zanotuj pozostałe wejścia członka. Oznacz go „Nieobecny” i sprawdź karnet. Zmień na
-„Obecny” i sprawdź znowu.
-**Oczekiwany rezultat:** po „Nieobecny” wejście wraca (+1). Po powrocie do „Obecny” wejście jest
-znowu zużyte (−1).
+### ATT-02 · Każdy wynik obecności zużywa wejście — P1
+**Kroki:** zanotuj pozostałe wejścia członka. Oznacz go po kolei „Odrobi”, „Przepada” i „Obecny”,
+sprawdzając karnet po każdej zmianie.
+**Oczekiwany rezultat:** wejście jest zużyte przy każdym z trzech oznaczeń — liczba się nie zmienia
+(S-36: tak liczy klub; „odrobi” daje za to jedno darmowe odrabianie, `MAKEUP-01`).
 
-### ATT-03 · Zmiana nieobecny → obecny przy braku wejść — P2
-**Kroki:** oznacz osobę jako nieobecną (wejście wraca), zapisz ją na inne zajęcia tak, by zużyć to
-wejście do zera, i wróć do pierwszych zajęć, żeby oznaczyć ją jako obecną.
-**Oczekiwany rezultat:** odmowa „Karnet tej osoby nie ma już wolnych wejść.”; oznaczenie zostaje
-„Nieobecny”.
+### ATT-03 · Stara nieobecność i korekta przy braku wejść — P2
+**Warunki wstępne:** zapis oznaczony „Nieobecny” sprzed S-36 (np. w danych sprzed wdrożenia) — jego
+wejście wróciło na karnet.
+**Kroki:** otwórz te zajęcia; zużyj wolne wejście zapisem na inne zajęcia, a potem oznacz starą
+nieobecność „Obecny” (albo „Odrobi” / „Przepada”).
+**Oczekiwany rezultat:** wiersz pokazuje „Nieobecny — wejście zwrócone”, żaden przycisk nie jest
+wciśnięty. Przy braku wejść korekta jest odrzucona: „Karnet tej osoby nie ma już wolnych wejść.”.
 
 ### ATT-04 · „Wszyscy obecni” — P2
 **Kroki:** na rozpoczętych zajęciach z kilkoma nieoznaczonymi osobami kliknij „Wszyscy obecni”.
@@ -239,3 +242,50 @@ tydzień jest tylko do odczytu w pozostałym zakresie.
 ### ATT-07 · Podwójne kliknięcie — P3
 **Kroki:** kliknij szybko dwa razy ten sam przycisk obecności (na telefonie stuknij dwa razy).
 **Oczekiwany rezultat:** brak błędu i brak podwójnego zużycia wejścia.
+
+## Odrabianie (MAKEUP)
+
+S-36 class-makeups. Lista „Odrabianie” jest wspólna dla administratora i trenerów.
+
+### MAKEUP-01 · Darmowe odrabianie u innego trenera — P1
+**Rola:** trener
+**Warunki wstępne:** członek z karnetem i nieobecnością oznaczoną „Odrobi” na zajęciach z ostatnich
+dni; nadchodzące zajęcia INNEGO trenera z wolnym miejscem w ciągu 30 dni.
+**Kroki:** otwórz „Odrabianie”, przy członku „Zapisz”, wybierz zajęcia innego trenera i
+„Zapisz”. Jako tamten trener oznacz członka na tych zajęciach „Obecny”.
+**Oczekiwany rezultat:** pozycja przechodzi „Do odrobienia” → „Zaplanowane” → „Odrobione”; w rosterze
+zajęć odrabiających członek ma etykietę „Odrabianie” i tylko dwa przyciski (bez „Odrobi”); liczba
+wejść na karnecie się nie zmienia.
+
+### MAKEUP-02 · Wybór zajęć pokazuje tylko to, co da się zapisać — P2
+**Kroki:** otwórz wybór zajęć dla pozycji „Do odrobienia”.
+**Oczekiwany rezultat:** brak zajęć pełnych, zajęć, na które członek już jest zapisany, zajęć po
+terminie odrobienia i zajęć w dniu, którego nie pokrywa żaden karnet członka. Bez pasujących zajęć —
+„Brak zajęć z wolnym miejscem w terminie odrabiania.”.
+
+### MAKEUP-03 · Zwolnienie i odwołanie odrabiania — P1
+**Kroki:** (a) przy pozycji „Zaplanowane” kliknij „Zwolnij”; (b) zapisz ponownie i odwołaj zajęcia
+odrabiające jako administrator.
+**Oczekiwany rezultat:** w obu przypadkach pozycja wraca do „Do odrobienia” i można ją zapisać
+ponownie.
+
+### MAKEUP-04 · Zamknięcie i ponowne otwarcie — P2
+**Kroki:** przy pozycji „Do odrobienia” kliknij „Nie odrobi”, zaznacz „Pokaż zamknięte”, kliknij
+„Otwórz ponownie”.
+**Oczekiwany rezultat:** po zamknięciu pozycja znika z listy roboczej i jest widoczna jako „Nie
+odrobione · Zamknięte ręcznie”; po otwarciu wraca jako „Do odrobienia”. Po upływie terminu przycisku
+„Otwórz ponownie” nie ma.
+
+### MAKEUP-05 · Nieobecności z zapisanym odrabianiem nie da się przeoznaczyć — P2
+**Kroki:** przy nieobecności „Odrobi” z zapisanym odrabianiem kliknij w rosterze „Obecny”.
+**Oczekiwany rezultat:** odmowa na wierszu: „Ta osoba ma już zapisane odrabianie tych zajęć. Zwolnij
+je w „Odrabianiu”, aby zmienić obecność.”; oznaczenie zostaje „Odrobi”.
+
+### MAKEUP-06 · Członek widzi, co ma do odrobienia — P2
+**Rola:** członek
+**Oczekiwany rezultat:** w „Moje zajęcia” jest panel „Do odrobienia: N” z najbliższym terminem; zapis
+odrabiający na liście nadchodzących ma etykietę „Odrabianie”. Po zapisaniu odrabiania panel znika.
+
+### MAKEUP-07 · Lista i wybór zajęć na różnych szerokościach — P3
+**Oczekiwany rezultat:** lista „Odrabianie” i nakładka wyboru zajęć czytelne na telefonie, tablecie
+i desktopie; na telefonie nakładka jest pełnym ekranem, a „wstecz” ją zamyka.

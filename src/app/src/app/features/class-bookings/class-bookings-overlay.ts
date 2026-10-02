@@ -30,7 +30,28 @@ import { Loading } from '../../shared/forms/loading/loading';
 import { Empty } from '../../shared/forms/empty/empty';
 import { Row } from '../../shared/list/row';
 import { OverlayHead } from '../../shared/overlay/overlay-head';
-import { Icon } from '../../shared/icons/icon';
+import { Icon, IconName } from '../../shared/icons/icon';
+
+/** One option of the attendance toggle (S-36): the mark it writes, its word and its glyph. */
+interface AttendanceOption {
+  value: Attendance;
+  word: string;
+  icon: IconName;
+}
+
+/**
+ * The three outcomes, in the order the club's sheet lists them. The word is "Odrobi" / "Przepada"
+ * rather than "Nieobecny – …": beside a name, the toggle answers "what happens with this class",
+ * and both are absences.
+ */
+const ATTENDANCE_OPTIONS: readonly AttendanceOption[] = [
+  { value: 'present', word: 'Obecny', icon: 'present' },
+  { value: 'makeup', word: 'Odrobi', icon: 'repeat' },
+  { value: 'forfeited', word: 'Przepada', icon: 'absent' },
+];
+
+/** A makeup is one attempt: it is attended or forfeited, never owed again (S-36). */
+const MAKEUP_OPTIONS = ATTENDANCE_OPTIONS.filter((option) => option.value !== 'makeup');
 
 /** How many matches the picker offers. Past this, it asks to narrow the phrase. */
 export const PICKER_RESULTS = CANDIDATE_RESULTS;
@@ -79,7 +100,8 @@ export const PICKER_DEBOUNCE_MS = 300;
  * <h2>Two modes, chosen by the start (S-27)</h2>
  *
  * Before the class starts it is the booking roster above: release a spot, sign somebody up. From the
- * start it is an attendance sheet: each row carries an Obecny / Nieobecny toggle, and release and the
+ * start it is an attendance sheet: each row carries an Obecny / Odrobi / Przepada toggle (S-36; a
+ * makeup row offers only Obecny / Przepada), and release and the
  * picker are gone — the server refuses both after the start, and a no-show is recorded as absence so
  * the booking stays in the member's history. The mode is read ONCE, on open: a class that starts while
  * its overlay is open switches on the next open, not under the staff member's thumb. A cancelled
@@ -132,12 +154,29 @@ export class ClassBookingsOverlay implements OnInit {
   protected readonly tally = computed(() => {
     const rows = this.rows();
 
+    // A legacy `absent` row (before S-36) counts in none of these: it is neither of the new absences,
+    // and its own row says what it is.
     return {
       present: rows.filter((r) => r.attendance === 'present').length,
-      absent: rows.filter((r) => r.attendance === 'absent').length,
+      makeup: rows.filter((r) => r.attendance === 'makeup').length,
+      forfeited: rows.filter((r) => r.attendance === 'forfeited').length,
       unrecorded: rows.filter((r) => r.attendance === null).length,
     };
   });
+
+  /**
+   * The rows "Wszyscy obecni" may touch: unmarked ones and legacy absences. Never an "Odrobi" or
+   * "Przepada" mark (S-36) — those are deliberate decisions, and an "Odrobi" grants a makeup that a
+   * bulk tap must not take back.
+   */
+  protected readonly bulkMarkable = computed(() =>
+    this.rows().filter((r) => r.attendance === null || r.attendance === 'absent'),
+  );
+
+  /** The toggle's options for one row: a makeup row is never offered "Odrobi". */
+  protected optionsFor(booking: ClassBooking): readonly AttendanceOption[] {
+    return booking.isMakeup ? MAKEUP_OPTIONS : ATTENDANCE_OPTIONS;
+  }
   protected readonly loading = signal(true);
   protected readonly loadFailed = signal(false);
 
@@ -358,11 +397,12 @@ export class ClassBookingsOverlay implements OnInit {
   }
 
   /**
-   * Marks one person present or absent (S-27).
+   * Marks one person present, "odrobi" or "przepada" (S-27, S-36).
    *
    * The server's row REPLACES the local one rather than the local one being patched: it is the
-   * mark as recorded, and an absent → present correction can be refused `no_entries_left` when the
-   * entry the absence freed has been spent elsewhere. That refusal stays on the ROW, like a failed
+   * mark as recorded, and a correction can be refused — `no_entries_left` when a legacy absence's
+   * freed entry has been spent elsewhere, `makeup_booked` when an "odrobi" already has its makeup
+   * booked. That refusal stays on the ROW, like a failed
    * release — per S-19, a row action inside an overlay reports where the staff member is looking.
    */
   protected async mark(booking: ClassBooking, attendance: Attendance): Promise<void> {
@@ -379,15 +419,14 @@ export class ClassBookingsOverlay implements OnInit {
   protected readonly markingAll = signal(false);
 
   /**
-   * Marks everybody present — absences included: the common case is a full room, and whoever did
-   * not come is then flipped back one row at a time. An absent → present flip can be refused
+   * Marks every unmarked row present (and every legacy absence): the common case is a full room, and
+   * whoever did not come is then flipped one row at a time. Rows already marked Odrobi or Przepada are
+   * left alone — see {@link bulkMarkable}. A legacy absent → present flip can be refused
    * `no_entries_left` like a single tap; the rows go out together, each through the same path as a
    * single tap, so a refusal still lands on its own row.
    */
   protected async markAllPresent(): Promise<void> {
-    const pending = this.rows().filter(
-      (booking) => booking.attendance !== 'present' && !this.busy.isBusy(booking.bookingId),
-    );
+    const pending = this.bulkMarkable().filter((booking) => !this.busy.isBusy(booking.bookingId));
     if (pending.length === 0 || this.markingAll()) {
       return;
     }

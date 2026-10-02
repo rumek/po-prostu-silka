@@ -78,6 +78,26 @@ public class BookingConfiguration : IEntityTypeConfiguration<Booking>
             .HasFilter("[Status] = 0")
             .HasDatabaseName("IX_Bookings_Class_MemberId_Active");
 
+        // S-36. A makeup booking points at the absence it makes up. RESTRICT, for the same reason as
+        // every other edge here: bookings are never deleted, and a makeup must not outlive the
+        // evidence of the absence it was granted for.
+        builder.HasOne<Booking>()
+            .WithMany()
+            .HasForeignKey(x => x.MakeupForBookingId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.Property(x => x.MakeupClosedAt);
+        builder.Property(x => x.MakeupClosedBy).HasMaxLength(450);
+
+        // AT MOST ONE ACTIVE MAKEUP PER ABSENCE - filtered to active rows for the reason
+        // IX_Bookings_Class_MemberId_Active is: a released makeup stays in history and must not hold
+        // the absence hostage. The makeup path still checks first; this is what holds when two staff
+        // book the same absence at once, and it surfaces as the unique violation the retry loop reads.
+        builder.HasIndex(x => x.MakeupForBookingId)
+            .IsUnique()
+            .HasFilter("[Status] = 0 AND [MakeupForBookingId] IS NOT NULL")
+            .HasDatabaseName("IX_Bookings_MakeupForBookingId_Active");
+
         // The member's upcoming-bookings query: MemberId equality, then Status equality. Also the
         // index the block cascade seeks on when it releases a blocked member's future spots.
         builder.HasIndex(x => new { x.MemberId, x.Status })

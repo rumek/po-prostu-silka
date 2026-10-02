@@ -31,6 +31,9 @@ export interface MyBooking {
 
   /** ISO 8601 UTC. When the member claimed the spot. */
   bookedAt: string;
+
+  /** Whether this is the free makeup of an earlier absence (S-36). */
+  isMakeup: boolean;
 }
 
 /**
@@ -55,14 +58,29 @@ export interface ClassBooking {
   bookedAt: string;
 
   /**
-   * Whether they came (S-27): `present`, `absent`, or null while nobody recorded it. Always null
-   * before the class starts — the server refuses to mark earlier.
+   * Whether they came (S-27, S-36): a {@link RecordedAttendance}, or null while nobody recorded it.
+   * Always null before the class starts — the server refuses to mark earlier.
    */
-  attendance: Attendance | null;
+  attendance: RecordedAttendance | null;
+
+  /**
+   * A makeup of an earlier absence (S-36). Such a row is marked present or forfeited only — one right
+   * is one attempt, so "odrobi" is not offered.
+   */
+  isMakeup: boolean;
 }
 
-/** A recorded attendance mark (S-27). Unrecorded is `null` on the row, never a third value here. */
-export type Attendance = 'present' | 'absent';
+/**
+ * A mark staff can WRITE (S-36): came, absent with a free makeup ("odrobi"), or absent forfeited
+ * ("przepada"). Unrecorded is `null` on the row, never a value here.
+ */
+export type Attendance = 'present' | 'makeup' | 'forfeited';
+
+/**
+ * A mark the server can REPORT: every {@link Attendance}, plus the legacy `absent` - recorded before
+ * S-36, read-only, and the one absence that returned its entry.
+ */
+export type RecordedAttendance = Attendance | 'absent';
 
 /**
  * Mirrors BookingFailure. Every reason the API can refuse a booking write.
@@ -81,6 +99,10 @@ export type Attendance = 'present' | 'absent';
  * `class_not_started` (S-27) comes from the attendance route only: attendance is marked from the
  * class's start, never before.
  *
+ * `makeup_booked` and `makeup_not_allowed` (S-36) come from the attendance route too: an absence
+ * whose makeup is booked cannot be re-marked until that makeup is released, and a makeup booking is
+ * never marked "odrobi".
+ *
  * `conflict` is the only one that is not a product rule: the server's retry loop lost its race on
  * every attempt, and the honest advice is to try again.
  */
@@ -95,6 +117,8 @@ export interface BookingFailure {
     | 'no_valid_pass'
     | 'no_entries_left'
     | 'class_not_started'
+    | 'makeup_booked'
+    | 'makeup_not_allowed'
     | 'conflict';
 }
 
@@ -119,14 +143,17 @@ export const BOOKING_FAILURE_REASONS = Object.keys({
   no_valid_pass: true,
   no_entries_left: true,
   class_not_started: true,
+  makeup_booked: true,
+  makeup_not_allowed: true,
   conflict: true,
 } satisfies Record<BookingFailure['reason'], true>) as readonly BookingFailure['reason'][];
 
 /**
- * What became of one past class of the member's (S-27). `cancelled` wins over any mark: nobody
- * attends a cancelled class, and the member is owed the reason their entry came back.
+ * What became of one past class of the member's (S-27, S-36). `cancelled` wins over any mark: nobody
+ * attends a cancelled class, and the member is owed the reason their entry came back. `absent` is the
+ * legacy mark recorded before S-36.
  */
-export type AttendanceOutcome = 'present' | 'absent' | 'unrecorded' | 'cancelled';
+export type AttendanceOutcome = RecordedAttendance | 'unrecorded' | 'cancelled';
 
 /** Mirrors MyAttendanceEntry — one row of the member's history. */
 export interface MyAttendanceEntry {
@@ -139,6 +166,9 @@ export interface MyAttendanceEntry {
   durationMinutes: number;
   instructor: string;
   outcome: AttendanceOutcome;
+
+  /** Whether this class was the free makeup of an earlier absence (S-36). */
+  isMakeup: boolean;
 }
 
 /** Mirrors MyAttendanceSummary — the current karnet, read as attendance. */

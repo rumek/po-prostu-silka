@@ -490,6 +490,16 @@ namespace po_prostu_silka.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("datetimeoffset");
 
+                    b.Property<DateTimeOffset?>("MakeupClosedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("MakeupClosedBy")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<Guid?>("MakeupForBookingId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<Guid>("MemberId")
                         .HasColumnType("uniqueidentifier");
 
@@ -502,6 +512,11 @@ namespace po_prostu_silka.Infrastructure.Persistence.Migrations
                         .HasDefaultValue(0);
 
                     b.HasKey("Id");
+
+                    b.HasIndex("MakeupForBookingId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Bookings_MakeupForBookingId_Active")
+                        .HasFilter("[Status] = 0 AND [MakeupForBookingId] IS NOT NULL");
 
                     b.HasIndex("ClassId", "MemberId")
                         .IsUnique()
@@ -850,6 +865,11 @@ namespace po_prostu_silka.Infrastructure.Persistence.Migrations
                         .HasForeignKey("ClassId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("po_prostu_silka.Domain.Scheduling.Booking", null)
+                        .WithMany()
+                        .HasForeignKey("MakeupForBookingId")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("po_prostu_silka.Domain.Members.Member", "Member")
                         .WithMany()

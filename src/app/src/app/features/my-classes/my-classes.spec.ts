@@ -15,6 +15,7 @@ function booking(over: Partial<MyBooking> = {}): MyBooking {
     durationMinutes: over.durationMinutes ?? 60,
     instructor: over.instructor ?? 'Ola',
     bookedAt: over.bookedAt ?? new Date().toISOString(),
+    isMakeup: over.isMakeup ?? false,
   };
 }
 
@@ -40,7 +41,14 @@ describe('MyClasses', () => {
     fixture.detectChanges();
   });
 
-  afterEach(() => controller.verify());
+  afterEach(() => {
+    // The makeup hint's own load (S-36). Answered here for every test that does not care about it,
+    // so each one still verifies that nothing ELSE was left unanswered.
+    for (const request of controller.match('/api/makeups/mine')) {
+      request.flush({ count: 0, nearestDeadline: null });
+    }
+    controller.verify();
+  });
 
   function element(): HTMLElement {
     return fixture.nativeElement as HTMLElement;
@@ -62,6 +70,37 @@ describe('MyClasses', () => {
   function rows(): HTMLElement[] {
     return [...element().querySelectorAll<HTMLElement>('li.row')];
   }
+
+  it('tells the member how many classes they have to make up, and by when', async () => {
+    controller.expectOne('/api/makeups/mine').flush({ count: 2, nearestDeadline: '2026-10-15' });
+    await respond([booking()]);
+
+    const hero = element().querySelector('.screen-hero')!.textContent!;
+    expect(hero).toContain('Do odrobienia: 2');
+    expect(hero).toContain('15 października');
+  });
+
+  it('says nothing about makeups when none are open', async () => {
+    controller.expectOne('/api/makeups/mine').flush({ count: 0, nearestDeadline: null });
+    await respond([booking()]);
+
+    expect(element().textContent).not.toContain('Do odrobienia');
+  });
+
+  it('skips the makeup hint, and still shows the screen, when its own load fails', async () => {
+    controller.expectOne('/api/makeups/mine').error(new ProgressEvent('failed'));
+    await respond([booking()]);
+
+    expect(element().textContent).not.toContain('Do odrobienia');
+    expect(element().querySelector('[role="alert"]')).toBeNull();
+    expect(rows().length).toBe(1);
+  });
+
+  it('labels an upcoming makeup', async () => {
+    await respond([booking({ isMakeup: true })]);
+
+    expect(rows()[0].textContent).toContain('Odrabianie');
+  });
 
   it('loads on init and renders each booking with its class, time and instructor', async () => {
     await respond([booking({ name: 'Pilates', instructor: 'Ala' })]);

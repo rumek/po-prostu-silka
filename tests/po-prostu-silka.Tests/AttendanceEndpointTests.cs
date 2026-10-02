@@ -9,11 +9,12 @@ using po_prostu_silka.Infrastructure.Persistence;
 namespace po_prostu_silka.Tests;
 
 /// <summary>
-/// Attendance and the entry rule it changes (S-27, AT-01–AT-03).
+/// Attendance and the entry rule it changes (S-27, AT-01–AT-03, amended by S-36 class-makeups).
 ///
 /// <para>
 /// THE RULE UNDER TEST: a booking with a pass consumes an entry unless it was released, its class was
-/// cancelled, or it was marked absent. Unrecorded counts as spent. The gate (the booking route) and
+/// cancelled, it was marked absent BEFORE S-36 (the legacy value, which only the database can still
+/// produce), or it is itself a makeup. Unrecorded, present, "odrobi" and "przepada" all count as spent. The gate (the booking route) and
 /// both read paths (the admin's pass list and the member's <c>/api/passes/mine</c>) share one
 /// definition, and the tests below read all three so a drift between them fails here.
 /// </para>
@@ -146,6 +147,16 @@ public class AttendanceEndpointTests(IntegrationTestFixture fixture)
         return passes!.Single(p => p.Id == passId).EntriesLeft;
     }
 
+    /// <summary>The member list's figure (MemberQuery) - the fourth read of EntryConsumption.</summary>
+    private static async Task<int?> EntriesLeftOnMemberListAsync(HttpClient admin, string email, Guid memberId)
+    {
+        var page = await admin.GetFromJsonAsync<MemberPageBody<MemberListRow>>(
+            $"/api/admin/members?search={Uri.EscapeDataString(email)}");
+        return page!.Items.Single(m => m.Id == memberId).PassEntriesLeft;
+    }
+
+    private sealed record MemberListRow(Guid Id, int? PassEntriesLeft);
+
     private static async Task<int> EntriesLeftForMemberAsync(HttpClient member) =>
         (await member.GetFromJsonAsync<MembershipPassView>("/api/passes/mine"))!.EntriesLeft;
 
@@ -187,11 +198,12 @@ public class AttendanceEndpointTests(IntegrationTestFixture fixture)
     }
 
     /// <summary>
-    /// ABSENT RETURNS THE ENTRY, on all three sites at once: the admin's list, the member's card, and
-    /// the gate that refused a moment ago.
+    /// A LEGACY ABSENCE STILL RETURNS THE ENTRY (S-36), on all three sites at once: the admin's list,
+    /// the member's card, and the gate that refused a moment ago. Rows marked absent before
+    /// class-makeups keep their meaning, so no balance moved on deploy.
     /// </summary>
     [Fact]
-    public async Task A_booking_marked_absent_returns_its_entry()
+    public async Task A_legacy_absent_row_still_returns_its_entry()
     {
         var admin = await AdminAsync();
         var (member, memberId) = await MemberWithAccountAsync(admin);
@@ -211,6 +223,40 @@ public class AttendanceEndpointTests(IntegrationTestFixture fixture)
         Assert.Equal(
             HttpStatusCode.OK,
             (await admin.PostAsJsonAsync(BookingsOf(next.Id), new { memberId })).StatusCode);
+    }
+
+    /// <summary>
+    /// "ODROBI" AND "PRZEPADA" KEEP THE ENTRY SPENT (S-36), on all four sites: the admin's karnet list,
+    /// the member list, the member's card and the gate. The club's spreadsheet charges both, and the
+    /// makeup that "odrobi" earns is free instead.
+    /// </summary>
+    [Theory]
+    [InlineData("makeup", BookingAttendance.Makeup)]
+    [InlineData("forfeited", BookingAttendance.Forfeited)]
+    public async Task A_new_absence_keeps_its_entry_spent(string mark, BookingAttendance stored)
+    {
+        var admin = await AdminAsync();
+        var email = $"att-member-{Guid.NewGuid():N}@test.local";
+        await fixture.CreateUserAsync(email, AccountStatus.Active, ApplicationRoles.User);
+        var memberId = await fixture.FindMemberIdAsync(admin, email);
+        var member = await fixture.CreateAuthenticatedClientAsync(email);
+        var passId = await fixture.IssuePassAsync(memberId, entryCount: 1);
+
+        var past = await ClassAsync(admin);
+        await BookAsync(admin, past.Id, memberId);
+        await StartAsync(past.Id);
+
+        var booking = await BookingOfAsync(past.Id, memberId);
+        Assert.Equal(HttpStatusCode.OK, (await PutMarkAsync(admin, past.Id, booking.Id, mark)).StatusCode);
+        Assert.Equal(stored, (await BookingByIdAsync(booking.Id)).Attendance);
+
+        Assert.Equal(0, await EntriesLeftForAdminAsync(admin, memberId, passId));
+        Assert.Equal(0, await EntriesLeftOnMemberListAsync(admin, email, memberId));
+        Assert.Equal(0, await EntriesLeftForMemberAsync(member));
+
+        var next = await ClassAsync(admin);
+        var refused = await admin.PostAsJsonAsync(BookingsOf(next.Id), new { memberId });
+        Assert.Equal("no_entries_left", await ReasonAsync(refused));
     }
 
     /// <summary>Present keeps the entry spent — the mark that changes nothing about the count.</summary>
@@ -373,7 +419,7 @@ public class AttendanceEndpointTests(IntegrationTestFixture fixture)
     // --- the marking API (Phase 2) ---------------------------------------------
 
     /// <summary>Mirrors ClassBooking — only what these tests read from it.</summary>
-    private sealed record RosterRow(Guid BookingId, Guid MemberId, string? Attendance);
+    private sealed record RosterRow(Guid BookingId, Guid MemberId, string? Attendance, bool IsMakeup);
 
     private static string AttendanceOf(Guid classId, Guid bookingId) =>
         $"{BookingsOf(classId)}/{bookingId}/attendance";
@@ -446,10 +492,10 @@ public class AttendanceEndpointTests(IntegrationTestFixture fixture)
         var admin = await AdminAsync();
         var (classId, bookingId, _) = await StartedBookingAsync(admin);
 
-        var response = await PutMarkAsync(admin, classId, bookingId, "absent");
+        var response = await PutMarkAsync(admin, classId, bookingId, "forfeited");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal(BookingAttendance.Absent, (await BookingByIdAsync(bookingId)).Attendance);
+        Assert.Equal(BookingAttendance.Forfeited, (await BookingByIdAsync(bookingId)).Attendance);
     }
 
     [Fact]
@@ -523,15 +569,19 @@ public class AttendanceEndpointTests(IntegrationTestFixture fixture)
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
-    [Fact]
-    public async Task An_unknown_attendance_value_is_a_bad_request()
+    /// <summary>"absent" is the legacy value since S-36: read, never written.</summary>
+    [Theory]
+    [InlineData("late")]
+    [InlineData("absent")]
+    public async Task An_unknown_attendance_value_is_a_bad_request(string mark)
     {
         var admin = await AdminAsync();
         var (classId, bookingId, _) = await StartedBookingAsync(admin);
 
-        var response = await PutMarkAsync(admin, classId, bookingId, "late");
+        var response = await PutMarkAsync(admin, classId, bookingId, mark);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Null((await BookingByIdAsync(bookingId)).Attendance);
     }
 
     /// <summary>The same mark twice is a 200 with no write — a double tap rotates nothing.</summary>
@@ -541,26 +591,30 @@ public class AttendanceEndpointTests(IntegrationTestFixture fixture)
         var admin = await AdminAsync();
         var (classId, bookingId, _) = await StartedBookingAsync(admin);
 
-        Assert.Equal(HttpStatusCode.OK, (await PutMarkAsync(admin, classId, bookingId, "absent")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await PutMarkAsync(admin, classId, bookingId, "makeup")).StatusCode);
 
         var passId = (await BookingByIdAsync(bookingId)).MembershipPassId!.Value;
         var stampBefore = await PassStampAsync(passId);
         var recordedBefore = (await BookingByIdAsync(bookingId)).AttendanceRecordedAt;
 
-        var again = await PutMarkAsync(admin, classId, bookingId, "absent");
+        var again = await PutMarkAsync(admin, classId, bookingId, "makeup");
 
         Assert.Equal(HttpStatusCode.OK, again.StatusCode);
-        Assert.Equal("absent", (await again.Content.ReadFromJsonAsync<RosterRow>())!.Attendance);
+        Assert.Equal("makeup", (await again.Content.ReadFromJsonAsync<RosterRow>())!.Attendance);
         Assert.Equal(stampBefore, await PassStampAsync(passId));
         Assert.Equal(recordedBefore, (await BookingByIdAsync(bookingId)).AttendanceRecordedAt);
     }
 
     /// <summary>
-    /// THE GATE ON A CORRECTION. Eight entries; one class marked absent frees an entry; a new booking
-    /// takes it; correcting the absence back to present would now overdraw, so it is refused.
+    /// THE GATE ON A CORRECTION. Eight entries; one class carries a legacy absence, which freed an
+    /// entry; a new booking takes it; re-marking the absence with any value written since S-36 would
+    /// now overdraw, so it is refused.
     /// </summary>
-    [Fact]
-    public async Task Correcting_absent_to_present_is_refused_when_the_pass_is_full()
+    [Theory]
+    [InlineData("present")]
+    [InlineData("makeup")]
+    [InlineData("forfeited")]
+    public async Task Correcting_a_legacy_absence_is_refused_when_the_pass_is_full(string mark)
     {
         const int Entries = 8;
 
@@ -579,31 +633,135 @@ public class AttendanceEndpointTests(IntegrationTestFixture fixture)
         var missed = classes[0];
         await StartAsync(missed.Id);
         var booking = await BookingOfAsync(missed.Id, memberId);
-        Assert.Equal(HttpStatusCode.OK, (await PutMarkAsync(admin, missed.Id, booking.Id, "absent")).StatusCode);
+        await MarkAsync(booking.Id, BookingAttendance.Absent);
 
         // The freed entry is spent elsewhere.
         await BookAsync(admin, (await ClassAsync(admin)).Id, memberId);
         Assert.Equal(0, await EntriesLeftForAdminAsync(admin, memberId, passId));
 
-        var refused = await PutMarkAsync(admin, missed.Id, booking.Id, "present");
+        var refused = await PutMarkAsync(admin, missed.Id, booking.Id, mark);
 
         Assert.Equal(HttpStatusCode.Conflict, refused.StatusCode);
         Assert.Equal("no_entries_left", await ReasonAsync(refused));
         Assert.Equal(BookingAttendance.Absent, (await BookingByIdAsync(booking.Id)).Attendance);
     }
 
-    [Fact]
-    public async Task Correcting_absent_to_present_spends_the_entry_again()
+    [Theory]
+    [InlineData("present")]
+    [InlineData("makeup")]
+    [InlineData("forfeited")]
+    public async Task Correcting_a_legacy_absence_spends_the_entry_again(string mark)
     {
         var admin = await AdminAsync();
         var (classId, bookingId, memberId) = await StartedBookingAsync(admin, entryCount: 3);
         var passId = (await BookingByIdAsync(bookingId)).MembershipPassId!.Value;
 
-        Assert.Equal(HttpStatusCode.OK, (await PutMarkAsync(admin, classId, bookingId, "absent")).StatusCode);
+        await MarkAsync(bookingId, BookingAttendance.Absent);
         Assert.Equal(3, await EntriesLeftForAdminAsync(admin, memberId, passId));
 
-        Assert.Equal(HttpStatusCode.OK, (await PutMarkAsync(admin, classId, bookingId, "present")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await PutMarkAsync(admin, classId, bookingId, mark)).StatusCode);
         Assert.Equal(2, await EntriesLeftForAdminAsync(admin, memberId, passId));
+    }
+
+    /// <summary>Moving between the outcomes written since S-36 spends nothing new and returns nothing.</summary>
+    [Fact]
+    public async Task Moving_between_new_outcomes_keeps_the_entry_spent()
+    {
+        var admin = await AdminAsync();
+        var (classId, bookingId, memberId) = await StartedBookingAsync(admin, entryCount: 3);
+        var passId = (await BookingByIdAsync(bookingId)).MembershipPassId!.Value;
+
+        foreach (var mark in new[] { "makeup", "forfeited", "present", "makeup" })
+        {
+            Assert.Equal(HttpStatusCode.OK, (await PutMarkAsync(admin, classId, bookingId, mark)).StatusCode);
+            Assert.Equal(2, await EntriesLeftForAdminAsync(admin, memberId, passId));
+        }
+    }
+
+    // --- makeups (S-36) ----------------------------------------------------------
+
+    /// <summary>
+    /// Turns a booking of <paramref name="memberId"/> on a fresh future class into a makeup of
+    /// <paramref name="absenceBookingId"/> behind the API, so these rules hold independently of the
+    /// makeup route. Returns the makeup class and booking.
+    /// </summary>
+    private async Task<(Guid ClassId, Guid BookingId)> LinkedMakeupAsync(
+        HttpClient admin, Guid memberId, Guid absenceBookingId)
+    {
+        var makeup = await ClassAsync(admin);
+        await BookAsync(admin, makeup.Id, memberId);
+        var booking = await BookingOfAsync(makeup.Id, memberId);
+
+        await using var db = NewContext();
+        await db.Bookings.Where(b => b.Id == booking.Id)
+            .ExecuteUpdateAsync(s => s.SetProperty(b => b.MakeupForBookingId, absenceBookingId));
+
+        return (makeup.Id, booking.Id);
+    }
+
+    /// <summary>One right is one attempt: a makeup can be attended or forfeited, never owed again.</summary>
+    [Fact]
+    public async Task A_makeup_booking_cannot_be_marked_makeup()
+    {
+        var admin = await AdminAsync();
+        var (classId, absenceId, memberId) = await StartedBookingAsync(admin);
+        Assert.Equal(HttpStatusCode.OK, (await PutMarkAsync(admin, classId, absenceId, "makeup")).StatusCode);
+
+        var (makeupClassId, makeupId) = await LinkedMakeupAsync(admin, memberId, absenceId);
+        await StartAsync(makeupClassId);
+
+        var refused = await PutMarkAsync(admin, makeupClassId, makeupId, "makeup");
+        Assert.Equal(HttpStatusCode.Conflict, refused.StatusCode);
+        Assert.Equal("makeup_not_allowed", await ReasonAsync(refused));
+
+        Assert.Equal(HttpStatusCode.OK, (await PutMarkAsync(admin, makeupClassId, makeupId, "present")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await PutMarkAsync(admin, makeupClassId, makeupId, "forfeited")).StatusCode);
+
+        var row = (await admin.GetFromJsonAsync<List<RosterRow>>(BookingsOf(makeupClassId)))!
+            .Single(r => r.BookingId == makeupId);
+        Assert.True(row.IsMakeup);
+    }
+
+    /// <summary>A makeup consumes nothing, whatever its mark, while its absence keeps the entry spent.</summary>
+    [Fact]
+    public async Task A_makeup_booking_consumes_no_entry()
+    {
+        var admin = await AdminAsync();
+        var (classId, absenceId, memberId) = await StartedBookingAsync(admin, entryCount: 2);
+        var passId = (await BookingByIdAsync(absenceId)).MembershipPassId!.Value;
+        Assert.Equal(HttpStatusCode.OK, (await PutMarkAsync(admin, classId, absenceId, "makeup")).StatusCode);
+
+        var (makeupClassId, makeupId) = await LinkedMakeupAsync(admin, memberId, absenceId);
+        Assert.Equal(1, await EntriesLeftForAdminAsync(admin, memberId, passId));
+
+        await StartAsync(makeupClassId);
+        Assert.Equal(HttpStatusCode.OK, (await PutMarkAsync(admin, makeupClassId, makeupId, "present")).StatusCode);
+        Assert.Equal(1, await EntriesLeftForAdminAsync(admin, memberId, passId));
+    }
+
+    /// <summary>
+    /// NOTHING DISAPPEARS SILENTLY. An absence whose makeup is booked on a class that still stands
+    /// cannot be re-marked; once that class is cancelled, it can.
+    /// </summary>
+    [Fact]
+    public async Task An_absence_with_a_booked_makeup_cannot_be_re_marked()
+    {
+        var admin = await AdminAsync();
+        var (classId, absenceId, memberId) = await StartedBookingAsync(admin);
+        Assert.Equal(HttpStatusCode.OK, (await PutMarkAsync(admin, classId, absenceId, "makeup")).StatusCode);
+
+        var (makeupClassId, _) = await LinkedMakeupAsync(admin, memberId, absenceId);
+
+        var refused = await PutMarkAsync(admin, classId, absenceId, "present");
+        Assert.Equal(HttpStatusCode.Conflict, refused.StatusCode);
+        Assert.Equal("makeup_booked", await ReasonAsync(refused));
+        Assert.Equal(BookingAttendance.Makeup, (await BookingByIdAsync(absenceId)).Attendance);
+
+        Assert.Equal(
+            HttpStatusCode.OK,
+            (await admin.PostAsync($"/api/admin/classes/{makeupClassId}/cancel", content: null)).StatusCode);
+
+        Assert.Equal(HttpStatusCode.OK, (await PutMarkAsync(admin, classId, absenceId, "present")).StatusCode);
     }
 
     /// <summary>
@@ -620,7 +778,7 @@ public class AttendanceEndpointTests(IntegrationTestFixture fixture)
             var (classId, bookingId, memberId) = await StartedBookingAsync(admin, entryCount: 1);
             var passId = (await BookingByIdAsync(bookingId)).MembershipPassId!.Value;
 
-            Assert.Equal(HttpStatusCode.OK, (await PutMarkAsync(admin, classId, bookingId, "absent")).StatusCode);
+            await MarkAsync(bookingId, BookingAttendance.Absent);
 
             var next = await ClassAsync(admin);
             var booker = await AdminAsync();
@@ -639,28 +797,36 @@ public class AttendanceEndpointTests(IntegrationTestFixture fixture)
     {
         var admin = await AdminAsync();
         var (_, present) = await MemberWithAccountAsync(admin);
-        var (_, absent) = await MemberWithAccountAsync(admin);
+        var (_, makeup) = await MemberWithAccountAsync(admin);
+        var (_, forfeited) = await MemberWithAccountAsync(admin);
+        var (_, legacy) = await MemberWithAccountAsync(admin);
         var (_, unrecorded) = await MemberWithAccountAsync(admin);
-        foreach (var id in new[] { present, absent, unrecorded })
+        var everyone = new[] { present, makeup, forfeited, legacy, unrecorded };
+        foreach (var id in everyone)
         {
             await fixture.IssuePassAsync(id);
         }
 
         var scheduled = await ClassAsync(admin);
-        foreach (var id in new[] { present, absent, unrecorded })
+        foreach (var id in everyone)
         {
             await BookAsync(admin, scheduled.Id, id);
         }
 
         await StartAsync(scheduled.Id);
         await PutMarkAsync(admin, scheduled.Id, (await BookingOfAsync(scheduled.Id, present)).Id, "present");
-        await PutMarkAsync(admin, scheduled.Id, (await BookingOfAsync(scheduled.Id, absent)).Id, "absent");
+        await PutMarkAsync(admin, scheduled.Id, (await BookingOfAsync(scheduled.Id, makeup)).Id, "makeup");
+        await PutMarkAsync(admin, scheduled.Id, (await BookingOfAsync(scheduled.Id, forfeited)).Id, "forfeited");
+        await MarkAsync((await BookingOfAsync(scheduled.Id, legacy)).Id, BookingAttendance.Absent);
 
         var roster = (await admin.GetFromJsonAsync<List<RosterRow>>(BookingsOf(scheduled.Id)))!;
 
         Assert.Equal("present", roster.Single(r => r.MemberId == present).Attendance);
-        Assert.Equal("absent", roster.Single(r => r.MemberId == absent).Attendance);
+        Assert.Equal("makeup", roster.Single(r => r.MemberId == makeup).Attendance);
+        Assert.Equal("forfeited", roster.Single(r => r.MemberId == forfeited).Attendance);
+        Assert.Equal("absent", roster.Single(r => r.MemberId == legacy).Attendance);
         Assert.Null(roster.Single(r => r.MemberId == unrecorded).Attendance);
+        Assert.All(roster, r => Assert.False(r.IsMakeup));
     }
 
     [Fact]
@@ -699,6 +865,7 @@ public class AttendanceEndpointTests(IntegrationTestFixture fixture)
             b.MembershipPassId == passId
             && b.Status == BookingStatus.Active
             && b.Class.Status != ClassStatus.Cancelled
+            && b.MakeupForBookingId == null
             && (b.Attendance == null || b.Attendance != BookingAttendance.Absent));
     }
 }
