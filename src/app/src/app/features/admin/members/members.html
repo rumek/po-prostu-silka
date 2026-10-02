@@ -55,6 +55,18 @@
       Tylko nieopłacone
     </app-checkbox>
   </app-field>
+
+  <!-- expiring-passes-dashboard. The Start card's "Zobacz wszystkich (N)" lands with this ticked; the
+       server counts it with the card's predicate, so the total below is the card's N. -->
+  <app-field class="members-expiring" label="Ważność" for="members-expiring">
+    <app-checkbox
+      inputId="members-expiring"
+      [checked]="expiring()"
+      (checkedChange)="toggleExpiring()"
+    >
+      Tylko kończące się
+    </app-checkbox>
+  </app-field>
 </div>
 
 <!-- How many the view holds, and the way back to the whole club. Shown once there is a count. -->

@@ -425,8 +425,8 @@ None. There is no schema change: "ending" is derived from existing columns.
 
 #### Automated
 
-- [x] 1.1 Build passes with no new warnings
-- [x] 1.2 All backend tests pass, the new ones included
+- [x] 1.1 Build passes with no new warnings — 255f4e4
+- [x] 1.2 All backend tests pass, the new ones included — 255f4e4
 
 #### Manual
 
@@ -436,9 +436,9 @@ None. There is no schema change: "ending" is derived from existing columns.
 
 #### Automated
 
-- [ ] 2.1 SPA specs pass
-- [ ] 2.2 Lint and format pass
-- [ ] 2.3 Production build succeeds, bundle measured and recorded
+- [x] 2.1 SPA specs pass
+- [x] 2.2 Lint and format pass
+- [x] 2.3 Production build succeeds, bundle measured and recorded
 
 #### Manual
 

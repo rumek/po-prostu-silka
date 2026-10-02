@@ -745,6 +745,40 @@ describe('Members', () => {
     expect(router.url).toBe('/');
   });
 
+  /**
+   * expiring-passes-dashboard: "Tylko kończące się" is a second orthogonal toggle — it combines with
+   * the unpaid one and lives in the URL as `expiring=1`, which is where the Start card's link lands.
+   */
+  it('narrows to expiring karnets alongside the unpaid toggle', async () => {
+    await createWith([ANNA], '/?unpaid=1', '/api/admin/members?unpaid=true&pageSize=10');
+
+    (fixture.nativeElement as HTMLElement)
+      .querySelector<HTMLInputElement>('.members-expiring input[type="checkbox"]')!
+      .click();
+
+    (
+      await vi.waitFor(() =>
+        controller.expectOne('/api/admin/members?unpaid=true&expiring=true&pageSize=10'),
+      )
+    ).flush(page([ANNA]));
+    await settle();
+
+    expect(router.url).toBe('/?unpaid=1&expiring=1');
+  });
+
+  it('restores the expiring toggle from the URL and drops a junk value', async () => {
+    await createWith([ANNA], '/?expiring=1', '/api/admin/members?expiring=true&pageSize=10');
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>(
+        '.members-expiring input[type="checkbox"]',
+      )!.checked,
+    ).toBe(true);
+
+    TestBed.resetTestingModule();
+    await createWith([ANNA], '/?expiring=yes');
+    expect(router.url).toBe('/');
+  });
+
   /** "Nieopłacony" marks a member with ANY unpaid karnet — the server decides which, this only says it. */
   it('marks a member holding an unpaid karnet', async () => {
     await createWith([{ ...ANNA, hasUnpaidPass: true }, BARTEK]);
@@ -758,8 +792,8 @@ describe('Members', () => {
   it('clears every filter at once', async () => {
     await createWith(
       [ANNA],
-      '/?q=kow&filter=Blocked&role=Member',
-      '/api/admin/members?filter=Blocked&role=Member&search=kow&pageSize=10',
+      '/?q=kow&filter=Blocked&role=Member&expiring=1',
+      '/api/admin/members?filter=Blocked&role=Member&search=kow&expiring=true&pageSize=10',
     );
 
     const clear = Array.from(

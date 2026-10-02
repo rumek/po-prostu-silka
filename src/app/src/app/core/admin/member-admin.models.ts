@@ -114,6 +114,11 @@ export interface MemberQuery {
   search?: string;
   /** Only members holding an unpaid karnet (pass-paid-flag). Orthogonal to `filter`. */
   unpaid?: boolean;
+  /**
+   * Only members whose karnet is ending (expiring-passes-dashboard) — the Start card's predicate.
+   * Orthogonal to `filter` and `unpaid`.
+   */
+  expiring?: boolean;
   page?: number;
   pageSize?: number;
 }
@@ -408,3 +413,25 @@ export const MEMBER_LIST_FAILURE_REASONS = Object.keys({
   invalid_page: true,
   invalid_search: true,
 } satisfies Record<MemberListFailure['reason'], true>) as readonly MemberListFailure['reason'][];
+
+/**
+ * Mirrors ExpiringPass — one member on the admin's Start card "Kończą się karnety".
+ *
+ * `daysLeft` comes from the server, computed from the same club-local today as the predicate: the
+ * card never recomputes it from the browser's clock, which can sit on the other side of midnight.
+ */
+export interface ExpiringPass {
+  memberId: string;
+  displayName: string;
+  /** ISO date (`yyyy-MM-dd`), the karnet's last valid day. */
+  validTo: string;
+  /** 0 is today — the karnet's last day. */
+  daysLeft: number;
+}
+
+/** Mirrors ExpiringPasses — the card's few rows, and how many there are in all. */
+export interface ExpiringPasses {
+  items: ExpiringPass[];
+  /** The member list's total under `expiring=1`, by construction. */
+  total: number;
+}

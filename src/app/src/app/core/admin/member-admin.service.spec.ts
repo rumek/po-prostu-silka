@@ -91,6 +91,39 @@ describe('MemberAdminService', () => {
     await everyone;
   });
 
+  /** expiring-passes-dashboard: `expiring` goes out only when set, like `unpaid`. */
+  it('sends expiring only when it is set', async () => {
+    const expiring = service.getMembers({ expiring: true });
+    const narrowed = await vi.waitFor(() =>
+      controller.expectOne('/api/admin/members?expiring=true'),
+    );
+    narrowed.flush({ items: [], total: 0, page: 1, pageSize: 25 });
+    await expiring;
+
+    const everyone = service.getMembers({ expiring: false });
+    const plain = await vi.waitFor(() => controller.expectOne('/api/admin/members'));
+    expect(plain.request.params.keys()).toEqual([]);
+    plain.flush({ items: [], total: 0, page: 1, pageSize: 25 });
+    await everyone;
+  });
+
+  it('reads the Start card from its own route', async () => {
+    const card = service.getExpiringPasses();
+    const request = await vi.waitFor(() =>
+      controller.expectOne('/api/admin/members/expiring-passes'),
+    );
+    expect(request.request.method).toBe('GET');
+    request.flush({
+      items: [{ memberId: 'm1', displayName: 'Anna', validTo: '2026-10-04', daysLeft: 2 }],
+      total: 1,
+    });
+
+    expect(await card).toEqual({
+      items: [{ memberId: 'm1', displayName: 'Anna', validTo: '2026-10-04', daysLeft: 2 }],
+      total: 1,
+    });
+  });
+
   /**
    * The endpoint binds the filter as a nullable enum and 400s on an unparseable value, so `?filter=`
    * would be a broken request rather than "no filter". Absent fields have to be absent, not empty —
