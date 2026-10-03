@@ -75,6 +75,7 @@ public class GroupRosterQuery(AppDbContext db) : IGroupRosterQuery
             .Where(p => memberIds.Contains(p.MemberId))
             .Select(p => new
             {
+                p.Id,
                 p.MemberId,
                 p.ValidFrom,
                 p.ValidTo,
@@ -89,6 +90,10 @@ public class GroupRosterQuery(AppDbContext db) : IGroupRosterQuery
         {
             var gaps = new List<RosterGap>();
             var booked = 0;
+
+            // Entries left per karnet, spent as gaps are marked bookable in start order - the batch's order -
+            // so 1 entry over 3 gaps reads "bookable" once and no_entries_left after, as "Uzupełnij" will do.
+            var left = new Dictionary<Guid, int>();
 
             foreach (var c in classes)
             {
@@ -107,6 +112,7 @@ public class GroupRosterQuery(AppDbContext db) : IGroupRosterQuery
                     .Where(p => p.MemberId == r.MemberId && p.ValidFrom <= date && date <= p.ValidTo)
                     .OrderBy(p => p.ValidFrom)
                     .FirstOrDefault();
+                var passLeft = pass is null ? 0 : left.GetValueOrDefault(pass.Id, pass.Left);
 
                 var reason =
                     r.Status != MembershipStatus.Active ? "member_blocked"
@@ -115,8 +121,13 @@ public class GroupRosterQuery(AppDbContext db) : IGroupRosterQuery
                         ? RosterBooking.NotYourClass
                     : c.Booked >= c.Capacity ? "class_full"
                     : pass is null ? "no_valid_pass"
-                    : pass.Left <= 0 ? "no_entries_left"
+                    : passLeft <= 0 ? "no_entries_left"
                     : RosterGap.Bookable;
+
+                if (reason == RosterGap.Bookable)
+                {
+                    left[pass!.Id] = passLeft - 1;
+                }
 
                 gaps.Add(new RosterGap(c.Id, c.StartsAt, reason));
             }

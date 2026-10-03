@@ -42,3 +42,12 @@ export function groupRosterLines(items: readonly Groupable[]): RosterLine[] {
 
   return [...lines.values()];
 }
+
+/**
+ * The success half of a roster report (S-37) — the count rides the screen's toast, the skips go to the
+ * panel. One sentence for every trigger (create, duplicate, karnet), so the screens cannot word it four
+ * ways.
+ */
+export function rosterBookedSentence(booked: number): string {
+  return `Zapisano ze składu grupy: ${booked}.`;
+}

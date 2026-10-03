@@ -16,6 +16,17 @@ public interface IGroupRosterStore
 
     Task<int> CountAsync(Guid groupId, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Untracked: which of these members already hold an ACTIVE booking on which of these classes - so
+    /// the batch skips the idempotent pairs without a protocol round trip. Advisory only: the protocol
+    /// still decides.
+    /// </summary>
+    Task<IReadOnlySet<(Guid MemberId, Guid ClassId)>> ActiveBookingPairsAsync(
+        IReadOnlyCollection<Guid> memberIds, IReadOnlyCollection<Guid> classIds, CancellationToken cancellationToken);
+
+    /// <summary>Untracked: whether the member is in the group's roster right now.</summary>
+    Task<bool> IsInRosterAsync(Guid groupId, Guid memberId, CancellationToken cancellationToken);
+
     /// <summary>The roster's member ids, in the order they joined.</summary>
     Task<IReadOnlyList<Guid>> MemberIdsAsync(Guid groupId, CancellationToken cancellationToken);
 
@@ -54,5 +65,8 @@ public interface IGroupRosterStore
         CancellationToken cancellationToken);
 }
 
-/// <summary>An upcoming class of a group, as the roster batch needs it.</summary>
-public record RosterClass(Guid Id, DateTimeOffset StartsAt, Guid InstructorMemberId);
+/// <summary>
+/// An upcoming class of a group, as the roster batch needs it. <see cref="GroupId"/> lets the batch
+/// re-check roster membership per group - the karnet hook spans several.
+/// </summary>
+public record RosterClass(Guid Id, Guid GroupId, DateTimeOffset StartsAt, Guid InstructorMemberId);

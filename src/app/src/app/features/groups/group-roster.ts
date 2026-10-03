@@ -122,10 +122,6 @@ export class GroupRoster implements OnInit, OnDestroy {
     return view !== null && view.members.length >= view.capacity;
   });
 
-  protected readonly hasGaps = computed(
-    () => this.view()?.members.some((member) => member.gaps.length > 0) ?? false,
-  );
-
   // --- the picker: the bookings overlay's shape (search box, then a select of its matches) ---------
 
   protected readonly addSearch = signal('');

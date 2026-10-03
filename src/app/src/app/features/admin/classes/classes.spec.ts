@@ -6,7 +6,7 @@ import {
 } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
-import { provideRouter } from '@angular/router';
+import { Navigation, Router, provideRouter } from '@angular/router';
 import { DESK_MEDIA_QUERY } from '../../../core/layout/breakpoints';
 import { ScheduledClass } from '../../../core/scheduling/class.models';
 import { ScheduleCalendar } from '../../../shared/calendar/schedule-calendar';
@@ -349,6 +349,29 @@ describe('Classes', () => {
 
     adminRequests()[0].flush([JOGA]);
     await settle();
+  });
+
+  /** S-37: a class created on the class form lands here with its report; the count is toasted. */
+  it('toasts the roster bookings a form-created class handed over', async () => {
+    // createWith's setup, with the navigation stubbed before the component reads it.
+    TestBed.configureTestingModule({
+      imports: [Classes],
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
+    });
+    vi.spyOn(TestBed.inject(Router), 'currentNavigation').mockReturnValue({
+      extras: { state: { rosterReport: { booked: 4, skipped: [] } } },
+    } as unknown as Navigation);
+
+    controller = TestBed.inject(HttpTestingController);
+    fixture = TestBed.createComponent(Classes);
+    fixture.detectChanges();
+    (await vi.waitFor(() => adminRequests()[0])).flush([JOGA]);
+    await settle();
+
+    expect(toastText()).toContain('Zapisano ze składu grupy: 4');
+    expect(toastTone()).toBe('success');
+    // Nothing skipped, so no panel.
+    expect((fixture.nativeElement as HTMLElement).querySelector('.roster-report')).toBeNull();
   });
 
   // --- delete ----------------------------------------------------------------

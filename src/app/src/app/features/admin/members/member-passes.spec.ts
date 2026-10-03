@@ -310,6 +310,9 @@ describe('MemberPasses', () => {
 
     const panel = (fixture.nativeElement as HTMLElement).querySelector('.roster-report');
     expect(panel?.textContent).toContain('Brak wolnych miejsc');
+    // The count rides the toast; the panel carries only the skips.
+    expect(toastText()).toContain('Zapisano ze składu grupy: 2');
+    expect(toastTone()).toBe('success');
   });
 
   it('marks a karnet paid through the overlay and replaces the row', async () => {

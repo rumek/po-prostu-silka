@@ -18,6 +18,23 @@ public class GroupRosterStore(AppDbContext db) : IGroupRosterStore
     public Task<int> CountAsync(Guid groupId, CancellationToken cancellationToken) =>
         db.GroupRosterEntries.CountAsync(e => e.ClassGroupId == groupId, cancellationToken);
 
+    public async Task<IReadOnlySet<(Guid MemberId, Guid ClassId)>> ActiveBookingPairsAsync(
+        IReadOnlyCollection<Guid> memberIds, IReadOnlyCollection<Guid> classIds, CancellationToken cancellationToken) =>
+        (await db.Bookings
+            .AsNoTracking()
+            .Where(b => memberIds.Contains(b.MemberId)
+                        && classIds.Contains(b.ClassId)
+                        && b.Status == BookingStatus.Active)
+            .Select(b => new { b.MemberId, b.ClassId })
+            .ToListAsync(cancellationToken))
+        .Select(b => (b.MemberId, b.ClassId))
+        .ToHashSet();
+
+    public Task<bool> IsInRosterAsync(Guid groupId, Guid memberId, CancellationToken cancellationToken) =>
+        db.GroupRosterEntries
+            .AsNoTracking()
+            .AnyAsync(e => e.ClassGroupId == groupId && e.MemberId == memberId, cancellationToken);
+
     public async Task<IReadOnlyList<Guid>> MemberIdsAsync(Guid groupId, CancellationToken cancellationToken) =>
         await db.GroupRosterEntries
             .AsNoTracking()
@@ -37,7 +54,7 @@ public class GroupRosterStore(AppDbContext db) : IGroupRosterStore
         Guid groupId, DateTimeOffset asOf, CancellationToken cancellationToken) =>
         await Upcoming(groupId, asOf)
             .OrderBy(c => c.StartsAt)
-            .Select(c => new RosterClass(c.Id, c.StartsAt, c.InstructorMemberId))
+            .Select(c => new RosterClass(c.Id, c.ClassGroupId, c.StartsAt, c.InstructorMemberId))
             .ToListAsync(cancellationToken);
 
     public async Task<IReadOnlyList<RosterClass>> UpcomingClassesInRangeAsync(
@@ -51,7 +68,7 @@ public class GroupRosterStore(AppDbContext db) : IGroupRosterStore
         return await Upcoming(groupId, asOf)
             .Where(c => c.StartsAt >= fromInstant && c.StartsAt < toExclusive)
             .OrderBy(c => c.StartsAt)
-            .Select(c => new RosterClass(c.Id, c.StartsAt, c.InstructorMemberId))
+            .Select(c => new RosterClass(c.Id, c.ClassGroupId, c.StartsAt, c.InstructorMemberId))
             .ToListAsync(cancellationToken);
     }
 

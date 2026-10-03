@@ -64,6 +64,12 @@ public sealed class RosterBooking(
         }
 
         var ordered = targets.OrderBy(c => c.StartsAt).ToList();
+
+        // One read for the idempotent case "Uzupełnij" is mostly made of: a pair already booked costs no
+        // protocol round trips. The protocol still decides - a stale "not booked" just ends in already_booked.
+        var alreadyBooked = await roster.ActiveBookingPairsAsync(
+            memberIds, ordered.Select(c => c.Id).ToList(), cancellationToken);
+
         var booked = 0;
         var skipped = new List<RosterSkip>();
 
@@ -85,8 +91,24 @@ public sealed class RosterBooking(
                 ? "member_blocked"
                 : await members.IsStaffAsync(memberId, cancellationToken) ? "member_is_staff" : null;
 
+            // Membership re-read per member, right before their bookings: the batch read the roster once,
+            // and a removal committed since must not be undone by booking the member straight back in.
+            var inRoster = new Dictionary<Guid, bool>();
+
             foreach (var target in ordered)
             {
+                if (!inRoster.TryGetValue(target.GroupId, out var stillIn))
+                {
+                    stillIn = await roster.IsInRosterAsync(target.GroupId, memberId, cancellationToken);
+                    inRoster[target.GroupId] = stillIn;
+                }
+
+                if (!stillIn)
+                {
+                    // Left the roster mid-batch. Not a refusal - there is nothing to report.
+                    continue;
+                }
+
                 if (memberRefusal is not null)
                 {
                     skipped.Add(new RosterSkip(memberId, name, target.Id, target.StartsAt, memberRefusal));
@@ -99,8 +121,17 @@ public sealed class RosterBooking(
                     continue;
                 }
 
+                if (alreadyBooked.Contains((memberId, target.Id)))
+                {
+                    continue;
+                }
+
                 var attempt = await BookingProtocol.TryBookCoreAsync(
                     target.Id, memberId, classes, bookings, passes, unitOfWork, timeProvider, cancellationToken);
+
+                // Each booking is its own unit: drop what it tracked, so the next attempt re-reads the class
+                // and karnet instead of trusting a copy another writer may have rotated since.
+                unitOfWork.DiscardChanges();
 
                 switch (attempt)
                 {

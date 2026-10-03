@@ -91,6 +91,10 @@ in `context/testing/04-schedule-bookings-attendance.md`.
   cascade, and later automatic bookings report `member_blocked`). Granting Trainer to a roster member
   does not remove them either; their automatic bookings report `member_is_staff`.
 - No karnet hook on revoking a karnet (revoke is already refused while bookings use it).
+- No partial-success answer when the roster batch itself throws (accepted in the implementation
+  review, F4). The triggering write has committed by then, so the client gets a 500 for a karnet,
+  class or roster row that exists. Every retry refuses cleanly: `time_conflict`, the karnet overlap,
+  or `already_in_roster`. "Uzupełnij zapisy" fills whatever the batch left undone.
 
 ## Implementation Approach
 
@@ -405,6 +409,10 @@ składu? Przyszłe zapisy w tej grupie zostaną zwolnione."), refusals go to a t
 load is screen state (outlet 4). Add and sync show `app-roster-report` above the list. Mobile-first,
 checked at tablet and desk widths.
 
+**Adapted during implementation.** At capacity the add block is not shown disabled. The search and the
+select are replaced by a hint, "Skład jest pełny (6/6)": a disabled search box would invite typing
+that can lead nowhere, and the count the plan wanted is still on screen.
+
 #### 4. Entries
 
 **File**: `features/admin/class-groups/class-groups.html` (+ ts), `features/trainer/groups/trainer-groups.ts`
@@ -611,8 +619,8 @@ until someone fills one.
 
 #### Automated
 
-- [x] 4.1 The new spec passes
-- [x] 4.2 The full local suite passes
+- [x] 4.1 The new spec passes — 1f01f64
+- [x] 4.2 The full local suite passes — 1f01f64
 
 #### Manual
 

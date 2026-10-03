@@ -89,7 +89,7 @@ public static class DuplicateClass
                 CreatedAt = now,
             });
 
-            created.Add(new RosterClass(copyId, startsAt, source.InstructorMemberId));
+            created.Add(new RosterClass(copyId, source.ClassGroupId, startsAt, source.InstructorMemberId));
         }
 
         await unitOfWork.SaveChangesAsync(cancellationToken);

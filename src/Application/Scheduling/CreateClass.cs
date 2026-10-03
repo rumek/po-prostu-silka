@@ -104,7 +104,7 @@ public static class CreateClass
         var instructorName = instructor!.DisplayName;
         var report = await rosterBooking.BookRosterIntoAsync(
             classGroup.Id,
-            [new RosterClass(created.Id, created.StartsAt, created.InstructorMemberId)],
+            [new RosterClass(created.Id, classGroup.Id, created.StartsAt, created.InstructorMemberId)],
             cancellationToken);
 
         // The booked count is the report's: the class was created this instant, so the roster bookings

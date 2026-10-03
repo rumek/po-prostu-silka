@@ -28,6 +28,7 @@ import { createPassPaymentActions } from '../../../shared/passes/pass-payment-ac
 import { clubToday } from '../../../core/passes/club-today';
 import { RosterReport as Report } from '../../../core/scheduling/roster.models';
 import { RosterReport } from '../../../shared/roster-report/roster-report';
+import { rosterBookedSentence } from '../../../shared/roster-report/roster-lines';
 
 /**
  * Bounds mirrored from MembershipPassRules (src/Application/Members/MembershipPassRules.cs).
@@ -307,6 +308,11 @@ export class MemberPasses implements OnInit {
           : await this.members.updatePass(this.memberId(), passId, request);
 
       this.rosterReport.set(change.roster.skipped.length > 0 ? change.roster : null);
+
+      // The count rides a toast; the skips are the panel's. The form itself says nothing on success.
+      if (change.roster.booked > 0) {
+        this.toast.success(rosterBookedSentence(change.roster.booked));
+      }
 
       this.cancelEdit();
 

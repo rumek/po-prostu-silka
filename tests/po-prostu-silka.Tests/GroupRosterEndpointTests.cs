@@ -399,6 +399,24 @@ public class GroupRosterEndpointTests(IntegrationTestFixture fixture)
     }
 
     [Fact]
+    public async Task The_gap_view_spends_entries_in_start_order_as_the_sync_would()
+    {
+        var admin = await AdminAsync();
+        var (groupId, classes, _, _) = await GroupWithClassesAsync(admin, 3);
+        var memberId = await fixture.CreateMemberAsync("Jedno wejście");
+
+        await AddOkAsync(admin, groupId, memberId);
+
+        // Issued behind the API's back, so no hook runs: one entry over three gaps.
+        await fixture.IssuePassAsync(memberId, entryCount: 1);
+
+        var view = await admin.GetFromJsonAsync<RosterBody>($"/api/groups/{groupId}/roster");
+        Assert.Equal(
+            new[] { "bookable", "no_entries_left", "no_entries_left" },
+            Assert.Single(view!.Members).Gaps.OrderBy(g => g.StartsAt).Select(g => g.Reason));
+    }
+
+    [Fact]
     public async Task A_class_with_fewer_spots_than_the_roster_is_filled_and_the_rest_reported_full()
     {
         var admin = await AdminAsync();

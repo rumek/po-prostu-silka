@@ -8,12 +8,13 @@ import { RosterReport } from '../../core/scheduling/roster.models';
 export const ROSTER_REPORT_STATE = 'rosterReport';
 
 /**
- * The report handed over by the navigation that is building the current screen, or null. Call it in
- * an injection context, while that navigation is still current — a component's field initializer.
+ * The report handed over by the navigation that is building the current screen, or null — whole, so
+ * the screen can toast the booked count as well as panel the skips. Call it in an injection context,
+ * while that navigation is still current — a component's field initializer.
  */
 export function handedOverRosterReport(router: Router): RosterReport | null {
   const report = router.currentNavigation()?.extras.state?.[ROSTER_REPORT_STATE] as
     RosterReport | undefined;
 
-  return report && report.skipped.length > 0 ? report : null;
+  return report ?? null;
 }
