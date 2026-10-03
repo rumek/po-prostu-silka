@@ -57,8 +57,15 @@ test('a member added to a group roster is booked into the classes later duplicat
   const actions = page.getByRole('dialog', { name: groupName });
   await actions.getByRole('button', { name: 'Powiel' }).click();
   await actions.getByLabel('Na kolejne tygodnie').fill('2');
+  // Waits on the duplicate itself rather than its toast: the toast's words reach assistive tech through
+  // a second, visually hidden live region, so the text is on the page twice (see trainer-plan-reaches-member).
+  const duplicated = page.waitForResponse(
+    (response) => response.url().endsWith('/duplicate') && response.request().method() === 'POST',
+  );
   await actions.getByRole('button', { name: 'Powiel', exact: true }).click();
-  await expect(page.getByText(/Utworzono 2 kopie/)).toBeVisible();
+  const response = await duplicated;
+  expect(response.ok(), 'the class was duplicated').toBeTruthy();
+  expect((await response.json()).created, 'two copies were created').toBe(2);
 
   // Member: Moje zajęcia lists the class and both copies - nobody booked them by hand.
   const member = await signedInContext(browser, { email, password: memberPassword });

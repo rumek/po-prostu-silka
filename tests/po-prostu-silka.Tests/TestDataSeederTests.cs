@@ -89,21 +89,23 @@ public class TestDataSeederTests(IntegrationTestFixture fixture)
         var seededAccountMembers = await db.Members.CountAsync(m => m.UserId != null && m.Email!.EndsWith(SeededDomain));
         var accountless = await db.Members.CountAsync(m => m.UserId == null);
 
-        Assert.Equal(164, seededAccounts);
-        Assert.Equal(164, seededAccountMembers);
-        Assert.Equal(40, accountless);
+        // Two admins, four trainers and the members with an account.
+        var accounts = 2 + TestDataGenerator.TrainerCount + TestDataGenerator.AccountMemberCount;
+        Assert.Equal(accounts, seededAccounts);
+        Assert.Equal(accounts, seededAccountMembers);
+        Assert.Equal(TestDataGenerator.AccountlessMemberCount, accountless);
 
-        // 204 seeded plus the AdminSeed account's member, which the reset keeps.
-        Assert.Equal(205, await db.Members.CountAsync());
+        // The seeded members plus the AdminSeed account's member, which the reset keeps.
+        Assert.Equal(accounts + TestDataGenerator.AccountlessMemberCount + 1, await db.Members.CountAsync());
 
         Assert.Equal(2, await CountSeededInRoleAsync(db, ApplicationRoles.Admin));
-        // trener1, trener2 and admin2, who also teaches (S-25).
-        Assert.Equal(3, await CountSeededInRoleAsync(db, ApplicationRoles.Trainer));
+        // trener1-4 and admin2, who also teaches (S-25).
+        Assert.Equal(TestDataGenerator.TrainerCount + 1, await CountSeededInRoleAsync(db, ApplicationRoles.Trainer));
         Assert.Equal(8, await db.TrainingPlans.CountAsync(p => p.Status == TrainingPlanStatus.Active));
 
         // About half the accountless members hold a live invitation code.
         var liveCodes = await db.Members.CountAsync(m => m.AccessCode != null && m.AccessCodeExpiresAt > DateTimeOffset.UtcNow);
-        Assert.InRange(liveCodes, 15, 25);
+        Assert.InRange(liveCodes, 12, 15);
     }
 
     [Fact]
@@ -161,12 +163,46 @@ public class TestDataSeederTests(IntegrationTestFixture fixture)
             .Select(p => new
             {
                 p.EntryCount,
-                Used = db.Bookings.Count(b => b.MembershipPassId == p.Id && b.Status == BookingStatus.Active),
+                // EntryConsumption's definition: a makeup carries a karnet but spends no entry, and a class
+                // the club cancelled gives its entry back.
+                Used = db.Bookings.Count(b => b.MembershipPassId == p.Id
+                                              && b.Status == BookingStatus.Active
+                                              && b.Class.Status != ClassStatus.Cancelled
+                                              && b.MakeupForBookingId == null
+                                              && b.Attendance != BookingAttendance.Absent),
             })
             .ToListAsync();
 
         Assert.All(passes, p => Assert.True(p.Used <= p.EntryCount, "A pass is spent past its entry count."));
         Assert.Contains(passes, p => p.Used == p.EntryCount);
+    }
+
+    [Fact]
+    public async Task Seeded_rosters_persist_and_read_through_the_roster_api()
+    {
+        await SeedAsync("Development", reset: true);
+
+        Guid groupId;
+        await using (var scope = fixture.Factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            Assert.True(await db.GroupRosterEntries.CountAsync() >= 70);
+
+            groupId = await db.ClassGroups
+                .Where(g => g.IsActive && g.DefaultCapacity == 6)
+                .OrderBy(g => g.Name)
+                .Select(g => g.Id)
+                .FirstAsync();
+        }
+
+        var client = fixture.CreateClient();
+        var login = await client.PostAsJsonAsync(
+            "/api/auth/login", new { email = TestDataGenerator.SentinelEmail, password = TestUsers.Password });
+        Assert.Equal(HttpStatusCode.OK, login.StatusCode);
+
+        var roster = await client.GetAsync($"/api/groups/{groupId}/roster");
+        Assert.Equal(HttpStatusCode.OK, roster.StatusCode);
+        Assert.Contains("\"members\":[{", await roster.Content.ReadAsStringAsync());
     }
 
     [Fact]

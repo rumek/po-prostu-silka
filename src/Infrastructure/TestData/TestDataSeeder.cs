@@ -80,7 +80,7 @@ public static class TestDataSeeder
         }
 
         // The one hash below skips CreateAsync, and with it the password policy - so the policy runs here,
-        // BEFORE a reset wipes anything. The shared password guards 164 accounts on a public Staging URL,
+        // BEFORE a reset wipes anything. The shared password guards every seeded account on a public Staging URL,
         // two of them admins whose e-mails the runbook lists.
         var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
         var policyErrors = new List<IdentityError>();
@@ -121,6 +121,7 @@ public static class TestDataSeeder
         if (await db.Members.CountAsync() > 1
             || await db.ClassGroups.AnyAsync()
             || await db.Classes.AnyAsync()
+            || await db.GroupRosterEntries.AnyAsync()
             || await db.MembershipPasses.AnyAsync()
             || await db.Exercises.AnyAsync()
             || await db.TrainingPlans.AnyAsync())
@@ -145,8 +146,8 @@ public static class TestDataSeeder
         var now = services.GetRequiredService<TimeProvider>().GetUtcNow();
         var data = TestDataGenerator.Generate(Seed, now);
 
-        // ONE hash for every account. UserManager.CreateAsync would run PBKDF2 once per account - about
-        // 164 times, tens of seconds of cold start on B1 - for a password they all share anyway.
+        // ONE hash for every account. UserManager.CreateAsync would run PBKDF2 once per account - seconds
+        // of cold start on B1 - for a password they all share anyway.
         var hasher = services.GetRequiredService<IPasswordHasher<ApplicationUser>>();
         var passwordHash = hasher.HashPassword(data.Accounts[0].User, options.Password);
 
@@ -173,6 +174,7 @@ public static class TestDataSeeder
         db.MembershipPasses.AddRange(data.Passes);
         db.ClassGroups.AddRange(data.ClassGroups);
         db.Classes.AddRange(data.Classes);
+        db.GroupRosterEntries.AddRange(data.RosterEntries);
         db.Bookings.AddRange(data.Bookings);
         db.Exercises.AddRange(data.Exercises);
         db.TrainingPlans.AddRange(data.Plans);
@@ -182,10 +184,10 @@ public static class TestDataSeeder
         await db.SaveChangesAsync();
 
         logger.LogInformation(
-            "Seeded test data: {Accounts} accounts, {Members} members, {Passes} passes, {Classes} classes, "
-            + "{Bookings} bookings, {Exercises} exercises, {Plans} plans.",
-            data.Accounts.Count, data.Members.Count, data.Passes.Count, data.Classes.Count,
-            data.Bookings.Count, data.Exercises.Count, data.Plans.Count);
+            "Seeded test data: {Accounts} accounts, {Members} members, {Passes} passes, {Groups} groups, "
+            + "{Roster} roster entries, {Classes} classes, {Bookings} bookings, {Exercises} exercises, {Plans} plans.",
+            data.Accounts.Count, data.Members.Count, data.Passes.Count, data.ClassGroups.Count,
+            data.RosterEntries.Count, data.Classes.Count, data.Bookings.Count, data.Exercises.Count, data.Plans.Count);
     }
 
     /// <summary>

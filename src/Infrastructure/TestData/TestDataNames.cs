@@ -59,24 +59,51 @@ internal static class TestDataNames
         ("Gdańsk", "80-001"), ("Piaseczno", "05-500"), ("Pruszków", "05-800"),
     ];
 
-    public sealed record ClassGroupSpec(
-        string Name,
-        string Description,
-        int DurationMinutes,
+    /// <summary>
+    /// What the club sells, as its attendance spreadsheet (treningi.xlsx) has it: a fixed weekly slot
+    /// for one person, a pair, a trio or a group of up to six. <see cref="NamePrefix"/> is null for the
+    /// individual kind, which is named after its one person instead of its slot.
+    /// </summary>
+    public sealed record GroupKindSpec(
+        string? NamePrefix,
         int Capacity,
-        bool IsActive);
+        int DurationMinutes,
+        int Count,
+        string Description);
 
-    /// <summary>The last entry is inactive, so the admin's group list shows both states.</summary>
-    public static readonly ClassGroupSpec[] ClassGroups =
+    public static readonly GroupKindSpec[] GroupKinds =
     [
-        new("Joga", "Spokojna praktyka asan i oddechu dla każdego poziomu.", 60, 16, true),
-        new("Crossfit", "Intensywny trening funkcjonalny w małej grupie.", 60, 12, true),
-        new("Pilates", "Wzmacnianie mięśni głębokich i poprawa postawy.", 55, 14, true),
-        new("Zdrowy kręgosłup", "Ćwiczenia wzmacniające i rozciągające dla pleców.", 50, 15, true),
-        new("TRX", "Trening z taśmami podwieszanymi, praca na masie własnego ciała.", 45, 10, true),
-        new("Stretching", "Rozciąganie całego ciała na zakończenie tygodnia.", 45, 20, true),
-        new("Aerobik", "Zajęcia wycofane z grafiku - zostają w historii.", 55, 20, false),
+        new(null, 1, 60, 10, "Trening indywidualny – stały termin raz w tygodniu."),
+        new("Para", 2, 60, 8, "Trening w parze – stały termin raz w tygodniu."),
+        new("Trio", 3, 60, 5, "Trening w trzy osoby – stały termin raz w tygodniu."),
+        new("Grupa", 6, 75, 7, "Grupa do 6 osób – stały termin raz w tygodniu."),
     ];
+
+    /// <summary>
+    /// Club-local start times on the spreadsheet's 15-minute grid. CONSECUTIVE ENTRIES ARE AT LEAST 75
+    /// MINUTES APART - the longest group - so any subset of them is overlap-free under the app's
+    /// club-wide rule (HasTimeConflictAsync), and an unused one is always a free time to move a class to.
+    /// </summary>
+    public static readonly TimeOnly[] SlotTimes =
+    [
+        new(6, 15), new(7, 30), new(9, 0), new(10, 30), new(12, 0),
+        new(16, 0), new(17, 15), new(18, 30), new(19, 45),
+    ];
+
+    /// <summary>Monday to Saturday; the club does not train on Sundays.</summary>
+    public static readonly (DayOfWeek Day, string Short)[] TrainingDays =
+    [
+        (DayOfWeek.Monday, "Pon"), (DayOfWeek.Tuesday, "Wt"), (DayOfWeek.Wednesday, "Śr"),
+        (DayOfWeek.Thursday, "Czw"), (DayOfWeek.Friday, "Pt"), (DayOfWeek.Saturday, "Sob"),
+    ];
+
+    /// <summary>The karnet types of the club's payment spreadsheet (twt.xlsx), with an entry count.</summary>
+    public sealed record PassTypeSpec(string Name, int Entries, int ValidityDays);
+
+    /// <summary>One training a week, so a 30-day month holds four - or five, the fifth then refused.</summary>
+    public static readonly PassTypeSpec Monthly = new("Miesięczny", 4, 30);
+    public static readonly PassTypeSpec OneOff = new("Wejście jednorazowe", 1, 30);
+    public static readonly PassTypeSpec Voucher = new("Voucher", 4, 60);
 
     public sealed record ExerciseSpec(
         string Name,

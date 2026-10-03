@@ -8,13 +8,22 @@
 | --- | --- | --- |
 | `admin1@example.test` | Administrator | nie prowadzi żadnych zajęć |
 | `admin2@example.test` | Administrator (+ rola Trenera) | prowadzi część zajęć, więc widać na nim pierwszeństwo Admin > Trener |
-| `trener1@example.test`, `trener2@example.test` | Trener | prowadzą zajęcia |
-| `czlonek001@example.test` … `czlonek160@example.test` | Członek | 4 z nich są zablokowane (znajdziesz je filtrem „Zablokowani”) |
-| `bezkonta01` … `bezkonta40` | kartoteki **bez konta** | co druga ma aktywny kod zaproszenia; część nie ma e-maila; jedna jest zablokowana |
+| `trener1@example.test` … `trener4@example.test` | Trener | prowadzą stałe grupy |
+| `czlonek001@example.test` … `czlonek070@example.test` | Członek | 3 z nich są zablokowane (znajdziesz je filtrem „Zablokowani”); `czlonek010` jest zawsze aktywny, w składzie grupy i z ważnym karnetem |
+| `bezkonta01` … `bezkonta30` | kartoteki **bez konta** | co druga ma aktywny kod zaproszenia; część nie ma e-maila; jedna jest zablokowana |
 
-Dane zawierają m.in. karnety ważne, wygasłe i wykorzystane (6 osób ma karnet bez wolnych wejść),
-zajęcia z 4 tygodni wstecz i 4 do przodu, 3 pełne zajęcia (od jutra), zajęcia odwołane, 8 aktywnych
-planów i ok. 27 ćwiczeń.
+Dane odwzorowują sposób pracy klubu z jego arkuszy:
+- **Grupy:** ok. 30 stałych grup tygodniowych (indywidualne, pary, trio, grupy do 6 osób), każda ze
+  stałą godziną, trenerem i składem. Kilka zajęć ma zastępstwo, przesuniętą godzinę albo jest
+  odwołanych.
+- **Karnety:** „Miesięczny” (4 wejścia na 30 dni), „Wejście jednorazowe” i „Voucher”:
+  - co najmniej 8 kończy się w ciągu 5 dni;
+  - są karnety nieopłacone, bieżące i wygasłe;
+  - kilka osób ze składów ma wygasły karnet, więc ich przyszłe zajęcia są lukami w składzie.
+- **Obecność:** oznaczona do dwóch dni wstecz („Był”, „Nie był – odrobi”, „Nie był – przepada”).
+- **Odrabianie:** pozycje w każdym stanie (do odrobienia, zaplanowane, odrobione, nieodrobione).
+- **Okno czasu:** zajęcia z 5 tygodni wstecz i 4 do przodu.
+- **Trening:** 8 aktywnych planów i ok. 27 ćwiczeń.
 
 **Ważne ograniczenia środowiska:**
 
