@@ -458,8 +458,8 @@ it keeps the old one.
 
 #### Automated
 
-- [x] 1.1 Backend builds warning-free
-- [x] 1.2 All tests pass, the new generator invariants included
+- [x] 1.1 Backend builds warning-free — cf208ba
+- [x] 1.2 All tests pass, the new generator invariants included — cf208ba
 
 #### Manual
 
@@ -469,7 +469,7 @@ it keeps the old one.
 
 #### Automated
 
-- [x] 2.1 All tests still pass
+- [x] 2.1 All tests still pass — d5edeff
 
 #### Manual
 
