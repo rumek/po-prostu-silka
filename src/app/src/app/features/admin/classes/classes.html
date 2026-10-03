@@ -2,6 +2,11 @@
   <h1 class="screen-title">Zajęcia</h1>
 </div>
 
+<!-- S-37: who the last create or duplicate could not book from the group's fixed roster. -->
+@if (rosterReport(); as report) {
+  <app-roster-report [report]="report" (dismissed)="dismissRosterReport()" />
+}
+
 <!-- The grid and everything that points into it exist only at a desk (S-20). An @if rather than
      display:none, so a phone never builds angular-calendar's DOM or its listeners at all. -->
 @if (desk()) {
@@ -57,7 +62,11 @@
   }
 
   @if (drawn(); as range) {
-    <app-class-create-overlay [drawn]="range" (created)="afterCreate()" (closed)="closeCreate()" />
+    <app-class-create-overlay
+      [drawn]="range"
+      (created)="afterCreate($event)"
+      (closed)="closeCreate()"
+    />
   }
 
   <!-- Opened FROM the actions overlay, and replacing it: this is an unbounded list, and it gets the

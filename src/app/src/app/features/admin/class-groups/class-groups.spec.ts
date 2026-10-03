@@ -14,6 +14,7 @@ const JOGA: ClassGroupSummary = {
   defaultCapacity: 12,
   isActive: true,
   createdAt: new Date('2026-09-01T10:00').toISOString(),
+  rosterCount: 0,
 };
 
 const RETIRED: ClassGroupSummary = {
@@ -93,6 +94,17 @@ describe('ClassGroups', () => {
     expect(html()).toContain('Spokojne zajęcia');
     expect(html()).toContain('60');
     expect(html()).toContain('12');
+  });
+
+  /** S-37: each group leads to its fixed roster, and says how full it is. */
+  it('links each group to its roster with the roster count over the capacity', async () => {
+    await createWith([{ ...JOGA, rosterCount: 4 }]);
+
+    const link = Array.from(rows()[0].querySelectorAll('a')).find((a) =>
+      (a.textContent ?? '').includes('Skład'),
+    )!;
+    expect(link.textContent).toContain('Skład (4/12)');
+    expect(link.getAttribute('href')).toBe(`/admin/class-groups/${JOGA.id}/roster`);
   });
 
   /** The toggle is off by default: retired groups are the exception and must not crowd the list. */

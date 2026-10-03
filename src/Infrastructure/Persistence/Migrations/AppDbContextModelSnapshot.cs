@@ -622,6 +622,37 @@ namespace po_prostu_silka.Infrastructure.Persistence.Migrations
                     b.ToTable("ClassGroups", (string)null);
                 });
 
+            modelBuilder.Entity("po_prostu_silka.Domain.Scheduling.GroupRosterEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("AddedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("AddedBy")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<Guid>("ClassGroupId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("MemberId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MemberId")
+                        .HasDatabaseName("IX_GroupRosterEntries_MemberId");
+
+                    b.HasIndex("ClassGroupId", "MemberId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_GroupRosterEntries_Group_Member");
+
+                    b.ToTable("GroupRosterEntries", (string)null);
+                });
+
             modelBuilder.Entity("po_prostu_silka.Domain.Training.Exercise", b =>
                 {
                     b.Property<Guid>("Id")
@@ -906,6 +937,25 @@ namespace po_prostu_silka.Infrastructure.Persistence.Migrations
                     b.Navigation("ClassGroup");
 
                     b.Navigation("Instructor");
+                });
+
+            modelBuilder.Entity("po_prostu_silka.Domain.Scheduling.GroupRosterEntry", b =>
+                {
+                    b.HasOne("po_prostu_silka.Domain.Scheduling.ClassGroup", "ClassGroup")
+                        .WithMany()
+                        .HasForeignKey("ClassGroupId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("po_prostu_silka.Domain.Members.Member", "Member")
+                        .WithMany()
+                        .HasForeignKey("MemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("ClassGroup");
+
+                    b.Navigation("Member");
                 });
 
             modelBuilder.Entity("po_prostu_silka.Domain.Training.TrainingPlan", b =>

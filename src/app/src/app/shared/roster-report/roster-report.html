@@ -1,0 +1,34 @@
+@if (lines().length > 0) {
+  <div class="notice roster-report" role="status">
+    <div class="roster-report-head">
+      <p class="roster-report-title">
+        <app-icon name="info" />
+        <span>Nie wszystkich zapisano</span>
+      </p>
+      <button
+        type="button"
+        class="roster-report-close"
+        aria-label="Zamknij"
+        (click)="dismissed.emit()"
+      >
+        <app-icon name="close" />
+      </button>
+    </div>
+
+    <ul class="roster-report-lines">
+      @for (line of lines(); track line.memberId + line.reason) {
+        <li>
+          <p class="roster-report-who">
+            <strong>{{ line.memberName }}</strong>
+            <span class="roster-report-dates">
+              @for (at of line.startsAt; track $index) {
+                {{ at | date: 'd.MM' }}{{ $last ? '' : ', ' }}
+              }
+            </span>
+          </p>
+          <p class="roster-report-why">{{ message(line.reason) }}</p>
+        </li>
+      }
+    </ul>
+  </div>
+}

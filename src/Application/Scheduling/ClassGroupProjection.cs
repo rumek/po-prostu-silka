@@ -9,12 +9,15 @@ namespace po_prostu_silka.Application.Scheduling;
 /// </summary>
 internal static class ClassGroupProjection
 {
-    public static ClassGroupSummary ToDto(ClassGroup entity) =>
+    /// <param name="rosterCount">S-37: how many members the group's fixed roster holds - zero for a group
+    /// created this instant.</param>
+    public static ClassGroupSummary ToDto(ClassGroup entity, int rosterCount = 0) =>
         new(entity.Id,
             entity.Name,
             entity.Description,
             entity.DefaultDurationMinutes,
             entity.DefaultCapacity,
             entity.IsActive,
-            entity.CreatedAt);
+            entity.CreatedAt,
+            rosterCount);
 }

@@ -30,6 +30,7 @@ public static class ActivateClassGroup
     public static async Task<IResult> HandleAsync(
         Guid id,
         IClassGroupStore store,
+        IGroupRosterStore roster,
         IUnitOfWork unitOfWork,
         CancellationToken cancellationToken)
     {
@@ -47,6 +48,7 @@ public static class ActivateClassGroup
         existing.IsActive = true;
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return Results.Ok(ClassGroupProjection.ToDto(existing));
+        return Results.Ok(ClassGroupProjection.ToDto(
+            existing, await roster.CountAsync(existing.Id, cancellationToken)));
     }
 }

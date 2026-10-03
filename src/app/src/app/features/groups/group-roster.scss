@@ -1,0 +1,116 @@
+@use 'breakpoints' as bp;
+
+// Layout only — .card/.button/.alert/.badge/.chip and the row classes come from src/styles.scss.
+
+.roster-back {
+  margin: calc(-1 * var(--space-3)) 0 var(--space-4);
+}
+
+// The parameter strip (ui-style-guide): facts left, the one action right; wraps on a phone.
+.roster-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.roster-fact {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin: 0;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+
+  app-icon {
+    flex: none;
+    color: var(--accent2);
+  }
+}
+
+.roster-sync {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+// Retired, not broken — the class-group list's muted modifier, local here for the same reason.
+.badge-inactive {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+// A member missing a class: the tile's left bar AND the gap lines, never the bar alone.
+.roster-row--gaps {
+  border-left: 3px solid var(--accent);
+}
+
+.roster-booked,
+.roster-gap {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-1);
+
+  app-icon {
+    flex: none;
+    margin-top: 0.2em;
+    font-size: 0.75rem;
+  }
+}
+
+.roster-booked app-icon {
+  color: var(--accent2);
+}
+
+.roster-gap app-icon {
+  color: var(--accent);
+}
+
+.roster-gap--bookable app-icon {
+  color: var(--accent2);
+}
+
+.roster-gap-dates {
+  font-variant-numeric: tabular-nums;
+}
+
+.roster-confirm {
+  flex: 1 1 100%;
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.roster-add {
+  margin-top: var(--space-5);
+}
+
+.roster-add-title {
+  margin: 0 0 var(--space-3);
+  font-size: 1rem;
+}
+
+.roster-add-controls {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+
+  app-select {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+}
+
+@include bp.narrow {
+  .roster-sync {
+    margin-left: 0;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .roster-add-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

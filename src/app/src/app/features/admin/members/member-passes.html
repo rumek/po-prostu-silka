@@ -6,6 +6,11 @@
   <a class="link-button" routerLink="/admin/members">Wróć do listy członków</a>
 </p>
 
+<!-- S-37: who issuing or editing the karnet could not book into the member's groups' classes. -->
+@if (rosterReport(); as report) {
+  <app-roster-report [report]="report" (dismissed)="rosterReport.set(null)" />
+}
+
 <!-- The desk's first question — is this person's karnet live — answered by the same card the member
      reads on Start: the entries left over the total, a rule, what they mean and when they run out. -->
 @if (!state.loading() && !state.loadFailed()) {

@@ -103,6 +103,10 @@ export type RecordedAttendance = Attendance | 'absent';
  * whose makeup is booked cannot be re-marked until that makeup is released, and a makeup booking is
  * never marked "odrobi".
  *
+ * `not_your_class` (S-37) is never a 409 of the booking routes, which answer a trainer's reach for
+ * another trainer's class with a 403. It is a ROSTER skip and gap reason: a trainer's roster action
+ * books only the classes they instruct, and reports the rest with this.
+ *
  * `conflict` is the only one that is not a product rule: the server's retry loop lost its race on
  * every attempt, and the honest advice is to try again.
  */
@@ -119,6 +123,7 @@ export interface BookingFailure {
     | 'class_not_started'
     | 'makeup_booked'
     | 'makeup_not_allowed'
+    | 'not_your_class'
     | 'conflict';
 }
 
@@ -145,6 +150,7 @@ export const BOOKING_FAILURE_REASONS = Object.keys({
   class_not_started: true,
   makeup_booked: true,
   makeup_not_allowed: true,
+  not_your_class: true,
   conflict: true,
 } satisfies Record<BookingFailure['reason'], true>) as readonly BookingFailure['reason'][];
 

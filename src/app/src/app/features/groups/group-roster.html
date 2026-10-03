@@ -1,0 +1,160 @@
+<h1 class="screen-title">Skład{{ view() ? ' — ' + view()!.name : '' }}</h1>
+
+<p class="roster-back up-link">
+  <a class="link-button" [appUp]="parentLink">Wróć do listy grup</a>
+</p>
+
+@if (loading() && !view()) {
+  <app-loading />
+} @else if (loadMessage(); as message) {
+  <p class="alert" role="alert">
+    {{ message }}
+    <button type="button" class="link-button" (click)="load()">Spróbuj ponownie</button>
+  </p>
+} @else if (view(); as group) {
+  <!-- The parameter strip: how full the roster is, and how many classes it is booked into. -->
+  <div class="roster-strip">
+    <p class="roster-fact">
+      <app-icon name="members" />
+      <span>{{ group.members.length }}/{{ group.capacity }} w składzie</span>
+    </p>
+    <p class="roster-fact">
+      <app-icon name="calendar" />
+      <span>{{ group.upcomingClassCount }} nadchodzących zajęć</span>
+    </p>
+    @if (!group.isActive) {
+      <span class="badge badge-inactive">Nieaktywna</span>
+    }
+    <button
+      type="button"
+      class="button button--secondary roster-sync"
+      [disabled]="syncing() || group.members.length === 0 || group.upcomingClassCount === 0"
+      (click)="sync()"
+    >
+      <app-icon name="repeat" />
+      {{ syncing() ? 'Uzupełniam…' : 'Uzupełnij zapisy' }}
+    </button>
+  </div>
+
+  @if (report(); as shown) {
+    <app-roster-report [report]="shown" (dismissed)="dismissReport()" />
+  }
+
+  @if (group.members.length === 0) {
+    <app-empty icon="group">Skład jest pusty — dopisz pierwszą osobę.</app-empty>
+  } @else {
+    <app-list>
+      @for (member of group.members; track member.memberId) {
+        <li appRow class="card roster-row" [class.roster-row--gaps]="member.gaps.length > 0">
+          <p class="row-name">
+            {{ member.displayName }}
+            @if (!member.hasAccount) {
+              <span class="chip">bez konta</span>
+            }
+          </p>
+          <p class="row-meta roster-booked">
+            <app-icon name="booking" />
+            <span
+              >zapisany na {{ member.bookedUpcoming }} z {{ group.upcomingClassCount }} zajęć</span
+            >
+          </p>
+          @for (line of gapLines(member); track line.reason) {
+            <p
+              class="row-meta roster-gap"
+              [class.roster-gap--bookable]="line.reason === 'bookable'"
+            >
+              <app-icon [name]="line.reason === 'bookable' ? 'info' : 'absent'" />
+              <span>
+                <span class="roster-gap-dates">
+                  @for (at of line.startsAt; track $index) {
+                    {{ at | date: 'd.MM' }}{{ $last ? '' : ', ' }}
+                  }
+                </span>
+                — {{ gapReason(line.reason) }}
+              </span>
+            </p>
+          }
+
+          <div slot="actions" class="row-actions">
+            @if (confirmingRemoval() === member.memberId) {
+              <p class="roster-confirm">
+                Usunąć ze składu? Przyszłe zapisy w tej grupie zostaną zwolnione.
+              </p>
+              <button
+                type="button"
+                class="button"
+                [disabled]="busy.isBusy(member.memberId)"
+                (click)="remove(member)"
+              >
+                {{ busy.isBusy(member.memberId) ? 'Usuwam…' : 'Usuń' }}
+              </button>
+              <button type="button" class="link-button" (click)="cancelRemoval()">Anuluj</button>
+            } @else {
+              <button type="button" class="link-button" (click)="askRemoval(member)">
+                Usuń ze składu
+              </button>
+            }
+          </div>
+        </li>
+      }
+    </app-list>
+  }
+
+  <!-- Adding someone. Below the list: the screen's subject is who is in the group. -->
+  <section class="card roster-add" aria-labelledby="roster-add-title">
+    <h2 id="roster-add-title" class="roster-add-title">Dopisz do składu</h2>
+
+    @if (full()) {
+      <p class="hint">Skład jest pełny ({{ group.members.length }}/{{ group.capacity }}).</p>
+    } @else if (!group.isActive) {
+      <p class="hint">Grupa jest nieaktywna — nie przyjmuje nowych osób.</p>
+    } @else {
+      <app-field label="Szukaj osoby" for="roster-add-search">
+        <input
+          id="roster-add-search"
+          type="search"
+          autocomplete="off"
+          maxlength="100"
+          [placeholder]="search().placeholder"
+          [ngModel]="addSearch()"
+          (ngModelChange)="onAddSearchInput($event)"
+          [disabled]="adding()"
+        />
+      </app-field>
+
+      @if (searched() && addable().length === 0 && candidatesTotal() <= candidates().length) {
+        <app-empty icon="search" compact>Nikt pasujący nie może zostać dopisany.</app-empty>
+      } @else {
+        <div class="roster-add-controls">
+          <app-select>
+            <select
+              id="roster-add-member"
+              aria-label="Osoba do dopisania"
+              [ngModel]="chosen()"
+              (ngModelChange)="chosen.set($event)"
+              [disabled]="adding() || addable().length === 0"
+            >
+              <option value="">{{ searched() ? 'Wybierz osobę…' : 'Wpisz imię…' }}</option>
+              @for (candidate of addable(); track candidate.id) {
+                <option [value]="candidate.id">
+                  {{ candidate.displayName }}{{ candidate.hasAccount ? '' : ' — bez konta' }}
+                </option>
+              }
+            </select>
+          </app-select>
+
+          <button type="button" class="button" [disabled]="!chosen() || adding()" (click)="add()">
+            {{ adding() ? 'Dopisuję…' : 'Dopisz' }}
+          </button>
+        </div>
+
+        @if (candidatesTotal() > candidates().length) {
+          <p class="hint">
+            Pokazano {{ candidates().length }} z {{ candidatesTotal() }} pasujących — zawęź
+            wyszukiwanie.
+          </p>
+        }
+      }
+    }
+  </section>
+}

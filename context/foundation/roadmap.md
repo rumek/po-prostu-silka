@@ -3,7 +3,7 @@ project: "Po Prostu Siłka"
 version: 7
 status: draft
 created: 2026-08-31
-updated: 2026-10-02
+updated: 2026-10-03
 prd_version: 1, 2
 main_goal: quality
 top_blocker: external
@@ -163,6 +163,7 @@ privacy notice.
 | S-34 | pass-paid-flag | (admin, trainer, member) staff record that a karnet was paid and on which day, see who owes on the member lists, and a member sees whether their karnet is paid - paying never gates booking | S-16, S-22, S-25 | none - outside any milestone; narrows v1 §Non-Goals "no payments" | done |
 | S-35 | expiring-passes-dashboard | (admin) Start lists the members whose karnet ends within 5 days and who have not renewed, and the member list filters to them - the same count on both | S-34 | none - outside any milestone; the club spreadsheet's "KOŃCZY SIĘ" status | done |
 | S-36 | class-makeups | (trainer, admin, member) staff mark an absence "odrobi" or "przepada" - both spend the entry - and an "odrobi" earns one free makeup that any trainer books into any class within 30 days from a shared "Odrabianie" list; the member sees what they are owed | S-27, S-34 | none - outside any milestone; the club's attendance spreadsheet; amends S-27 AT-03 | in-progress |
+| S-37 | group-fixed-roster | (admin, trainer) set a group's fixed members once, and they are booked into its upcoming classes automatically - each booking still gated by the karnet, the free spot and `member_is_staff`, a refused one skipped and reported; dropping someone releases their future bookings | S-16, S-25, S-33 | none - outside any milestone; the club's attendance spreadsheet ("STAŁA LISTA OSÓB") | in-progress |
 
 ## Streams
 
@@ -1085,6 +1086,41 @@ rather than in a slice body:
   trainer may now book a makeup into a class they do not instruct (persona-gated, makeup only).
 - **Status:** in-progress
 
+### S-37: A group keeps its fixed members, and they are booked every week
+
+- **Outcome:** (admin, trainer) a group carries a fixed list of members ("stały skład"), entered once,
+  no longer than the group's capacity. Every upcoming class of that group books them automatically:
+  a class created or duplicated for the group books the roster, and a person added to the roster is
+  booked into the group's classes already scheduled. Each automatic booking passes the same gates as
+  a staff booking - a karnet valid on the class's club-local date with a free entry, a free spot,
+  never staff (`member_is_staff`) - and one that fails is SKIPPED and reported (who, which class,
+  why), never fatal to the rest, the way duplication already reports a clashing week. Removing a
+  person from the roster releases their bookings in the group's classes that have not started;
+  past classes and recorded attendance stay. An admin edits any group's roster; a trainer edits the
+  roster of a group they instruct. Duplication keeps its 8-week bound.
+- **Change ID:** group-fixed-roster
+- **PRD refs:** none. Requested by the client on 2026-10-03 from the club's attendance spreadsheet
+  (`xlsx/treningi.xlsx`, the "SZABLON DO 6 OSÓB" tab: "STAŁA LISTA OSÓB - wpisujesz raz", trainings
+  every 7 days at the same time with the same trainer). Narrows, but does not unpark, v1 §Non-Goals
+  "no full recurring-series management": the roster belongs to the GROUP, there is still no series
+  entity, and weekly duplication still creates the classes. Decided with the user on 2026-10-03: the
+  roster lives on the group (one group per real club group, as one spreadsheet tab is one group);
+  dropping a member releases their future bookings; admin and trainer both edit it; the 8-week
+  duplication bound stays. **Delivered outside any milestone.**
+- **Prerequisites:** S-16 (staff booking and the karnet gate the roster books through), S-25 (the
+  persona rule the trainer's edit right follows), S-33 (groups as the club's named class
+  definitions).
+- **Parallel with:** S-29 only if neither touches the member screens.
+- **Blockers:** -
+- **Unknowns:** - (resolved in `/10x-plan` on 2026-10-03: issuing or editing a karnet books its holder
+  into their groups' upcoming classes, and the roster screen shows each member's gaps with an
+  "Uzupełnij zapisy" retry; a trainer manages a group when they instruct one of its upcoming classes,
+  and reaches it from "Grupy" in Więcej; removal releases future bookings except makeups.)
+- **Risk:** the no-overbooking guarantee and the karnet gate are now exercised by a batch that
+  books several members into several classes in one action; it must take the same locks as a single
+  staff booking, and a partial failure must leave every booking it did make consistent.
+- **Status:** in-progress
+
 ## Backlog Handoff
 
 | Roadmap ID | Change ID                        | Suggested issue title                                        | Ready for `/10x-plan` | Notes                                              |
@@ -1127,6 +1163,7 @@ rather than in a slice body:
 | S-34       | pass-paid-flag                   | Record that a karnet was paid (and who recorded it); "Nieopłacony" marker and filter; trainer "Karnety" screen | no                    | Done — archived 2026-10-02. Outside any milestone |
 | S-35       | expiring-passes-dashboard        | "Kończą się karnety" card on the admin's Start and the matching member-list filter | no                    | Done — archived 2026-10-02. Outside any milestone |
 | S-36       | class-makeups                    | Three attendance outcomes, free makeups within 30 days, and the staff "Odrabianie" list | no                    | Outside any milestone. Implemented 2026-10-02 |
+| S-37       | group-fixed-roster               | A group's fixed roster, booked automatically into its upcoming classes | yes                   | Outside any milestone. Implemented 2026-10-03 (roster API, automatic bookings, screens, E2E) |
 
 ## Open Roadmap Questions
 
@@ -1160,7 +1197,7 @@ Resolved since the previous roadmap: the sender-domain question that gated F-03 
 - **Account rejection status** — Why parked: v1 §Non-Goals; lifecycle is pending / active / blocked.
 - **Payments, subscriptions, invoices** — Why parked: v1 §Non-Goals; the app manages participation, not money. **Passes are no longer parked** — M-4 makes the karnet the thing that decides who trains — but the money half stands: a karnet is issued by an admin, never bought, and carries no price. **Narrowed 2026-10-02 → S-34** (`pass-paid-flag`): staff record that a karnet was paid and on which day; it is still never bought in the app and carries no price or amount.
 - **Waitlist for full classes** — Why parked: v1 §Non-Goals.
-- **Full recurring-series management** — Why parked: v1 §Non-Goals; weekly duplication stands in, and v2 explicitly declined to reopen it.
+- **Full recurring-series management** — Why parked: v1 §Non-Goals; weekly duplication stands in, and v2 explicitly declined to reopen it. **Narrowed 2026-10-03 → S-37** (`group-fixed-roster`): a group keeps a fixed roster booked into its classes; a series entity is still parked.
 - **Chat / social features; health-app integrations; native mobile apps; self-hosted video; advanced statistics; automatic weight progression** — Why parked: v1 §Non-Goals.
 
 **Unparked by this regeneration:** the Trainer role was a v1 Non-Goal and is no longer parked — v2 retires it, and S-04 delivers it.

@@ -22,6 +22,7 @@ public static class UpdateClassGroup
         Guid id,
         ClassGroupRequest request,
         IClassGroupStore store,
+        IGroupRosterStore roster,
         IUnitOfWork unitOfWork,
         CancellationToken cancellationToken)
     {
@@ -57,6 +58,7 @@ public static class UpdateClassGroup
         // ClassGroup needs a ConcurrencyStamp and these handlers need the 409.
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return Results.Ok(ClassGroupProjection.ToDto(existing));
+        return Results.Ok(ClassGroupProjection.ToDto(
+            existing, await roster.CountAsync(existing.Id, cancellationToken)));
     }
 }

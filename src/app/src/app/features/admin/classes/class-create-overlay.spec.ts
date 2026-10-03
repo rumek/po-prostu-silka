@@ -14,6 +14,7 @@ const GROUP: ClassGroupSummary = {
   defaultCapacity: 12,
   isActive: true,
   createdAt: '2026-09-01T10:00:00Z',
+  rosterCount: 0,
 };
 
 const RETIRED: ClassGroupSummary = { ...GROUP, id: 't2', name: 'Stare', isActive: false };

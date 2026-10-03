@@ -53,6 +53,12 @@
         </dl>
 
         <div slot="actions" class="row-actions">
+          <a
+            class="button button--secondary"
+            [routerLink]="['/admin/class-groups', row.id, 'roster']"
+          >
+            Skład ({{ row.rosterCount }}/{{ row.defaultCapacity }})
+          </a>
           <a class="button button--secondary" [routerLink]="['/admin/class-groups', row.id]">
             Edytuj
           </a>

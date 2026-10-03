@@ -89,14 +89,19 @@ describe('More', () => {
     ]);
   });
 
-  it.each([
-    ['a member', MEMBER],
-    ['a trainer', TRAINER],
-  ])('shows no panel to %s — their whole menu fits the bar', (_, current) => {
-    const element = createWith(current);
+  it('shows no panel to a member — their whole menu fits the bar', () => {
+    const element = createWith(MEMBER);
 
     expect(element.textContent).not.toContain('Panel');
     expect(hrefs(element)).toEqual(['/profile']);
+  });
+
+  /** S-37: the trainer's bar is full since S-36, so their groups live here. */
+  it('gives a trainer Grupy as the panel entry', () => {
+    const element = createWith(TRAINER);
+
+    expect(element.textContent).toContain('Panel');
+    expect(hrefs(element)).toEqual(['/profile', '/trainer/groups']);
   });
 
   /** The S-01 F5 case: no persona, no panel — a link here would bounce off adminGuard. */

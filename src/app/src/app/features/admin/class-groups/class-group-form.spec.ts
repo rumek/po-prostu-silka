@@ -13,6 +13,7 @@ const EXISTING: ClassGroupSummary = {
   defaultCapacity: 12,
   isActive: true,
   createdAt: new Date('2026-09-01T10:00').toISOString(),
+  rosterCount: 0,
 };
 
 describe('ClassGroupForm', () => {

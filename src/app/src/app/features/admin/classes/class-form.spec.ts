@@ -15,6 +15,7 @@ const YOGA: ClassGroupSummary = {
   defaultCapacity: 18,
   isActive: true,
   createdAt: '2026-09-01T10:00:00Z',
+  rosterCount: 0,
 };
 
 const RETIRED: ClassGroupSummary = {
@@ -407,10 +408,15 @@ describe('ClassForm', () => {
     await fillValid();
     submit();
 
-    (await vi.waitFor(() => controller.expectOne('/api/admin/classes'))).flush({ ...EXISTING });
+    const roster = { booked: 1, skipped: [] };
+    (await vi.waitFor(() => controller.expectOne('/api/admin/classes'))).flush({
+      ...EXISTING,
+      roster,
+    });
     await settle();
 
-    expect(navigate).toHaveBeenCalledWith(['/admin/classes']);
+    // S-37: the roster report rides the navigation to the list, which shows who could not be booked.
+    expect(navigate).toHaveBeenCalledWith(['/admin/classes'], { state: { rosterReport: roster } });
   });
 
   /**

@@ -1,3 +1,5 @@
+import { RosterReport } from '../scheduling/roster.models';
+
 /**
  * The ACCOUNT statuses, as AccountStatus names. Null on a member with no login — see
  * `Member.accountStatus`.
@@ -302,6 +304,14 @@ export interface MembershipPassView {
    * same rule as `validFrom`.
    */
   paidAt: string | null;
+}
+
+/**
+ * Mirrors MembershipPassChange (S-37): what issuing or editing a karnet answers — the karnet, plus what
+ * booking its holder into their groups' upcoming classes inside its validity did.
+ */
+export interface MembershipPassChange extends MembershipPassView {
+  roster: RosterReport;
 }
 
 /**

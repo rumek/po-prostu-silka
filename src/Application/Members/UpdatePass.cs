@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using po_prostu_silka.Application.Persistence;
+using po_prostu_silka.Application.Scheduling;
 using po_prostu_silka.Domain;
 using po_prostu_silka.Domain.Members;
 
@@ -29,6 +30,7 @@ public static class UpdatePass
         IMembershipPassStore passes,
         IMembershipPassQuery query,
         IUnitOfWork unitOfWork,
+        RosterBooking rosterBooking,
         TimeProvider timeProvider,
         CancellationToken cancellationToken)
     {
@@ -71,6 +73,11 @@ public static class UpdatePass
             return Results.Json(new MembershipPassFailure("invalid_entry_count"), statusCode: 409);
         }
 
+        // S-37: only a change to what the karnet covers can open a booking it did not allow before.
+        var coverageChanged = pass.ValidFrom != request.ValidFrom
+                              || pass.ValidTo != request.ValidTo
+                              || pass.EntryCount != request.EntryCount;
+
         pass.TypeName = typeName;
         pass.ValidFrom = request.ValidFrom;
         pass.ValidTo = request.ValidTo;
@@ -90,6 +97,12 @@ public static class UpdatePass
             return Results.Json(new MembershipPassFailure("conflict"), statusCode: 409);
         }
 
-        return Results.Ok(await MembershipPassProjection.ViewOfAsync(pass, used, timeProvider));
+        var report = coverageChanged
+            ? await rosterBooking.BookMemberIntoRangeAsync(memberId, request.ValidFrom, request.ValidTo, cancellationToken)
+            : RosterReport.Empty;
+
+        // Built after the hook, with what it spent, so the answer does not offer those entries as free.
+        var view = await MembershipPassProjection.ViewOfAsync(pass, used + report.Booked, timeProvider);
+        return Results.Ok(new MembershipPassChange(view, report));
     }
 }

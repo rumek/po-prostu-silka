@@ -3,6 +3,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { MemberAdminService } from '../../../core/admin/member-admin.service';
 import { TrainerSummary } from '../../../core/admin/member-admin.models';
+import { ROSTER_REPORT_STATE } from '../../../shared/roster-report/roster-report-state';
 import { ClassService } from '../../../core/scheduling/class.service';
 import { ClassGroupService } from '../../../core/scheduling/class-group.service';
 import { ClassFailure } from '../../../core/scheduling/class.models';
@@ -175,6 +176,7 @@ export class ClassForm implements OnInit {
               defaultCapacity: existing.capacity,
               isActive: true,
               createdAt: '',
+              rosterCount: 0,
             },
           ],
     );
@@ -259,11 +261,15 @@ export class ClassForm implements OnInit {
       const id = this.editingId();
       if (id) {
         await this.classes.update(id, request);
+        await this.router.navigate(['/admin/classes']);
       } else {
-        await this.classes.create(request);
+        // S-37: the roster report rides the navigation, so the list the admin lands on can show who
+        // could not be booked into the class just created.
+        const created = await this.classes.create(request);
+        await this.router.navigate(['/admin/classes'], {
+          state: { [ROSTER_REPORT_STATE]: created.roster },
+        });
       }
-
-      await this.router.navigate(['/admin/classes']);
     } catch (failure) {
       this.applyFailure(failure);
     } finally {

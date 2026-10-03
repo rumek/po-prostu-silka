@@ -4,3 +4,31 @@ GET {{po_prostu_silka_HostAddress}}/health
 Accept: text/plain
 
 ###
+
+# S-37 group rosters. Sign in as an admin in the SPA first (the API is cookie-authenticated), or use
+# the Scalar page; fill in a group id from GET /api/admin/class-groups and a member id from the members list.
+@groupId = 00000000-0000-0000-0000-000000000000
+@memberId = 00000000-0000-0000-0000-000000000000
+
+GET {{po_prostu_silka_HostAddress}}/api/groups/{{groupId}}/roster
+
+###
+
+POST {{po_prostu_silka_HostAddress}}/api/groups/{{groupId}}/roster
+Content-Type: application/json
+
+{ "memberId": "{{memberId}}" }
+
+###
+
+POST {{po_prostu_silka_HostAddress}}/api/groups/{{groupId}}/roster/sync
+
+###
+
+DELETE {{po_prostu_silka_HostAddress}}/api/groups/{{groupId}}/roster/{{memberId}}
+
+###
+
+GET {{po_prostu_silka_HostAddress}}/api/trainer/groups
+
+###

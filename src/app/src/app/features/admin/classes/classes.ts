@@ -1,5 +1,9 @@
 import { Component, computed, effect, inject, signal } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
+import { RosterReport as Report } from '../../../core/scheduling/roster.models';
+import { RosterReport } from '../../../shared/roster-report/roster-report';
+import { handedOverRosterReport } from '../../../shared/roster-report/roster-report-state';
+import { rosterBookedSentence } from '../../../shared/roster-report/roster-lines';
 import { classFailureMessage } from '../../../core/scheduling/class-failure';
 import { classifyFailure } from '../../../core/http/failure';
 import { transportMessage } from '../../../core/http/transport-messages';
@@ -58,6 +62,7 @@ import { createLoadFence } from '../../../shared/forms/load-fence';
     ClassActionsOverlay,
     ClassBookingsOverlay,
     ClassCreateOverlay,
+    RosterReport,
     RouterLink,
     ScheduleCalendar,
   ],
@@ -92,6 +97,14 @@ export class Classes {
    * people. It used to be a banner that ten different methods had to remember to clear.
    */
   private readonly toast = inject(ToastService);
+
+  /**
+   * Who the last create or duplicate could not book from the group's fixed roster (S-37) — the panel
+   * above the calendar, until dismissed or replaced by the next such action. A create made on the class
+   * form arrives with the navigation that brought the admin here.
+   */
+  private readonly handedOverReport = handedOverRosterReport(inject(Router));
+  protected readonly rosterReport = signal<Report | null>(withSkips(this.handedOverReport));
 
   /**
    * The class whose actions overlay is open (S-20). Its confirmations — duplicate, delete, cancel —
@@ -161,6 +174,8 @@ export class Classes {
   protected readonly desk = mediaQuerySignal(DESK_MEDIA_QUERY, true);
 
   constructor() {
+    this.announceRosterBookings(this.handedOverReport);
+
     // Leaving the desk destroys the calendar, so everything that pointed into it goes too — the same
     // reasoning as a window change in `load`. Coming back re-creates the calendar, whose first
     // `rangeChange` reloads the current week.
@@ -247,8 +262,10 @@ export class Classes {
     this.drawn.set(null);
   }
 
-  protected async afterCreate(): Promise<void> {
+  protected async afterCreate(report: Report): Promise<void> {
     this.drawn.set(null);
+    this.showRosterReport(report);
+    this.announceRosterBookings(report);
     // The new class is inside the visible window by construction — it was drawn there.
     await this.reload();
   }
@@ -385,6 +402,22 @@ export class Classes {
     this.viewingBookings.update((open) => (open && open.id === updated.id ? updated : open));
   }
 
+  protected dismissRosterReport(): void {
+    this.rosterReport.set(null);
+  }
+
+  /** The panel shows only a report with something skipped; a clean one clears the last. */
+  private showRosterReport(report: Report): void {
+    this.rosterReport.set(withSkips(report));
+  }
+
+  /** A create's roster count rides a toast (S-37); the skips are the panel's. Nothing when none booked. */
+  private announceRosterBookings(report: Report | null): void {
+    if (report && report.booked > 0) {
+      this.toast.success(rosterBookedSentence(report.booked));
+    }
+  }
+
   protected async duplicate(row: ScheduledClass, weeks: number): Promise<void> {
     this.failed.set(null);
     this.busy.setBusy(row.id, true);
@@ -392,6 +425,7 @@ export class Classes {
     try {
       const result = await this.classes.duplicate(row.id, weeks);
       this.closeIfShowing(row);
+      this.showRosterReport(result.roster);
 
       // The whole point of the endpoint's contract: say what actually happened, per week. Doubly so
       // now that the copies land in weeks this view is not showing — the message is the only place
@@ -404,10 +438,16 @@ export class Classes {
           : `Utworzono ${result.created} ${this.copiesWord(result.created)}. ` +
             `Pominięto tydzień ${result.skippedWeeks.join(', ')} — o tej porze są już inne zajęcia.`;
 
+      // S-37: the success count of the roster's bookings rides the same toast; the skips go to the panel.
+      const message =
+        result.roster.booked > 0
+          ? `${outcome} ${rosterBookedSentence(result.roster.booked)}`
+          : outcome;
+
       if (result.skippedWeeks.length === 0) {
-        this.toast.success(outcome);
+        this.toast.success(message);
       } else {
-        this.toast.info(outcome);
+        this.toast.info(message);
       }
 
       await this.reload();
@@ -548,4 +588,9 @@ function messageFor(failure: unknown): string {
   const info = classifyFailure(failure);
 
   return transportMessage(info) ?? classFailureMessage(info.reason);
+}
+
+/** The panel shows only a report with something skipped. */
+function withSkips(report: Report | null): Report | null {
+  return report && report.skipped.length > 0 ? report : null;
 }

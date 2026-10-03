@@ -9,6 +9,7 @@ import {
   MemberPage,
   MemberQuery,
   MemberRequest,
+  MembershipPassChange,
   MembershipPassView,
   TrainerSummary,
 } from './member-admin.models';
@@ -214,9 +215,9 @@ export class MemberAdminService {
   }
 
   /** Issues a karnet. Refused when it overlaps one the member already holds — passes are a history. */
-  issuePass(memberId: string, request: IssuePassRequest): Promise<MembershipPassView> {
+  issuePass(memberId: string, request: IssuePassRequest): Promise<MembershipPassChange> {
     return firstValueFrom(
-      this.http.post<MembershipPassView>(
+      this.http.post<MembershipPassChange>(
         `/api/admin/members/${encodeURIComponent(memberId)}/passes`,
         request,
       ),
@@ -231,9 +232,9 @@ export class MemberAdminService {
     memberId: string,
     passId: string,
     request: IssuePassRequest,
-  ): Promise<MembershipPassView> {
+  ): Promise<MembershipPassChange> {
     return firstValueFrom(
-      this.http.put<MembershipPassView>(
+      this.http.put<MembershipPassChange>(
         `/api/admin/members/${encodeURIComponent(memberId)}/passes/${encodeURIComponent(passId)}`,
         request,
       ),

@@ -20,6 +20,7 @@ public static class CreateClass
         UserManager<ApplicationUser> userManager,
         IMemberStore members,
         IUnitOfWork unitOfWork,
+        RosterBooking rosterBooking,
         TimeProvider timeProvider,
         CancellationToken cancellationToken)
     {
@@ -96,8 +97,19 @@ public static class CreateClass
         // to mean a second round-trip AND, when it came back null, a 404 for a row that had just been
         // committed: the client was told the write failed after it succeeded, and an admin retrying a
         // create would produce a duplicate class.
-        // Zero bookings, by construction: the occurrence was created this instant, and there is no
-        // route by which anything could have booked it before the response is written.
-        return Results.Ok(ClassDtoMapping.ToDto(created, classGroup, instructor!.DisplayName, bookedCount: 0));
+        // S-37: the group's fixed roster is booked in AFTER the class has committed - the protocol
+        // discards the tracked graph on a lost race, and an unsaved class would go with it. Every value
+        // the response needs is read from objects already in hand, never re-read: the batch may have
+        // detached them, but their fields are still the ones that were saved.
+        var instructorName = instructor!.DisplayName;
+        var report = await rosterBooking.BookRosterIntoAsync(
+            classGroup.Id,
+            [new RosterClass(created.Id, classGroup.Id, created.StartsAt, created.InstructorMemberId)],
+            cancellationToken);
+
+        // The booked count is the report's: the class was created this instant, so the roster bookings
+        // just made are the only ones it can hold.
+        return Results.Ok(new CreatedClass(
+            ClassDtoMapping.ToDto(created, classGroup, instructorName, bookedCount: report.Booked), report));
     }
 }

@@ -16,12 +16,19 @@ describe('navigationFor', () => {
     expect(nav.more).toEqual([]);
   });
 
-  it('gives a trainer the schedule, their member list and Odrabianie, and no plan or classes of their own', () => {
+  it('gives a trainer the schedule, their member list, Odrabianie and Grupy under Więcej, and no plan or classes of their own', () => {
     const nav = navigationFor('trainer', true);
 
-    expect(routes(nav.header)).toEqual(['/', '/schedule', '/trainer/members', '/makeups']);
+    expect(routes(nav.header)).toEqual([
+      '/',
+      '/schedule',
+      '/trainer/members',
+      '/makeups',
+      '/trainer/groups',
+    ]);
     expect(routes(nav.bar)).toEqual(['/', '/schedule', '/trainer/members', '/makeups', '/more']);
-    expect(nav.more).toEqual([]);
+    // S-37: the bar is full, so the trainer's groups are reached from Więcej.
+    expect(routes(nav.more)).toEqual(['/trainer/groups']);
   });
 
   it('gives an admin at desk width the calendar, the admin lists, and Grupy and Odrabianie under Więcej', () => {

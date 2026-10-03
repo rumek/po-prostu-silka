@@ -1,0 +1,37 @@
+<div class="page-header">
+  <h1 class="screen-title">Grupy</h1>
+</div>
+
+@if (loading()) {
+  <app-loading />
+} @else if (loadMessage(); as message) {
+  <p class="alert" role="alert">
+    {{ message }}
+    <button type="button" class="link-button" (click)="load()">Spróbuj ponownie</button>
+  </p>
+} @else if (rows().length === 0) {
+  <app-empty icon="group">Nie prowadzisz teraz zajęć żadnej grupy.</app-empty>
+} @else {
+  <app-list>
+    @for (row of rows(); track row.id) {
+      <li appRow class="card trainer-group-row">
+        <p class="row-name">
+          <a class="trainer-group-link" [routerLink]="['/trainer/groups', row.id]">{{
+            row.name
+          }}</a>
+        </p>
+        <p class="row-meta trainer-group-meta">
+          <app-icon name="members" />
+          <span>skład {{ row.rosterCount }}/{{ row.capacity }}</span>
+        </p>
+        @if (row.nextClassAt) {
+          <p class="row-meta trainer-group-meta">
+            <app-icon name="calendar" />
+            <span>najbliższe {{ row.nextClassAt | date: 'EEE d.MM, HH:mm' }}</span>
+          </p>
+        }
+        <app-icon slot="actions" class="trainer-group-chevron" name="chevron-right" />
+      </li>
+    }
+  </app-list>
+}

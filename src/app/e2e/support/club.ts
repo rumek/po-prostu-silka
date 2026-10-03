@@ -127,6 +127,60 @@ export class Club {
   }
 
   /**
+   * A group named `name` (unique among active groups - suffix it), deactivated in cleanup: groups
+   * cannot be deleted (FR-006). Its fixed roster (S-37), if a spec fills one, stays behind with it.
+   */
+  async createGroup(
+    name: string,
+    options: { capacity?: number; durationMinutes?: number } = {},
+  ): Promise<string> {
+    const group = await this.api.post('/api/admin/class-groups', {
+      data: {
+        name,
+        description: null,
+        defaultDurationMinutes: options.durationMinutes ?? 30,
+        defaultCapacity: options.capacity ?? 5,
+      },
+    });
+    expect(group.ok(), `create group: ${await group.text()}`).toBeTruthy();
+    const classGroupId = ((await group.json()) as { id: string }).id;
+    this.cleanup.add(`deactivate group ${classGroupId}`, () =>
+      this.api.post(`/api/admin/class-groups/${classGroupId}/deactivate`),
+    );
+    return classGroupId;
+  }
+
+  /**
+   * Removes, after the test, every class of `classGroupId` in the next five weeks that no builder made
+   * - the copies a spec creates through the UI (duplication), which have no builder to register them.
+   * Each goes the way createClass's classes go: deleted if nobody was booked, cancelled if somebody was.
+   * `except` names the classes a builder already removes.
+   *
+   * Register it AFTER the karnet: cleanup runs in reverse, and a booked copy must be gone before the
+   * karnet's removal decides whether it may be revoked.
+   */
+  removeGroupClassesAfterwards(classGroupId: string, except: readonly string[] = []): void {
+    this.cleanup.add(`remove UI-made classes of group ${classGroupId}`, async () => {
+      const from = new Date();
+      const to = new Date();
+      to.setDate(to.getDate() + 35);
+      const listed = await this.api.get('/api/admin/classes', {
+        params: { from: from.toISOString(), to: to.toISOString() },
+      });
+      if (!listed.ok()) {
+        return listed;
+      }
+
+      const copies = ((await listed.json()) as { id: string; classGroupId: string }[]).filter(
+        (row) => row.classGroupId === classGroupId && !except.includes(row.id),
+      );
+      for (const copy of copies) {
+        await this.removeClass(copy.id);
+      }
+    });
+  }
+
+  /**
    * A group named `name` and one class of it in a free random slot. Cleanup deletes the class
    * if nobody was ever booked on it; otherwise - bookings made through the UI included - it CANCELS
    * it, since the API keeps a booked class as history. A cancelled class stays behind but frees its
@@ -136,25 +190,19 @@ export class Club {
    */
   async createClass(
     name: string,
-    options: { instructorMemberId?: string; capacity?: number; durationMinutes?: number } = {},
+    options: {
+      instructorMemberId?: string;
+      capacity?: number;
+      durationMinutes?: number;
+      /** An existing group (createGroup) - then no group is created here, and none deactivated. */
+      classGroupId?: string;
+    } = {},
   ): Promise<CreatedClass> {
     const capacity = options.capacity ?? 5;
     const durationMinutes = options.durationMinutes ?? 30;
     const instructorMemberId = options.instructorMemberId ?? (await this.e2eTrainerId());
-
-    const group = await this.api.post('/api/admin/class-groups', {
-      data: {
-        name,
-        description: null,
-        defaultDurationMinutes: durationMinutes,
-        defaultCapacity: capacity,
-      },
-    });
-    expect(group.ok(), `create group: ${await group.text()}`).toBeTruthy();
-    const classGroupId = ((await group.json()) as { id: string }).id;
-    this.cleanup.add(`deactivate group ${classGroupId}`, () =>
-      this.api.post(`/api/admin/class-groups/${classGroupId}/deactivate`),
-    );
+    const classGroupId =
+      options.classGroupId ?? (await this.createGroup(name, { capacity, durationMinutes }));
 
     for (let attempt = 0; attempt < SLOT_ATTEMPTS; attempt++) {
       const startsAt = randomClassStart();

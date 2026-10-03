@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using po_prostu_silka.Application.Persistence;
+using po_prostu_silka.Application.Scheduling;
 using po_prostu_silka.Domain;
 using po_prostu_silka.Domain.Members;
 
@@ -26,6 +27,7 @@ public static class IssuePass
         IMemberStore members,
         IMembershipPassStore passes,
         IUnitOfWork unitOfWork,
+        RosterBooking rosterBooking,
         TimeProvider timeProvider,
         ClaimsPrincipal principal,
         CancellationToken cancellationToken)
@@ -103,8 +105,18 @@ public static class IssuePass
         // Freshly issued, so nothing can have consumed an entry yet — but read it back through the
         // query rather than constructing the view here, so the screen's first render comes from the
         // same projection every later refresh uses and CoversToday cannot disagree between them.
-        var view = await MembershipPassProjection.ViewOfAsync(pass, 0, timeProvider);
+        // S-37: the karnet books its holder into their groups' upcoming classes inside its validity -
+        // AFTER the save, since the protocol discards the tracked graph on a lost race. The pass's values
+        // are captured first; the batch may detach the entity.
+        var passId = pass.Id;
+        var report = await rosterBooking.BookMemberIntoRangeAsync(
+            memberId, pass.ValidFrom, pass.ValidTo, cancellationToken);
 
-        return Results.Created($"/api/admin/members/{memberId}/passes/{pass.Id}", view);
+        // Entries used is what the hook just spent: the karnets of one member never overlap, so every
+        // class inside this one's range was booked against it.
+        var view = await MembershipPassProjection.ViewOfAsync(pass, report.Booked, timeProvider);
+
+        return Results.Created(
+            $"/api/admin/members/{memberId}/passes/{passId}", new MembershipPassChange(view, report));
     }
 }
