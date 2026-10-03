@@ -332,6 +332,13 @@ builder.Services.AddScoped<IMakeupQuery, MakeupQuery>();
 builder.Services.AddScoped<IClassGroupQuery, ClassGroupQuery>();
 builder.Services.AddScoped<IClassGroupStore, ClassGroupStore>();
 
+// S-37's group rosters. Scoped, sharing the request's DbContext with IUnitOfWork for the reason every
+// store above does. RosterBooking is the one Application service registered here rather than a static:
+// it books one protocol transaction per (member, class) through the same scoped stores.
+builder.Services.AddScoped<IGroupRosterStore, GroupRosterStore>();
+builder.Services.AddScoped<IGroupRosterQuery, GroupRosterQuery>();
+builder.Services.AddScoped<RosterBooking>();
+
 // S-10's exercise library (prd.md FR-018, FR-019). Scoped for the same reason as the sets above -
 // the store must share the request's DbContext with IUnitOfWork, which is what commits it.
 builder.Services.AddScoped<IExerciseQuery, ExerciseQuery>();
@@ -432,6 +439,7 @@ app.MapPassPaymentEndpoints();
 app.MapTrainerEndpoints();
 app.MapClassEndpoints();
 app.MapClassGroupEndpoints();
+app.MapGroupRosterEndpoints();
 app.MapExerciseEndpoints();
 app.MapTrainingPlanEndpoints();
 app.MapTrainerMemberEndpoints();

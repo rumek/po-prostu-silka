@@ -42,6 +42,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
 
     public DbSet<Booking> Bookings => Set<Booking>();
 
+    public DbSet<GroupRosterEntry> GroupRosterEntries => Set<GroupRosterEntry>();
+
     public DbSet<Exercise> Exercises => Set<Exercise>();
 
     public DbSet<TrainingPlan> TrainingPlans => Set<TrainingPlan>();

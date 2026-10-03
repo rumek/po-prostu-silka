@@ -26,6 +26,7 @@ public class ClassGroupQuery(AppDbContext db) : IClassGroupQuery
                 t.DefaultDurationMinutes,
                 t.DefaultCapacity,
                 t.IsActive,
-                t.CreatedAt))
+                t.CreatedAt,
+                db.GroupRosterEntries.Count(e => e.ClassGroupId == t.Id)))
             .ToListAsync(cancellationToken);
 }

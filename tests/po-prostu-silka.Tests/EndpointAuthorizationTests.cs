@@ -112,6 +112,20 @@ public class EndpointAuthorizationTests(IntegrationTestFixture fixture)
     ];
 
     /// <summary>
+    /// Group rosters (S-37): TrainerOrAdmin, never Admin - a trainer manages the roster of a group they
+    /// instruct an upcoming class of. That narrowing is inline (RosterAuthorization), and
+    /// GroupRosterEndpointTests covers it over HTTP.
+    /// </summary>
+    private static readonly (string Method, string Pattern)[] RosterRoutes =
+    [
+        ("GET", "/api/groups/{groupId:guid}/roster"),
+        ("POST", "/api/groups/{groupId:guid}/roster"),
+        ("DELETE", "/api/groups/{groupId:guid}/roster/{memberId:guid}"),
+        ("POST", "/api/groups/{groupId:guid}/roster/sync"),
+        ("GET", "/api/trainer/groups"),
+    ];
+
+    /// <summary>
     /// The schedule (S-25): a staff read. A member is refused; a trainer is narrowed to the classes
     /// they instruct inside the handler, which ClassEndpointTests covers over HTTP.
     /// </summary>
@@ -170,7 +184,7 @@ public class EndpointAuthorizationTests(IntegrationTestFixture fixture)
         // Without this, renaming /api/auth/login would leave the allowlist pointing at nothing and every
         // rule below would still pass. The same trap MemberAdminEndpointTests documents for a policy
         // test left pointing at a deleted route.
-        foreach (var entry in AnonymousApiRoutes.Concat(TrainerAdminRoutes).Concat(MemberOnlyRoutes).Concat(KarnetPaymentRoutes).Concat(MakeupRoutes).Append(ScheduleRoute))
+        foreach (var entry in AnonymousApiRoutes.Concat(TrainerAdminRoutes).Concat(MemberOnlyRoutes).Concat(KarnetPaymentRoutes).Concat(MakeupRoutes).Concat(RosterRoutes).Append(ScheduleRoute))
         {
             Assert.True(
                 routes.Any(r => Matches(r, entry)),
@@ -286,6 +300,25 @@ public class EndpointAuthorizationTests(IntegrationTestFixture fixture)
         var routes = Routes();
 
         foreach (var entry in MakeupRoutes)
+        {
+            var matched = routes.Where(r => Matches(r, entry)).ToList();
+
+            Assert.NotEmpty(matched);
+            Assert.All(matched, r =>
+            {
+                Assert.Contains(AuthorizationPolicyNames.TrainerOrAdmin, r.Policies);
+                Assert.DoesNotContain(AuthorizationPolicyNames.Admin, r.Policies);
+                Assert.DoesNotContain(AuthorizationPolicyNames.MemberOnly, r.Policies);
+            });
+        }
+    }
+
+    [Fact]
+    public void The_roster_routes_require_the_trainer_or_admin_policy_only()
+    {
+        var routes = Routes();
+
+        foreach (var entry in RosterRoutes)
         {
             var matched = routes.Where(r => Matches(r, entry)).ToList();
 

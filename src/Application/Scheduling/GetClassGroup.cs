@@ -16,10 +16,12 @@ public static class GetClassGroup
     public static async Task<IResult> HandleAsync(
         Guid id,
         IClassGroupStore store,
+        IGroupRosterStore roster,
         CancellationToken cancellationToken)
     {
         var found = await store.FindAsync(id, cancellationToken);
 
-        return found is null ? Results.NotFound() : Results.Ok(ClassGroupProjection.ToDto(found));
+        return found is null ? Results.NotFound() : Results.Ok(ClassGroupProjection.ToDto(
+            found, await roster.CountAsync(found.Id, cancellationToken)));
     }
 }

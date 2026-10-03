@@ -27,4 +27,5 @@ public record ClassGroupSummary(
     int DefaultDurationMinutes,
     int DefaultCapacity,
     bool IsActive,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    int RosterCount);

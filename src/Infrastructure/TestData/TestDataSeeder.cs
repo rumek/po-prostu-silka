@@ -228,6 +228,7 @@ public static class TestDataSeeder
             }
 
             await db.Bookings.ExecuteDeleteAsync();
+            await db.GroupRosterEntries.ExecuteDeleteAsync();
             await db.TrainingPlanItems.ExecuteDeleteAsync();
             await db.TrainingPlans.ExecuteDeleteAsync();
             await db.Classes.ExecuteDeleteAsync();

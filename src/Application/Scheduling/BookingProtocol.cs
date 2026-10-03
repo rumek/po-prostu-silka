@@ -71,17 +71,57 @@ public static class BookingProtocol
         CancellationToken cancellationToken,
         MakeupGrant? makeup = null)
     {
+        var attempt = await TryBookCoreAsync(
+            classId, memberId, classes, bookings, passes, unitOfWork, timeProvider, cancellationToken, makeup);
+
+        return attempt switch
+        {
+            // Projected from the tracked entity, whose navigations FindAsync included.
+            BookingAttempt.Booked booked => Results.Ok(ClassDtoMapping.ToDto(
+                booked.Class, booked.Class.ClassGroup, booked.Class.Instructor!.DisplayName, booked.BookedCount)),
+            BookingAttempt.Refused refused => Refuse(refused.Reason),
+            _ => Results.NotFound(),
+        };
+    }
+
+    /// <summary>
+    /// The protocol itself, answering with WHY rather than with HTTP (S-37).
+    ///
+    /// <para>
+    /// <see cref="TryBookAsync"/> is a thin mapper over this, so the single-booking route keeps its
+    /// exact answers. The roster batch (<see cref="RosterBooking"/>) calls this directly, because it
+    /// has to collect refusal reasons across many bookings and an <see cref="IResult"/> can only be
+    /// unwrapped by executing it.
+    /// </para>
+    ///
+    /// <para>
+    /// A lost race calls <see cref="IUnitOfWork.DiscardChanges"/>, which detaches EVERYTHING tracked -
+    /// a caller must have committed its own writes before calling, and must not read entities it
+    /// loaded earlier afterwards.
+    /// </para>
+    /// </summary>
+    public static async Task<BookingAttempt> TryBookCoreAsync(
+        Guid classId,
+        Guid memberId,
+        IClassStore classes,
+        IBookingStore bookings,
+        IMembershipPassStore passes,
+        IUnitOfWork unitOfWork,
+        TimeProvider timeProvider,
+        CancellationToken cancellationToken,
+        MakeupGrant? makeup = null)
+    {
         for (var attempt = 1; attempt <= MaxAttempts; attempt++)
         {
             var entity = await classes.FindAsync(classId, cancellationToken);
             if (entity is null)
             {
-                return Results.NotFound();
+                return BookingAttempt.ClassNotFound.Instance;
             }
 
             if (entity.Status == ClassStatus.Cancelled)
             {
-                return Refuse("class_cancelled");
+                return new BookingAttempt.Refused("class_cancelled");
             }
 
             // AT OR AFTER the start, not merely after: a class beginning this instant is one nobody
@@ -91,12 +131,12 @@ public static class BookingProtocol
             var now = timeProvider.GetUtcNow();
             if (entity.StartsAt <= now)
             {
-                return Refuse("class_started");
+                return new BookingAttempt.Refused("class_started");
             }
 
             if (await bookings.FindActiveAsync(classId, memberId, cancellationToken) is not null)
             {
-                return Refuse("already_booked");
+                return new BookingAttempt.Refused("already_booked");
             }
 
             // Greater-or-equal, not equal: if the count has somehow passed capacity the answer is
@@ -104,7 +144,7 @@ public static class BookingProtocol
             var bookedCount = await bookings.CountActiveAsync(classId, cancellationToken);
             if (bookedCount >= entity.Capacity)
             {
-                return Refuse("class_full");
+                return new BookingAttempt.Refused("class_full");
             }
 
             // ------------------------------------------------------------------
@@ -130,7 +170,7 @@ public static class BookingProtocol
             {
                 if (classDate > makeup.Deadline)
                 {
-                    return Refuse("makeup_deadline_passed");
+                    return new BookingAttempt.Refused("makeup_deadline_passed");
                 }
 
                 var absence = await bookings.FindByIdAsync(makeup.AbsenceBookingId, cancellationToken);
@@ -138,7 +178,7 @@ public static class BookingProtocol
                         { Status: BookingStatus.Active, Attendance: BookingAttendance.Makeup, MakeupClosedAt: null }
                     || await bookings.HasLiveMakeupAsync(makeup.AbsenceBookingId, cancellationToken))
                 {
-                    return Refuse("makeup_not_open");
+                    return new BookingAttempt.Refused("makeup_not_open");
                 }
 
                 await MakeupClaim.RotateAsync(absence, passes, classes, cancellationToken);
@@ -149,7 +189,7 @@ public static class BookingProtocol
             var pass = await passes.FindCoveringAsync(memberId, classDate, cancellationToken);
             if (pass is null)
             {
-                return Refuse("no_valid_pass");
+                return new BookingAttempt.Refused("no_valid_pass");
             }
 
             // Greater-or-equal for the reason the capacity check is: if the count has somehow passed
@@ -161,7 +201,7 @@ public static class BookingProtocol
             if (makeup is null
                 && await bookings.CountConsumingForPassAsync(pass.Id, cancellationToken) >= pass.EntryCount)
             {
-                return Refuse("no_entries_left");
+                return new BookingAttempt.Refused("no_entries_left");
             }
 
             bookings.Add(new Booking
@@ -195,8 +235,7 @@ public static class BookingProtocol
             var outcome = await unitOfWork.TrySaveAsync(cancellationToken);
             if (outcome == SaveOutcome.Saved)
             {
-                // Projected from the tracked entity, whose navigations FindAsync included. Both
-                // failure modes below mean NOTHING was written, so there is no half-state to undo.
+                // Both failure modes below mean NOTHING was written, so there is no half-state to undo.
                 //
                 // bookedCount + 1 rather than a re-count, and that is EXACT rather than optimistic:
                 // the save succeeded, so no other booking write committed between the count above and
@@ -209,8 +248,7 @@ public static class BookingProtocol
                 // (see Class.ConcurrencyStamp for why that is safe). A cascade committing in this
                 // window makes the number one too low - never too high - so it can only understate
                 // the spots available, which is the direction that cannot overbook.
-                return Results.Ok(ClassDtoMapping.ToDto(
-                    entity, entity.ClassGroup, entity.Instructor!.DisplayName, bookedCount + 1));
+                return new BookingAttempt.Booked(entity, bookedCount + 1);
             }
 
             // ConcurrencyConflict: someone else's booking or cancellation rotated the stamp first.
@@ -222,7 +260,7 @@ public static class BookingProtocol
             unitOfWork.DiscardChanges();
         }
 
-        return Refuse("conflict");
+        return new BookingAttempt.Refused("conflict");
     }
 
     /// <summary>
@@ -265,4 +303,29 @@ public static class BookingProtocol
     /// </summary>
     public static IResult Refuse(string reason) =>
         Results.Json(new BookingFailure(reason), statusCode: 409);
+}
+
+/// <summary>
+/// What one pass through <see cref="BookingProtocol.TryBookCoreAsync"/> ended in (S-37).
+/// </summary>
+public abstract record BookingAttempt
+{
+    private BookingAttempt()
+    {
+    }
+
+    /// <summary>
+    /// Committed. <paramref name="Class"/> is the tracked entity the protocol saved (navigations
+    /// included); <paramref name="BookedCount"/> is exact as of the commit - see the protocol.
+    /// </summary>
+    public sealed record Booked(Class Class, int BookedCount) : BookingAttempt;
+
+    /// <summary>Refused with one of <see cref="BookingFailure"/>'s reasons. Nothing was written.</summary>
+    public sealed record Refused(string Reason) : BookingAttempt;
+
+    /// <summary>The class does not exist (any more).</summary>
+    public sealed record ClassNotFound : BookingAttempt
+    {
+        public static readonly ClassNotFound Instance = new();
+    }
 }
