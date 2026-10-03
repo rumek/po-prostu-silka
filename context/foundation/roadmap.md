@@ -1163,7 +1163,7 @@ rather than in a slice body:
 | S-34       | pass-paid-flag                   | Record that a karnet was paid (and who recorded it); "Nieopłacony" marker and filter; trainer "Karnety" screen | no                    | Done — archived 2026-10-02. Outside any milestone |
 | S-35       | expiring-passes-dashboard        | "Kończą się karnety" card on the admin's Start and the matching member-list filter | no                    | Done — archived 2026-10-02. Outside any milestone |
 | S-36       | class-makeups                    | Three attendance outcomes, free makeups within 30 days, and the staff "Odrabianie" list | no                    | Outside any milestone. Implemented 2026-10-02 |
-| S-37       | group-fixed-roster               | A group's fixed roster, booked automatically into its upcoming classes | yes                   | Outside any milestone. Run `/10x-new group-fixed-roster`, then `/10x-plan group-fixed-roster` |
+| S-37       | group-fixed-roster               | A group's fixed roster, booked automatically into its upcoming classes | yes                   | Outside any milestone. Implemented 2026-10-03 (roster API, automatic bookings, screens, E2E) |
 
 ## Open Roadmap Questions
 

@@ -289,3 +289,72 @@ odrabiający na liście nadchodzących ma etykietę „Odrabianie”. Po zapisan
 ### MAKEUP-07 · Lista i wybór zajęć na różnych szerokościach — P3
 **Oczekiwany rezultat:** lista „Odrabianie” i nakładka wyboru zajęć czytelne na telefonie, tablecie
 i desktopie; na telefonie nakładka jest pełnym ekranem, a „wstecz” ją zamyka.
+
+## Stały skład grupy (ROSTER)
+
+S-37: grupa ma stały skład (do liczby miejsc grupy), wpisywany raz. Każde automatyczne zapisanie
+przechodzi te same bramki co zapis przez obsługę (karnet ważny w dniu zajęć z wolnym wejściem, wolne
+miejsce, nie pracownik); to, czego nie da się zapisać, jest pomijane i pokazane w panelu „Nie
+wszystkich zapisano”.
+
+### ROSTER-01 · Dodanie osoby do składu zapisuje ją na nadchodzące zajęcia — P1
+**Rola:** administrator
+**Warunki wstępne:** grupa z co najmniej dwojgiem nadchodzących zajęć; członek z karnetem
+obejmującym ich daty.
+**Kroki:** „Grupy” → „Skład (n/m)” przy grupie → wyszukaj członka → „Dopisz”.
+**Oczekiwany rezultat:** członek jest na liście składu z „zapisany na N z N zajęć” i bez braków;
+komunikat „Dodano do składu. Dopisano na N zajęć”; członek widnieje na liście zapisanych każdych
+z tych zajęć i w swoich „Moje zajęcia”. Licznik przy grupie rośnie o jeden.
+
+### ROSTER-02 · Osoba bez karnetu zostaje w składzie i widać, czego brakuje — P1
+**Rola:** administrator
+**Warunki wstępne:** członek bez karnetu (lub z karnetem kończącym się przed częścią zajęć).
+**Kroki:** dopisz go do składu grupy.
+**Oczekiwany rezultat:** członek jest w składzie; panel „Nie wszystkich zapisano” wymienia go z datami
+i zdaniem „Ta osoba nie ma karnetu ważnego w dniu tych zajęć.”; ten sam brak widać przy jego wierszu
+po odświeżeniu ekranu. Panel zamyka się przyciskiem X.
+
+### ROSTER-03 · Usunięcie ze składu zwalnia przyszłe zapisy, ale nie odrabianie — P1
+**Rola:** administrator
+**Warunki wstępne:** członek składu zapisany na nadchodzące zajęcia grupy, w tym na jedne jako
+odrabianie (S-36), oraz z zajęciami grupy już odbytymi.
+**Kroki:** „Usuń ze składu” → potwierdź „Usuń”.
+**Oczekiwany rezultat:** członek znika ze składu; jego zapisy na nadchodzące zajęcia grupy są
+zwolnione, a wejścia wracają na karnet; zapis odrabiający i odbyte zajęcia (z obecnością) zostają.
+
+### ROSTER-04 · „Uzupełnij zapisy” po wydaniu karnetu poza aplikacją albo zwolnieniu miejsca — P2
+**Rola:** administrator lub trener
+**Warunki wstępne:** członek składu z brakiem „można zapisać — uzupełnij zapisy” (np. zwolniło się
+miejsce na pełnych zajęciach).
+**Kroki:** „Uzupełnij zapisy”.
+**Oczekiwany rezultat:** braki „można zapisać” znikają, komunikat podaje liczbę dopisanych zajęć;
+drugie kliknięcie nic nie dopisuje („Nie było kogo dopisać.”).
+
+### ROSTER-05 · Powielenie zajęć grupy zapisuje skład na kopie — P1
+**Rola:** administrator
+**Warunki wstępne:** grupa ze składem; jeden członek ma karnet tylko na najbliższe 2 tygodnie.
+**Kroki:** w „Zajęcia” otwórz zajęcia grupy → „Powiel” na 4 tygodnie.
+**Oczekiwany rezultat:** komunikat „Utworzono 4 kopie … Zapisano ze składu grupy: N.”; panel „Nie
+wszystkich zapisano” nad kalendarzem wymienia członka z datami tygodni poza karnetem. To samo przy
+dodaniu zajęć formularzem „Dodaj zajęcia” i przeciągnięciem w kalendarzu.
+
+### ROSTER-06 · Nowy karnet zapisuje na kolejne tygodnie — P1
+**Rola:** administrator
+**Warunki wstępne:** członek z ROSTER-05, z brakami „brak karnetu” na późniejszych zajęciach grupy.
+**Kroki:** wydaj mu kolejny karnet obejmujący te daty (albo przesuń datę końca obecnego).
+**Oczekiwany rezultat:** brakujące zajęcia zostają zapisane bez dodatkowego kliknięcia; na ekranie
+karnetu liczba wykorzystanych wejść uwzględnia te zapisy; panel pojawia się tylko wtedy, gdy czegoś
+nie dało się zapisać (np. brak miejsc).
+
+### ROSTER-07 · Trener zarządza składem tylko swoich grup i tylko na swoich zajęciach — P2
+**Rola:** trener
+**Kroki:** „Więcej” → „Grupy”; otwórz grupę; dopisz osobę. Wpisz w adres URL grupę, której zajęć nie
+prowadzi.
+**Oczekiwany rezultat:** lista zawiera tylko grupy, których nadchodzące zajęcia prowadzi; dopisanie
+zapisuje tylko na jego zajęcia, a zajęcia innego trenera pokazuje jako brak „Te zajęcia prowadzi inny
+trener — zapisuje na nie administrator.”; cudza grupa pokazuje komunikat o braku uprawnień.
+
+### ROSTER-08 · Ekran składu na różnych szerokościach — P3
+**Oczekiwany rezultat:** ekran składu i lista „Grupy” trenera są czytelne na telefonie, tablecie
+i desktopie, bez przewijania w poziomie; na telefonie pasek u góry pokazuje „Skład — <grupa>” i
+strzałkę wstecz.

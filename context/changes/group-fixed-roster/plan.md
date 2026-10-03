@@ -504,6 +504,12 @@ karnet, remove keeps makeup, sync, duplicate report, karnet renewal) in the test
 hard-rule sentence: roster bookings are staff bookings made through `BookingProtocol`, one transaction
 each, refusals reported never forced.
 
+**Adapted during implementation.** No `addToRoster` builder: the spec adds the member through the roster
+screen, which is the risk, and an unused builder would be dead code. Cleanup of the UI-made copies is
+`club.removeGroupClassesAfterwards(groupId, except)` — the duplicate response carries no copy ids, so it
+lists the group's classes after the test. The manual cases are ROSTER-01..08: 07 (trainer scope) and 08
+(widths) cover Phase 3's manual items.
+
 ### Success Criteria:
 
 #### Automated Verification:
@@ -590,9 +596,9 @@ until someone fills one.
 
 #### Automated
 
-- [x] 3.1 Unit tests pass
-- [x] 3.2 Lint and format pass, kit rule included
-- [x] 3.3 Production build passes under the 600 kB warning
+- [x] 3.1 Unit tests pass — 6c4a4bc
+- [x] 3.2 Lint and format pass, kit rule included — 6c4a4bc
+- [x] 3.3 Production build passes under the 600 kB warning — 6c4a4bc
 
 #### Manual
 
@@ -605,8 +611,8 @@ until someone fills one.
 
 #### Automated
 
-- [ ] 4.1 The new spec passes
-- [ ] 4.2 The full local suite passes
+- [x] 4.1 The new spec passes
+- [x] 4.2 The full local suite passes
 
 #### Manual
 
