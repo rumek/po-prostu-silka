@@ -37,6 +37,7 @@ public static class DuplicateClass
         DuplicateRequest request,
         IClassStore store,
         IUnitOfWork unitOfWork,
+        RosterBooking rosterBooking,
         TimeProvider timeProvider,
         CancellationToken cancellationToken)
     {
@@ -53,7 +54,7 @@ public static class DuplicateClass
 
         var now = timeProvider.GetUtcNow();
         var skipped = new List<int>();
-        var created = 0;
+        var created = new List<RosterClass>();
 
         for (var week = 1; week <= request.Weeks; week++)
         {
@@ -75,9 +76,10 @@ public static class DuplicateClass
                 continue;
             }
 
+            var copyId = Guid.NewGuid();
             store.Add(new Class
             {
-                Id = Guid.NewGuid(),
+                Id = copyId,
                 ClassGroupId = source.ClassGroupId,
                 StartsAt = startsAt,
                 DurationMinutes = source.DurationMinutes,
@@ -87,11 +89,17 @@ public static class DuplicateClass
                 CreatedAt = now,
             });
 
-            created++;
+            created.Add(new RosterClass(copyId, startsAt, source.InstructorMemberId));
         }
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return Results.Ok(new DuplicateResult(created, skipped));
+        // S-37: the roster goes into the copies only once they have committed, and only into copies still
+        // to come - a past class duplicated forward can produce copies that have already started.
+        var groupId = source.ClassGroupId;
+        var report = await rosterBooking.BookRosterIntoAsync(
+            groupId, created.Where(c => c.StartsAt > now).ToList(), cancellationToken);
+
+        return Results.Ok(new DuplicateResult(created.Count, skipped, report));
     }
 }

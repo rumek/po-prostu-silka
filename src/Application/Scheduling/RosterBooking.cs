@@ -140,4 +140,31 @@ public sealed class RosterBooking(
         var memberIds = await roster.MemberIdsAsync(groupId, cancellationToken);
         return await BookAsync(memberIds, targets, actingInstructorId: null, cancellationToken);
     }
+
+    /// <summary>
+    /// The karnet hook: books the holder into every group whose roster holds them, on the upcoming
+    /// classes whose CLUB-LOCAL date lies in [<paramref name="from"/>, <paramref name="to"/>] - the karnet
+    /// gate's own dating, so a renewal fills the following weeks without a click.
+    /// </summary>
+    public async Task<RosterReport> BookMemberIntoRangeAsync(
+        Guid memberId,
+        DateOnly from,
+        DateOnly to,
+        CancellationToken cancellationToken)
+    {
+        var groupIds = await roster.GroupIdsForMemberAsync(memberId, cancellationToken);
+        if (groupIds.Count == 0)
+        {
+            return RosterReport.Empty;
+        }
+
+        var now = timeProvider.GetUtcNow();
+        var targets = new List<RosterClass>();
+        foreach (var groupId in groupIds)
+        {
+            targets.AddRange(await roster.UpcomingClassesInRangeAsync(groupId, from, to, now, cancellationToken));
+        }
+
+        return await BookAsync([memberId], targets, actingInstructorId: null, cancellationToken);
+    }
 }

@@ -561,9 +561,9 @@ until someone fills one.
 
 #### Automated
 
-- [x] 1.1 Migration applies cleanly and reverts
-- [x] 1.2 Backend builds warning-free
-- [x] 1.3 All tests pass, the new roster tests included
+- [x] 1.1 Migration applies cleanly and reverts — 0efcb73
+- [x] 1.2 Backend builds warning-free — 0efcb73
+- [x] 1.3 All tests pass, the new roster tests included — 0efcb73
 
 #### Manual
 
@@ -573,8 +573,8 @@ until someone fills one.
 
 #### Automated
 
-- [ ] 2.1 Backend builds warning-free
-- [ ] 2.2 All tests pass
+- [x] 2.1 Backend builds warning-free
+- [x] 2.2 All tests pass
 
 #### Manual
 

@@ -19,4 +19,4 @@ namespace po_prostu_silka.Application.Scheduling;
 /// in S-06 — it used to be a room collision — but the shape and the partial-success behaviour did
 /// not (prd-v2 FR-013).
 /// </param>
-public record DuplicateResult(int Created, IReadOnlyList<int> SkippedWeeks);
+public record DuplicateResult(int Created, IReadOnlyList<int> SkippedWeeks, RosterReport Roster);
