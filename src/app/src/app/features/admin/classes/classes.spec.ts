@@ -272,6 +272,7 @@ describe('Classes', () => {
     controller.expectOne('/api/admin/classes/c1/duplicate').flush({
       created: 2,
       skippedWeeks: [3, 4],
+      roster: { booked: 0, skipped: [] },
     });
     await settle();
 
@@ -296,12 +297,55 @@ describe('Classes', () => {
     overlayAction('Powiel').click();
     await settle();
 
-    controller.expectOne('/api/admin/classes/c1/duplicate').flush({ created: 4, skippedWeeks: [] });
+    controller.expectOne('/api/admin/classes/c1/duplicate').flush({
+      created: 4,
+      skippedWeeks: [],
+      roster: { booked: 0, skipped: [] },
+    });
     await settle();
 
     expect(toastText()).toContain('Utworzono 4 kopie');
     expect(toastText()).not.toContain('Pominięto');
     expect(toastTone()).toBe('success');
+
+    adminRequests()[0].flush([JOGA]);
+    await settle();
+  });
+
+  /**
+   * S-37: the group's fixed roster is booked into the copies. The count rides the toast; whoever could
+   * not be booked stays on screen in the report panel.
+   */
+  it('shows the roster bookings in the toast and the skips in the report panel', async () => {
+    await createWith([JOGA]);
+
+    actionFor('Joga', 'Powiel').click();
+    fixture.detectChanges();
+    overlayAction('Powiel').click();
+    await settle();
+
+    controller.expectOne('/api/admin/classes/c1/duplicate').flush({
+      created: 2,
+      skippedWeeks: [],
+      roster: {
+        booked: 3,
+        skipped: [
+          {
+            memberId: 'm1',
+            memberName: 'Anna Kowalska',
+            classId: 'c9',
+            startsAt: '2026-11-11T17:00:00Z',
+            reason: 'no_valid_pass',
+          },
+        ],
+      },
+    });
+    await settle();
+
+    expect(toastText()).toContain('Zapisano ze składu grupy: 3');
+    const panel = (fixture.nativeElement as HTMLElement).querySelector('.roster-report');
+    expect(panel?.textContent).toContain('Anna Kowalska');
+    expect(panel?.textContent).toContain('nie ma karnetu');
 
     adminRequests()[0].flush([JOGA]);
     await settle();
@@ -747,7 +791,7 @@ describe('Classes', () => {
     fixture.detectChanges();
     openActions('Pilates');
 
-    pending.flush({ created: 1, skippedWeeks: [] });
+    pending.flush({ created: 1, skippedWeeks: [], roster: { booked: 0, skipped: [] } });
     await settle();
     adminRequests()[0].flush([JOGA, PILATES]);
     await settle();

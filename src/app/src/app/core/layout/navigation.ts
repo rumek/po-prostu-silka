@@ -41,6 +41,14 @@ const TRAINER_MEMBERS: NavLink = {
   exact: false,
 };
 
+// S-37. The trainer's groups: the ones whose upcoming classes they instruct, each opening its roster.
+const TRAINER_GROUPS: NavLink = {
+  route: '/trainer/groups',
+  label: 'Grupy',
+  icon: 'group',
+  exact: false,
+};
+
 // S-36. Both staff personas: any trainer arranges any member's makeup, so the list is the club's.
 const MAKEUPS: NavLink = { route: '/makeups', label: 'Odrabianie', icon: 'repeat', exact: false };
 
@@ -68,7 +76,8 @@ const NONE: Navigation = { header: [], bar: [MORE], more: [] };
  * drift — and each link's persona is its route's guard by construction:
  *
  * - member — `/my-classes` and `/my-plan` are behind memberGuard;
- * - trainer — `/schedule` and `/makeups` behind staffGuard, `/trainer/members` behind trainerGuard;
+ * - trainer — `/schedule` and `/makeups` behind staffGuard, `/trainer/members` and `/trainer/groups`
+ *   behind trainerGuard;
  * - admin — `/schedule` or `/admin/classes`, and the admin lists, behind staffGuard / adminGuard.
  *
  * Moje konto and logout are NOT in the table: the shell and /more render them for every
@@ -80,9 +89,10 @@ const NONE: Navigation = { header: [], bar: [MORE], more: [] };
  * bookings overlay, on a screen that works on a phone. `desk` comes from the caller's
  * `mediaQuerySignal(DESK_MEDIA_QUERY, true)` so this stays a pure function.
  *
- * Only the admin needs /more for a destination (Grupy and Odrabianie — the sixth and seventh links
- * do not fit a five-slot bar). Member and trainer still get the Więcej tab: it is where the phone
- * reaches Moje konto and logout. The trainer's bar is full since S-36.
+ * The admin needs /more for a destination (Grupy and Odrabianie — the sixth and seventh links do not
+ * fit a five-slot bar), and so, since S-37, does the trainer, whose bar is full since S-36: their
+ * Grupy lives there. The member still gets the Więcej tab: it is where the phone reaches Moje konto
+ * and logout.
  */
 export function navigationFor(persona: Persona | null, desk: boolean): Navigation {
   switch (persona) {
@@ -94,9 +104,9 @@ export function navigationFor(persona: Persona | null, desk: boolean): Navigatio
       };
     case 'trainer':
       return {
-        header: [START, SCHEDULE, TRAINER_MEMBERS, MAKEUPS],
+        header: [START, SCHEDULE, TRAINER_MEMBERS, MAKEUPS, TRAINER_GROUPS],
         bar: [START, SCHEDULE, TRAINER_MEMBERS, MAKEUPS, MORE],
-        more: [],
+        more: [TRAINER_GROUPS],
       };
     case 'admin': {
       const grafik = desk ? ADMIN_CLASSES : SCHEDULE;

@@ -26,6 +26,9 @@ export interface ClassGroupSummary {
   isActive: boolean;
 
   createdAt: string;
+
+  /** S-37: how many members the group's fixed roster holds. */
+  rosterCount: number;
 }
 
 /**

@@ -1,0 +1,45 @@
+// Layout only — .card and the row classes come from src/styles.scss.
+
+// The whole tile is the target: the name's link stretches over it, so a tap anywhere on a phone opens
+// the roster, while the link stays one focusable element with one accessible name.
+.trainer-group-row {
+  position: relative;
+}
+
+.trainer-group-link {
+  color: inherit;
+  text-decoration: none;
+
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+  }
+
+  &:focus-visible {
+    outline: none;
+  }
+
+  &:focus-visible::after {
+    outline: 2px solid var(--accent2);
+    outline-offset: 2px;
+    border-radius: inherit;
+  }
+}
+
+.trainer-group-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-variant-numeric: tabular-nums;
+
+  app-icon {
+    flex: none;
+    color: var(--accent2);
+    font-size: 0.75rem;
+  }
+}
+
+.trainer-group-chevron {
+  color: var(--muted);
+}

@@ -429,6 +429,12 @@ admin's header carries `CLASS_GROUPS`. `app.routes.spec.ts` stays green (title e
 above its content, clears it on dismiss or on the next action. The duplicate toast keeps its
 skipped-weeks wording; roster skips go to the panel only.
 
+**Adapted during implementation.** A class is created in two places, neither of them `classes.ts`: the
+calendar's `class-create-overlay` (its `created` output now carries the `RosterReport`) and the
+`class-form` route, which navigates to the list with the report in navigation state
+(`shared/roster-report/roster-report-state.ts`); `classes.ts` reads it while that navigation builds the
+screen. The duplicate toast keeps its wording and appends the roster's booked count when non-zero.
+
 #### 6. Specs and bundle
 
 **Contract**: specs for the panel (grouping, nothing when empty, dismiss), the roster screen (both
@@ -573,8 +579,8 @@ until someone fills one.
 
 #### Automated
 
-- [x] 2.1 Backend builds warning-free
-- [x] 2.2 All tests pass
+- [x] 2.1 Backend builds warning-free — e6e5980
+- [x] 2.2 All tests pass — e6e5980
 
 #### Manual
 
@@ -584,9 +590,9 @@ until someone fills one.
 
 #### Automated
 
-- [ ] 3.1 Unit tests pass
-- [ ] 3.2 Lint and format pass, kit rule included
-- [ ] 3.3 Production build passes under the 600 kB warning
+- [x] 3.1 Unit tests pass
+- [x] 3.2 Lint and format pass, kit rule included
+- [x] 3.3 Production build passes under the 600 kB warning
 
 #### Manual
 

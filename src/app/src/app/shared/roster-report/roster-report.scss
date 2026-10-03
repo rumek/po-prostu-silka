@@ -1,0 +1,71 @@
+// The box is the global .notice; this sheet owns only the head row and the lines.
+
+.roster-report-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.roster-report-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-weight: 600;
+
+  app-icon {
+    flex: none;
+    color: var(--accent2);
+  }
+}
+
+// 44px: a tap target on a phone (ui-style-guide, "Interaction"), the overlay X's shape.
+.roster-report-close {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin: calc(-1 * var(--space-2)) calc(-1 * var(--space-2)) 0 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+
+  &:hover {
+    background: var(--section-warm);
+  }
+}
+
+.roster-report-lines {
+  display: grid;
+  gap: var(--space-2);
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.roster-report-who,
+.roster-report-why {
+  margin: 0;
+}
+
+.roster-report-who {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--space-2);
+}
+
+.roster-report-dates {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.roster-report-why {
+  color: var(--muted);
+  font-size: 0.875rem;
+}

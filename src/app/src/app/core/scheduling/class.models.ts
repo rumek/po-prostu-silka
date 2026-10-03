@@ -1,3 +1,5 @@
+import { RosterReport } from './roster.models';
+
 /**
  * Mirrors the API's ScheduledClass record (src/Application/Scheduling/ClassEndpoints.cs).
  * Keep the two in step — this is a contract, not a convenience type.
@@ -75,6 +77,14 @@ export interface ClassRequest {
 }
 
 /**
+ * Mirrors CreatedClass (S-37): the class as every route returns it, plus what booking the group's fixed
+ * roster into it did. `freeSpots` already counts those bookings.
+ */
+export interface CreatedClass extends ScheduledClass {
+  roster: RosterReport;
+}
+
+/**
  * Mirrors DuplicateResult. NOT a bare success: a batch where some weeks collided is a partial
  * success, and the screen has to say which weeks were skipped or the admin believes in classes that
  * were never created.
@@ -87,6 +97,9 @@ export interface DuplicateResult {
    * changed in S-06 — it used to be a room collision — but the shape did not.
    */
   skippedWeeks: number[];
+
+  /** S-37: what booking the group's fixed roster into the copies did. */
+  roster: RosterReport;
 }
 
 /**

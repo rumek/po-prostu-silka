@@ -36,6 +36,9 @@ const PASS: MembershipPassView = {
   paidAt: null,
 };
 
+/** S-37: what issuing or editing a karnet booked from the member's group rosters — nothing here. */
+const NO_ROSTER = { booked: 0, skipped: [] };
+
 /**
  * This screen had no spec until S-19 changed its error handling — the slice's rule is that new
  * coverage arrives with a reason, not for its own sake.
@@ -235,7 +238,7 @@ describe('MemberPasses', () => {
 
     const request = await vi.waitFor(() => controller.expectOne('/api/admin/members/m1/passes'));
     expect(request.request.body.paidAt).toBeNull();
-    request.flush(PASS);
+    request.flush({ ...PASS, roster: NO_ROSTER });
     await settle();
     (await vi.waitFor(() => controller.expectOne('/api/admin/members/m1/passes'))).flush([PASS]);
     await settle();
@@ -255,7 +258,7 @@ describe('MemberPasses', () => {
 
     const request = await vi.waitFor(() => controller.expectOne('/api/admin/members/m1/passes'));
     expect(request.request.body.paidAt).toBe(clubToday());
-    request.flush({ ...PASS, paidAt: clubToday() });
+    request.flush({ ...PASS, paidAt: clubToday(), roster: NO_ROSTER });
     await settle();
     (await vi.waitFor(() => controller.expectOne('/api/admin/members/m1/passes'))).flush([PASS]);
     await settle();
@@ -273,10 +276,40 @@ describe('MemberPasses', () => {
     const request = await vi.waitFor(() => controller.expectOne('/api/admin/members/m1/passes/p1'));
     expect(request.request.method).toBe('PUT');
     expect('paidAt' in request.request.body).toBe(false);
-    request.flush(PASS);
+    request.flush({ ...PASS, roster: NO_ROSTER });
     await settle();
     (await vi.waitFor(() => controller.expectOne('/api/admin/members/m1/passes'))).flush([PASS]);
     await settle();
+  });
+
+  /** S-37: issuing books the holder into their groups' classes; what could not be booked is listed. */
+  it('lists who the karnet could not book into the group classes', async () => {
+    await create();
+    fillForm();
+    submit();
+
+    const request = await vi.waitFor(() => controller.expectOne('/api/admin/members/m1/passes'));
+    request.flush({
+      ...PASS,
+      roster: {
+        booked: 2,
+        skipped: [
+          {
+            memberId: 'm1',
+            memberName: 'Anna Kowalska',
+            classId: 'c1',
+            startsAt: '2026-09-29T17:00:00Z',
+            reason: 'class_full',
+          },
+        ],
+      },
+    });
+    await settle();
+    (await vi.waitFor(() => controller.expectOne('/api/admin/members/m1/passes'))).flush([PASS]);
+    await settle();
+
+    const panel = (fixture.nativeElement as HTMLElement).querySelector('.roster-report');
+    expect(panel?.textContent).toContain('Brak wolnych miejsc');
   });
 
   it('marks a karnet paid through the overlay and replaces the row', async () => {

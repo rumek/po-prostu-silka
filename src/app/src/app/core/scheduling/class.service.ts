@@ -1,7 +1,7 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import { ClassRequest, DuplicateResult, ScheduledClass } from './class.models';
+import { ClassRequest, CreatedClass, DuplicateResult, ScheduledClass } from './class.models';
 
 /**
  * A [from, to) window as the two read endpoints expect it: ISO-8601 UTC instants, or nothing at all.
@@ -77,8 +77,8 @@ export class ClassService {
     );
   }
 
-  create(request: ClassRequest): Promise<ScheduledClass> {
-    return firstValueFrom(this.http.post<ScheduledClass>('/api/admin/classes', request));
+  create(request: ClassRequest): Promise<CreatedClass> {
+    return firstValueFrom(this.http.post<CreatedClass>('/api/admin/classes', request));
   }
 
   update(id: string, request: ClassRequest): Promise<ScheduledClass> {

@@ -38,6 +38,8 @@ const MESSAGES: Record<BookingFailure['reason'], string> = {
   makeup_booked:
     'Ta osoba ma już zapisane odrabianie tych zajęć. Zwolnij je w „Odrabianiu”, aby zmienić obecność.',
   makeup_not_allowed: 'To są zajęcia odrabiające — można je tylko zaliczyć albo przepaść.',
+  // S-37. A roster skip or gap only: a trainer's roster action leaves another trainer's class alone.
+  not_your_class: 'Te zajęcia prowadzi inny trener — zapisuje na nie administrator.',
   // Not a product rule: the server lost an optimistic race on every attempt. Trying again is
   // genuinely the right advice, and it is what the message says.
   conflict: 'Ktoś właśnie zmienił zapisy na te zajęcia. Spróbuj ponownie.',

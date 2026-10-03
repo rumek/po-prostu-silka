@@ -6,6 +6,7 @@ import { TrainerSummary } from '../../../core/admin/member-admin.models';
 import { classFailureMessage } from '../../../core/scheduling/class-failure';
 import { classifyFailure } from '../../../core/http/failure';
 import { transportMessage } from '../../../core/http/transport-messages';
+import { RosterReport } from '../../../core/scheduling/roster.models';
 import { ClassService } from '../../../core/scheduling/class.service';
 import { ClassGroupService } from '../../../core/scheduling/class-group.service';
 import { ClassGroupSummary } from '../../../core/scheduling/class-group.models';
@@ -61,7 +62,8 @@ export class ClassCreateOverlay implements OnInit {
   /** When and how long, from the gesture. */
   readonly drawn = input.required<DrawnRange>();
 
-  readonly created = output<void>();
+  /** Carries what booking the group's fixed roster into the new class did (S-37). */
+  readonly created = output<RosterReport>();
   readonly closed = output<void>();
 
   protected readonly groups = signal<ClassGroupSummary[]>([]);
@@ -150,7 +152,7 @@ export class ClassCreateOverlay implements OnInit {
     this.error.set(null);
 
     try {
-      await this.classes.create({
+      const created = await this.classes.create({
         classGroupId: this.classGroupId(),
         startsAt: this.drawn().startsAt.toISOString(),
         durationMinutes: this.durationMinutes(),
@@ -158,7 +160,7 @@ export class ClassCreateOverlay implements OnInit {
         capacity: this.capacity(),
       });
 
-      this.created.emit();
+      this.created.emit(created.roster);
     } catch (failure) {
       const info = classifyFailure(failure);
 

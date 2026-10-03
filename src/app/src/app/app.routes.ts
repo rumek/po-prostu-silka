@@ -202,6 +202,16 @@ export const routes: Routes = [
     component: ClassGroupForm,
     canActivate: [authGuard, adminGuard],
   },
+  // S-37 group rosters. One screen mounted twice, like the plan builder: here behind adminGuard, and as
+  // /trainer/groups/:id behind trainerGuard. The API narrows a trainer to the groups they instruct an
+  // upcoming class of. LAZY: the eager bundle carries only the routes' entries.
+  {
+    path: 'admin/class-groups/:id/roster',
+    title: 'Skład',
+    data: { level: 'child', parent: '/admin/class-groups' } satisfies ScreenData,
+    loadComponent: () => import('./features/groups/group-roster').then((m) => m.GroupRoster),
+    canActivate: [authGuard, adminGuard],
+  },
   // S-10's exercise library. LAZY, and not for the reason the two routes above are: these screens
   // pull in nothing heavy. Eagerly loaded they still cost ~28 kB, which took the initial bundle from
   // 475 kB to 502.88 kB - past the 500 kB budget in angular.json, so `npm run build` started warning.
@@ -247,6 +257,23 @@ export const routes: Routes = [
     data: { level: 'tab' } satisfies ScreenData,
     loadComponent: () =>
       import('./features/trainer/members/trainer-members').then((m) => m.TrainerMembers),
+    canActivate: [authGuard, trainerGuard],
+  },
+  // S-37. The trainer's "Grupy" (in Więcej — the bar is full) and its roster screen. trainerGuard, as
+  // the API's TrainerOrAdmin; the list holds exactly the groups the API lets the trainer manage.
+  {
+    path: 'trainer/groups',
+    title: 'Grupy',
+    data: { level: 'tab' } satisfies ScreenData,
+    loadComponent: () =>
+      import('./features/trainer/groups/trainer-groups').then((m) => m.TrainerGroups),
+    canActivate: [authGuard, trainerGuard],
+  },
+  {
+    path: 'trainer/groups/:id',
+    title: 'Skład',
+    data: { level: 'child', parent: '/trainer/groups' } satisfies ScreenData,
+    loadComponent: () => import('./features/groups/group-roster').then((m) => m.GroupRoster),
     canActivate: [authGuard, trainerGuard],
   },
   // The trainer's mount of the plan builder (S-22, UX-08). trainerGuard admits admins too, but an

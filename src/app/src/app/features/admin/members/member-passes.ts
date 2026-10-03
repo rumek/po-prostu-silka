@@ -26,6 +26,8 @@ import { PassPaymentOverlay } from '../../../shared/passes/pass-payment-overlay'
 import { PassPaymentStatus } from '../../../shared/passes/pass-payment-status';
 import { createPassPaymentActions } from '../../../shared/passes/pass-payment-actions';
 import { clubToday } from '../../../core/passes/club-today';
+import { RosterReport as Report } from '../../../core/scheduling/roster.models';
+import { RosterReport } from '../../../shared/roster-report/roster-report';
 
 /**
  * Bounds mirrored from MembershipPassRules (src/Application/Members/MembershipPassRules.cs).
@@ -74,6 +76,7 @@ const MAX_VALIDITY_DAYS = 400;
     PassPaymentStatus,
     DatePipe,
     ReactiveFormsModule,
+    RosterReport,
     RouterLink,
   ],
   selector: 'app-member-passes',
@@ -95,6 +98,9 @@ export class MemberPasses implements OnInit {
 
   protected readonly passes = signal<MembershipPassView[]>([]);
   protected readonly state = createFormState();
+
+  /** What the last issue or edit could not book from the member's group rosters (S-37). */
+  protected readonly rosterReport = signal<Report | null>(null);
   private readonly fence = createLoadFence();
 
   /** The pass being edited, or null while the form is issuing a new one. */
@@ -290,12 +296,17 @@ export class MemberPasses implements OnInit {
       request.paidAt = paid ? paidAt : null;
     }
 
+    this.rosterReport.set(null);
+
     try {
-      if (passId === null) {
-        await this.members.issuePass(this.memberId(), request);
-      } else {
-        await this.members.updatePass(this.memberId(), passId, request);
-      }
+      // S-37: a karnet books its holder into their groups' classes inside its validity, and the answer
+      // says who could not be booked where — the panel above the form.
+      const change =
+        passId === null
+          ? await this.members.issuePass(this.memberId(), request)
+          : await this.members.updatePass(this.memberId(), passId, request);
+
+      this.rosterReport.set(change.roster.skipped.length > 0 ? change.roster : null);
 
       this.cancelEdit();
 
