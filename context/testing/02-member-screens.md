@@ -11,7 +11,8 @@ Konwencje (priorytety, statusy, format przypadku) i dane testowe: [README](READM
 - Karta „Najbliższe zajęcia” pokazuje najbliższy zapis: nazwę, dzień i godzinę, czas trwania,
   prowadzącego. Przy większej liczbie zapisów jest link „Zobacz wszystkie” do „Moje zajęcia”.
 - Karta „Twój karnet” pokazuje nazwę karnetu, liczbę „Pozostałe wejścia” w formie „X z Y”, datę
-  „ważny do …” i wizualizację wejść (kratki przy małej liczbie wejść, pasek przy dużej, np. OPEN 30).
+  „ważny do …” i wizualizację wejść (kratki przy małej liczbie wejść, np. „Miesięczny” z danych testowych; pasek przy dużej — karnet
+  na np. 30 wejść trzeba wystawić ręcznie, dane testowe takiego nie mają).
 - Na karcie „Twój karnet” jest słowo „Opłacony” albo znacznik „Nieopłacony” — zgodnie z tym, co
   administrator widzi przy bieżącym karnecie tej osoby (`PASS-09`, `PASS-11`). Dotyczy tylko
   dzisiejszego karnetu: wcześniejszy nieopłacony karnet nie jest tu pokazany.

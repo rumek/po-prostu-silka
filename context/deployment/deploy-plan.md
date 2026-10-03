@@ -291,9 +291,22 @@ acceptable; losing one violates the milestone's guardrail.
 
 The single App Service holds the environment used for manual testing. Change
 `test-environment-seed-data` added a config-gated `TestDataSeeder`
-(`src/Infrastructure/TestData/`). It fills the database with a deterministic club: 200 members
-(40 of them accountless, about half of those with a live claim code), 2 admins, 2 trainers, passes,
-four weeks of classes back and four ahead with bookings, an exercise library and 8 active plans.
+(`src/Infrastructure/TestData/`). It fills the database with a deterministic club.
+
+Since `club-shaped-test-data` (2026-10-03), that club is shaped on the club's own spreadsheets
+(`treningi.xlsx`, `twt.xlsx`; shape only, no names):
+
+- **People:** 100 members (30 of them accountless, about half of those with a live claim code),
+  2 admins and 4 fictional trainers.
+- **Groups:** about 30 fixed weekly groups (individual, pairs, trios, groups of up to 6), each with a
+  fixed time, a fixed trainer and a roster. A few occurrences carry substitutions, moved times or
+  cancellations.
+- **Karnety:** "Miesięczny" (4 entries, 30 days), "Wejście jednorazowe" and "Voucher". At least 8 end
+  within five days, at least 5 current and 3 expired ones are unpaid, and a few roster members have a
+  lapsed karnet, so their future classes show as gaps.
+- **History:** five weeks of classes back and four ahead. Attendance is marked up to two days ago, and
+  makeups exist in every state.
+- **Training:** an exercise library and 8 active plans.
 
 **It runs only in `Development` and `Staging`**, whatever the flags say. That environment check is
 the only thing that protects this database on the day it becomes production.
@@ -327,7 +340,8 @@ startup from `https://po-prostu-silka.scm.azurewebsites.net/api/logs/docker`, th
 
 First seed, 2026-09-22 09:09 UTC: `Seeded test data: 164 accounts, 204 members, 266 passes,
 192 classes, 1009 bookings, 27 exercises, 10 plans.` The reset and the seed took about 16 s of cold
-start on B1.
+start on B1. The club-shaped seed writes fewer rows (about 270 classes and 800 bookings), and its log
+line also names the groups and roster entries.
 
 1. `az webapp config appsettings set -n po-prostu-silka -g pps-rg --settings TestDataSeed__Reset=true`.
    Changing an app setting restarts the app.
@@ -342,8 +356,10 @@ Seeded logins, all with the shared password:
 
 - `admin1@example.test` (Admin, teaches nothing) and `admin2@example.test` (Admin + Trainer since
   S-25, instructs part of the schedule)
-- `trener1@example.test` and `trener2@example.test` (Trainer)
-- `czlonek001@example.test` … `czlonek160@example.test` (members; a few of them are blocked)
+- `trener1@example.test` … `trener4@example.test` (Trainer)
+- `czlonek001@example.test` … `czlonek070@example.test` (members; three of `czlonek021`–`070` are
+  blocked, and `czlonek010` is always an active roster member with a live karnet)
+- `bezkonta01` … `bezkonta30` (accountless records; they cannot log in)
 
 The `example.test` domain is reserved, so a stray e-mail can never reach a real person.
 
